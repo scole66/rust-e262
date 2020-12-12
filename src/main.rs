@@ -1,7 +1,33 @@
+#![allow(dead_code, unused_variables)]
+
 use std::env;
 use std::io::{self, Write};
 
 mod scanner;
+
+#[derive(Debug, PartialEq)]
+pub enum ParseGoal {
+    Script,
+    Module,
+}
+
+pub struct Parser<'a> {
+    source: &'a str,
+    scanner: Scanner,
+    strict: bool,
+    goal: ParseGoal,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(source: &'a str, strict: bool, goal: ParseGoal) -> Self {
+        Self {
+            source,
+            scanner: Scanner::new(),
+            strict,
+            goal,
+        }
+    }
+}
 
 //////// 12.1 Identifiers
 
@@ -13,28 +39,21 @@ pub struct Identifier {
 }
 
 pub trait StringValue {
-    fn string_value(&self) -> &scanner::JSString;
+    fn string_value(&self) -> scanner::JSString;
 }
 
 impl StringValue for Identifier {
-    fn string_value(&self) -> &scanner::JSString {
-        &self.identifier_name.string_value
+    fn string_value(&self) -> scanner::JSString {
+        self.identifier_name.string_value.clone()
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum ParseGoal {
-    Script,
-    Module,
-}
-
-fn identifier(
-    scanner: &Scanner,
-    source: &str,
-    strict: bool,
-    goal: ParseGoal,
-) -> Result<Option<(Box<Identifier>, Scanner)>, String> {
-    let tok = scanner::scan_token(scanner, source, scanner::ScanGoal::InputElementRegExp);
+fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>, String> {
+    let tok = scanner::scan_token(
+        &parser.scanner,
+        parser.source,
+        scanner::ScanGoal::InputElementRegExp,
+    );
     match tok {
         Err(err) => Err(err),
         Ok(tpl) => match tpl.0 {
@@ -78,7 +97,7 @@ fn identifier(
                 | Some(scanner::Keyword::With)
                 | Some(scanner::Keyword::Yield) => Ok(None),
                 _ => {
-                    if strict
+                    if parser.strict
                         && (id.string_value == "implements"
                             || id.string_value == "interface"
                             || id.string_value == "let"
@@ -93,7 +112,7 @@ fn identifier(
                             "{}:{}: ‘{}’ not allowed as an identifier in strict mode",
                             id.line, id.column, id.string_value
                         ))
-                    } else if goal == ParseGoal::Module && id.string_value == "await" {
+                    } else if parser.goal == ParseGoal::Module && id.string_value == "await" {
                         Err(format!(
                             "{}:{}: ‘await’ not allowed as an identifier in modules",
                             id.line, id.column
@@ -165,24 +184,21 @@ enum IdentifierReference {
 }
 
 impl StringValue for IdentifierReference {
-    fn string_value(&self) -> &scanner::JSString {
+    fn string_value(&self) -> scanner::JSString {
         match self {
             IdentifierReference::Identifier(id) => id.string_value(),
-            IdentifierReference::Yield => &scanner::JSString::from_str("yield"),
-            IdentifierReference::Await => &scanner::JSString::from_str("await"),
+            IdentifierReference::Yield => scanner::JSString::from_str("yield"),
+            IdentifierReference::Await => scanner::JSString::from_str("await"),
         }
     }
 }
 
 fn identifier_reference(
-    scanner: &Scanner,
-    source: &str,
-    strict: bool,
-    goal: ParseGoal,
+    parser: &mut Parser,
     arg_yield: bool,
     arg_await: bool,
 ) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
-    let production = identifier(scanner, source, strict, goal)?;
+    let production = identifier(parser)?;
     match production {
         Some((ident, scanner)) => {
             let node = IdentifierReference::Identifier(ident);
@@ -190,8 +206,11 @@ fn identifier_reference(
             Ok(Some((boxed, scanner)))
         }
         None => {
-            let (token, scan) =
-                scanner::scan_token(scanner, source, scanner::ScanGoal::InputElementRegExp)?;
+            let (token, scan) = scanner::scan_token(
+                &parser.scanner,
+                parser.source,
+                scanner::ScanGoal::InputElementRegExp,
+            )?;
             match token {
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => {
@@ -341,7 +360,8 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     //     source,
     //     scanner::ScanGoal::InputElementRegExp,
     // );
-    let result = identifier_reference(&Scanner::new(), source, false, ParseGoal::Script, false, false);
+    let mut parser = Parser::new(source, false, ParseGoal::Script);
+    let result = identifier_reference(&mut parser, false, false);
     println!("{:#?}", result);
     match result {
         Ok(_) => Ok(0),
@@ -401,8 +421,11 @@ fn main() {
 #[cfg(test)]
 mod tests {
     fn id_kwd_test(kwd: &str) {
-        let result =
-            super::identifier(&super::Scanner::new(), kwd, false, super::ParseGoal::Script);
+        let result = super::identifier(&mut super::Parser::new(
+            kwd,
+            false,
+            super::ParseGoal::Script,
+        ));
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -560,12 +583,11 @@ mod tests {
     }
     #[test]
     fn identifier_test_err() {
-        let result = super::identifier(
-            &super::Scanner::new(),
+        let result = super::identifier(&mut super::Parser::new(
             "iden\\u{20}tifier",
             false,
             super::ParseGoal::Script,
-        );
+        ));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -573,7 +595,8 @@ mod tests {
         )
     }
     fn identifier_test_strict(kwd: &str) {
-        let result = super::identifier(&super::Scanner::new(), kwd, true, super::ParseGoal::Script);
+        let result =
+            super::identifier(&mut super::Parser::new(kwd, true, super::ParseGoal::Script));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -615,12 +638,11 @@ mod tests {
     fn identifier_test_keyword(kwd: &str) {
         let firstch = kwd.chars().next().unwrap();
         let id_src = format!("\\u{{{:x}}}{}", firstch as u32, &kwd[firstch.len_utf8()..]);
-        let result = super::identifier(
-            &super::Scanner::new(),
+        let result = super::identifier(&mut super::Parser::new(
             &id_src,
             false,
             super::ParseGoal::Script,
-        );
+        ));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -776,12 +798,11 @@ mod tests {
     }
     #[test]
     fn identifier_test_successful_bob() {
-        let result = super::identifier(
-            &super::Scanner::new(),
+        let result = super::identifier(&mut super::Parser::new(
             "bob",
             true,
             super::ParseGoal::Script,
-        );
+        ));
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
@@ -803,8 +824,11 @@ mod tests {
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let result =
-            super::identifier(&super::Scanner::new(), text, true, super::ParseGoal::Script);
+        let result = super::identifier(&mut super::Parser::new(
+            text,
+            true,
+            super::ParseGoal::Script,
+        ));
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());

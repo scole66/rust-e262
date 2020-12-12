@@ -1,6 +1,7 @@
 pub mod ranges;
 use num::bigint::BigInt;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ScanGoal {
@@ -10,9 +11,9 @@ pub enum ScanGoal {
     InputElementDiv,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct JSString {
-    string: Vec<u16>,
+    string: Rc<Vec<u16>>,
 }
 
 impl fmt::Debug for JSString {
@@ -59,7 +60,7 @@ impl JSString {
         for val in source.encode_utf16() {
             result.push(val);
         }
-        JSString{ string: result }
+        JSString{ string: Rc::new(result) }
     }
 }
 
@@ -740,7 +741,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             result.append(&mut code_point_to_utf16_code_units(cp))
         }
     }
-    JSString { string: result }
+    JSString { string: Rc::new(result) }
 }
 
 fn keycomplete(source: &str, cmp: &str, kwd: Keyword) -> Option<Keyword> {
