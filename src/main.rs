@@ -29,6 +29,23 @@ impl<'a> Parser<'a> {
     }
 }
 
+pub trait StringValue {
+    fn string_value(&self) -> scanner::JSString;
+}
+
+pub trait BoundNames {
+    fn bound_names(&self) -> Vec<scanner::JSString>;
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum ATTKind {
+    Invalid,
+    Simple,
+}
+pub trait AssignmentTargetType {
+    fn assignment_target_type(&self) -> ATTKind;
+}
+
 //////// 12.1 Identifiers
 
 // Identifier:
@@ -36,10 +53,6 @@ impl<'a> Parser<'a> {
 #[derive(Debug)]
 pub struct Identifier {
     identifier_name: scanner::IdentifierData,
-}
-
-pub trait StringValue {
-    fn string_value(&self) -> scanner::JSString;
 }
 
 impl StringValue for Identifier {
@@ -176,19 +189,49 @@ fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>,
 //      Identifier
 //      [~Yield]yield
 //      [~Await]await
+
 #[derive(Debug)]
-enum IdentifierReference {
+enum IdentifierReferenceKind {
     Identifier(Box<Identifier>),
     Yield,
     Await,
 }
 
+#[derive(Debug)]
+struct IdentifierReference {
+    kind: IdentifierReferenceKind,
+    strict: bool,
+}
+
 impl StringValue for IdentifierReference {
     fn string_value(&self) -> scanner::JSString {
-        match self {
-            IdentifierReference::Identifier(id) => id.string_value(),
-            IdentifierReference::Yield => scanner::JSString::from_str("yield"),
-            IdentifierReference::Await => scanner::JSString::from_str("await"),
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => scanner::JSString::from_str("yield"),
+            Await => scanner::JSString::from_str("await"),
+        }
+    }
+}
+
+impl AssignmentTargetType for IdentifierReference {
+    fn assignment_target_type(&self) -> ATTKind {
+        use ATTKind::*;
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => {
+                if self.strict {
+                    let sv = id.string_value();
+                    if sv == "eval" || sv == "arguments" {
+                        Invalid
+                    } else {
+                        Simple
+                    }
+                } else {
+                    Simple
+                }
+            }
+            Await | Yield => Simple,
         }
     }
 }
@@ -199,9 +242,13 @@ fn identifier_reference(
     arg_await: bool,
 ) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
     let production = identifier(parser)?;
+    use IdentifierReferenceKind::*;
     match production {
         Some((ident, scanner)) => {
-            let node = IdentifierReference::Identifier(ident);
+            let node = IdentifierReference {
+                kind: Identifier(ident),
+                strict: parser.strict,
+            };
             let boxed = Box::new(node);
             Ok(Some((boxed, scanner)))
         }
@@ -215,18 +262,118 @@ fn identifier_reference(
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => {
                         if !arg_await {
-                            Ok(Some((Box::new(IdentifierReference::Await), scan)))
+                            Ok(Some((
+                                Box::new(IdentifierReference {
+                                    kind: Await,
+                                    strict: parser.strict,
+                                }),
+                                scan,
+                            )))
                         } else {
                             Ok(None)
                         }
                     }
                     Some(scanner::Keyword::Yield) => {
                         if !arg_yield {
-                            Ok(Some((Box::new(IdentifierReference::Yield), scan)))
+                            Ok(Some((
+                                Box::new(IdentifierReference {
+                                    kind: Yield,
+                                    strict: parser.strict,
+                                }),
+                                scan,
+                            )))
                         } else {
                             Ok(None)
                         }
                     }
+                    _ => Ok(None),
+                },
+                _ => Ok(None),
+            }
+        }
+    }
+}
+
+// BindingIdentifier[Yield, Await] :
+//    Identifier
+//    yield
+//    await
+#[derive(Debug)]
+enum BindingIdentifierKind {
+    Identifier(Box<Identifier>),
+    Yield,
+    Await,
+}
+
+#[derive(Debug)]
+struct BindingIdentifier {
+    kind: BindingIdentifierKind,
+    yield_flag: bool,
+    await_flag: bool,
+}
+
+impl StringValue for BindingIdentifier {
+    fn string_value(&self) -> scanner::JSString {
+        use BindingIdentifierKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => scanner::JSString::from_str("yield"),
+            Await => scanner::JSString::from_str("await"),
+        }
+    }
+}
+
+impl BoundNames for BindingIdentifier {
+    fn bound_names(&self) -> Vec<scanner::JSString> {
+        use BindingIdentifierKind::*;
+        match &self.kind {
+            Identifier(id) => vec![id.string_value()],
+            Yield => vec![scanner::JSString::from_str("yield")],
+            Await => vec![scanner::JSString::from_str("await")],
+        }
+    }
+}
+
+fn binding_identifier(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<BindingIdentifier>, Scanner)>, String> {
+    let production = identifier(parser)?;
+    match production {
+        Some((ident, scanner)) => {
+            let node = BindingIdentifier {
+                kind: BindingIdentifierKind::Identifier(ident),
+                yield_flag,
+                await_flag,
+            };
+            let boxed = Box::new(node);
+            Ok(Some((boxed, scanner)))
+        }
+        None => {
+            let (token, scan) = scanner::scan_token(
+                &parser.scanner,
+                parser.source,
+                scanner::ScanGoal::InputElementRegExp,
+            )?;
+            match token {
+                scanner::Token::Identifier(id) => match id.keyword_id {
+                    Some(scanner::Keyword::Await) => Ok(Some((
+                        Box::new(BindingIdentifier {
+                            kind: BindingIdentifierKind::Await,
+                            yield_flag,
+                            await_flag,
+                        }),
+                        scan,
+                    ))),
+                    Some(scanner::Keyword::Yield) => Ok(Some((
+                        Box::new(BindingIdentifier {
+                            kind: BindingIdentifierKind::Yield,
+                            yield_flag,
+                            await_flag,
+                        }),
+                        scan,
+                    ))),
                     _ => Ok(None),
                 },
                 _ => Ok(None),
@@ -420,6 +567,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     fn id_kwd_test(kwd: &str) {
         let result = super::identifier(&mut super::Parser::new(
             kwd,
@@ -846,5 +994,151 @@ mod tests {
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.line, 1);
         assert_eq!(data.column, 1);
+    }
+
+    fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
+        let yield_syntax = false;
+        let await_syntax = false;
+        let result = identifier_reference(
+            &mut Parser::new(text, strict, ParseGoal::Script),
+            yield_syntax,
+            await_syntax,
+        );
+        assert!(result.is_ok());
+        let optional_idref = result.unwrap();
+        assert!(optional_idref.is_some());
+        let (idref, scanner) = optional_idref.unwrap();
+        assert_eq!(
+            scanner,
+            Scanner {
+                line: 1,
+                column: text.len() as u32 + 1,
+                start_idx: text.len(),
+            }
+        );
+        idref
+    }
+
+    #[test]
+    fn idref_simple_success() {
+        let idref = idref_create("identifier", false);
+        assert_eq!(idref.strict, false);
+        use IdentifierReferenceKind::*;
+        match &idref.kind {
+            Yield | Await => assert!(
+                false,
+                "Wrong IdentifierReference Kind (expected Identifier)"
+            ),
+            Identifier(_) => (),
+        }
+
+        assert_eq!(idref.string_value(), "identifier");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+    }
+
+    #[test]
+    fn idref_yield() {
+        let idref = idref_create("yield", false);
+        assert_eq!(idref.strict, false);
+        use IdentifierReferenceKind::*;
+        match &idref.kind {
+            Await | Identifier(_) => {
+                assert!(false, "Wrong IdentifierReference Kind (expected Yield)")
+            }
+            Yield => (),
+        }
+
+        assert_eq!(idref.string_value(), "yield");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+    }
+
+    #[test]
+    fn idref_await() {
+        let idref = idref_create("await", false);
+        assert_eq!(idref.strict, false);
+        use IdentifierReferenceKind::*;
+        match &idref.kind {
+            Yield | Identifier(_) => {
+                assert!(false, "Wrong IdentifierReference Kind (expected Await)")
+            }
+            Await => (),
+        }
+
+        assert_eq!(idref.string_value(), "await");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+    }
+
+    #[test]
+    fn idref_eval_strict() {
+        let idref = idref_create("eval", true);
+        assert_eq!(idref.string_value(), "eval");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn idref_eval_loose() {
+        let idref = idref_create("eval", false);
+        assert_eq!(idref.string_value(), "eval");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn idref_arguments_strict() {
+        let idref = idref_create("arguments", true);
+        assert_eq!(idref.string_value(), "arguments");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn idref_arguments_loose() {
+        let idref = idref_create("arguments", false);
+        assert_eq!(idref.string_value(), "arguments");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+    }
+
+    fn bindingid_create(text: &str, y: bool, a: bool) -> Box<BindingIdentifier> {
+        let yield_syntax = y;
+        let await_syntax = a;
+        let strict = false;
+        let result = binding_identifier(
+            &mut Parser::new(text, strict, ParseGoal::Script),
+            yield_syntax,
+            await_syntax,
+        );
+        assert!(result.is_ok());
+        let optional_bid = result.unwrap();
+        assert!(optional_bid.is_some());
+        let (bid, scanner) = optional_bid.unwrap();
+        assert_eq!(
+            scanner,
+            Scanner {
+                line: 1,
+                column: text.len() as u32 + 1,
+                start_idx: text.len(),
+            }
+        );
+        bid
+    }
+
+    fn bid_allflags(text: &str) {
+        for yflag in [false, true].iter() {
+            for aflag in [false, true].iter() {
+                let bid = bindingid_create(text, *yflag, *aflag);
+                assert_eq!(bid.string_value(), text);
+                assert_eq!(bid.bound_names(), [text]);
+                assert_eq!(bid.yield_flag, *yflag);
+                assert_eq!(bid.await_flag, *aflag);
+            }
+        }
+    }
+
+    #[test]
+    fn binding_identifier_normal() {
+        bid_allflags("green");
+    }
+    #[test]
+    fn binding_identifier_yield() {
+        bid_allflags("yield");
+    }
+    #[test]
+    fn bindind_identifier_await() {
+        bid_allflags("await");
     }
 }
