@@ -37,6 +37,18 @@ pub trait BoundNames {
     fn bound_names(&self) -> Vec<scanner::JSString>;
 }
 
+pub trait HasName {
+    fn has_name(&self) -> bool;
+}
+
+pub trait IsFunctionDefinition {
+    fn is_function_definition(&self) -> bool;
+}
+
+pub trait IsIdentifierReference {
+    fn is_identifier_reference(&self) -> bool;
+}
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ATTKind {
     Invalid,
@@ -198,7 +210,7 @@ enum IdentifierReferenceKind {
 }
 
 #[derive(Debug)]
-struct IdentifierReference {
+pub struct IdentifierReference {
     kind: IdentifierReferenceKind,
     strict: bool,
 }
@@ -382,6 +394,104 @@ fn binding_identifier(
     }
 }
 
+//////// 12.2 Primary Expression
+// PrimaryExpression[Yield, Await] :
+//      this
+//      IdentifierReference[?Yield, ?Await]
+//      Literal
+//      ArrayLiteral[?Yield, ?Await]
+//      ObjectLiteral[?Yield, ?Await]
+//      FunctionExpression
+//      ClassExpression[?Yield, ?Await]
+//      GeneratorExpression
+//      AsyncFunctionExpression
+//      AsyncGeneratorExpression
+//      RegularExpressionLiteral
+//      TemplateLiteral[?Yield, ?Await, ~Tagged]
+//      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
+
+#[derive(Debug)]
+pub enum PrimaryExpressionKind {
+    This,
+    IdentifierReference(Box<IdentifierReference>),
+    //Literal(Box<Literal>),
+    // More to come
+}
+
+#[derive(Debug)]
+pub struct PrimaryExpression {
+    kind: PrimaryExpressionKind,
+}
+
+impl IsFunctionDefinition for PrimaryExpression {
+    fn is_function_definition(&self) -> bool {
+        use PrimaryExpressionKind::*;
+        match self.kind {
+            This | IdentifierReference(_) => false
+        }
+    }
+}
+
+impl IsIdentifierReference for PrimaryExpression {
+    fn is_identifier_reference(&self) -> bool {
+        use PrimaryExpressionKind::*;
+        match &self.kind {
+            This => false,
+            IdentifierReference(_) => true,
+        }
+    }
+}
+
+impl AssignmentTargetType for PrimaryExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        use PrimaryExpressionKind::*;
+        match &self.kind {
+            This => ATTKind::Invalid,
+            IdentifierReference(id) => id.assignment_target_type(),
+        }
+    }
+}
+
+fn primary_expression(
+    parser: &mut Parser,
+    arg_yield: bool,
+    arg_await: bool,
+) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
+    let idref = identifier_reference(parser, arg_yield, arg_await)?;
+    if let Some((idrefbox, new_scanner)) = idref {
+        let node = PrimaryExpression {
+            kind: PrimaryExpressionKind::IdentifierReference(idrefbox),
+        };
+        let boxed = Box::new(node);
+        return Ok(Some((boxed, new_scanner)));
+    }
+    let tok = scanner::scan_token(
+        &parser.scanner,
+        parser.source,
+        scanner::ScanGoal::InputElementRegExp,
+    )?;
+    if let (scanner::Token::Identifier(id), newscanner) = tok {
+        if let Some(kwd_id) = id.keyword_id {
+            if kwd_id == scanner::Keyword::This {
+                let node = PrimaryExpression {
+                    kind: PrimaryExpressionKind::This,
+                };
+                let boxed = Box::new(node);
+                return Ok(Some((boxed, newscanner)));
+            }
+        }
+    }
+    Ok(None)
+}
+
+//////// 12.2.4 Literals
+// Literal :
+//      NullLiteral
+//      BooleanLiteral
+//      NumericLiteral
+//      StringLiteral
+
+
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -508,7 +618,7 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     //     scanner::ScanGoal::InputElementRegExp,
     // );
     let mut parser = Parser::new(source, false, ParseGoal::Script);
-    let result = identifier_reference(&mut parser, false, false);
+    let result = primary_expression(&mut parser, false, false);
     println!("{:#?}", result);
     match result {
         Ok(_) => Ok(0),
