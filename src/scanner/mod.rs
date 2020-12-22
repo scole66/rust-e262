@@ -60,7 +60,23 @@ impl JSString {
         for val in source.encode_utf16() {
             result.push(val);
         }
-        JSString{ string: Rc::new(result) }
+        JSString {
+            string: Rc::new(result),
+        }
+    }
+
+    pub fn from_u16s(source: &[u16]) -> JSString {
+        let mut result = Vec::with_capacity(source.len());
+        result.extend_from_slice(source);
+        JSString {
+            string: Rc::new(result),
+        }
+    }
+
+    pub fn take(source: Vec<u16>) -> JSString {
+        JSString {
+            string: Rc::new(source),
+        }
     }
 }
 
@@ -193,7 +209,7 @@ pub enum Token {
     Identifier(IdentifierData),
     Number(f64),
     BigInt(BigInt),
-    String,
+    String(JSString),
     Error,
 }
 
@@ -228,6 +244,21 @@ fn is_whitespace(ch: char) -> bool {
         || ch == '\u{202f}'
         || ch == '\u{205f}'
         || ch == '\u{3000}'
+}
+
+fn is_single_escape_char(ch: char) -> bool {
+    match ch {
+        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' => true,
+        _ => false,
+    }
+}
+
+fn is_escape_char(ch: char) -> bool {
+    match ch {
+        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2'
+        | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
+        _ => false,
+    }
 }
 
 // Given a scanner context, return a new context (over the same source string) which begins at the first
@@ -741,7 +772,9 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             result.append(&mut code_point_to_utf16_code_units(cp))
         }
     }
-    JSString { string: Rc::new(result) }
+    JSString {
+        string: Rc::new(result),
+    }
 }
 
 fn keycomplete(source: &str, cmp: &str, kwd: Keyword) -> Option<Keyword> {
@@ -1432,7 +1465,50 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
 }
 
 fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
-    None
+    let mut iter = source[scanner.start_idx..].chars();
+    match iter.next() {
+        // CharacterEscapeSequence
+        Some(ch) if is_single_escape_char(ch) || !(is_escape_char(ch) || is_lineterm(ch)) => {
+            Some(Scanner {
+                line: scanner.line,
+                column: scanner.column + 1,
+                start_idx: scanner.start_idx + ch.len_utf8(),
+            })
+        }
+        // 0 [lookahead ∉ DecimalDigit]
+        Some('0') => {
+            let lookahead = iter.next();
+            match lookahead {
+                Some(ch) if ch >= '0' && ch <= '9' => None,
+                _ => Some(Scanner {
+                    line: scanner.line,
+                    column: scanner.column + 1,
+                    start_idx: scanner.start_idx + 1,
+                }),
+            }
+        }
+        // HexEscapeSequence
+        Some('x') => {
+            let ch1 = iter.next();
+            match ch1 {
+                Some(digit_1) if is_hex_digit(digit_1) => {
+                    let ch2 = iter.next();
+                    match ch2 {
+                        Some(digit_2) if is_hex_digit(digit_2) => Some(Scanner {
+                            line: scanner.line,
+                            column: scanner.column + 3,
+                            start_idx: scanner.start_idx + 3,
+                        }),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            }
+        }
+        // UnicodeEscapeSequence
+        Some('u') => unicode_escape_sequence(scanner, source),
+        _ => None,
+    }
 }
 
 fn line_terminator_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
@@ -1472,8 +1548,16 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
                 after.column += 1;
                 after.start_idx += 1;
                 // This can come back poorly. If it does, this is a broken string, and we should return None.
-                after = escape_sequence(&after, source)
+                let after_escape = escape_sequence(&after, source)
                     .or_else(|| line_terminator_sequence(&after, source))?;
+                // That probably consumed characters, but our iterator doesn't know that it should have been advanced.
+                // So consume some chars here to get us back in sync.
+                let mut idx = after.start_idx;
+                while idx < after_escape.start_idx {
+                    let ch = iter.next().unwrap();
+                    idx += ch.len_utf8();
+                }
+                after = after_escape;
             }
             _ => {
                 break;
@@ -1487,6 +1571,85 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
     }
 }
 
+fn literal_string_value(source: &str) -> JSString {
+    let mut result: Vec<u16> = Vec::with_capacity(source.len());
+    let mut chars = source.chars().peekable();
+    loop {
+        let ch = chars.next();
+        match ch {
+            None => {
+                break;
+            }
+            Some('\\') => {
+                let ch2 = chars.next().unwrap(); // Guaranteed not to panic, as string has already been validated.
+                match ch2 {
+                    '0' => result.push(0),
+                    'b' => result.push(8),
+                    't' => result.push(9),
+                    'n' => result.push(10),
+                    'v' => result.push(11),
+                    'f' => result.push(12),
+                    'r' => result.push(13),
+                    '"' => result.push(0x22),
+                    '\'' => result.push(0x27),
+                    '\\' => result.push(0x5c),
+                    'x' => {
+                        let digit_1 = chars.next().unwrap().to_digit(16).unwrap() as u16;
+                        let digit_2 = chars.next().unwrap().to_digit(16).unwrap() as u16;
+                        let value = digit_1 * 16 + digit_2;
+                        result.push(value);
+                    }
+                    'u' => {
+                        let ch2 = chars.next().unwrap();
+                        match ch2 {
+                            '{' => {
+                                let mut value: u32 = 0;
+                                loop {
+                                    let digit = chars.next().unwrap();
+                                    if digit == '}' {
+                                        result.extend(code_point_to_utf16_code_units(
+                                            char::from_u32(value).unwrap(),
+                                        ));
+                                        break;
+                                    }
+                                    value = value * 16 + digit.to_digit(16).unwrap();
+                                }
+                            }
+                            _ => {
+                                let digit_1 = ch2.to_digit(16).unwrap();
+                                let digit_2 = chars.next().unwrap().to_digit(16).unwrap();
+                                let digit_3 = chars.next().unwrap().to_digit(16).unwrap();
+                                let digit_4 = chars.next().unwrap().to_digit(16).unwrap();
+                                let value =
+                                    (digit_1 << 12) | (digit_2 << 8) | (digit_3 << 4) | digit_4;
+                                result.push(value as u16);
+                            }
+                        }
+                    }
+                    '\n' | '\u{2028}' | '\u{2029}' => (),
+                    '\r' => {
+                        if let Some('\n') = chars.peek() {
+                            chars.next();
+                        }
+                    }
+                    _ => {
+                        let mut buf = [0; 2];
+                        let coded = ch2.encode_utf16(&mut buf);
+                        result.extend_from_slice(coded);
+                    }
+                }
+            }
+            Some(c) => {
+                let mut buf = [0; 2];
+                let coded = c.encode_utf16(&mut buf);
+                result.extend_from_slice(coded);
+            }
+        }
+    }
+
+    JSString::take(result)
+}
+
 fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     let after = match_char(scanner, source, '"')
         .and_then(|r| string_characters(&r, source, '"').or_else(|| Some(r)))
@@ -1496,10 +1659,17 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
                 .and_then(|r| string_characters(&r, source, '\'').or_else(|| Some(r)))
                 .and_then(|r| match_char(&r, source, '\''))
         })?;
-    Some((Token::String, after))
+    let start_idx = scanner.start_idx + 1;
+    let after_idx = after.start_idx - 1;
+    assert!(after_idx >= start_idx);
+    let value = literal_string_value(&source[start_idx..after_idx]);
+
+    Some((Token::String(value), after))
 }
-fn template(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
-    Ok(None)
+
+fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+    let after = match_char(scanner, source, '`')?;
+    todo!();
 }
 
 fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
@@ -1512,7 +1682,7 @@ fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanne
             if r.is_none() {
                 r = string_literal(scanner, source);
                 if r.is_none() {
-                    r = template(scanner, source)?;
+                    r = template(scanner, source);
                 }
             }
         }

@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
+use num::bigint::BigInt;
 use std::env;
 use std::io::{self, Write};
 
@@ -414,7 +415,7 @@ fn binding_identifier(
 pub enum PrimaryExpressionKind {
     This,
     IdentifierReference(Box<IdentifierReference>),
-    //Literal(Box<Literal>),
+    Literal(Box<Literal>),
     // More to come
 }
 
@@ -427,7 +428,7 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
         match self.kind {
-            This | IdentifierReference(_) => false
+            This | IdentifierReference(_) | Literal(_) => false,
         }
     }
 }
@@ -436,7 +437,7 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This => false,
+            This | Literal(_) => false,
             IdentifierReference(_) => true,
         }
     }
@@ -446,7 +447,7 @@ impl AssignmentTargetType for PrimaryExpression {
     fn assignment_target_type(&self) -> ATTKind {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This => ATTKind::Invalid,
+            This | Literal(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
         }
     }
@@ -461,6 +462,14 @@ fn primary_expression(
     if let Some((idrefbox, new_scanner)) = idref {
         let node = PrimaryExpression {
             kind: PrimaryExpressionKind::IdentifierReference(idrefbox),
+        };
+        let boxed = Box::new(node);
+        return Ok(Some((boxed, new_scanner)));
+    }
+    let lit = literal(parser)?;
+    if let Some((litbox, new_scanner)) = lit {
+        let node = PrimaryExpression {
+            kind: PrimaryExpressionKind::Literal(litbox),
         };
         let boxed = Box::new(node);
         return Ok(Some((boxed, new_scanner)));
@@ -490,7 +499,79 @@ fn primary_expression(
 //      BooleanLiteral
 //      NumericLiteral
 //      StringLiteral
+#[derive(Debug)]
+pub enum Numeric {
+    Number(f64),
+    BigInt(BigInt),
+}
+#[derive(Debug)]
+pub enum LiteralKind {
+    NullLiteral,
+    BooleanLiteral(bool),
+    NumericLiteral(Numeric),
+    StringLiteral(scanner::JSString),
+}
+#[derive(Debug)]
+pub struct Literal {
+    kind: LiteralKind,
+}
 
+fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, String> {
+    let scan_result = scanner::scan_token(
+        &parser.scanner,
+        parser.source,
+        scanner::ScanGoal::InputElementRegExp,
+    )?;
+    let (token, newscanner) = scan_result;
+    match token {
+        scanner::Token::Identifier(id) => match id.keyword_id {
+            Some(scanner::Keyword::Null) => {
+                let node = Literal {
+                    kind: LiteralKind::NullLiteral,
+                };
+                let boxed = Box::new(node);
+                return Ok(Some((boxed, newscanner)));
+            }
+            Some(scanner::Keyword::True) => {
+                let node = Literal {
+                    kind: LiteralKind::BooleanLiteral(true),
+                };
+                let boxed = Box::new(node);
+                return Ok(Some((boxed, newscanner)));
+            }
+            Some(scanner::Keyword::False) => {
+                let node = Literal {
+                    kind: LiteralKind::BooleanLiteral(false),
+                };
+                let boxed = Box::new(node);
+                return Ok(Some((boxed, newscanner)));
+            }
+            _ => return Ok(None),
+        },
+        scanner::Token::Number(num) => {
+            let node = Literal {
+                kind: LiteralKind::NumericLiteral(Numeric::Number(num)),
+            };
+            let boxed = Box::new(node);
+            return Ok(Some((boxed, newscanner)));
+        }
+        scanner::Token::BigInt(bi) => {
+            let node = Literal {
+                kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)),
+            };
+            let boxed = Box::new(node);
+            return Ok(Some((boxed, newscanner)));
+        }
+        scanner::Token::String(s) => {
+            let node = Literal {
+                kind: LiteralKind::StringLiteral(s),
+            };
+            let boxed = Box::new(node);
+            return Ok(Some((boxed, newscanner)));
+        }
+        _ => return Ok(None),
+    }
+}
 
 //////// 13.2 Block
 
