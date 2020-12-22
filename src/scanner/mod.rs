@@ -20,7 +20,7 @@ impl fmt::Debug for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!(
             "{:?}",
-            String::from_utf16(&self.string).unwrap()
+            String::from_utf16_lossy(&self.string)
         ))
     }
 }
@@ -29,7 +29,7 @@ impl fmt::Display for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!(
             "{}",
-            String::from_utf16(&self.string).unwrap()
+            String::from_utf16_lossy(&self.string)
         ))
     }
 }
