@@ -18,19 +18,13 @@ pub struct JSString {
 
 impl fmt::Debug for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "{:?}",
-            String::from_utf16_lossy(&self.string)
-        ))
+        f.write_fmt(format_args!("{:?}", String::from_utf16_lossy(&self.string)))
     }
 }
 
 impl fmt::Display for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "{}",
-            String::from_utf16_lossy(&self.string)
-        ))
+        f.write_fmt(format_args!("{}", String::from_utf16_lossy(&self.string)))
     }
 }
 
@@ -255,8 +249,8 @@ fn is_single_escape_char(ch: char) -> bool {
 
 fn is_escape_char(ch: char) -> bool {
     match ch {
-        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2'
-        | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
+        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6'
+        | '7' | '8' | '9' => true,
         _ => false,
     }
 }
@@ -411,9 +405,9 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 // If None comes back, this is actually a syntax error.
                                 None => {
                                     return Err(format!(
-                                    "Unterminated /*-style comment. Started on line {}, column {}.",
-                                    comment_start_line, comment_start_column
-                                ))
+                                        "Unterminated /*-style comment. Started on line {}, column {}.",
+                                        comment_start_line, comment_start_column
+                                    ))
                                 }
                                 Some(c) => {
                                     ch = c;
@@ -448,9 +442,9 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             match iter.next() {
                                 None => {
                                     return Err(format!(
-                                    "Unterminated /*-style comment. Started on line {}, column {}.",
-                                    comment_start_line, comment_start_column
-                                ))
+                                        "Unterminated /*-style comment. Started on line {}, column {}.",
+                                        comment_start_line, comment_start_column
+                                    ))
                                 }
                                 Some(c) => {
                                     ch = c;
@@ -460,12 +454,17 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             if previous == '\r' && ch == '\n' {
                                 idx = pending_idx;
                                 match iter.next() {
-                                        None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
-                                        Some(c) => {
-                                            ch = c;
-                                            pending_idx = idx + ch.len_utf8();
-                                        }
+                                    None => {
+                                        return Err(format!(
+                                            "Unterminated /*-style comment. Started on line {}, column {}.",
+                                            comment_start_line, comment_start_column
+                                        ))
                                     }
+                                    Some(c) => {
+                                        ch = c;
+                                        pending_idx = idx + ch.len_utf8();
+                                    }
+                                }
                             }
                             continue;
                         }
@@ -523,11 +522,7 @@ fn hex_four_digits(scanner: &Scanner, source: &str) -> Option<Scanner> {
         Some(Scanner {
             line: scanner.line,
             column: scanner.column + 4,
-            start_idx: scanner.start_idx
-                + first.len_utf8()
-                + second.len_utf8()
-                + third.len_utf8()
-                + fourth.len_utf8(),
+            start_idx: scanner.start_idx + first.len_utf8() + second.len_utf8() + third.len_utf8() + fourth.len_utf8(),
         })
     } else {
         None
@@ -549,8 +544,7 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
         break;
     }
     if count > 0 {
-        let parse_result =
-            u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
+        let parse_result = u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
         if let Ok(mv) = parse_result {
             if mv <= 0x10FFFF {
                 return Some(Scanner {
@@ -614,8 +608,7 @@ fn ues_char_value(source: &str) -> char {
     let bytes = source.as_bytes();
     let value;
     if bytes[1] == '{' as u8 {
-        value =
-            u32::from_str_radix(str::from_utf8(&bytes[2..bytes.len() - 1]).unwrap(), 16).unwrap();
+        value = u32::from_str_radix(str::from_utf8(&bytes[2..bytes.len() - 1]).unwrap(), 16).unwrap();
     } else {
         value = u32::from_str_radix(str::from_utf8(&bytes[1..5]).unwrap(), 16).unwrap();
     }
@@ -639,12 +632,7 @@ fn is_unicode_id_continue(ch: char) -> bool {
     unicode_range_checker(ch, &ranges::ID_CONTINUE)
 }
 
-fn identifier_piece<F>(
-    scanner: &Scanner,
-    source: &str,
-    validate: F,
-    style: &str,
-) -> Result<Option<Scanner>, String>
+fn identifier_piece<F>(scanner: &Scanner, source: &str, validate: F, style: &str) -> Result<Option<Scanner>, String>
 where
     F: Fn(char) -> bool,
 {
@@ -703,8 +691,7 @@ fn identifier_part(scanner: &Scanner, source: &str) -> Result<Option<Scanner>, S
     //      \ UnicodeEscapeSequence
     //      <ZWNJ>
     //      <ZWJ>
-    let continue_validation =
-        |ch| ch == '$' || ch == '\u{200c}' || ch == '\u{200d}' || is_unicode_id_continue(ch);
+    let continue_validation = |ch| ch == '$' || ch == '\u{200c}' || ch == '\u{200d}' || is_unicode_id_continue(ch);
     identifier_piece(scanner, source, continue_validation, "Continuation")
 }
 
@@ -917,10 +904,7 @@ fn identifier_name_keyword(source: &str) -> Option<Keyword> {
     }
 }
 
-pub fn identifier_name(
-    scanner: &Scanner,
-    source: &str,
-) -> Result<Option<(Token, Scanner)>, String> {
+pub fn identifier_name(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
     // IdentifierName ::
     //    IdentifierStart
     //    IdentifierName IdentifierPart
@@ -947,9 +931,7 @@ pub fn identifier_name(
 
     Ok(Some((
         Token::Identifier(IdentifierData {
-            string_value: identifier_name_string_value(
-                &source[scanner.start_idx..scanner_1.start_idx],
-            ),
+            string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
             line: scanner.line,
             column: scanner.column,
@@ -1313,11 +1295,7 @@ fn hex_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<Sca
         .and_then(|r| hex_digits(&r, source, sep))
 }
 
-fn non_decimal_integer_literal(
-    scanner: &Scanner,
-    source: &str,
-    sep: bool,
-) -> Option<(NumberStyle, Scanner)> {
+fn non_decimal_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<(NumberStyle, Scanner)> {
     binary_integer_literal(scanner, source, sep).map_or_else(
         || {
             octal_integer_literal(scanner, source, sep).map_or_else(
@@ -1376,9 +1354,8 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
         .or_else(|| {
             decimal_big_integer_literal(scanner, source).map_or_else(
                 || {
-                    non_decimal_integer_literal(scanner, source, true).or_else(|| {
-                        decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r))
-                    })
+                    non_decimal_integer_literal(scanner, source, true)
+                        .or_else(|| decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r)))
                 },
                 |r| Some((NumberStyle::BigDecimal, r)),
             )
@@ -1468,13 +1445,11 @@ fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
     let mut iter = source[scanner.start_idx..].chars();
     match iter.next() {
         // CharacterEscapeSequence
-        Some(ch) if is_single_escape_char(ch) || !(is_escape_char(ch) || is_lineterm(ch)) => {
-            Some(Scanner {
-                line: scanner.line,
-                column: scanner.column + 1,
-                start_idx: scanner.start_idx + ch.len_utf8(),
-            })
-        }
+        Some(ch) if is_single_escape_char(ch) || !(is_escape_char(ch) || is_lineterm(ch)) => Some(Scanner {
+            line: scanner.line,
+            column: scanner.column + 1,
+            start_idx: scanner.start_idx + ch.len_utf8(),
+        }),
         // 0 [lookahead ∉ DecimalDigit]
         Some('0') => {
             let lookahead = iter.next();
@@ -1548,8 +1523,8 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
                 after.column += 1;
                 after.start_idx += 1;
                 // This can come back poorly. If it does, this is a broken string, and we should return None.
-                let after_escape = escape_sequence(&after, source)
-                    .or_else(|| line_terminator_sequence(&after, source))?;
+                let after_escape =
+                    escape_sequence(&after, source).or_else(|| line_terminator_sequence(&after, source))?;
                 // That probably consumed characters, but our iterator doesn't know that it should have been advanced.
                 // So consume some chars here to get us back in sync.
                 let mut idx = after.start_idx;
@@ -1607,9 +1582,7 @@ fn literal_string_value(source: &str) -> JSString {
                                 loop {
                                     let digit = chars.next().unwrap();
                                     if digit == '}' {
-                                        result.extend(code_point_to_utf16_code_units(
-                                            char::from_u32(value).unwrap(),
-                                        ));
+                                        result.extend(code_point_to_utf16_code_units(char::from_u32(value).unwrap()));
                                         break;
                                     }
                                     value = value * 16 + digit.to_digit(16).unwrap();
@@ -1620,8 +1593,7 @@ fn literal_string_value(source: &str) -> JSString {
                                 let digit_2 = chars.next().unwrap().to_digit(16).unwrap();
                                 let digit_3 = chars.next().unwrap().to_digit(16).unwrap();
                                 let digit_4 = chars.next().unwrap().to_digit(16).unwrap();
-                                let value =
-                                    (digit_1 << 12) | (digit_2 << 8) | (digit_3 << 4) | digit_4;
+                                let value = (digit_1 << 12) | (digit_2 << 8) | (digit_3 << 4) | digit_4;
                                 result.push(value as u16);
                             }
                         }
@@ -1719,11 +1691,7 @@ fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(To
     }
 }
 
-fn right_brace_punctuator(
-    scanner: &Scanner,
-    source: &str,
-    goal: ScanGoal,
-) -> Option<(Token, Scanner)> {
+fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementDiv || goal == ScanGoal::InputElementRegExp {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('}') {
@@ -1757,11 +1725,7 @@ fn template_substitution_tail(
     Ok(None)
 }
 
-pub fn scan_token(
-    scanner: &Scanner,
-    source: &str,
-    goal: ScanGoal,
-) -> Result<(Token, Scanner), String> {
+pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(Token, Scanner), String> {
     let after_skippable = skip_skippables(scanner, source)?;
     if after_skippable.start_idx >= source.len() {
         return Ok((Token::Eof, after_skippable));
@@ -2274,10 +2238,7 @@ mod tests {
     }
     #[test]
     fn code_point_08() {
-        let result = code_point(
-            &Scanner::new(),
-            "000000000000000000000000000000000000000098",
-        );
+        let result = code_point(&Scanner::new(), "000000000000000000000000000000000000000098");
         assert_eq!(
             result,
             Some(Scanner {
@@ -2289,10 +2250,7 @@ mod tests {
     }
     #[test]
     fn code_point_09() {
-        let result = code_point(
-            &Scanner::new(),
-            "A000000000000000000000000000000000000000098",
-        );
+        let result = code_point(&Scanner::new(), "A000000000000000000000000000000000000000098");
         assert_eq!(result, None);
     }
     #[test]
@@ -2402,9 +2360,7 @@ mod tests {
     fn identifier_start_06() {
         assert_eq!(
             identifier_start(&Scanner::new(), "\\u0095blue"),
-            Err(String::from(
-                "1:1: Invalid Identifier Start Character '\\u{95}'"
-            ))
+            Err(String::from("1:1: Invalid Identifier Start Character '\\u{95}'"))
         );
     }
 

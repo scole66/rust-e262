@@ -75,11 +75,7 @@ impl StringValue for Identifier {
 }
 
 fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>, String> {
-    let tok = scanner::scan_token(
-        &parser.scanner,
-        parser.source,
-        scanner::ScanGoal::InputElementRegExp,
-    );
+    let tok = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
     match tok {
         Err(err) => Err(err),
         Ok(tpl) => match tpl.0 {
@@ -185,9 +181,7 @@ fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>,
                             id.line, id.column, id.string_value
                         ))
                     } else {
-                        let node = Identifier {
-                            identifier_name: id,
-                        };
+                        let node = Identifier { identifier_name: id };
                         let boxed = Box::new(node);
                         Ok(Some((boxed, tpl.1)))
                     }
@@ -266,11 +260,8 @@ fn identifier_reference(
             Ok(Some((boxed, scanner)))
         }
         None => {
-            let (token, scan) = scanner::scan_token(
-                &parser.scanner,
-                parser.source,
-                scanner::ScanGoal::InputElementRegExp,
-            )?;
+            let (token, scan) =
+                scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
             match token {
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => {
@@ -364,11 +355,8 @@ fn binding_identifier(
             Ok(Some((boxed, scanner)))
         }
         None => {
-            let (token, scan) = scanner::scan_token(
-                &parser.scanner,
-                parser.source,
-                scanner::ScanGoal::InputElementRegExp,
-            )?;
+            let (token, scan) =
+                scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
             match token {
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => Ok(Some((
@@ -453,44 +441,86 @@ impl AssignmentTargetType for PrimaryExpression {
     }
 }
 
+pub trait ToPrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind;
+}
+
+impl ToPrimaryExpressionKind for IdentifierReference {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::IdentifierReference(node)
+    }
+}
+impl ToPrimaryExpressionKind for Literal {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::Literal(node)
+    }
+}
+
+fn pe_boxer<T>(opt: Option<(Box<T>, Scanner)>) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
+where
+    T: ToPrimaryExpressionKind,
+{
+    Ok(opt.map(|(node, scanner)| {
+        (
+            Box::new(PrimaryExpression {
+                kind: T::to_primary_expression_kind(node),
+            }),
+            scanner,
+        )
+    }))
+}
+
+fn rewrap<T, E>(value: T) -> Result<Option<T>, E> {
+    Ok(Some(value))
+}
+
+fn act_if_needed<F, T>(
+    opt: Option<(Box<PrimaryExpression>, Scanner)>,
+    parser: &mut Parser,
+    f: F,
+) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
+where
+    F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
+    T: ToPrimaryExpressionKind,
+{
+    opt.map_or_else(|| f(parser).and_then(pe_boxer), rewrap)
+}
+
 fn primary_expression(
     parser: &mut Parser,
     arg_yield: bool,
     arg_await: bool,
 ) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
-    let idref = identifier_reference(parser, arg_yield, arg_await)?;
-    if let Some((idrefbox, new_scanner)) = idref {
-        let node = PrimaryExpression {
-            kind: PrimaryExpressionKind::IdentifierReference(idrefbox),
-        };
-        let boxed = Box::new(node);
-        return Ok(Some((boxed, new_scanner)));
+    Ok(None)
+        .and_then(|opt| act_if_needed(opt, parser, |p| identifier_reference(p, arg_yield, arg_await)))
+        .and_then(|opt| act_if_needed(opt, parser, literal))
+        .and_then(|opt| act_if_needed(opt, parser, this_token))
+}
+
+#[derive(Debug)]
+pub struct ThisToken {}
+
+impl ToPrimaryExpressionKind for ThisToken {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::This
     }
-    let lit = literal(parser)?;
-    if let Some((litbox, new_scanner)) = lit {
-        let node = PrimaryExpression {
-            kind: PrimaryExpressionKind::Literal(litbox),
-        };
-        let boxed = Box::new(node);
-        return Ok(Some((boxed, new_scanner)));
-    }
-    let tok = scanner::scan_token(
-        &parser.scanner,
-        parser.source,
-        scanner::ScanGoal::InputElementRegExp,
-    )?;
-    if let (scanner::Token::Identifier(id), newscanner) = tok {
+}
+
+fn this_token(parser: &mut Parser) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
+    let tok = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+    Ok(if let (scanner::Token::Identifier(id), newscanner) = tok {
         if let Some(kwd_id) = id.keyword_id {
             if kwd_id == scanner::Keyword::This {
-                let node = PrimaryExpression {
-                    kind: PrimaryExpressionKind::This,
-                };
-                let boxed = Box::new(node);
-                return Ok(Some((boxed, newscanner)));
+                Some((Box::new(ThisToken {}), newscanner))
+            } else {
+                None
             }
+        } else {
+            None
         }
-    }
-    Ok(None)
+    } else {
+        None
+    })
 }
 
 //////// 12.2.4 Literals
@@ -517,11 +547,7 @@ pub struct Literal {
 }
 
 fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, String> {
-    let scan_result = scanner::scan_token(
-        &parser.scanner,
-        parser.source,
-        scanner::ScanGoal::InputElementRegExp,
-    )?;
+    let scan_result = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
     let (token, newscanner) = scan_result;
     match token {
         scanner::Token::Identifier(id) => match id.keyword_id {
@@ -713,9 +739,7 @@ fn repl(vm: &mut VM) {
         io::stdout().flush().unwrap();
 
         let mut line = String::new();
-        io::stdin()
-            .read_line(&mut line)
-            .expect("Failed to read line");
+        io::stdin().read_line(&mut line).expect("Failed to read line");
         let linelen = line.len();
         if linelen == 0 {
             println!("");
@@ -760,11 +784,7 @@ fn main() {
 mod tests {
     use super::*;
     fn id_kwd_test(kwd: &str) {
-        let result = super::identifier(&mut super::Parser::new(
-            kwd,
-            false,
-            super::ParseGoal::Script,
-        ));
+        let result = super::identifier(&mut super::Parser::new(kwd, false, super::ParseGoal::Script));
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -934,8 +954,7 @@ mod tests {
         )
     }
     fn identifier_test_strict(kwd: &str) {
-        let result =
-            super::identifier(&mut super::Parser::new(kwd, true, super::ParseGoal::Script));
+        let result = super::identifier(&mut super::Parser::new(kwd, true, super::ParseGoal::Script));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -977,18 +996,11 @@ mod tests {
     fn identifier_test_keyword(kwd: &str) {
         let firstch = kwd.chars().next().unwrap();
         let id_src = format!("\\u{{{:x}}}{}", firstch as u32, &kwd[firstch.len_utf8()..]);
-        let result = super::identifier(&mut super::Parser::new(
-            &id_src,
-            false,
-            super::ParseGoal::Script,
-        ));
+        let result = super::identifier(&mut super::Parser::new(&id_src, false, super::ParseGoal::Script));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            format!(
-                "1:1: ‘{}’ is a reserved word and may not be used as an identifier",
-                kwd
-            )
+            format!("1:1: ‘{}’ is a reserved word and may not be used as an identifier", kwd)
         );
     }
     #[test]
@@ -1137,11 +1149,7 @@ mod tests {
     }
     #[test]
     fn identifier_test_successful_bob() {
-        let result = super::identifier(&mut super::Parser::new(
-            "bob",
-            true,
-            super::ParseGoal::Script,
-        ));
+        let result = super::identifier(&mut super::Parser::new("bob", true, super::ParseGoal::Script));
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
@@ -1163,11 +1171,7 @@ mod tests {
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let result = super::identifier(&mut super::Parser::new(
-            text,
-            true,
-            super::ParseGoal::Script,
-        ));
+        let result = super::identifier(&mut super::Parser::new(text, true, super::ParseGoal::Script));
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
@@ -1204,7 +1208,7 @@ mod tests {
             Scanner {
                 line: 1,
                 column: text.len() as u32 + 1,
-                start_idx: text.len(),
+                start_idx: text.len()
             }
         );
         idref
@@ -1216,10 +1220,7 @@ mod tests {
         assert_eq!(idref.strict, false);
         use IdentifierReferenceKind::*;
         match &idref.kind {
-            Yield | Await => assert!(
-                false,
-                "Wrong IdentifierReference Kind (expected Identifier)"
-            ),
+            Yield | Await => assert!(false, "Wrong IdentifierReference Kind (expected Identifier)"),
             Identifier(_) => (),
         }
 
@@ -1302,7 +1303,7 @@ mod tests {
             Scanner {
                 line: 1,
                 column: text.len() as u32 + 1,
-                start_idx: text.len(),
+                start_idx: text.len()
             }
         );
         bid
