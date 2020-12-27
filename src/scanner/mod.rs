@@ -2747,4 +2747,45 @@ mod tests {
             ))
         );
     }
+    fn one_char_punct(ch: char, tok: Token) {
+        let mut buf: [u8;4] = [0; 4];
+        let inp = ch.encode_utf8(&mut buf);
+        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                tok,
+                Scanner {
+                    line: 1,
+                    column: 2,
+                    start_idx: 1
+                }
+            ))
+        );
+    }
+    #[test]
+    fn punctuator_validiation() {
+        one_char_punct('{', Token::LeftBrace);
+        one_char_punct('(', Token::LeftParen);
+        one_char_punct(')', Token::RightParen);
+        one_char_punct('[', Token::LeftBracket);
+        one_char_punct(']', Token::RightBracket);
+        one_char_punct('.', Token::Dot);
+        one_char_punct(';', Token::Semicolon);
+        one_char_punct(',', Token::Comma);
+        one_char_punct('<', Token::Lt);
+        one_char_punct('>', Token::Gt);
+        one_char_punct('=', Token::Eq);
+        one_char_punct('!', Token::Bang);
+        one_char_punct('+', Token::Plus);
+        one_char_punct('-', Token::Minus);
+        one_char_punct('*', Token::Star);
+        one_char_punct('&', Token::Amp);
+        one_char_punct('|', Token::Pipe);
+        one_char_punct('^', Token::Caret);
+        one_char_punct('~', Token::Tilde);
+        one_char_punct('?', Token::Question);
+        one_char_punct(':', Token::Colon);
+        one_char_punct('%', Token::Percent);
+    }
 }

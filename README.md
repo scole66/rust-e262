@@ -22,7 +22,7 @@ Then:
 
 ```shell
 export RUSTFLAGS="-Zinstrument-coverage"
-rm default.profraw
+rm -f default.profraw
 cargo build
 cargo test
 grcov . --binary-path ./target/debug/ -s . -t html --branch --ignore-not-existing --ignore "/*" -o /mnt/c/Users/scole/Documents/rustplay/rust-e262/target/debug/coverage/
