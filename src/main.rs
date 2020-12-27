@@ -474,16 +474,16 @@ fn rewrap<T, E>(value: T) -> Result<Option<T>, E> {
     Ok(Some(value))
 }
 
-fn act_if_needed<F, T>(
+fn or_pe_kind<F, T>(
     opt: Option<(Box<PrimaryExpression>, Scanner)>,
     parser: &mut Parser,
-    f: F,
+    parse_func: F,
 ) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
 where
     F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
     T: ToPrimaryExpressionKind,
 {
-    opt.map_or_else(|| f(parser).and_then(pe_boxer), rewrap)
+    opt.map_or_else(|| parse_func(parser).and_then(pe_boxer), rewrap)
 }
 
 fn primary_expression(
@@ -492,9 +492,9 @@ fn primary_expression(
     arg_await: bool,
 ) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
     Ok(None)
-        .and_then(|opt| act_if_needed(opt, parser, |p| identifier_reference(p, arg_yield, arg_await)))
-        .and_then(|opt| act_if_needed(opt, parser, literal))
-        .and_then(|opt| act_if_needed(opt, parser, this_token))
+        .and_then(|opt| or_pe_kind(opt, parser, |p| identifier_reference(p, arg_yield, arg_await)))
+        .and_then(|opt| or_pe_kind(opt, parser, literal))
+        .and_then(|opt| or_pe_kind(opt, parser, this_token))
 }
 
 #[derive(Debug)]
@@ -599,6 +599,287 @@ fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, Strin
     }
 }
 
+//////// 12.3 Left-Hand-Side Expressions
+
+// MemberExpression[Yield, Await] :
+//      PrimaryExpression[?Yield, ?Await]
+//      MemberExpression[?Yield, ?Await] [ Expression[+In, ?Yield, ?Await] ]
+//      MemberExpression[?Yield, ?Await] . IdentifierName
+//      MemberExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+//      SuperProperty[?Yield, ?Await]
+//      MetaProperty
+//      new MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await]
+
+// How to parse:
+// if PrimaryExpression, SuperProperty, or MetaProperty is detected,
+//      make a MemberExpression node.
+// if a "new" token is detected, make a MemberExpression node.
+// if neither of those, return None.
+// Check for the "after member expression" tokens, "[", ".", or a TemplateLiteral.
+// If they're there, build up one of the interior productions and loop.
+
+#[derive(Debug)]
+pub struct MemberExpressionExpression {
+    member_expression: Box<MemberExpression>,
+    expression: Box<Expression>,
+}
+
+#[derive(Debug)]
+pub struct IdentifierNameToken {
+    value: scanner::Token,
+}
+#[derive(Debug)]
+pub struct TemplateLiteral {}
+
+#[derive(Debug)]
+pub struct MemberExpressionIdentifierName {
+    member_expression: Box<MemberExpression>,
+    identifier_name: Box<IdentifierNameToken>,
+}
+
+#[derive(Debug)]
+pub struct MemberExpressionTemplateLiteral {
+    member_expression: Box<MemberExpression>,
+    template_literal: Box<TemplateLiteral>,
+}
+
+#[derive(Debug)]
+pub struct NewMemberExpressionArguments {
+    member_expression: Box<MemberExpression>,
+    arguments: Box<Arguments>,
+}
+
+#[derive(Debug)]
+pub enum MemberExpressionKind {
+    PrimaryExpression(Box<PrimaryExpression>),
+    Expression(MemberExpressionExpression),
+    IdentifierName(MemberExpressionIdentifierName),
+    TemplateLiteral(MemberExpressionTemplateLiteral),
+    SuperProperty(Box<SuperProperty>),
+    MetaProperty(Box<MetaProperty>),
+    NewArguments(NewMemberExpressionArguments),
+}
+
+#[derive(Debug)]
+pub struct MemberExpression {
+    kind: MemberExpressionKind,
+}
+
+pub trait ToMemberExpressionKind {
+    fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind;
+}
+
+impl ToMemberExpressionKind for PrimaryExpression {
+    fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind {
+        MemberExpressionKind::PrimaryExpression(node)
+    }
+}
+
+impl ToMemberExpressionKind for SuperProperty {
+    fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind {
+        MemberExpressionKind::SuperProperty(node)
+    }
+}
+
+impl ToMemberExpressionKind for MetaProperty {
+    fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind {
+        MemberExpressionKind::MetaProperty(node)
+    }
+}
+
+impl ToMemberExpressionKind for NewMemberExpressionArguments {
+    fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind {
+        MemberExpressionKind::NewArguments(*node)
+    }
+}
+
+fn me_boxer<T>(opt: Option<(Box<T>, Scanner)>) -> Result<Option<(Box<MemberExpression>, Scanner)>, String>
+where
+    T: ToMemberExpressionKind,
+{
+    Ok(opt.map(|(node, scanner)| {
+        (
+            Box::new(MemberExpression {
+                kind: T::to_member_expression_kind(node),
+            }),
+            scanner,
+        )
+    }))
+}
+
+fn or_me_kind<F, T>(
+    opt: Option<(Box<MemberExpression>, Scanner)>,
+    parser: &mut Parser,
+    parse_func: F,
+) -> Result<Option<(Box<MemberExpression>, Scanner)>, String>
+where
+    F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
+    T: ToMemberExpressionKind,
+{
+    opt.map_or_else(|| parse_func(parser).and_then(me_boxer), rewrap)
+}
+
+fn member_expression_head_recursive(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+    pair: (Box<MemberExpression>, Scanner),
+) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
+    let (mut current_me, mut after_scan) = pair;
+    loop {
+        let (tok, after) = scanner::scan_token(&after_scan, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::Dot => {
+                let token_after_dot =
+                    scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                if let (scanner::Token::Identifier(id), after_id) = token_after_dot {
+                    let me = Box::new(MemberExpression {
+                        kind: MemberExpressionKind::IdentifierName(MemberExpressionIdentifierName {
+                            member_expression: current_me,
+                            identifier_name: Box::new(IdentifierNameToken {
+                                value: scanner::Token::Identifier(id),
+                            }),
+                        }),
+                    });
+                    current_me = me;
+                    after_scan = after_id;
+                } else {
+                    return Err(format!("Expected IdentifierName after ‘.’."));
+                }
+            }
+            scanner::Token::LeftBracket => {
+                parser.scanner = after;
+                let potential_expression = expression(parser, true, yield_flag, await_flag)?;
+                match potential_expression {
+                    None => {
+                        return Err(format!("Expect Expression after ‘[’."));
+                    }
+                    Some((expression, after_exp)) => {
+                        let after_exp =
+                            scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        match after_exp {
+                            (scanner::Token::RightBracket, scanner) => {
+                                let me = Box::new(MemberExpression {
+                                    kind: MemberExpressionKind::Expression(MemberExpressionExpression {
+                                        member_expression: current_me,
+                                        expression: expression,
+                                    }),
+                                });
+                                current_me = me;
+                                after_scan = scanner;
+                            }
+                            _ => {
+                                return Err(format!("Expect ‘]’ after expression."));
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+    Ok(Some((current_me, after_scan)))
+}
+
+pub fn member_expression(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
+    Ok(None)
+        // First: All the non-head-recursive productions
+        .and_then(|opt| or_me_kind(opt, parser, |p| primary_expression(p, yield_flag, await_flag)))
+        .and_then(|opt| or_me_kind(opt, parser, |p| super_property(p, yield_flag, await_flag)))
+        .and_then(|opt| or_me_kind(opt, parser, meta_property))
+        .and_then(|opt| {
+            or_me_kind(opt, parser, |p| {
+                new_memberexpression_arguments(p, yield_flag, await_flag)
+            })
+        })
+        // And then all the head-recursive productions.
+        .and_then(|opt| {
+            opt.map_or(Ok(None), |x| {
+                member_expression_head_recursive(parser, yield_flag, await_flag, x)
+            })
+        })
+}
+
+pub fn new_memberexpression_arguments(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<NewMemberExpressionArguments>, Scanner)>, String> {
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
+        |(token, scanner)| match token {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
+                parser.scanner = scanner;
+                member_expression(parser, yield_flag, await_flag).and_then(|opt| {
+                    opt.map_or_else(
+                        || Err(format!("Expect MemberExpression after ‘new’.")),
+                        |(me, scan)| {
+                            parser.scanner = scan;
+                            arguments(parser, yield_flag, await_flag).and_then(|opt| {
+                                opt.map_or_else(
+                                    || Err(format!("Expect Arguments after ‘new’ MemberExpression.")),
+                                    |(args, scan)| {
+                                        Ok(Some((
+                                            Box::new(NewMemberExpressionArguments {
+                                                member_expression: me,
+                                                arguments: args,
+                                            }),
+                                            scan,
+                                        )))
+                                    },
+                                )
+                            })
+                        },
+                    )
+                })
+            }
+            _ => Ok(None),
+        },
+    )
+}
+
+#[derive(Debug)]
+pub struct Expression {
+    // todo!
+}
+
+pub fn expression(
+    parser: &mut Parser,
+    in_flag: bool,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<Expression>, Scanner)>, String> {
+    Ok(None) // todo!
+}
+
+#[derive(Debug)]
+pub struct SuperProperty {}
+pub fn super_property(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
+    Ok(None) // TODO
+}
+#[derive(Debug)]
+pub struct MetaProperty {}
+pub fn meta_property(parser: &mut Parser) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
+    Ok(None) // TODO
+}
+#[derive(Debug)]
+pub struct Arguments {}
+pub fn arguments(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
+    Ok(None) // TODO
+}
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -725,7 +1006,7 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     //     scanner::ScanGoal::InputElementRegExp,
     // );
     let mut parser = Parser::new(source, false, ParseGoal::Script);
-    let result = primary_expression(&mut parser, false, false);
+    let result = member_expression(&mut parser, false, false);
     println!("{:#?}", result);
     match result {
         Ok(_) => Ok(0),
