@@ -1,5 +1,6 @@
 pub mod ranges;
 use num::bigint::BigInt;
+use std::convert::TryFrom;
 use std::fmt;
 use std::rc::Rc;
 
@@ -48,8 +49,8 @@ impl std::cmp::PartialEq<&str> for JSString {
     }
 }
 
-impl JSString {
-    pub fn from_str(source: &str) -> JSString {
+impl From<&str> for JSString {
+    fn from(source: &str) -> Self {
         let mut result = Vec::with_capacity(source.len());
         for val in source.encode_utf16() {
             result.push(val);
@@ -58,15 +59,19 @@ impl JSString {
             string: Rc::new(result),
         }
     }
+}
 
-    pub fn from_u16s(source: &[u16]) -> JSString {
+impl From<&[u16]> for JSString {
+    fn from(source: &[u16]) -> Self {
         let mut result = Vec::with_capacity(source.len());
         result.extend_from_slice(source);
         JSString {
             string: Rc::new(result),
         }
     }
+}
 
+impl JSString {
     pub fn take(source: Vec<u16>) -> JSString {
         JSString {
             string: Rc::new(source),
@@ -704,16 +709,36 @@ fn code_point_to_utf16_code_units(ch: char) -> Vec<u16> {
     result
 }
 
-fn mv_of_hex_digit(ch: char) -> Option<u32> {
+#[derive(Debug, PartialEq)]
+pub struct HexChar(char);
+impl TryFrom<char> for HexChar {
+    type Error = &'static str;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        if is_hex_digit(value) {
+            Ok(HexChar(value))
+        } else {
+            Err("HexChar can only be used with hexidecimal digits!")
+        }
+    }
+}
+
+impl From<HexChar> for char {
+    fn from(hc: HexChar) -> Self {
+        let HexChar(ch) = hc;
+        ch
+    }
+}
+
+fn mv_of_hex_digit(digit: HexChar) -> u32 {
+    let ch: char = digit.into();
     let code = ch as u32;
     if ch >= '0' && ch <= '9' {
-        Some(code - '0' as u32)
+        code - '0' as u32
     } else if ch >= 'A' && ch <= 'F' {
-        Some(code - 'A' as u32 + 10)
-    } else if ch >= 'a' && ch <= 'f' {
-        Some(code - 'a' as u32 + 10)
+        code - 'A' as u32 + 10
     } else {
-        None
+        code - 'a' as u32 + 10
     }
 }
 
@@ -742,18 +767,18 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                     if ch == '}' {
                         break;
                     }
-                    val = val << 4 | mv_of_hex_digit(ch).unwrap();
+                    val = val << 4 | mv_of_hex_digit(HexChar::try_from(ch).unwrap());
                 }
                 cp = char::from_u32(val).unwrap();
             } else {
-                let second = iter.next().unwrap();
-                let third = iter.next().unwrap();
-                let fourth = iter.next().unwrap();
+                let second = HexChar::try_from(iter.next().unwrap()).unwrap();
+                let third = HexChar::try_from(iter.next().unwrap()).unwrap();
+                let fourth = HexChar::try_from(iter.next().unwrap()).unwrap();
                 cp = char::from_u32(
-                    mv_of_hex_digit(digit_or_brace).unwrap() << 12
-                        | mv_of_hex_digit(second).unwrap() << 8
-                        | mv_of_hex_digit(third).unwrap() << 4
-                        | mv_of_hex_digit(fourth).unwrap(),
+                    mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12
+                        | mv_of_hex_digit(second) << 8
+                        | mv_of_hex_digit(third) << 4
+                        | mv_of_hex_digit(fourth),
                 )
                 .unwrap();
             }
@@ -947,7 +972,8 @@ fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Toke
     match iter.next() {
         Some('?') => match iter.next() {
             Some('.') => match iter.next() {
-                Some(ch) if ch < '0' || ch > '9' => Some((
+                Some('0'..='9') => None,
+                _ => Some((
                     Token::QDot,
                     Scanner {
                         line: scanner.line,
@@ -955,7 +981,6 @@ fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Toke
                         start_idx: scanner.start_idx + 2,
                     },
                 )),
-                _ => None,
             },
             _ => None,
         },
@@ -1759,6 +1784,19 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(To
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jsstring_from_str() {
+        let s = JSString::from("This is a test");
+        assert_eq!(s, "This is a test");
+    }
+    #[test]
+    fn jsstring_from_u16s() {
+        let msg: [u16; 12] = [0x42, 0x72, 0x69, 0x6e, 0x64, 0x6F, 0x6C, 0x68, 0x61, 0x76, 0x65, 0x6e];
+        let t = JSString::from(&msg[..]);
+        assert_eq!(t, "Brindolhaven");
+    }
+
     #[test]
     fn skippables_empty() {
         let scanner = Scanner {
@@ -2467,17 +2505,246 @@ mod tests {
             ))
         )
     }
-
+    #[test]
+    fn numeric_literal_03() {
+        assert_eq!(
+            numeric_literal(&Scanner::new(), "0xabcdef"),
+            Some((
+                Token::Number(11259375.0),
+                Scanner {
+                    line: 1,
+                    column: 9,
+                    start_idx: 8
+                }
+            ))
+        )
+    }
+    #[test]
+    fn numeric_literal_04() {
+        assert_eq!(
+            numeric_literal(&Scanner::new(), "0xFEDCBA"),
+            Some((
+                Token::Number(16702650.0),
+                Scanner {
+                    line: 1,
+                    column: 9,
+                    start_idx: 8
+                }
+            ))
+        )
+    }
+    #[test]
+    fn bad_hex_char() {
+        assert_eq!(
+            HexChar::try_from('&'),
+            Err("HexChar can only be used with hexidecimal digits!")
+        );
+    }
+    #[test]
+    fn hex_char_debug_fmt() {
+        let hc = HexChar('F');
+        let result = format!("{:?}", hc);
+        assert_eq!(result, "HexChar('F')");
+    }
+    fn hex_char_partial_eq() {
+        let hc1 = HexChar('1');
+        let hc2 = HexChar('9');
+        let hc3 = HexChar('1');
+        assert_eq!(hc1, hc3);
+        assert_ne!(hc1, hc2);
+    }
     #[test]
     fn scan_numeric() {
         let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((
-            Token::Number(0.25),
-            Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            }
-        )));
+        assert_eq!(
+            result,
+            Ok((
+                Token::Number(0.25),
+                Scanner {
+                    line: 1,
+                    column: 4,
+                    start_idx: 3
+                }
+            ))
+        );
+    }
+    #[test]
+    fn scan_token_id_01() {
+        let result = scan_token(&Scanner::new(), "\\u004Abc", ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::Identifier(IdentifierData {
+                    string_value: JSString::from("Jbc"),
+                    keyword_id: None,
+                    line: 1,
+                    column: 1
+                }),
+                Scanner {
+                    line: 1,
+                    column: 9,
+                    start_idx: 8
+                }
+            ))
+        );
+    }
+    fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
+        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::Identifier(IdentifierData {
+                    string_value: JSString::from(inp),
+                    keyword_id: expected,
+                    line: 1,
+                    column: 1
+                }),
+                Scanner {
+                    line: 1,
+                    column: inp.len() as u32 + 1,
+                    start_idx: inp.len()
+                }
+            ))
+        );
+    }
+    #[test]
+    fn scan_token_keywords() {
+        keyword_test_helper("await", Some(Keyword::Await));
+        keyword_test_helper("break", Some(Keyword::Break));
+        keyword_test_helper("case", Some(Keyword::Case));
+        keyword_test_helper("catch", Some(Keyword::Catch));
+        keyword_test_helper("class", Some(Keyword::Class));
+        keyword_test_helper("const", Some(Keyword::Const));
+        keyword_test_helper("continue", Some(Keyword::Continue));
+        keyword_test_helper("debugger", Some(Keyword::Debugger));
+        keyword_test_helper("default", Some(Keyword::Default));
+        keyword_test_helper("delete", Some(Keyword::Delete));
+        keyword_test_helper("do", Some(Keyword::Do));
+        keyword_test_helper("else", Some(Keyword::Else));
+        keyword_test_helper("enum", Some(Keyword::Enum));
+        keyword_test_helper("export", Some(Keyword::Export));
+        keyword_test_helper("extends", Some(Keyword::Extends));
+        keyword_test_helper("false", Some(Keyword::False));
+        keyword_test_helper("finally", Some(Keyword::Finally));
+        keyword_test_helper("for", Some(Keyword::For));
+        keyword_test_helper("function", Some(Keyword::Function));
+        keyword_test_helper("if", Some(Keyword::If));
+        keyword_test_helper("import", Some(Keyword::Import));
+        keyword_test_helper("in", Some(Keyword::In));
+        keyword_test_helper("instanceof", Some(Keyword::Instanceof));
+        keyword_test_helper("new", Some(Keyword::New));
+        keyword_test_helper("null", Some(Keyword::Null));
+        keyword_test_helper("return", Some(Keyword::Return));
+        keyword_test_helper("super", Some(Keyword::Super));
+        keyword_test_helper("switch", Some(Keyword::Switch));
+        keyword_test_helper("this", Some(Keyword::This));
+        keyword_test_helper("throw", Some(Keyword::Throw));
+        keyword_test_helper("true", Some(Keyword::True));
+        keyword_test_helper("try", Some(Keyword::Try));
+        keyword_test_helper("typeof", Some(Keyword::Typeof));
+        keyword_test_helper("var", Some(Keyword::Var));
+        keyword_test_helper("void", Some(Keyword::Void));
+        keyword_test_helper("while", Some(Keyword::While));
+        keyword_test_helper("with", Some(Keyword::With));
+        keyword_test_helper("yield", Some(Keyword::Yield));
+        keyword_test_helper("let", Some(Keyword::Let));
+        keyword_test_helper("static", Some(Keyword::Static));
+        keyword_test_helper("implements", Some(Keyword::Implements));
+        keyword_test_helper("interface", Some(Keyword::Interface));
+        keyword_test_helper("package", Some(Keyword::Package));
+        keyword_test_helper("private", Some(Keyword::Private));
+        keyword_test_helper("protected", Some(Keyword::Protected));
+        keyword_test_helper("public", Some(Keyword::Public));
+        keyword_test_helper("as", Some(Keyword::As));
+        keyword_test_helper("async", Some(Keyword::Async));
+        keyword_test_helper("from", Some(Keyword::From));
+        keyword_test_helper("get", Some(Keyword::Get));
+        keyword_test_helper("of", Some(Keyword::Of));
+        keyword_test_helper("set", Some(Keyword::Set));
+        keyword_test_helper("target", Some(Keyword::Target));
+        keyword_test_helper("meta", Some(Keyword::Meta));
+        // These are here to get code-coverage for a bunch of "no match" cases.
+        keyword_test_helper("asphalt", None);
+        keyword_test_helper("about", None);
+        keyword_test_helper("cart", None);
+        keyword_test_helper("cone", None);
+        keyword_test_helper("cope", None);
+        keyword_test_helper("central", None);
+        keyword_test_helper("detail", None);
+        keyword_test_helper("daily", None);
+        keyword_test_helper("exhale", None);
+        keyword_test_helper("felt", None);
+        keyword_test_helper("impulse", None);
+        keyword_test_helper("imbalance", None);
+        keyword_test_helper("inline", None);
+        keyword_test_helper("natural", None);
+        keyword_test_helper("prattle", None);
+        keyword_test_helper("pebble", None);
+        keyword_test_helper("saturate", None);
+        keyword_test_helper("that", None);
+        keyword_test_helper("tree", None);
+        keyword_test_helper("test", None);
+        keyword_test_helper("very", None);
+        keyword_test_helper("werewolf", None);
+    }
+    #[test]
+    fn optional_chaining_test_01() {
+        let result = scan_token(&Scanner::new(), "?.", ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::QDot,
+                Scanner {
+                    line: 1,
+                    column: 3,
+                    start_idx: 2
+                }
+            ))
+        );
+    }
+    #[test]
+    fn optional_chaining_test_02() {
+        let result = scan_token(&Scanner::new(), "?.P", ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::QDot,
+                Scanner {
+                    line: 1,
+                    column: 3,
+                    start_idx: 2
+                }
+            ))
+        );
+    }
+    #[test]
+    fn optional_chaining_test_03() {
+        let result = scan_token(&Scanner::new(), "?.999", ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::Question,
+                Scanner {
+                    line: 1,
+                    column: 2,
+                    start_idx: 1
+                }
+            ))
+        );
+    }
+    #[test]
+    fn optional_chaining_test_04() {
+        let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                Token::Question,
+                Scanner {
+                    line: 1,
+                    column: 2,
+                    start_idx: 1
+                }
+            ))
+        );
     }
 }

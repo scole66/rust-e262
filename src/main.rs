@@ -215,8 +215,8 @@ impl StringValue for IdentifierReference {
         use IdentifierReferenceKind::*;
         match &self.kind {
             Identifier(id) => id.string_value(),
-            Yield => scanner::JSString::from_str("yield"),
-            Await => scanner::JSString::from_str("await"),
+            Yield => scanner::JSString::from("yield"),
+            Await => scanner::JSString::from("await"),
         }
     }
 }
@@ -321,8 +321,8 @@ impl StringValue for BindingIdentifier {
         use BindingIdentifierKind::*;
         match &self.kind {
             Identifier(id) => id.string_value(),
-            Yield => scanner::JSString::from_str("yield"),
-            Await => scanner::JSString::from_str("await"),
+            Yield => scanner::JSString::from("yield"),
+            Await => scanner::JSString::from("await"),
         }
     }
 }
@@ -332,8 +332,8 @@ impl BoundNames for BindingIdentifier {
         use BindingIdentifierKind::*;
         match &self.kind {
             Identifier(id) => vec![id.string_value()],
-            Yield => vec![scanner::JSString::from_str("yield")],
-            Await => vec![scanner::JSString::from_str("await")],
+            Yield => vec![scanner::JSString::from("yield")],
+            Await => vec![scanner::JSString::from("await")],
         }
     }
 }
@@ -1312,6 +1312,18 @@ mod tests {
     #[test]
     fn identifier_test_strict_static() {
         identifier_test_strict("static")
+    }
+    #[test]
+    fn identifier_test_await_module() {
+        let result = identifier(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module));
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "1:1: ‘await’ not allowed as an identifier in modules");
+    }
+    #[test]
+    fn identifier_test_nothing() {
+        let result = identifier(&mut Parser::new(".", false, ParseGoal::Script));
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
     fn identifier_test_keyword(kwd: &str) {
         let firstch = kwd.chars().next().unwrap();
