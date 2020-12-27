@@ -529,19 +529,19 @@ fn this_token(parser: &mut Parser) -> Result<Option<(Box<ThisToken>, Scanner)>, 
 //      BooleanLiteral
 //      NumericLiteral
 //      StringLiteral
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Numeric {
     Number(f64),
     BigInt(BigInt),
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LiteralKind {
     NullLiteral,
     BooleanLiteral(bool),
     NumericLiteral(Numeric),
     StringLiteral(scanner::JSString),
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Literal {
     kind: LiteralKind,
 }
@@ -1613,5 +1613,16 @@ mod tests {
     #[test]
     fn bindind_identifier_await() {
         bid_allflags("await");
+    }
+
+    #[test]
+    fn literal_leading_dot() {
+        let result = literal(&mut Parser::new(".25", false, ParseGoal::Script));
+        assert!(result.is_ok());
+        let optional_lit = result.unwrap();
+        assert!(optional_lit.is_some());
+        let (lit, scanner) = optional_lit.unwrap();
+        assert_eq!(scanner, Scanner {line:1, column:4, start_idx:3});
+        assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)))
     }
 }

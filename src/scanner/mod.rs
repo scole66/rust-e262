@@ -1648,9 +1648,9 @@ fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanne
     let mut r;
     r = identifier_name(scanner, source)?;
     if r.is_none() {
-        r = punctuator(scanner, source);
+        r = numeric_literal(scanner, source);
         if r.is_none() {
-            r = numeric_literal(scanner, source);
+            r = punctuator(scanner, source);
             if r.is_none() {
                 r = string_literal(scanner, source);
                 if r.is_none() {
@@ -2450,5 +2450,32 @@ mod tests {
                 }
             ))
         )
+    }
+    #[test]
+    fn numeric_literal_02() {
+        assert_eq!(
+            numeric_literal(&Scanner::new(), ".25"),
+            Some((
+                Token::Number(0.25),
+                Scanner {
+                    line: 1,
+                    column: 4,
+                    start_idx: 3
+                }
+            ))
+        )
+    }
+
+    #[test]
+    fn scan_numeric() {
+        let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
+        assert_eq!(result, Ok((
+            Token::Number(0.25),
+            Scanner {
+                line: 1,
+                column: 4,
+                start_idx: 3
+            }
+        )));
     }
 }
