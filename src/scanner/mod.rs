@@ -130,6 +130,7 @@ pub enum Keyword {
     Of,
     Set,
     Target,
+    Meta,
 }
 
 #[derive(Debug, PartialEq)]
@@ -850,6 +851,7 @@ fn identifier_name_keyword(source: &str) -> Option<Keyword> {
             _ => None,
         },
         Some('l') => keycomplete(&source[1..], "et", Keyword::Let),
+        Some('m') => keycomplete(&source[1..], "eta", Keyword::Meta),
         Some('n') => match iter.next() {
             Some('e') => keycomplete(&source[2..], "w", Keyword::New),
             Some('u') => keycomplete(&source[2..], "ll", Keyword::Null),

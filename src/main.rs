@@ -867,10 +867,49 @@ pub fn super_property(
     Ok(None) // TODO
 }
 #[derive(Debug)]
-pub struct MetaProperty {}
-pub fn meta_property(parser: &mut Parser) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
-    Ok(None) // TODO
+pub enum MetaPropertyKind {
+    NewTarget,
+    ImportMeta,
 }
+#[derive(Debug)]
+pub struct MetaProperty {
+    kind: MetaPropertyKind,
+}
+
+fn dot_token(
+    parser: &mut Parser,
+    scanner: Scanner,
+    kwd: scanner::Keyword,
+    kind: MetaPropertyKind,
+) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
+    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| {
+        match token {
+            scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
+                .and_then(|(token, scanner)| match token {
+                    scanner::Token::Identifier(id) if id.keyword_id == Some(kwd) => {
+                        Ok(Some((Box::new(MetaProperty { kind }), scanner)))
+                    }
+                    _ => Ok(None),
+                }),
+            _ => Ok(None),
+        }
+    })
+}
+
+pub fn meta_property(parser: &mut Parser) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
+        |(token, scanner)| match token {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
+                dot_token(parser, scanner, scanner::Keyword::Target, MetaPropertyKind::NewTarget)
+            }
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => {
+                dot_token(parser, scanner, scanner::Keyword::Meta, MetaPropertyKind::ImportMeta)
+            }
+            _ => Ok(None),
+        },
+    )
+}
+
 #[derive(Debug)]
 pub struct Arguments {}
 pub fn arguments(
@@ -1622,7 +1661,14 @@ mod tests {
         let optional_lit = result.unwrap();
         assert!(optional_lit.is_some());
         let (lit, scanner) = optional_lit.unwrap();
-        assert_eq!(scanner, Scanner {line:1, column:4, start_idx:3});
+        assert_eq!(
+            scanner,
+            Scanner {
+                line: 1,
+                column: 4,
+                start_idx: 3
+            }
+        );
         assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)))
     }
 }
