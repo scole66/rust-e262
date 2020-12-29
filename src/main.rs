@@ -816,13 +816,13 @@ pub fn new_memberexpression_arguments(
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
                 parser.scanner = scanner;
                 member_expression(parser, yield_flag, await_flag).and_then(|opt| {
-                    opt.map_or_else(
-                        || Err(format!("Expect MemberExpression after ‘new’.")),
+                    opt.map_or(
+                        Ok(None),
                         |(me, scan)| {
                             parser.scanner = scan;
                             arguments(parser, yield_flag, await_flag).and_then(|opt| {
-                                opt.map_or_else(
-                                    || Err(format!("Expect Arguments after ‘new’ MemberExpression.")),
+                                opt.map_or(
+                                    Ok(None),
                                     |(args, scan)| {
                                         Ok(Some((
                                             Box::new(NewMemberExpressionArguments {
@@ -859,7 +859,7 @@ pub fn expression(
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<MemberExpression>),
+    Temp(Box<NewExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -871,14 +871,15 @@ pub fn assignment_expression(
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let pot_me = member_expression(parser, yield_flag, await_flag)?;
-    match pot_me {
+    let potential = NewExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    match potential {
         None => Ok(None),
-        Some((me_box, scanner)) => Ok(Some(
-            (Box::new(AssignmentExpression {
-                kind: AssignmentExpressionKind::Temp(me_box),
-            }), scanner),
-        )),
+        Some((boxed, scanner)) => Ok(Some((
+            Box::new(AssignmentExpression {
+                kind: AssignmentExpressionKind::Temp(boxed),
+            }),
+            scanner,
+        ))),
     }
 }
 
@@ -1257,6 +1258,55 @@ pub fn argument_list(
     ArgumentList::parse(parser, yield_flag, await_flag)
 }
 
+#[derive(Debug)]
+pub enum NewExpressionKind {
+    MemberExpression(Box<MemberExpression>),
+    NewExpression(Box<NewExpression>),
+}
+
+#[derive(Debug)]
+pub struct NewExpression {
+    kind: NewExpressionKind,
+}
+
+impl NewExpression {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<NewExpression>, Scanner)>, String> {
+        parser.scanner = scanner;
+        let pot_me = member_expression(parser, yield_flag, await_flag)?;
+        match pot_me {
+            None => {
+                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match token {
+                    scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
+                        let pot_ne = Self::parse(parser, scanner, yield_flag, await_flag)?;
+                        match pot_ne {
+                            None => Ok(None),
+                            Some((ne_boxed, scanner)) => Ok(Some((
+                                Box::new(NewExpression { 
+                                    kind: NewExpressionKind::NewExpression(ne_boxed),
+                                }),
+                                scanner,
+                            )))
+                        }
+                    }
+                    _ => Ok(None)
+                }
+            }
+            Some((me_boxed, scanner)) => Ok(Some((
+                Box::new(NewExpression {
+                    kind: NewExpressionKind::MemberExpression(me_boxed),
+                }),
+                scanner,
+            ))),
+        }
+    }
+}
+
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -1383,7 +1433,7 @@ fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
     //     scanner::ScanGoal::InputElementRegExp,
     // );
     let mut parser = Parser::new(source, false, ParseGoal::Script);
-    let result = member_expression(&mut parser, false, false);
+    let result = assignment_expression(&mut parser, true, false, false);
     println!("{:#?}", result);
     match result {
         Ok(_) => Ok(0),
