@@ -25,7 +25,7 @@ export RUSTFLAGS="-Zinstrument-coverage"
 rm -f default.profraw
 cargo build
 cargo test
-grcov . --binary-path ./target/debug/ -s . -t html --branch --ignore-not-existing --ignore "/*" -o /mnt/c/Users/scole/Documents/rustplay/rust-e262/target/debug/coverage/
+grcov . --binary-path ./target/debug/ -s . -t html --branch --ignore-not-existing --ignore "/*" -o /mnt/c/Users/scole/Documents/rustplay/rust-e262/target/debug/coverage/ --excl-start "#\[cfg\(test\)\]"
 ```
 
 Though this doesn't look like it's measuring branches like it advertises.

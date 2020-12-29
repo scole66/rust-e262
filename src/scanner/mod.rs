@@ -1181,7 +1181,7 @@ where
             }
         }
     }
-    if !previous_was_digit {
+    if !previous_was_digit && latest.start_idx > scanner.start_idx {
         latest.start_idx = max(scanner.start_idx, latest.start_idx - 1);
         latest.column = max(scanner.column, latest.column - 1);
     }
@@ -2404,6 +2404,51 @@ mod tests {
         );
     }
 
+    #[test]
+    fn radix_digits_01() {
+        assert_eq!(radix_digits(&Scanner::new(), "43", false, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+    }
+    #[test]
+    fn radix_digits_02() {
+        assert_eq!(radix_digits(&Scanner::new(), "4_3", false, is_digit), Some(Scanner {line:1, column: 2, start_idx:1}));
+    }
+    #[test]
+    fn radix_digits_03() {
+        assert_eq!(radix_digits(&Scanner::new(), "43_", false, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+    }
+    #[test]
+    fn radix_digits_04() {
+        assert_eq!(radix_digits(&Scanner::new(), "_43", false, is_digit), None);
+    }
+    #[test]
+    fn radix_digits_05() {
+        assert_eq!(radix_digits(&Scanner::new(), "43", true, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+    }
+    #[test]
+    fn radix_digits_06() {
+        assert_eq!(radix_digits(&Scanner::new(), "4_3", true, is_digit), Some(Scanner {line:1, column: 4, start_idx:3}));
+    }
+    #[test]
+    fn radix_digits_07() {
+        assert_eq!(radix_digits(&Scanner::new(), "43_", true, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+    }
+    #[test]
+    fn radix_digits_08() {
+        assert_eq!(radix_digits(&Scanner::new(), "_43", true, is_digit), None);
+    }
+    #[test]
+    fn radix_digits_09() {
+        assert_eq!(radix_digits(&Scanner::new(), "4__3", true, is_digit), Some(Scanner{line:1, column:2,start_idx:1}));
+    }
+    #[test]
+    fn radix_digits_10() {
+        assert_eq!(radix_digits(&Scanner::new(), "4__3", false, is_digit), Some(Scanner{line:1, column:2,start_idx:1}));
+    }
+    #[test]
+    fn radix_digits_11()
+    {
+        assert_eq!(radix_digits(&Scanner::new(), "xyz", false, is_digit), None);
+    }
     #[test]
     fn decimal_integer_empty() {
         assert_eq!(decimal_integer_literal(&Scanner::new(), ""), None)
