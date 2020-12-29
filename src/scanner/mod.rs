@@ -2748,7 +2748,7 @@ mod tests {
         );
     }
     fn one_char_punct(ch: char, tok: Token) {
-        let mut buf: [u8;4] = [0; 4];
+        let mut buf: [u8; 4] = [0; 4];
         let inp = ch.encode_utf8(&mut buf);
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(

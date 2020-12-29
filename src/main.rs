@@ -858,14 +858,94 @@ pub fn expression(
 }
 
 #[derive(Debug)]
-pub struct SuperProperty {}
+pub enum AssignmentExpressionKind {
+    Temp(Box<MemberExpression>),
+}
+#[derive(Debug)]
+pub struct AssignmentExpression {
+    kind: AssignmentExpressionKind,
+}
+pub fn assignment_expression(
+    parser: &mut Parser,
+    in_flag: bool,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+    let pot_me = member_expression(parser, yield_flag, await_flag)?;
+    match pot_me {
+        None => Ok(None),
+        Some((me_box, scanner)) => Ok(Some(
+            (Box::new(AssignmentExpression {
+                kind: AssignmentExpressionKind::Temp(me_box),
+            }), scanner),
+        )),
+    }
+}
+
+#[derive(Debug)]
+pub enum SuperPropertyKind {
+    Expression(Box<Expression>),
+    IdentifierName(Box<IdentifierNameToken>),
+}
+#[derive(Debug)]
+pub struct SuperProperty {
+    kind: SuperPropertyKind,
+}
 pub fn super_property(
     parser: &mut Parser,
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
-    Ok(None) // TODO
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
+        |(token, scanner)| match token {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => scanner::scan_token(
+                &scanner,
+                parser.source,
+                scanner::ScanGoal::InputElementRegExp,
+            )
+            .and_then(|(token, scanner)| match token {
+                scanner::Token::LeftBracket => {
+                    parser.scanner = scanner;
+                    expression(parser, true, yield_flag, await_flag).and_then(|opt| {
+                        opt.map_or_else(
+                            || Err(String::from("‘super[’ must be followed by an Expression")),
+                            |(exp_boxed, scanner)| {
+                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
+                                    .and_then(|(token, scanner)| match token {
+                                        scanner::Token::RightBracket => Ok(Some((
+                                            Box::new(SuperProperty {
+                                                kind: SuperPropertyKind::Expression(exp_boxed),
+                                            }),
+                                            scanner,
+                                        ))),
+                                        _ => Err(String::from("‘super[ Expression’ must be closed by a ‘]’.")),
+                                    })
+                            },
+                        )
+                    })
+                }
+                scanner::Token::Dot => {
+                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
+                        |(token, scanner)| match token {
+                            scanner::Token::Identifier(id) => Ok(Some((
+                                Box::new(SuperProperty {
+                                    kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken {
+                                        value: scanner::Token::Identifier(id),
+                                    })),
+                                }),
+                                scanner,
+                            ))),
+                            _ => Err(String::from("‘super.’ must be followed by an IdentifierName")),
+                        },
+                    )
+                }
+                _ => Err(String::from("‘super’ must be followed by ‘.’ or ‘[’.")),
+            }),
+            _ => Ok(None),
+        },
+    )
 }
+
 #[derive(Debug)]
 pub enum MetaPropertyKind {
     NewTarget,
@@ -911,14 +991,272 @@ pub fn meta_property(parser: &mut Parser) -> Result<Option<(Box<MetaProperty>, S
 }
 
 #[derive(Debug)]
-pub struct Arguments {}
+pub enum ArgumentsKind {
+    Empty,
+    ArgumentList(Box<ArgumentList>),
+    ArgumentListComma(Box<ArgumentList>),
+}
+#[derive(Debug)]
+pub struct Arguments {
+    kind: ArgumentsKind,
+}
 pub fn arguments(
     parser: &mut Parser,
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
-    Ok(None) // TODO
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
+        |(token, scanner)| match token {
+            scanner::Token::LeftParen => {
+                parser.scanner = scanner;
+                argument_list(parser, yield_flag, await_flag).and_then(|opt| {
+                    opt.map_or_else(
+                        || {
+                            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
+                                .and_then(|(token, scanner)| match token {
+                                    scanner::Token::RightParen => Ok(Some((
+                                        Box::new(Arguments {
+                                            kind: ArgumentsKind::Empty,
+                                        }),
+                                        scanner,
+                                    ))),
+                                    _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                })
+                        },
+                        |(arglist_boxed, scanner)| {
+                            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
+                                .and_then(|(token, scanner)| match token {
+                                    scanner::Token::Comma => scanner::scan_token(
+                                        &scanner,
+                                        parser.source,
+                                        scanner::ScanGoal::InputElementRegExp,
+                                    )
+                                    .and_then(|(token, scanner)| match token {
+                                        scanner::Token::RightParen => Ok(Some((
+                                            Box::new(Arguments {
+                                                kind: ArgumentsKind::ArgumentListComma(arglist_boxed),
+                                            }),
+                                            scanner,
+                                        ))),
+                                        _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                    }),
+                                    scanner::Token::RightParen => Ok(Some((
+                                        Box::new(Arguments {
+                                            kind: ArgumentsKind::ArgumentList(arglist_boxed),
+                                        }),
+                                        scanner,
+                                    ))),
+                                    _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                })
+                        },
+                    )
+                })
+            }
+            _ => Ok(None),
+        },
+    )
 }
+
+#[derive(Debug)]
+pub struct ArgumentListAssignmentExpression {
+    argument_list: Box<ArgumentList>,
+    assignment_expression: Box<AssignmentExpression>,
+}
+
+#[derive(Debug)]
+pub enum ArgumentListKind {
+    AssignmentExpression(Box<AssignmentExpression>),
+    DotsAssignmentExpression(Box<AssignmentExpression>),
+    ArgumentListAssignmentExpression(ArgumentListAssignmentExpression),
+    ArgumentListDotsAssignmentExpression(ArgumentListAssignmentExpression),
+}
+
+impl ArgumentListKind {
+    // Package the results of a successful assignment_expression into an ArgumentListKind::AssignmentExpression.
+    fn ae_bundle(pair: (Box<AssignmentExpression>, Scanner)) -> Result<Option<(Self, Scanner)>, String> {
+        let (ae_boxed, scanner) = pair;
+        Ok(Some((Self::AssignmentExpression(ae_boxed), scanner)))
+    }
+
+    // Package the results of assignment_expression into an ArgumentListKind (or pass along a None)
+    fn ae_package(opt: Option<(Box<AssignmentExpression>, Scanner)>) -> Result<Option<(Self, Scanner)>, String> {
+        opt.map_or(Ok(None), Self::ae_bundle)
+    }
+
+    // Parse the production
+    //      ArgumentList : AssignmentExpression
+    // returning one of:
+    //    * an ArgumentListKind that contains all the relevant info
+    //    * None, indicating that no AssignmentExpression was detected
+    //    * an Err with a human readable message about what went wrong
+    pub fn parse_assignment_expression(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Self, Scanner)>, String> {
+        parser.scanner = scanner;
+        assignment_expression(parser, true, yield_flag, await_flag).and_then(Self::ae_package)
+    }
+
+    // Parse the production
+    //      ArgumentList : ... AssignmentExpression
+    // returning one of:
+    //    * an ArgumentListKind that contains all the relevant info
+    //    * None, indicating that no ... was detected
+    //    * an Err with a human readable message about what went wrong
+    // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
+    pub fn parse_dots_assignment_expression(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Self, Scanner)>, String> {
+        // Get the next token
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match token {
+            scanner::Token::Ellipsis => {
+                // It was an ellipsis, so now try to get the AssignmentExpression
+                parser.scanner = scanner;
+                let potential_ae = assignment_expression(parser, true, yield_flag, await_flag)?;
+                match potential_ae {
+                    None => {
+                        // No AssignmentExpression after an ellipsis is an error.
+                        Err(String::from("... must be followed by an AssignmentExpression."))
+                    }
+                    Some((boxed_ae, scanner)) => {
+                        // Successful parsing of ... AssignmentExpression
+                        Ok(Some((Self::DotsAssignmentExpression(boxed_ae), scanner)))
+                    }
+                }
+            }
+            _ => {
+                // No ellipsis, so return None to indicate this production was not detected
+                Ok(None)
+            }
+        }
+    }
+
+    // Parse the production
+    //      ArgumentList : ArgumentList , AssignmentExpression
+    // ASSUMING: that the first ArgumentList has already been parsed. (I.e: just do the part starting with the comma.)
+    // returning one of:
+    //    * a pair: (Box<AssignmentExpression>, Scanner)
+    //    * None, indicating that no ',' was detected
+    //    * an Err with a human readable message about what went wrong
+    fn parse_al_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match token {
+            scanner::Token::Comma => {
+                parser.scanner = scanner;
+                assignment_expression(parser, true, yield_flag, await_flag)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    // Parse the production
+    //      ArgumentList : ArgumentList , ... AssignmentExpression
+    // ASSUMING: that the first ArgumentList has already been parsed. (I.e: just do the part starting with the comma.)
+    // returning one of:
+    //    * a pair: (Box<AssignmentExpression>, Scanner)
+    //    * None, indicating that neither a ',' nor a '...' was detected
+    //    * an Err with a human readable message about what went wrong
+    fn parse_al_dots_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match token {
+            scanner::Token::Comma => {
+                let (token, scanner) =
+                    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match token {
+                    scanner::Token::Ellipsis => {
+                        parser.scanner = scanner;
+                        assignment_expression(parser, true, yield_flag, await_flag)
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ArgumentList {
+    kind: ArgumentListKind,
+}
+
+impl ArgumentList {
+    fn boxer(kind: ArgumentListKind) -> Box<Self> {
+        Box::new(Self { kind })
+    }
+    fn alae_boxer(arglist: Box<Self>, ae: Box<AssignmentExpression>) -> Box<Self> {
+        Self::boxer(ArgumentListKind::ArgumentListAssignmentExpression(
+            ArgumentListAssignmentExpression {
+                argument_list: arglist,
+                assignment_expression: ae,
+            },
+        ))
+    }
+    fn aldotsae_boxer(arglist: Box<Self>, ae: Box<AssignmentExpression>) -> Box<Self> {
+        Self::boxer(ArgumentListKind::ArgumentListDotsAssignmentExpression(
+            ArgumentListAssignmentExpression {
+                argument_list: arglist,
+                assignment_expression: ae,
+            },
+        ))
+    }
+    pub fn parse(
+        parser: &mut Parser,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let mut k = ArgumentListKind::parse_assignment_expression(parser, parser.scanner, yield_flag, await_flag)?;
+        if k.is_none() {
+            k = ArgumentListKind::parse_dots_assignment_expression(parser, parser.scanner, yield_flag, await_flag)?;
+            if k.is_none() {
+                return Ok(None);
+            }
+        }
+        let (kind, mut top_scanner) = k.unwrap();
+        let mut top_box = Box::new(Self { kind });
+        loop {
+            let pot_alae = ArgumentListKind::parse_al_ae(parser, top_scanner, yield_flag, await_flag)?;
+            if let Some((boxed_ae, scanner)) = pot_alae {
+                top_box = Self::alae_boxer(top_box, boxed_ae);
+                top_scanner = scanner;
+            } else {
+                let pot_al_dots_ae = ArgumentListKind::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag)?;
+                if let Some((boxed_ae, scanner)) = pot_al_dots_ae {
+                    top_box = Self::aldotsae_boxer(top_box, boxed_ae);
+                    top_scanner = scanner;
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(Some((top_box, top_scanner)))
+    }
+}
+
+pub fn argument_list(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+) -> Result<Option<(Box<ArgumentList>, Scanner)>, String> {
+    ArgumentList::parse(parser, yield_flag, await_flag)
+}
+
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -1317,7 +1655,10 @@ mod tests {
     fn identifier_test_await_module() {
         let result = identifier(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module));
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "1:1: ‘await’ not allowed as an identifier in modules");
+        assert_eq!(
+            result.unwrap_err(),
+            "1:1: ‘await’ not allowed as an identifier in modules"
+        );
     }
     #[test]
     fn identifier_test_nothing() {
