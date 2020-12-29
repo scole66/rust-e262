@@ -2747,9 +2747,7 @@ mod tests {
             ))
         );
     }
-    fn one_char_punct(ch: char, tok: Token) {
-        let mut buf: [u8; 4] = [0; 4];
-        let inp = ch.encode_utf8(&mut buf);
+    fn punct_check(inp: &str, tok: Token) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
@@ -2757,35 +2755,88 @@ mod tests {
                 tok,
                 Scanner {
                     line: 1,
-                    column: 2,
-                    start_idx: 1
+                    column: inp.chars().count() as u32 + 1,
+                    start_idx: inp.len()
                 }
             ))
         );
     }
     #[test]
     fn punctuator_validiation() {
-        one_char_punct('{', Token::LeftBrace);
-        one_char_punct('(', Token::LeftParen);
-        one_char_punct(')', Token::RightParen);
-        one_char_punct('[', Token::LeftBracket);
-        one_char_punct(']', Token::RightBracket);
-        one_char_punct('.', Token::Dot);
-        one_char_punct(';', Token::Semicolon);
-        one_char_punct(',', Token::Comma);
-        one_char_punct('<', Token::Lt);
-        one_char_punct('>', Token::Gt);
-        one_char_punct('=', Token::Eq);
-        one_char_punct('!', Token::Bang);
-        one_char_punct('+', Token::Plus);
-        one_char_punct('-', Token::Minus);
-        one_char_punct('*', Token::Star);
-        one_char_punct('&', Token::Amp);
-        one_char_punct('|', Token::Pipe);
-        one_char_punct('^', Token::Caret);
-        one_char_punct('~', Token::Tilde);
-        one_char_punct('?', Token::Question);
-        one_char_punct(':', Token::Colon);
-        one_char_punct('%', Token::Percent);
+        punct_check("{", Token::LeftBrace);
+        punct_check("(", Token::LeftParen);
+        punct_check(")", Token::RightParen);
+        punct_check("[", Token::LeftBracket);
+        punct_check("]", Token::RightBracket);
+        punct_check(".", Token::Dot);
+        punct_check(";", Token::Semicolon);
+        punct_check(",", Token::Comma);
+        punct_check("<", Token::Lt);
+        punct_check(">", Token::Gt);
+        punct_check("=", Token::Eq);
+        punct_check("!", Token::Bang);
+        punct_check("+", Token::Plus);
+        punct_check("-", Token::Minus);
+        punct_check("*", Token::Star);
+        punct_check("&", Token::Amp);
+        punct_check("|", Token::Pipe);
+        punct_check("^", Token::Caret);
+        punct_check("~", Token::Tilde);
+        punct_check("?", Token::Question);
+        punct_check(":", Token::Colon);
+        punct_check("%", Token::Percent);
+        punct_check("...", Token::Ellipsis);
+        punct_check("<=", Token::LtEq);
+        punct_check("<<=", Token::LtLtEq);
+        punct_check("<<", Token::LtLt);
+        punct_check(">>", Token::GtGt);
+        punct_check(">>>", Token::GtGtGt);
+        punct_check(">>>=", Token::GtGtGtEq);
+        punct_check(">>=", Token::GtGtEq);
+        punct_check("===", Token::EqEqEq);
+        punct_check("==", Token::EqEq);
+        punct_check("=>", Token::EqGt);
+        punct_check("!=", Token::BangEq);
+        punct_check("+=", Token::PlusEq);
+        punct_check("-=", Token::MinusEq);
+        punct_check("**=", Token::StarStarEq);
+        punct_check("**", Token::StarStar);
+        punct_check("*=", Token::StarEq);
+        punct_check("&&=", Token::AmpAmpEq);
+        punct_check("&&", Token::AmpAmp);
+        punct_check("&=", Token::AmpEq);
+        punct_check("||=", Token::PipePipeEq);
+        punct_check("||", Token::PipePipe);
+        punct_check("|=", Token::PipeEq);
+        punct_check("^=", Token::CaretEq);
+        punct_check("??=", Token::QQEq);
+        punct_check("??", Token::QQ);
+    }
+
+    fn punct_chk2(inp: &str, tok:Token, consumed: u32) {
+        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        assert_eq!(
+            result,
+            Ok((
+                tok,
+                Scanner {
+                    line: 1,
+                    column: consumed + 1,
+                    start_idx: consumed as usize
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn punctuator_shortscans() {
+        punct_chk2("..A", Token::Dot, 1);
+    }
+    #[test]
+    fn punctuator_nomatch() {
+        let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
+        println!("{:?}", result);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "1:1: Invalid or Unexpected token");
     }
 }
