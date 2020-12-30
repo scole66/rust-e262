@@ -816,26 +816,20 @@ pub fn new_memberexpression_arguments(
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
                 parser.scanner = scanner;
                 member_expression(parser, yield_flag, await_flag).and_then(|opt| {
-                    opt.map_or(
-                        Ok(None),
-                        |(me, scan)| {
-                            parser.scanner = scan;
-                            arguments(parser, yield_flag, await_flag).and_then(|opt| {
-                                opt.map_or(
-                                    Ok(None),
-                                    |(args, scan)| {
-                                        Ok(Some((
-                                            Box::new(NewMemberExpressionArguments {
-                                                member_expression: me,
-                                                arguments: args,
-                                            }),
-                                            scan,
-                                        )))
-                                    },
-                                )
+                    opt.map_or(Ok(None), |(me, scan)| {
+                        parser.scanner = scan;
+                        arguments(parser, yield_flag, await_flag).and_then(|opt| {
+                            opt.map_or(Ok(None), |(args, scan)| {
+                                Ok(Some((
+                                    Box::new(NewMemberExpressionArguments {
+                                        member_expression: me,
+                                        arguments: args,
+                                    }),
+                                    scan,
+                                )))
                             })
-                        },
-                    )
+                        })
+                    })
                 })
             }
             _ => Ok(None),
@@ -859,7 +853,7 @@ pub fn expression(
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<NewExpression>),
+    Temp(Box<LeftHandSideExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -871,7 +865,7 @@ pub fn assignment_expression(
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let potential = NewExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    let potential = LeftHandSideExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
         Some((boxed, scanner)) => Ok(Some((
@@ -1280,21 +1274,22 @@ impl NewExpression {
         let pot_me = member_expression(parser, yield_flag, await_flag)?;
         match pot_me {
             None => {
-                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) =
+                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 match token {
                     scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
                         let pot_ne = Self::parse(parser, scanner, yield_flag, await_flag)?;
                         match pot_ne {
                             None => Ok(None),
                             Some((ne_boxed, scanner)) => Ok(Some((
-                                Box::new(NewExpression { 
+                                Box::new(NewExpression {
                                     kind: NewExpressionKind::NewExpression(ne_boxed),
                                 }),
                                 scanner,
-                            )))
+                            ))),
                         }
                     }
-                    _ => Ok(None)
+                    _ => Ok(None),
                 }
             }
             Some((me_boxed, scanner)) => Ok(Some((
@@ -1303,6 +1298,287 @@ impl NewExpression {
                 }),
                 scanner,
             ))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CallMemberExpression {
+    member_expression: Box<MemberExpression>,
+    arguments: Box<Arguments>,
+}
+
+impl CallMemberExpression {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<CallMemberExpression>, Scanner)>, String> {
+        parser.scanner = scanner;
+        let pot_me = member_expression(parser, yield_flag, await_flag)?;
+        match pot_me {
+            None => Ok(None),
+            Some((boxed_me, scanner)) => {
+                parser.scanner = scanner;
+                let pot_args = arguments(parser, yield_flag, await_flag)?;
+                match pot_args {
+                    None => Ok(None),
+                    Some((boxed_args, scanner)) => Ok(Some((
+                        Box::new(CallMemberExpression {
+                            member_expression: boxed_me,
+                            arguments: boxed_args,
+                        }),
+                        scanner,
+                    ))),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SuperCall {
+    arguments: Box<Arguments>,
+}
+
+impl SuperCall {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
+                parser.scanner = scanner;
+                let pot_args = arguments(parser, yield_flag, await_flag)?;
+                match pot_args {
+                    None => Ok(None),
+                    Some((boxed_args, scanner)) => Ok(Some((Box::new(Self { arguments: boxed_args }), scanner))),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ImportCall {
+    assignment_expression: Box<AssignmentExpression>,
+}
+
+impl ImportCall {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => {
+                // Got "import"
+                let (tok, scanner) =
+                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match tok {
+                    scanner::Token::LeftParen => {
+                        // Got "import ("
+                        parser.scanner = scanner;
+                        let pot_ae = assignment_expression(parser, true, yield_flag, await_flag)?;
+                        match pot_ae {
+                            None => Ok(None),
+                            Some((ae_boxed, scanner)) => {
+                                // Got "import ( AssignmentExpression"
+                                let (tok, scanner) = scanner::scan_token(
+                                    &scanner,
+                                    parser.source,
+                                    scanner::ScanGoal::InputElementRegExp,
+                                )?;
+                                match tok {
+                                    scanner::Token::RightParen => {
+                                        // Got "import ( AssignmentExpression )"
+                                        Ok(Some((
+                                            Box::new(Self {
+                                                assignment_expression: ae_boxed,
+                                            }),
+                                            scanner,
+                                        )))
+                                    }
+                                    _ => Ok(None),
+                                }
+                            }
+                        }
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CallExpressionKind {
+    CallMemberExpression(Box<CallMemberExpression>),
+    SuperCall(Box<SuperCall>),
+    ImportCall(Box<ImportCall>),
+    CallExpressionArguments((Box<CallExpression>, Box<Arguments>)),
+    CallExpressionExpression((Box<CallExpression>, Box<Expression>)),
+    CallExpressionIdentifierName((Box<CallExpression>, Box<IdentifierNameToken>)),
+    // CallExpressionTemplateLiteral
+}
+
+#[derive(Debug)]
+pub struct CallExpression {
+    kind: CallExpressionKind,
+}
+
+impl CallExpression {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_arg: bool,
+        await_arg: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let first_parse = {
+            let pot_cme = CallMemberExpression::parse(parser, scanner, yield_arg, await_arg)?;
+            match pot_cme {
+                None => {
+                    let pot_sc = SuperCall::parse(parser, scanner, yield_arg, await_arg)?;
+                    match pot_sc {
+                        None => {
+                            let pot_ic = ImportCall::parse(parser, scanner, yield_arg, await_arg)?;
+                            match pot_ic {
+                                None => None,
+                                Some((ic_boxed, scanner)) => Some((
+                                    Box::new(Self {
+                                        kind: CallExpressionKind::ImportCall(ic_boxed),
+                                    }),
+                                    scanner,
+                                )),
+                            }
+                        }
+                        Some((sc_boxed, scanner)) => Some((
+                            Box::new(Self {
+                                kind: CallExpressionKind::SuperCall(sc_boxed),
+                            }),
+                            scanner,
+                        )),
+                    }
+                }
+                Some((cme_boxed, scanner)) => Some((
+                    Box::new(Self {
+                        kind: CallExpressionKind::CallMemberExpression(cme_boxed),
+                    }),
+                    scanner,
+                )),
+            }
+        };
+        if first_parse.is_none() {
+            return Ok(None);
+        }
+        let (mut top_box, mut top_scanner) = first_parse.unwrap();
+        loop {
+            let (tok, scanner) =
+                scanner::scan_token(&top_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            match tok {
+                scanner::Token::LeftParen => {
+                    // Don't consume the token in this particular case.
+                    parser.scanner = top_scanner;
+                    let pot_args = arguments(parser, yield_arg, await_arg)?;
+                    match pot_args {
+                        None => {
+                            break;
+                        }
+                        Some((args_boxed, scanner)) => {
+                            top_box = Box::new(Self {
+                                kind: CallExpressionKind::CallExpressionArguments((top_box, args_boxed)),
+                            });
+                            top_scanner = scanner;
+                        }
+                    }
+                }
+                scanner::Token::LeftBracket => {
+                    parser.scanner = scanner;
+                    let pot_exp = expression(parser, true, yield_arg, await_arg)?;
+                    match pot_exp {
+                        None => {
+                            break;
+                        }
+                        Some((exp_boxed, scanner)) => {
+                            let (tok, scanner) =
+                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                            match tok {
+                                scanner::Token::RightBracket => {
+                                    top_box = Box::new(Self {
+                                        kind: CallExpressionKind::CallExpressionExpression((top_box, exp_boxed)),
+                                    });
+                                    top_scanner = scanner;
+                                }
+                                _ => {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                scanner::Token::Dot => {
+                    let (tok, scanner) =
+                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    match tok {
+                        scanner::Token::Identifier(_) => {
+                            top_box = Box::new(Self {
+                                kind: CallExpressionKind::CallExpressionIdentifierName((
+                                    top_box,
+                                    Box::new(IdentifierNameToken { value: tok }),
+                                )),
+                            });
+                            top_scanner = scanner;
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+        Ok(Some((top_box, top_scanner)))
+    }
+}
+
+#[derive(Debug)]
+pub enum LeftHandSideExpression {
+    NewExpression(Box<NewExpression>),
+    CallExpression(Box<CallExpression>),
+    // OptionalExpression(Box<OptionalExpression>),
+}
+
+impl LeftHandSideExpression {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_arg: bool,
+        await_arg: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
+        match pot_ce {
+            Some((ce_boxed, scanner)) => {
+                Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner)))
+            }
+            _ => {
+                let pot_ne = NewExpression::parse(parser, scanner, yield_arg, await_arg)?;
+                match pot_ne {
+                    Some((ne_boxed, scanner)) => {
+                        Ok(Some((Box::new(Self::NewExpression(ne_boxed)), scanner)))
+                    }
+                    None => Ok(None)
+                }
+            }
         }
     }
 }
