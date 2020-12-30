@@ -1784,6 +1784,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(To
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num::traits::Zero;
 
     #[test]
     fn jsstring_from_str() {
@@ -2406,15 +2407,36 @@ mod tests {
 
     #[test]
     fn radix_digits_01() {
-        assert_eq!(radix_digits(&Scanner::new(), "43", false, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "43", false, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 3,
+                start_idx: 2
+            })
+        );
     }
     #[test]
     fn radix_digits_02() {
-        assert_eq!(radix_digits(&Scanner::new(), "4_3", false, is_digit), Some(Scanner {line:1, column: 2, start_idx:1}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "4_3", false, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 2,
+                start_idx: 1
+            })
+        );
     }
     #[test]
     fn radix_digits_03() {
-        assert_eq!(radix_digits(&Scanner::new(), "43_", false, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "43_", false, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 3,
+                start_idx: 2
+            })
+        );
     }
     #[test]
     fn radix_digits_04() {
@@ -2422,15 +2444,36 @@ mod tests {
     }
     #[test]
     fn radix_digits_05() {
-        assert_eq!(radix_digits(&Scanner::new(), "43", true, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "43", true, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 3,
+                start_idx: 2
+            })
+        );
     }
     #[test]
     fn radix_digits_06() {
-        assert_eq!(radix_digits(&Scanner::new(), "4_3", true, is_digit), Some(Scanner {line:1, column: 4, start_idx:3}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "4_3", true, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 4,
+                start_idx: 3
+            })
+        );
     }
     #[test]
     fn radix_digits_07() {
-        assert_eq!(radix_digits(&Scanner::new(), "43_", true, is_digit), Some(Scanner {line:1, column: 3, start_idx:2}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "43_", true, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 3,
+                start_idx: 2
+            })
+        );
     }
     #[test]
     fn radix_digits_08() {
@@ -2438,15 +2481,28 @@ mod tests {
     }
     #[test]
     fn radix_digits_09() {
-        assert_eq!(radix_digits(&Scanner::new(), "4__3", true, is_digit), Some(Scanner{line:1, column:2,start_idx:1}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "4__3", true, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 2,
+                start_idx: 1
+            })
+        );
     }
     #[test]
     fn radix_digits_10() {
-        assert_eq!(radix_digits(&Scanner::new(), "4__3", false, is_digit), Some(Scanner{line:1, column:2,start_idx:1}));
+        assert_eq!(
+            radix_digits(&Scanner::new(), "4__3", false, is_digit),
+            Some(Scanner {
+                line: 1,
+                column: 2,
+                start_idx: 1
+            })
+        );
     }
     #[test]
-    fn radix_digits_11()
-    {
+    fn radix_digits_11() {
         assert_eq!(radix_digits(&Scanner::new(), "xyz", false, is_digit), None);
     }
     #[test]
@@ -2525,7 +2581,7 @@ mod tests {
     #[test]
     fn numeric_literal_01() {
         assert_eq!(
-            numeric_literal(&Scanner::new(), "0x10"),
+            numeric_literal(&Scanner::new(), "0x10..."),
             Some((
                 Token::Number(16.0),
                 Scanner {
@@ -2578,6 +2634,104 @@ mod tests {
             ))
         )
     }
+    #[test]
+    fn numeric_literal_05() {
+        assert!(numeric_literal(&Scanner::new(), "3in").is_none());
+    }
+    #[test]
+    fn numeric_literal_06() {
+        let clusters = [392, 135, 832, 991, 123, 713, 820, 731, 861];
+        let expected = clusters.iter().fold(BigInt::zero(), |acc, x| acc * 1000 + x);
+        let result = numeric_literal(&Scanner::new(), "392_135_832_991_123_713_820_731_861n");
+
+        assert_eq!(
+            result,
+            Some((
+                Token::BigInt(expected),
+                Scanner {
+                    line: 1,
+                    column: 37,
+                    start_idx: 36
+                }
+            ))
+        );
+    }
+    #[test]
+    fn numeric_literal_07() {
+        let result = numeric_literal(&Scanner::new(), "0b1_1100_0111n");
+        assert_eq!(
+            result,
+            Some((
+                Token::BigInt(BigInt::zero() + 0x1c7),
+                Scanner {
+                    line: 1,
+                    column: 15,
+                    start_idx: 14
+                }
+            ))
+        );
+    }
+    #[test]
+    fn numeric_literal_08() {
+        let result = numeric_literal(&Scanner::new(), "0o3_4576_1000n");
+        assert_eq!(
+            result,
+            Some((
+                Token::BigInt(BigInt::zero() + 0x0397e200),
+                Scanner {
+                    line: 1,
+                    column: 15,
+                    start_idx: 14
+                }
+            ))
+        );
+    }
+    #[test]
+    fn numeric_literal_09() {
+        let result = numeric_literal(&Scanner::new(), "0x4576_1000n");
+        assert_eq!(
+            result,
+            Some((
+                Token::BigInt(BigInt::zero() + 0x45761000),
+                Scanner {
+                    line: 1,
+                    column: 13,
+                    start_idx: 12
+                }
+            ))
+        );
+    }
+    #[test]
+    fn numeric_literal_10() {
+        let result = numeric_literal(&Scanner::new(), "0b1010_1111_0010_0110");
+        assert_eq!(
+            result,
+            Some((
+                Token::Number(44838.0),
+                Scanner {
+                    line: 1,
+                    column: 22,
+                    start_idx: 21
+                }
+            ))
+        );
+    }
+    #[test]
+    fn numeric_literal_11() {
+        let result = numeric_literal(&Scanner::new(), "0o7773153152");
+        assert_eq!(
+            result,
+            Some((
+                Token::Number(1072485994.0),
+                Scanner {
+                    line: 1,
+                    column: 13,
+                    start_idx: 12
+                }
+            ))
+        );
+    }
+
     #[test]
     fn bad_hex_char() {
         assert_eq!(
@@ -2858,7 +3012,7 @@ mod tests {
         punct_check("??", Token::QQ);
     }
 
-    fn punct_chk2(inp: &str, tok:Token, consumed: u32) {
+    fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
@@ -2880,8 +3034,206 @@ mod tests {
     #[test]
     fn punctuator_nomatch() {
         let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-        println!("{:?}", result);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "1:1: Invalid or Unexpected token");
+    }
+    #[test]
+    fn signed_integer_01() {
+        let result = signed_integer(&Scanner::new(), "blue", true);
+        assert_eq!(result, None);
+    }
+    #[test]
+    fn signed_integer_02() {
+        let result = signed_integer(&Scanner::new(), "+10_9", false);
+        assert_eq!(
+            result,
+            Some(Scanner {
+                line: 1,
+                column: 4,
+                start_idx: 3
+            })
+        );
+    }
+    #[test]
+    fn signed_integer_03() {
+        let result = signed_integer(&Scanner::new(), "-3_3", true);
+        assert_eq!(
+            result,
+            Some(Scanner {
+                line: 1,
+                column: 5,
+                start_idx: 4
+            })
+        );
+    }
+    #[test]
+    fn signed_integer_04() {
+        let result = signed_integer(&Scanner::new(), "899", false);
+        assert_eq!(
+            result,
+            Some(Scanner {
+                line: 1,
+                column: 4,
+                start_idx: 3
+            })
+        );
+    }
+
+    fn decimal_literal_helper(text: &str, count: u32) {
+        let result = decimal_literal(&Scanner::new(), text);
+        assert_eq!(
+            result,
+            Some(Scanner {
+                line: 1,
+                column: count + 1,
+                start_idx: count as usize
+            })
+        );
+    }
+    #[test]
+    fn decimal_literal_01() {
+        decimal_literal_helper("8_9.", 4);
+    }
+    #[test]
+    fn decimal_literal_02() {
+        decimal_literal_helper("8_9.2_3", 7);
+    }
+    #[test]
+    fn decimal_literal_03() {
+        decimal_literal_helper("8_9.e5_0", 8);
+    }
+    #[test]
+    fn decimal_literal_04() {
+        decimal_literal_helper("8_9.2_3e5_0", 11);
+    }
+    #[test]
+    fn decimal_literal_05() {
+        decimal_literal_helper(".2_3", 4);
+    }
+    #[test]
+    fn decimal_literal_06() {
+        decimal_literal_helper(".2_3e5_0", 8);
+    }
+    #[test]
+    fn decimal_literal_07() {
+        decimal_literal_helper("8_9", 3);
+    }
+    #[test]
+    fn decimal_literal_08() {
+        decimal_literal_helper("8_9e5_0", 7);
+    }
+    #[test]
+    fn decimal_literal_09() {
+        assert!(decimal_literal(&Scanner::new(), "blue").is_none());
+    }
+    #[test]
+    fn decimal_literal_10() {
+        assert!(decimal_literal(&Scanner::new(), ".crazy").is_none());
+    }
+
+    fn nzd_helper(text: &str) {
+        assert_eq!(
+            non_zero_digit(&Scanner::new(), text),
+            Some(Scanner {
+                line: 1,
+                column: 2,
+                start_idx: 1
+            })
+        );
+    }
+    #[test]
+    fn non_zero_digit_successes() {
+        nzd_helper("1");
+        nzd_helper("2");
+        nzd_helper("3");
+        nzd_helper("4");
+        nzd_helper("5");
+        nzd_helper("6");
+        nzd_helper("7");
+        nzd_helper("8");
+        nzd_helper("9");
+    }
+    #[test]
+    fn non_zero_digit_zero() {
+        assert!(non_zero_digit(&Scanner::new(), "0").is_none());
+    }
+    #[test]
+    fn non_zero_digit_bad() {
+        assert!(non_zero_digit(&Scanner::new(), "Q").is_none());
+    }
+    #[test]
+    fn non_zero_digit_empty() {
+        assert!(non_zero_digit(&Scanner::new(), "").is_none());
+    }
+
+    fn dbil_helper(text: &str) {
+        assert_eq!(
+            decimal_big_integer_literal(&Scanner::new(), text),
+            Some(Scanner {
+                line: 1,
+                column: text.len() as u32 + 1,
+                start_idx: text.len()
+            })
+        );
+    }
+    #[test]
+    fn decimal_big_integer_literal_success() {
+        dbil_helper("0n");
+        dbil_helper("3n");
+        dbil_helper("2327n");
+        dbil_helper("2_327n");
+        dbil_helper("23_27n");
+        dbil_helper("232_7n");
+    }
+    #[test]
+    fn decimal_big_integer_literal_failure() {
+        let helper = |text| {
+            assert!(decimal_big_integer_literal(&Scanner::new(), text).is_none());
+        };
+        helper("");
+        helper("0");
+        helper("0x");
+        helper("9xn");
+        helper("99xn");
+        helper("6_8");
+        helper("6_9xn");
+        helper("4_n");
+    }
+
+    #[test]
+    fn bigify_binary() {
+        assert_eq!(bigify(NumberStyle::Binary), NumberStyle::BigBinary);
+    }
+    #[test]
+    fn bigify_octal() {
+        assert_eq!(bigify(NumberStyle::Octal), NumberStyle::BigOctal);
+    }
+    #[test]
+    fn bigify_hex() {
+        assert_eq!(bigify(NumberStyle::Hex), NumberStyle::BigHex);
+    }
+    #[test]
+    fn bigify_decimal() {
+        assert_eq!(bigify(NumberStyle::Decimal), NumberStyle::BigDecimal);
+    }
+    #[test]
+    fn bigify_other() {
+        assert_eq!(bigify(NumberStyle::BigBinary), NumberStyle::BigBinary);
+        assert_eq!(bigify(NumberStyle::BigDecimal), NumberStyle::BigDecimal);
+        assert_eq!(bigify(NumberStyle::BigOctal), NumberStyle::BigOctal);
+        assert_eq!(bigify(NumberStyle::BigHex), NumberStyle::BigHex);
+    }
+
+    #[test]
+    fn int_to_number_test() {
+        assert_eq!(int_to_number("0", 10), 0.0);
+        assert_eq!(int_to_number("10000", 16), 65536.0);
+        assert_eq!(
+            int_to_number(
+                "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+                10
+            ),
+            f64::INFINITY
+        );
     }
 }
