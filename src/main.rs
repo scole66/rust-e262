@@ -501,7 +501,7 @@ fn primary_expression(
 pub struct ThisToken {}
 
 impl ToPrimaryExpressionKind for ThisToken {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(_node: Box<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::This
     }
 }
@@ -838,8 +838,9 @@ pub fn new_memberexpression_arguments(
 }
 
 #[derive(Debug)]
-pub struct Expression {
+pub enum Expression {
     // todo!
+    Temp(Box<AssignmentExpression>),
 }
 
 pub fn expression(
@@ -848,7 +849,12 @@ pub fn expression(
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<Expression>, Scanner)>, String> {
-    Ok(None) // todo!
+    // todo!
+    let potential = assignment_expression(parser, in_flag, yield_flag, await_flag)?;
+    match potential {
+        None => Ok(None),
+        Some((boxed, scanner)) => Ok(Some((Box::new(Expression::Temp(boxed)), scanner))),
+    }
 }
 
 #[derive(Debug)]
@@ -861,7 +867,7 @@ pub struct AssignmentExpression {
 }
 pub fn assignment_expression(
     parser: &mut Parser,
-    in_flag: bool,
+    _in_flag: bool,
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
@@ -1172,7 +1178,7 @@ impl ArgumentListKind {
         match token {
             scanner::Token::Comma => {
                 let (token, scanner) =
-                    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 match token {
                     scanner::Token::Ellipsis => {
                         parser.scanner = scanner;
@@ -1567,16 +1573,12 @@ impl LeftHandSideExpression {
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
         match pot_ce {
-            Some((ce_boxed, scanner)) => {
-                Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner)))
-            }
+            Some((ce_boxed, scanner)) => Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner))),
             _ => {
                 let pot_ne = NewExpression::parse(parser, scanner, yield_arg, await_arg)?;
                 match pot_ne {
-                    Some((ne_boxed, scanner)) => {
-                        Ok(Some((Box::new(Self::NewExpression(ne_boxed)), scanner)))
-                    }
-                    None => Ok(None)
+                    Some((ne_boxed, scanner)) => Ok(Some((Box::new(Self::NewExpression(ne_boxed)), scanner))),
+                    None => Ok(None),
                 }
             }
         }
@@ -1681,7 +1683,7 @@ impl VM {
 
 use crate::scanner::Scanner;
 
-fn script<'a>(scanner: &'a mut Scanner) -> Result<Box<Script>, String> {
+fn script<'a>(_scanner: &'a mut Scanner) -> Result<Box<Script>, String> {
     //let ch = scanner.scan_token(ScanGoal::InputElementRegExp);
     Ok(Box::new(Script { script_body: None }))
 }
@@ -1691,7 +1693,7 @@ struct AST {
     script: Box<Script>,
 }
 impl AST {
-    fn generate(source: &str) -> Result<Box<AST>, String> {
+    fn generate(_source: &str) -> Result<Box<AST>, String> {
         let mut scanner = Scanner::new();
         script(&mut scanner).and_then(|s| Ok(Box::new(AST { script: s })))
     }
@@ -1701,7 +1703,7 @@ fn generate_ast<'a>(_vm: &'a VM, source: &'a str) -> Result<Box<AST>, String> {
     AST::generate(source)
 }
 
-fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
+fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     //generate_ast(vm, source).and_then(|ast| vm.compile(&ast)).and_then(|_| vm.run())
     // let result = scanner::scan_token(
     //     &Scanner::new(),

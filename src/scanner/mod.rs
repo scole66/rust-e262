@@ -1667,7 +1667,7 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 }
 
 fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    let after = match_char(scanner, source, '`')?;
+    match_char(scanner, source, '`')?;
     todo!();
 }
 
@@ -2763,6 +2763,7 @@ mod tests {
         let result = format!("{:?}", hc);
         assert_eq!(result, "HexChar('F')");
     }
+    #[test]
     fn hex_char_partial_eq() {
         let hc1 = HexChar('1');
         let hc2 = HexChar('9');
