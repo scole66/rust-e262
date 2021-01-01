@@ -130,15 +130,9 @@ fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>,
                             || id.string_value == "static"
                             || id.string_value == "yield")
                     {
-                        Err(format!(
-                            "{}:{}: ‘{}’ not allowed as an identifier in strict mode",
-                            id.line, id.column, id.string_value
-                        ))
+                        Err(format!("{}:{}: ‘{}’ not allowed as an identifier in strict mode", id.line, id.column, id.string_value))
                     } else if parser.goal == ParseGoal::Module && id.string_value == "await" {
-                        Err(format!(
-                            "{}:{}: ‘await’ not allowed as an identifier in modules",
-                            id.line, id.column
-                        ))
+                        Err(format!("{}:{}: ‘await’ not allowed as an identifier in modules", id.line, id.column))
                     } else if id.string_value == "break"
                         || id.string_value == "case"
                         || id.string_value == "catch"
@@ -176,10 +170,7 @@ fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>,
                         || id.string_value == "while"
                         || id.string_value == "with"
                     {
-                        Err(format!(
-                            "{}:{}: ‘{}’ is a reserved word and may not be used as an identifier",
-                            id.line, id.column, id.string_value
-                        ))
+                        Err(format!("{}:{}: ‘{}’ is a reserved word and may not be used as an identifier", id.line, id.column, id.string_value))
                     } else {
                         let node = Identifier { identifier_name: id };
                         let boxed = Box::new(node);
@@ -243,11 +234,7 @@ impl AssignmentTargetType for IdentifierReference {
     }
 }
 
-fn identifier_reference(
-    parser: &mut Parser,
-    arg_yield: bool,
-    arg_await: bool,
-) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
+fn identifier_reference(parser: &mut Parser, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
     let production = identifier(parser)?;
     use IdentifierReferenceKind::*;
     match production {
@@ -260,32 +247,19 @@ fn identifier_reference(
             Ok(Some((boxed, scanner)))
         }
         None => {
-            let (token, scan) =
-                scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (token, scan) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
             match token {
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => {
                         if !arg_await {
-                            Ok(Some((
-                                Box::new(IdentifierReference {
-                                    kind: Await,
-                                    strict: parser.strict,
-                                }),
-                                scan,
-                            )))
+                            Ok(Some((Box::new(IdentifierReference { kind: Await, strict: parser.strict }), scan)))
                         } else {
                             Ok(None)
                         }
                     }
                     Some(scanner::Keyword::Yield) => {
                         if !arg_yield {
-                            Ok(Some((
-                                Box::new(IdentifierReference {
-                                    kind: Yield,
-                                    strict: parser.strict,
-                                }),
-                                scan,
-                            )))
+                            Ok(Some((Box::new(IdentifierReference { kind: Yield, strict: parser.strict }), scan)))
                         } else {
                             Ok(None)
                         }
@@ -338,11 +312,7 @@ impl BoundNames for BindingIdentifier {
     }
 }
 
-fn binding_identifier(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<BindingIdentifier>, Scanner)>, String> {
+fn binding_identifier(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<BindingIdentifier>, Scanner)>, String> {
     let production = identifier(parser)?;
     match production {
         Some((ident, scanner)) => {
@@ -355,8 +325,7 @@ fn binding_identifier(
             Ok(Some((boxed, scanner)))
         }
         None => {
-            let (token, scan) =
-                scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (token, scan) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
             match token {
                 scanner::Token::Identifier(id) => match id.keyword_id {
                     Some(scanner::Keyword::Await) => Ok(Some((
@@ -474,11 +443,7 @@ fn rewrap<T, E>(value: T) -> Result<Option<T>, E> {
     Ok(Some(value))
 }
 
-fn or_pe_kind<F, T>(
-    opt: Option<(Box<PrimaryExpression>, Scanner)>,
-    parser: &mut Parser,
-    parse_func: F,
-) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
+fn or_pe_kind<F, T>(opt: Option<(Box<PrimaryExpression>, Scanner)>, parser: &mut Parser, parse_func: F) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
 where
     F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
     T: ToPrimaryExpressionKind,
@@ -486,11 +451,7 @@ where
     opt.map_or_else(|| parse_func(parser).and_then(pe_boxer), rewrap)
 }
 
-fn primary_expression(
-    parser: &mut Parser,
-    arg_yield: bool,
-    arg_await: bool,
-) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
+fn primary_expression(parser: &mut Parser, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
     Ok(None)
         .and_then(|opt| or_pe_kind(opt, parser, |p| identifier_reference(p, arg_yield, arg_await)))
         .and_then(|opt| or_pe_kind(opt, parser, literal))
@@ -509,9 +470,7 @@ impl ToPrimaryExpressionKind for ThisToken {
 fn this_token(parser: &mut Parser) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
     let (tok, scanner) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
     Ok(match tok {
-        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => {
-            Some((Box::new(ThisToken {}), scanner))
-        }
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => Some((Box::new(ThisToken {}), scanner)),
         _ => None,
     })
 }
@@ -545,9 +504,7 @@ fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, Strin
     match token {
         scanner::Token::Identifier(id) => match id.keyword_id {
             Some(scanner::Keyword::Null) => {
-                let node = Literal {
-                    kind: LiteralKind::NullLiteral,
-                };
+                let node = Literal { kind: LiteralKind::NullLiteral };
                 let boxed = Box::new(node);
                 return Ok(Some((boxed, newscanner)));
             }
@@ -582,9 +539,7 @@ fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, Strin
             return Ok(Some((boxed, newscanner)));
         }
         scanner::Token::String(s) => {
-            let node = Literal {
-                kind: LiteralKind::StringLiteral(s),
-            };
+            let node = Literal { kind: LiteralKind::StringLiteral(s) };
             let boxed = Box::new(node);
             return Ok(Some((boxed, newscanner)));
         }
@@ -700,11 +655,7 @@ where
     }))
 }
 
-fn or_me_kind<F, T>(
-    opt: Option<(Box<MemberExpression>, Scanner)>,
-    parser: &mut Parser,
-    parse_func: F,
-) -> Result<Option<(Box<MemberExpression>, Scanner)>, String>
+fn or_me_kind<F, T>(opt: Option<(Box<MemberExpression>, Scanner)>, parser: &mut Parser, parse_func: F) -> Result<Option<(Box<MemberExpression>, Scanner)>, String>
 where
     F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
     T: ToMemberExpressionKind,
@@ -712,19 +663,13 @@ where
     opt.map_or_else(|| parse_func(parser).and_then(me_boxer), rewrap)
 }
 
-fn member_expression_head_recursive(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-    pair: (Box<MemberExpression>, Scanner),
-) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
+fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await_flag: bool, pair: (Box<MemberExpression>, Scanner)) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
     let (mut current_me, mut after_scan) = pair;
     loop {
         let (tok, after) = scanner::scan_token(&after_scan, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match tok {
             scanner::Token::Dot => {
-                let token_after_dot =
-                    scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let token_after_dot = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 if let (scanner::Token::Identifier(id), after_id) = token_after_dot {
                     let me = Box::new(MemberExpression {
                         kind: MemberExpressionKind::IdentifierName(MemberExpressionIdentifierName {
@@ -748,8 +693,7 @@ fn member_expression_head_recursive(
                         return Err(format!("Expect Expression after ‘[’."));
                     }
                     Some((expression, after_exp)) => {
-                        let after_exp =
-                            scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let after_exp = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                         match after_exp {
                             (scanner::Token::RightBracket, scanner) => {
                                 let me = Box::new(MemberExpression {
@@ -776,58 +720,40 @@ fn member_expression_head_recursive(
     Ok(Some((current_me, after_scan)))
 }
 
-pub fn member_expression(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
+pub fn member_expression(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
     Ok(None)
         // First: All the non-head-recursive productions
         .and_then(|opt| or_me_kind(opt, parser, |p| primary_expression(p, yield_flag, await_flag)))
         .and_then(|opt| or_me_kind(opt, parser, |p| super_property(p, yield_flag, await_flag)))
         .and_then(|opt| or_me_kind(opt, parser, meta_property))
-        .and_then(|opt| {
-            or_me_kind(opt, parser, |p| {
-                new_memberexpression_arguments(p, yield_flag, await_flag)
-            })
-        })
+        .and_then(|opt| or_me_kind(opt, parser, |p| new_memberexpression_arguments(p, yield_flag, await_flag)))
         // And then all the head-recursive productions.
-        .and_then(|opt| {
-            opt.map_or(Ok(None), |x| {
-                member_expression_head_recursive(parser, yield_flag, await_flag, x)
-            })
-        })
+        .and_then(|opt| opt.map_or(Ok(None), |x| member_expression_head_recursive(parser, yield_flag, await_flag, x)))
 }
 
-pub fn new_memberexpression_arguments(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<NewMemberExpressionArguments>, Scanner)>, String> {
-    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
-        |(token, scanner)| match token {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
-                parser.scanner = scanner;
-                member_expression(parser, yield_flag, await_flag).and_then(|opt| {
-                    opt.map_or(Ok(None), |(me, scan)| {
-                        parser.scanner = scan;
-                        arguments(parser, yield_flag, await_flag).and_then(|opt| {
-                            opt.map_or(Ok(None), |(args, scan)| {
-                                Ok(Some((
-                                    Box::new(NewMemberExpressionArguments {
-                                        member_expression: me,
-                                        arguments: args,
-                                    }),
-                                    scan,
-                                )))
-                            })
+pub fn new_memberexpression_arguments(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<NewMemberExpressionArguments>, Scanner)>, String> {
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
+            parser.scanner = scanner;
+            member_expression(parser, yield_flag, await_flag).and_then(|opt| {
+                opt.map_or(Ok(None), |(me, scan)| {
+                    parser.scanner = scan;
+                    arguments(parser, yield_flag, await_flag).and_then(|opt| {
+                        opt.map_or(Ok(None), |(args, scan)| {
+                            Ok(Some((
+                                Box::new(NewMemberExpressionArguments {
+                                    member_expression: me,
+                                    arguments: args,
+                                }),
+                                scan,
+                            )))
                         })
                     })
                 })
-            }
-            _ => Ok(None),
-        },
-    )
+            })
+        }
+        _ => Ok(None),
+    })
 }
 
 #[derive(Debug)]
@@ -836,12 +762,7 @@ pub enum Expression {
     Temp(Box<AssignmentExpression>),
 }
 
-pub fn expression(
-    parser: &mut Parser,
-    in_flag: bool,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<Expression>, Scanner)>, String> {
+pub fn expression(parser: &mut Parser, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Expression>, Scanner)>, String> {
     // todo!
     let potential = assignment_expression(parser, in_flag, yield_flag, await_flag)?;
     match potential {
@@ -858,12 +779,7 @@ pub enum AssignmentExpressionKind {
 pub struct AssignmentExpression {
     kind: AssignmentExpressionKind,
 }
-pub fn assignment_expression(
-    parser: &mut Parser,
-    _in_flag: bool,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+pub fn assignment_expression(parser: &mut Parser, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
     let potential = UnaryExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
@@ -885,59 +801,45 @@ pub enum SuperPropertyKind {
 pub struct SuperProperty {
     kind: SuperPropertyKind,
 }
-pub fn super_property(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
-    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
-        |(token, scanner)| match token {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => scanner::scan_token(
-                &scanner,
-                parser.source,
-                scanner::ScanGoal::InputElementRegExp,
-            )
-            .and_then(|(token, scanner)| match token {
+pub fn super_property(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
                 scanner::Token::LeftBracket => {
                     parser.scanner = scanner;
                     expression(parser, true, yield_flag, await_flag).and_then(|opt| {
                         opt.map_or_else(
                             || Err(String::from("‘super[’ must be followed by an Expression")),
                             |(exp_boxed, scanner)| {
-                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
-                                    .and_then(|(token, scanner)| match token {
-                                        scanner::Token::RightBracket => Ok(Some((
-                                            Box::new(SuperProperty {
-                                                kind: SuperPropertyKind::Expression(exp_boxed),
-                                            }),
-                                            scanner,
-                                        ))),
-                                        _ => Err(String::from("‘super[ Expression’ must be closed by a ‘]’.")),
-                                    })
+                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                                    scanner::Token::RightBracket => Ok(Some((
+                                        Box::new(SuperProperty {
+                                            kind: SuperPropertyKind::Expression(exp_boxed),
+                                        }),
+                                        scanner,
+                                    ))),
+                                    _ => Err(String::from("‘super[ Expression’ must be closed by a ‘]’.")),
+                                })
                             },
                         )
                     })
                 }
-                scanner::Token::Dot => {
-                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
-                        |(token, scanner)| match token {
-                            scanner::Token::Identifier(id) => Ok(Some((
-                                Box::new(SuperProperty {
-                                    kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken {
-                                        value: scanner::Token::Identifier(id),
-                                    })),
-                                }),
-                                scanner,
-                            ))),
-                            _ => Err(String::from("‘super.’ must be followed by an IdentifierName")),
-                        },
-                    )
-                }
+                scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                    scanner::Token::Identifier(id) => Ok(Some((
+                        Box::new(SuperProperty {
+                            kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken {
+                                value: scanner::Token::Identifier(id),
+                            })),
+                        }),
+                        scanner,
+                    ))),
+                    _ => Err(String::from("‘super.’ must be followed by an IdentifierName")),
+                }),
                 _ => Ok(None),
-            }),
-            _ => Ok(None),
-        },
-    )
+            })
+        }
+        _ => Ok(None),
+    })
 }
 
 #[derive(Debug)]
@@ -950,38 +852,22 @@ pub struct MetaProperty {
     kind: MetaPropertyKind,
 }
 
-fn dot_token(
-    parser: &mut Parser,
-    scanner: Scanner,
-    kwd: scanner::Keyword,
-    kind: MetaPropertyKind,
-) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
-    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| {
-        match token {
-            scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
-                .and_then(|(token, scanner)| match token {
-                    scanner::Token::Identifier(id) if id.keyword_id == Some(kwd) => {
-                        Ok(Some((Box::new(MetaProperty { kind }), scanner)))
-                    }
-                    _ => Ok(None),
-                }),
+fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: scanner::Keyword, kind: MetaPropertyKind) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
+    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(kwd) => Ok(Some((Box::new(MetaProperty { kind }), scanner))),
             _ => Ok(None),
-        }
+        }),
+        _ => Ok(None),
     })
 }
 
 pub fn meta_property(parser: &mut Parser) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
-    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
-        |(token, scanner)| match token {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
-                dot_token(parser, scanner, scanner::Keyword::Target, MetaPropertyKind::NewTarget)
-            }
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => {
-                dot_token(parser, scanner, scanner::Keyword::Meta, MetaPropertyKind::ImportMeta)
-            }
-            _ => Ok(None),
-        },
-    )
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => dot_token(parser, scanner, scanner::Keyword::Target, MetaPropertyKind::NewTarget),
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => dot_token(parser, scanner, scanner::Keyword::Meta, MetaPropertyKind::ImportMeta),
+        _ => Ok(None),
+    })
 }
 
 #[derive(Debug)]
@@ -994,61 +880,43 @@ pub enum ArgumentsKind {
 pub struct Arguments {
     kind: ArgumentsKind,
 }
-pub fn arguments(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
-    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(
-        |(token, scanner)| match token {
-            scanner::Token::LeftParen => {
-                parser.scanner = scanner;
-                argument_list(parser, yield_flag, await_flag).and_then(|opt| {
-                    opt.map_or_else(
-                        || {
-                            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
-                                .and_then(|(token, scanner)| match token {
-                                    scanner::Token::RightParen => Ok(Some((
-                                        Box::new(Arguments {
-                                            kind: ArgumentsKind::Empty,
-                                        }),
-                                        scanner,
-                                    ))),
-                                    _ => Ok(None),
-                                })
-                        },
-                        |(arglist_boxed, scanner)| {
-                            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)
-                                .and_then(|(token, scanner)| match token {
-                                    scanner::Token::Comma => scanner::scan_token(
-                                        &scanner,
-                                        parser.source,
-                                        scanner::ScanGoal::InputElementRegExp,
-                                    )
-                                    .and_then(|(token, scanner)| match token {
-                                        scanner::Token::RightParen => Ok(Some((
-                                            Box::new(Arguments {
-                                                kind: ArgumentsKind::ArgumentListComma(arglist_boxed),
-                                            }),
-                                            scanner,
-                                        ))),
-                                        _ => Ok(None),
+pub fn arguments(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
+    scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        scanner::Token::LeftParen => {
+            parser.scanner = scanner;
+            argument_list(parser, yield_flag, await_flag).and_then(|opt| {
+                opt.map_or_else(
+                    || {
+                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                            scanner::Token::RightParen => Ok(Some((Box::new(Arguments { kind: ArgumentsKind::Empty }), scanner))),
+                            _ => Ok(None),
+                        })
+                    },
+                    |(arglist_boxed, scanner)| {
+                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                            scanner::Token::Comma => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                                scanner::Token::RightParen => Ok(Some((
+                                    Box::new(Arguments {
+                                        kind: ArgumentsKind::ArgumentListComma(arglist_boxed),
                                     }),
-                                    scanner::Token::RightParen => Ok(Some((
-                                        Box::new(Arguments {
-                                            kind: ArgumentsKind::ArgumentList(arglist_boxed),
-                                        }),
-                                        scanner,
-                                    ))),
-                                    _ => Ok(None),
-                                })
-                        },
-                    )
-                })
-            }
-            _ => Ok(None),
-        },
-    )
+                                    scanner,
+                                ))),
+                                _ => Ok(None),
+                            }),
+                            scanner::Token::RightParen => Ok(Some((
+                                Box::new(Arguments {
+                                    kind: ArgumentsKind::ArgumentList(arglist_boxed),
+                                }),
+                                scanner,
+                            ))),
+                            _ => Ok(None),
+                        })
+                    },
+                )
+            })
+        }
+        _ => Ok(None),
+    })
 }
 
 #[derive(Debug)]
@@ -1083,12 +951,7 @@ impl ArgumentListKind {
     //    * an ArgumentListKind that contains all the relevant info
     //    * None, indicating that no AssignmentExpression was detected
     //    * an Err with a human readable message about what went wrong
-    pub fn parse_assignment_expression(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Self, Scanner)>, String> {
+    pub fn parse_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Self, Scanner)>, String> {
         parser.scanner = scanner;
         assignment_expression(parser, true, yield_flag, await_flag).and_then(Self::ae_package)
     }
@@ -1100,12 +963,7 @@ impl ArgumentListKind {
     //    * None, indicating that no ... was detected
     //    * an Err with a human readable message about what went wrong
     // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
-    pub fn parse_dots_assignment_expression(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Self, Scanner)>, String> {
+    pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Self, Scanner)>, String> {
         // Get the next token
         let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match token {
@@ -1138,12 +996,7 @@ impl ArgumentListKind {
     //    * a pair: (Box<AssignmentExpression>, Scanner)
     //    * None, indicating that no ',' was detected
     //    * an Err with a human readable message about what went wrong
-    fn parse_al_ae(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+    fn parse_al_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
         let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match token {
             scanner::Token::Comma => {
@@ -1161,17 +1014,11 @@ impl ArgumentListKind {
     //    * a pair: (Box<AssignmentExpression>, Scanner)
     //    * None, indicating that neither a ',' nor a '...' was detected
     //    * an Err with a human readable message about what went wrong
-    fn parse_al_dots_ae(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+    fn parse_al_dots_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
         let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match token {
             scanner::Token::Comma => {
-                let (token, scanner) =
-                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 match token {
                     scanner::Token::Ellipsis => {
                         parser.scanner = scanner;
@@ -1195,26 +1042,18 @@ impl ArgumentList {
         Box::new(Self { kind })
     }
     fn alae_boxer(arglist: Box<Self>, ae: Box<AssignmentExpression>) -> Box<Self> {
-        Self::boxer(ArgumentListKind::ArgumentListAssignmentExpression(
-            ArgumentListAssignmentExpression {
-                argument_list: arglist,
-                assignment_expression: ae,
-            },
-        ))
+        Self::boxer(ArgumentListKind::ArgumentListAssignmentExpression(ArgumentListAssignmentExpression {
+            argument_list: arglist,
+            assignment_expression: ae,
+        }))
     }
     fn aldotsae_boxer(arglist: Box<Self>, ae: Box<AssignmentExpression>) -> Box<Self> {
-        Self::boxer(ArgumentListKind::ArgumentListDotsAssignmentExpression(
-            ArgumentListAssignmentExpression {
-                argument_list: arglist,
-                assignment_expression: ae,
-            },
-        ))
+        Self::boxer(ArgumentListKind::ArgumentListDotsAssignmentExpression(ArgumentListAssignmentExpression {
+            argument_list: arglist,
+            assignment_expression: ae,
+        }))
     }
-    pub fn parse(
-        parser: &mut Parser,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let mut k = ArgumentListKind::parse_assignment_expression(parser, parser.scanner, yield_flag, await_flag)?;
         if k.is_none() {
             k = ArgumentListKind::parse_dots_assignment_expression(parser, parser.scanner, yield_flag, await_flag)?;
@@ -1243,11 +1082,7 @@ impl ArgumentList {
     }
 }
 
-pub fn argument_list(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-) -> Result<Option<(Box<ArgumentList>, Scanner)>, String> {
+pub fn argument_list(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<ArgumentList>, Scanner)>, String> {
     ArgumentList::parse(parser, yield_flag, await_flag)
 }
 
@@ -1263,18 +1098,12 @@ pub struct NewExpression {
 }
 
 impl NewExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<NewExpression>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<NewExpression>, Scanner)>, String> {
         parser.scanner = scanner;
         let pot_me = member_expression(parser, yield_flag, await_flag)?;
         match pot_me {
             None => {
-                let (token, scanner) =
-                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 match token {
                     scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
                         let pot_ne = Self::parse(parser, scanner, yield_flag, await_flag)?;
@@ -1308,12 +1137,7 @@ pub struct CallMemberExpression {
 }
 
 impl CallMemberExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<CallMemberExpression>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<CallMemberExpression>, Scanner)>, String> {
         parser.scanner = scanner;
         let pot_me = member_expression(parser, yield_flag, await_flag)?;
         match pot_me {
@@ -1342,12 +1166,7 @@ pub struct SuperCall {
 }
 
 impl SuperCall {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match tok {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
@@ -1369,18 +1188,12 @@ pub struct ImportCall {
 }
 
 impl ImportCall {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match tok {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => {
                 // Got "import"
-                let (tok, scanner) =
-                    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                 match tok {
                     scanner::Token::LeftParen => {
                         // Got "import ("
@@ -1390,20 +1203,11 @@ impl ImportCall {
                             None => Ok(None),
                             Some((ae_boxed, scanner)) => {
                                 // Got "import ( AssignmentExpression"
-                                let (tok, scanner) = scanner::scan_token(
-                                    &scanner,
-                                    parser.source,
-                                    scanner::ScanGoal::InputElementRegExp,
-                                )?;
+                                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                                 match tok {
                                     scanner::Token::RightParen => {
                                         // Got "import ( AssignmentExpression )"
-                                        Ok(Some((
-                                            Box::new(Self {
-                                                assignment_expression: ae_boxed,
-                                            }),
-                                            scanner,
-                                        )))
+                                        Ok(Some((Box::new(Self { assignment_expression: ae_boxed }), scanner)))
                                     }
                                     _ => Ok(None),
                                 }
@@ -1435,12 +1239,7 @@ pub struct CallExpression {
 }
 
 impl CallExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_arg: bool,
-        await_arg: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let first_parse = {
             let pot_cme = CallMemberExpression::parse(parser, scanner, yield_arg, await_arg)?;
             match pot_cme {
@@ -1480,8 +1279,7 @@ impl CallExpression {
         }
         let (mut top_box, mut top_scanner) = first_parse.unwrap();
         loop {
-            let (tok, scanner) =
-                scanner::scan_token(&top_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (tok, scanner) = scanner::scan_token(&top_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
             match tok {
                 scanner::Token::LeftParen => {
                     // Don't consume the token in this particular case.
@@ -1507,8 +1305,7 @@ impl CallExpression {
                             break;
                         }
                         Some((exp_boxed, scanner)) => {
-                            let (tok, scanner) =
-                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                            let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                             match tok {
                                 scanner::Token::RightBracket => {
                                     top_box = Box::new(Self {
@@ -1524,15 +1321,11 @@ impl CallExpression {
                     }
                 }
                 scanner::Token::Dot => {
-                    let (tok, scanner) =
-                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                     match tok {
                         scanner::Token::Identifier(_) => {
                             top_box = Box::new(Self {
-                                kind: CallExpressionKind::CallExpressionIdentifierName((
-                                    top_box,
-                                    Box::new(IdentifierNameToken { value: tok }),
-                                )),
+                                kind: CallExpressionKind::CallExpressionIdentifierName((top_box, Box::new(IdentifierNameToken { value: tok }))),
                             });
                             top_scanner = scanner;
                         }
@@ -1558,12 +1351,7 @@ pub enum LeftHandSideExpression {
 }
 
 impl LeftHandSideExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_arg: bool,
-        await_arg: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
         match pot_ce {
             Some((ce_boxed, scanner)) => Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner))),
@@ -1588,12 +1376,7 @@ pub enum UpdateExpression {
 }
 
 impl UpdateExpression {
-    fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
         match token {
             scanner::Token::PlusPlus => {
@@ -1622,25 +1405,14 @@ impl UpdateExpression {
                 let pot_lhs = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 match pot_lhs {
                     Some((boxed, after_lhs)) => {
-                        let (token, after_token) =
-                            scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (token, after_token) = scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                         if after_token.line != after_lhs.line {
-                            Ok(Some((
-                                Box::new(UpdateExpression::LeftHandSideExpression(boxed)),
-                                after_lhs,
-                            )))
+                            Ok(Some((Box::new(UpdateExpression::LeftHandSideExpression(boxed)), after_lhs)))
                         } else {
                             match token {
-                                scanner::Token::PlusPlus => {
-                                    Ok(Some((Box::new(UpdateExpression::PostIncrement(boxed)), after_token)))
-                                }
-                                scanner::Token::MinusMinus => {
-                                    Ok(Some((Box::new(UpdateExpression::PostDecrement(boxed)), after_token)))
-                                }
-                                _ => Ok(Some((
-                                    Box::new(UpdateExpression::LeftHandSideExpression(boxed)),
-                                    after_lhs,
-                                ))),
+                                scanner::Token::PlusPlus => Ok(Some((Box::new(UpdateExpression::PostIncrement(boxed)), after_token))),
+                                scanner::Token::MinusMinus => Ok(Some((Box::new(UpdateExpression::PostDecrement(boxed)), after_token))),
+                                _ => Ok(Some((Box::new(UpdateExpression::LeftHandSideExpression(boxed)), after_lhs))),
                             }
                         }
                     }
@@ -1653,24 +1425,66 @@ impl UpdateExpression {
 
 #[derive(Debug)]
 pub enum UnaryExpression {
-    Temp(Box<UpdateExpression>),
+    UpdateExpression(Box<UpdateExpression>),
+    Delete(Box<UnaryExpression>),
+    Void(Box<UnaryExpression>),
+    Typeof(Box<UnaryExpression>),
+    NoOp(Box<UnaryExpression>),
+    Negate(Box<UnaryExpression>),
+    Complement(Box<UnaryExpression>),
+    Not(Box<UnaryExpression>),
+    Await(Box<AwaitExpression>),
 }
 
 impl UnaryExpression {
-    fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        match pot_ue {
-            Some((boxed, after)) => Ok(Some((Box::new(UnaryExpression::Temp(boxed)), after))),
-            None => Ok(None),
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let mut unary_helper =
+            |f: fn(Box<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).and_then(|opt| opt.map_or(Ok(None), |(boxed, after)| Ok(Some((Box::new(f(boxed)), after)))));
+        match token {
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Delete) => unary_helper(|boxed| UnaryExpression::Delete(boxed)),
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Void) => unary_helper(|boxed| UnaryExpression::Void(boxed)),
+            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Typeof) => unary_helper(|boxed| UnaryExpression::Typeof(boxed)),
+            scanner::Token::Plus => unary_helper(|boxed| UnaryExpression::NoOp(boxed)),
+            scanner::Token::Minus => unary_helper(|boxed| UnaryExpression::Negate(boxed)),
+            scanner::Token::Tilde => unary_helper(|boxed| UnaryExpression::Complement(boxed)),
+            scanner::Token::Bang => unary_helper(|boxed| UnaryExpression::Not(boxed)),
+            _ => {
+                let mut production: Option<(Box<Self>, Scanner)> = None;
+                if await_flag {
+                    let pot_ae = AwaitExpression::parse(parser, scanner, yield_flag)?;
+                    match pot_ae {
+                        Some((boxed, scanner)) => {
+                            production = Some((Box::new(UnaryExpression::Await(boxed)), scanner));
+                        }
+                        None => {}
+                    }
+                }
+                if production.is_none() {
+                    production = {
+                        let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
+                        match pot_ue {
+                            Some((boxed, scanner)) => Some((Box::new(UnaryExpression::UpdateExpression(boxed)), scanner)),
+                            None => None,
+                        }
+                    };
+                }
+                Ok(production)
+            }
         }
     }
 }
 
+#[derive(Debug)]
+pub enum AwaitExpression {
+    Await(Box<UnaryExpression>),
+}
+
+impl AwaitExpression {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        Ok(None)
+    }
+}
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -1797,7 +1611,7 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     //     scanner::ScanGoal::InputElementRegExp,
     // );
     let mut parser = Parser::new(source, false, ParseGoal::Script);
-    let result = assignment_expression(&mut parser, true, false, false);
+    let result = expression(&mut parser, true, false, false);
     println!("{:#?}", result);
     match result {
         Ok(_) => Ok(0),
@@ -2014,24 +1828,14 @@ mod tests {
     }
     #[test]
     fn identifier_test_err() {
-        let result = super::identifier(&mut super::Parser::new(
-            "iden\\u{20}tifier",
-            false,
-            super::ParseGoal::Script,
-        ));
+        let result = super::identifier(&mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script));
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "1:5: Invalid Identifier Continuation Character ' '"
-        )
+        assert_eq!(result.unwrap_err(), "1:5: Invalid Identifier Continuation Character ' '")
     }
     fn identifier_test_strict(kwd: &str) {
         let result = super::identifier(&mut super::Parser::new(kwd, true, super::ParseGoal::Script));
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            format!("1:1: ‘{}’ not allowed as an identifier in strict mode", kwd)
-        );
+        assert_eq!(result.unwrap_err(), format!("1:1: ‘{}’ not allowed as an identifier in strict mode", kwd));
     }
     #[test]
     fn identifier_test_strict_implements() {
@@ -2069,10 +1873,7 @@ mod tests {
     fn identifier_test_await_module() {
         let result = identifier(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module));
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "1:1: ‘await’ not allowed as an identifier in modules"
-        );
+        assert_eq!(result.unwrap_err(), "1:1: ‘await’ not allowed as an identifier in modules");
     }
     #[test]
     fn identifier_test_nothing() {
@@ -2085,10 +1886,7 @@ mod tests {
         let id_src = format!("\\u{{{:x}}}{}", firstch as u32, &kwd[firstch.len_utf8()..]);
         let result = super::identifier(&mut super::Parser::new(&id_src, false, super::ParseGoal::Script));
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            format!("1:1: ‘{}’ is a reserved word and may not be used as an identifier", kwd)
-        );
+        assert_eq!(result.unwrap_err(), format!("1:1: ‘{}’ is a reserved word and may not be used as an identifier", kwd));
     }
     #[test]
     fn identifier_test_keyword_break() {
@@ -2241,14 +2039,7 @@ mod tests {
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
         let (identifier, scanner) = optional_id.unwrap();
-        assert_eq!(
-            scanner,
-            super::Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            }
-        );
+        assert_eq!(scanner, super::Scanner { line: 1, column: 4, start_idx: 3 });
         let data = identifier.identifier_name;
         assert_eq!(data.string_value, "bob");
         assert_eq!(data.keyword_id, None);
@@ -2263,14 +2054,7 @@ mod tests {
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
         let (identifier, scanner) = optional_id.unwrap();
-        assert_eq!(
-            scanner,
-            super::Scanner {
-                line: 1,
-                column: 14,
-                start_idx: 39
-            }
-        );
+        assert_eq!(scanner, super::Scanner { line: 1, column: 14, start_idx: 39 });
         let data = identifier.identifier_name;
         assert_eq!(data.string_value, "手がける黒田征太郎さんです");
         assert_eq!(data.keyword_id, None);
@@ -2294,11 +2078,7 @@ mod tests {
     fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
         let yield_syntax = false;
         let await_syntax = false;
-        let result = identifier_reference(
-            &mut Parser::new(text, strict, ParseGoal::Script),
-            yield_syntax,
-            await_syntax,
-        );
+        let result = identifier_reference(&mut Parser::new(text, strict, ParseGoal::Script), yield_syntax, await_syntax);
         assert!(result.is_ok());
         let optional_idref = result.unwrap();
         assert!(optional_idref.is_some());
@@ -2402,11 +2182,7 @@ mod tests {
         let yield_syntax = y;
         let await_syntax = a;
         let strict = false;
-        let result = binding_identifier(
-            &mut Parser::new(text, strict, ParseGoal::Script),
-            yield_syntax,
-            await_syntax,
-        );
+        let result = binding_identifier(&mut Parser::new(text, strict, ParseGoal::Script), yield_syntax, await_syntax);
         assert!(result.is_ok());
         let optional_bid = result.unwrap();
         assert!(optional_bid.is_some());
@@ -2540,15 +2316,7 @@ mod tests {
     // LITERAL
     #[test]
     fn literal_test_debug() {
-        assert_eq!(
-            format!(
-                "{:?}",
-                Literal {
-                    kind: LiteralKind::NullLiteral
-                }
-            ),
-            "Literal { kind: NullLiteral }"
-        );
+        assert_eq!(format!("{:?}", Literal { kind: LiteralKind::NullLiteral }), "Literal { kind: NullLiteral }");
     }
     #[test]
     fn literal_test_null() {
@@ -2622,11 +2390,7 @@ mod tests {
     }
     #[test]
     fn member_expression_test_new_me_args() {
-        let (me, scanner) = check(member_expression(
-            &mut newparser("new shoes('red', 'leather')"),
-            false,
-            false,
-        ));
+        let (me, scanner) = check(member_expression(&mut newparser("new shoes('red', 'leather')"), false, false));
         chk_scan(&scanner, 27);
         assert!(matches!(me.kind, MemberExpressionKind::NewArguments(_)));
         // Excersize the Debug formatter, for code coverage
@@ -2806,10 +2570,7 @@ mod tests {
     fn argument_list_test_al_dots_ae() {
         let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,...101"), false, false));
         chk_scan(&scanner, 9);
-        assert!(matches!(
-            al.kind,
-            ArgumentListKind::ArgumentListDotsAssignmentExpression(_)
-        ));
+        assert!(matches!(al.kind, ArgumentListKind::ArgumentListDotsAssignmentExpression(_)));
         format!("{:?}", al);
     }
     #[test]
@@ -2836,24 +2597,14 @@ mod tests {
     // NEW EXPRESSION
     #[test]
     fn new_expression_test_me() {
-        let (ne, scanner) = check(NewExpression::parse(
-            &mut newparser("true"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ne, scanner) = check(NewExpression::parse(&mut newparser("true"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
         format!("{:?}", ne);
     }
     #[test]
     fn new_expression_test_new() {
-        let (ne, scanner) = check(NewExpression::parse(
-            &mut newparser("new bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(ne.kind, NewExpressionKind::NewExpression(_)));
         format!("{:?}", ne);
@@ -2864,54 +2615,29 @@ mod tests {
     }
     #[test]
     fn new_expression_test_chopped() {
-        check_none(NewExpression::parse(
-            &mut newparser("new"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(NewExpression::parse(&mut newparser("new"), Scanner::new(), false, false));
     }
 
     // CALL MEMBER EXPRESSION
     #[test]
     fn call_member_expression_test_me_args() {
-        let (cme, scanner) = check(CallMemberExpression::parse(
-            &mut newparser("a()"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (cme, scanner) = check(CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         format!("{:?}", cme);
     }
     #[test]
     fn call_member_expression_test_nomatch() {
-        check_none(CallMemberExpression::parse(
-            &mut newparser("++"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(CallMemberExpression::parse(&mut newparser("++"), Scanner::new(), false, false));
     }
     #[test]
     fn call_member_expression_test_incomplete() {
-        check_none(CallMemberExpression::parse(
-            &mut newparser("pop"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(CallMemberExpression::parse(&mut newparser("pop"), Scanner::new(), false, false));
     }
 
     // SUPER CALL
     #[test]
     fn super_call_test_args() {
-        let (sc, scanner) = check(SuperCall::parse(
-            &mut newparser("super()"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(sc.arguments.kind, ArgumentsKind::Empty));
         format!("{:?}", sc);
@@ -2928,17 +2654,9 @@ mod tests {
     // IMPORT CALL
     #[test]
     fn import_call_test_ae() {
-        let (ic, scanner) = check(ImportCall::parse(
-            &mut newparser("import(bob)"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ic, scanner) = check(ImportCall::parse(&mut newparser("import(bob)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
-        assert!(matches!(
-            ic.assignment_expression.kind,
-            AssignmentExpressionKind::Temp(_)
-        ));
+        assert!(matches!(ic.assignment_expression.kind, AssignmentExpressionKind::Temp(_)));
         format!("{:?}", ic);
     }
     #[test]
@@ -2947,113 +2665,63 @@ mod tests {
     }
     #[test]
     fn import_call_test_incomplete() {
-        check_none(ImportCall::parse(
-            &mut newparser("import"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(ImportCall::parse(&mut newparser("import"), Scanner::new(), false, false));
     }
     #[test]
     fn import_call_test_incomplete2() {
-        check_none(ImportCall::parse(
-            &mut newparser("import("),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(ImportCall::parse(&mut newparser("import("), Scanner::new(), false, false));
     }
     #[test]
     fn import_call_test_incomplete3() {
-        check_none(ImportCall::parse(
-            &mut newparser("import(bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(ImportCall::parse(&mut newparser("import(bob"), Scanner::new(), false, false));
     }
 
     // CALL EXPRESSION
     #[test]
     fn call_expression_test_me_args() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("a()"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_super() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("super()"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(ce.kind, CallExpressionKind::SuperCall(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_import() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("import(pop)"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("import(pop)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
         assert!(matches!(ce.kind, CallExpressionKind::ImportCall(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_ce_args() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)(snap)(10)(20)"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_ce_args2() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)(snap)(10)(++)"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_ce_exp() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)[snap]"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionExpression(_)));
         format!("{:?}", ce);
     }
     #[test]
     fn call_expression_test_ce_ident() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop).snap"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionIdentifierName(_)));
         format!("{:?}", ce);
@@ -3064,34 +2732,19 @@ mod tests {
     }
     #[test]
     fn call_expression_test_incomplete_01() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)["),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)["), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
     }
     #[test]
     fn call_expression_test_incomplete_02() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)[99"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)[99"), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
     }
     #[test]
     fn call_expression_test_incomplete_03() {
-        let (ce, scanner) = check(CallExpression::parse(
-            &mut newparser("blue(pop)."),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)."), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
     }
@@ -3099,100 +2752,128 @@ mod tests {
     // UPDATE EXPRESSION
     #[test]
     fn update_expression_lhs() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("78"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("78"), Scanner::new(), false, false));
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_preinc() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("++a"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_predec() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("--a"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_postinc() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("a++"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_postdec() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("a--"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_newline() {
-        let (ue, scanner) = check(UpdateExpression::parse(
-            &mut newparser("a\n++"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a\n++"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
     }
     #[test]
     fn update_expression_test_nomatch() {
-        check_none(UpdateExpression::parse(
-            &mut newparser("**"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false));
     }
     #[test]
     fn update_expression_test_syntax_error_01() {
-        check_none(UpdateExpression::parse(
-            &mut newparser("++ ++"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false));
     }
     #[test]
     fn update_expression_test_syntax_error_02() {
-        check_none(UpdateExpression::parse(
-            &mut newparser("-- ++"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_none(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false));
+    }
+
+    // UNARY EXPRESSION
+    #[test]
+    fn unary_expression_test_update_expression() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("900"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
+    }
+    #[test]
+    fn unary_expression_test_delete() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(*ue, UnaryExpression::Delete(_)));
+    }
+    #[test]
+    fn unary_expression_test_void() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 8);
+        assert!(matches!(*ue, UnaryExpression::Void(_)));
+    }
+    #[test]
+    fn unary_expression_test_typeof() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(*ue, UnaryExpression::Typeof(_)));
+    }
+    #[test]
+    fn unary_expression_test_numberify() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*ue, UnaryExpression::NoOp(_)));
+    }
+    #[test]
+    fn unary_expression_test_negate() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*ue, UnaryExpression::Negate(_)));
+    }
+    #[test]
+    fn unary_expression_test_complement() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*ue, UnaryExpression::Complement(_)));
+    }
+    #[test]
+    fn unary_expression_test_not() {
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*ue, UnaryExpression::Not(_)));
+    }
+    #[test]
+    fn unary_expression_test_await() {
+        //let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true));
+        //chk_scan(&scanner, 9);
+        //assert!(matches!(*ue, UnaryExpression::Await(_)));
+
+        // Use the prior lines when AwaitExpression gets implemented.
+        check_none(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true));
+    }
+    #[test]
+    fn unary_expression_test_nomatch() {
+        check_none(UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn unary_expression_test_incomplete() {
+        check_none(UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false));
+        check_none(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false));
     }
 }
