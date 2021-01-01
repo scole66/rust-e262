@@ -507,19 +507,12 @@ impl ToPrimaryExpressionKind for ThisToken {
 }
 
 fn this_token(parser: &mut Parser) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
-    let tok = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
-    Ok(if let (scanner::Token::Identifier(id), newscanner) = tok {
-        if let Some(kwd_id) = id.keyword_id {
-            if kwd_id == scanner::Keyword::This {
-                Some((Box::new(ThisToken {}), newscanner))
-            } else {
-                None
-            }
-        } else {
-            None
+    let (tok, scanner) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+    Ok(match tok {
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => {
+            Some((Box::new(ThisToken {}), scanner))
         }
-    } else {
-        None
+        _ => None,
     })
 }
 
@@ -859,7 +852,7 @@ pub fn expression(
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<LeftHandSideExpression>),
+    Temp(Box<UnaryExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -871,7 +864,7 @@ pub fn assignment_expression(
     yield_flag: bool,
     await_flag: bool,
 ) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let potential = LeftHandSideExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    let potential = UnaryExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
         Some((boxed, scanner)) => Ok(Some((
@@ -1585,6 +1578,99 @@ impl LeftHandSideExpression {
     }
 }
 
+#[derive(Debug)]
+pub enum UpdateExpression {
+    LeftHandSideExpression(Box<LeftHandSideExpression>),
+    PostIncrement(Box<LeftHandSideExpression>),
+    PostDecrement(Box<LeftHandSideExpression>),
+    PreIncrement(Box<UnaryExpression>),
+    PreDecrement(Box<UnaryExpression>),
+}
+
+impl UpdateExpression {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match token {
+            scanner::Token::PlusPlus => {
+                // Seen ++ ...
+                let pot_ue = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
+                match pot_ue {
+                    Some((boxed, after_exp)) => {
+                        // Seen ++ UnaryExpression
+                        Ok(Some((Box::new(Self::PreIncrement(boxed)), after_exp)))
+                    }
+                    None => Ok(None),
+                }
+            }
+            scanner::Token::MinusMinus => {
+                // Seen -- ...
+                let pot_ue = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
+                match pot_ue {
+                    Some((boxed, after_exp)) => {
+                        // Seen -- UnaryExpression
+                        Ok(Some((Box::new(Self::PreDecrement(boxed)), after_exp)))
+                    }
+                    None => Ok(None),
+                }
+            }
+            _ => {
+                let pot_lhs = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
+                match pot_lhs {
+                    Some((boxed, after_lhs)) => {
+                        let (token, after_token) =
+                            scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        if after_token.line != after_lhs.line {
+                            Ok(Some((
+                                Box::new(UpdateExpression::LeftHandSideExpression(boxed)),
+                                after_lhs,
+                            )))
+                        } else {
+                            match token {
+                                scanner::Token::PlusPlus => {
+                                    Ok(Some((Box::new(UpdateExpression::PostIncrement(boxed)), after_token)))
+                                }
+                                scanner::Token::MinusMinus => {
+                                    Ok(Some((Box::new(UpdateExpression::PostDecrement(boxed)), after_token)))
+                                }
+                                _ => Ok(Some((
+                                    Box::new(UpdateExpression::LeftHandSideExpression(boxed)),
+                                    after_lhs,
+                                ))),
+                            }
+                        }
+                    }
+                    None => Ok(None),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum UnaryExpression {
+    Temp(Box<UpdateExpression>),
+}
+
+impl UnaryExpression {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_ue {
+            Some((boxed, after)) => Ok(Some((Box::new(UnaryExpression::Temp(boxed)), after))),
+            None => Ok(None),
+        }
+    }
+}
+
 //////// 13.2 Block
 
 // StatementList[Yield, Await, Return]:
@@ -2192,6 +2278,19 @@ mod tests {
         assert_eq!(data.column, 1);
     }
 
+    #[test]
+    fn identifier_reference_test_debug() {
+        assert_eq!(
+            format!(
+                "{:?}",
+                IdentifierReference {
+                    kind: IdentifierReferenceKind::Yield,
+                    strict: false
+                }
+            ),
+            "IdentifierReference { kind: Yield, strict: false }"
+        );
+    }
     fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
         let yield_syntax = false;
         let await_syntax = false;
@@ -2216,7 +2315,7 @@ mod tests {
     }
 
     #[test]
-    fn idref_simple_success() {
+    fn identifier_reference_test_simple_success() {
         let idref = idref_create("identifier", false);
         assert_eq!(idref.strict, false);
         use IdentifierReferenceKind::*;
@@ -2228,59 +2327,72 @@ mod tests {
         assert_eq!(idref.string_value(), "identifier");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
     }
-
     #[test]
-    fn idref_yield() {
+    fn identifier_reference_test_yield() {
         let idref = idref_create("yield", false);
         assert_eq!(idref.strict, false);
-        use IdentifierReferenceKind::*;
-        match &idref.kind {
-            Await | Identifier(_) => {
-                assert!(false, "Wrong IdentifierReference Kind (expected Yield)")
-            }
-            Yield => (),
-        }
-
+        assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
         assert_eq!(idref.string_value(), "yield");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
     }
-
     #[test]
-    fn idref_await() {
+    fn identifier_reference_test_yield_02() {
+        let idref = identifier_reference(&mut Parser::new("yield", false, ParseGoal::Script), true, true);
+        assert!(idref.is_ok());
+        assert!(idref.unwrap().is_none());
+    }
+    #[test]
+    fn identifier_reference_test_await() {
         let idref = idref_create("await", false);
         assert_eq!(idref.strict, false);
-        use IdentifierReferenceKind::*;
-        match &idref.kind {
-            Yield | Identifier(_) => {
-                assert!(false, "Wrong IdentifierReference Kind (expected Await)")
-            }
-            Await => (),
-        }
-
+        assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
         assert_eq!(idref.string_value(), "await");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
     }
-
     #[test]
-    fn idref_eval_strict() {
+    fn identifier_reference_test_await_02() {
+        let idref = identifier_reference(&mut Parser::new("await", false, ParseGoal::Script), true, true);
+        assert!(idref.is_ok());
+        assert!(idref.unwrap().is_none());
+    }
+    #[test]
+    fn identifier_reference_test_kwd() {
+        let idref = identifier_reference(&mut Parser::new("new", false, ParseGoal::Script), true, true);
+        assert!(idref.is_ok());
+        assert!(idref.unwrap().is_none());
+    }
+    #[test]
+    fn identifier_reference_test_punct() {
+        let idref = identifier_reference(&mut Parser::new("**", false, ParseGoal::Script), true, true);
+        assert!(idref.is_ok());
+        assert!(idref.unwrap().is_none());
+    }
+    #[test]
+    fn identifier_reference_test_att_strict() {
+        let idref = idref_create("abcd", true);
+        assert_eq!(idref.string_value(), "abcd");
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn identifier_reference_test_eval_strict() {
         let idref = idref_create("eval", true);
         assert_eq!(idref.string_value(), "eval");
         assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
-    fn idref_eval_loose() {
+    fn identifier_reference_test_eval_loose() {
         let idref = idref_create("eval", false);
         assert_eq!(idref.string_value(), "eval");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
-    fn idref_arguments_strict() {
+    fn identifier_reference_test_arguments_strict() {
         let idref = idref_create("arguments", true);
         assert_eq!(idref.string_value(), "arguments");
         assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
-    fn idref_arguments_loose() {
+    fn identifier_reference_test_arguments_loose() {
         let idref = idref_create("arguments", false);
         assert_eq!(idref.string_value(), "arguments");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
@@ -2323,33 +2435,460 @@ mod tests {
     }
 
     #[test]
-    fn binding_identifier_normal() {
+    fn binding_identifier_test_normal() {
         bid_allflags("green");
     }
     #[test]
-    fn binding_identifier_yield() {
+    fn binding_identifier_test_yield() {
         bid_allflags("yield");
     }
     #[test]
-    fn bindind_identifier_await() {
+    fn binding_identifier_test_await() {
         bid_allflags("await");
+    }
+    #[test]
+    fn binding_identifier_test_debug() {
+        assert_eq!(format!("{:?}", bindingid_create("abcd", true, true)), 
+        "BindingIdentifier { kind: Identifier(Identifier { identifier_name: IdentifierData { string_value: \"abcd\", keyword_id: None, line: 1, column: 1 } }), yield_flag: true, await_flag: true }");
+    }
+    #[test]
+    fn binding_identifier_test_non_matches() {
+        let mut p1 = Parser::new("function", false, ParseGoal::Script);
+        let r1 = binding_identifier(&mut p1, false, false);
+        assert!(r1.is_ok());
+        assert!(r1.unwrap().is_none());
+        let mut p2 = Parser::new("**", false, ParseGoal::Script);
+        let r2 = binding_identifier(&mut p2, false, false);
+        assert!(r2.is_ok());
+        assert!(r2.unwrap().is_none());
+    }
+
+    fn check<T>(res: Result<Option<(Box<T>, Scanner)>, String>) -> (Box<T>, Scanner) {
+        assert!(res.is_ok());
+        let potential = res.unwrap();
+        assert!(potential.is_some());
+        potential.unwrap()
+    }
+    fn check_none<T>(res: Result<Option<(Box<T>, Scanner)>, String>) {
+        assert!(res.is_ok());
+        let potential = res.unwrap();
+        assert!(potential.is_none());
+    }
+    fn chk_scan(scanner: &Scanner, count: u32) {
+        assert_eq!(
+            *scanner,
+            Scanner {
+                line: 1,
+                column: count + 1,
+                start_idx: count as usize
+            }
+        );
+    }
+    fn newparser(text: &str) -> Parser {
+        Parser::new(text, false, ParseGoal::Script)
+    }
+    // PRIMARY EXPRESSION
+    #[test]
+    fn primary_expression_test_debug() {
+        let pe = primary_expression(&mut newparser("this"), false, false);
+        let (exp, _) = check(pe);
+        assert_eq!(format!("{:?}", exp), "PrimaryExpression { kind: This }");
+    }
+    #[test]
+    fn primary_expression_test_idref() {
+        let pe_res = primary_expression(&mut newparser("blue"), false, false);
+        let (boxed_pe, scanner) = check(pe_res);
+        chk_scan(&scanner, 4);
+        assert!(matches!(boxed_pe.kind, PrimaryExpressionKind::IdentifierReference(_)));
+        assert_eq!(boxed_pe.is_function_definition(), false);
+        assert_eq!(boxed_pe.is_identifier_reference(), true);
+        assert_eq!(boxed_pe.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn primary_expression_test_literal() {
+        let (node, scanner) = check(primary_expression(&mut newparser("371"), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(node.kind, PrimaryExpressionKind::Literal(_)));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn primary_expression_test_this() {
+        let (node, scanner) = check(primary_expression(&mut newparser("this"), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(node.kind, PrimaryExpressionKind::This));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     }
 
     #[test]
-    fn literal_leading_dot() {
-        let result = literal(&mut Parser::new(".25", false, ParseGoal::Script));
-        assert!(result.is_ok());
-        let optional_lit = result.unwrap();
-        assert!(optional_lit.is_some());
-        let (lit, scanner) = optional_lit.unwrap();
+    fn this_token_test_debug() {
+        assert_eq!(format!("{:?}", ThisToken {}), "ThisToken");
+    }
+    #[test]
+    fn this_token_test_01() {
+        let (_, scanner) = check(this_token(&mut newparser("this")));
+        chk_scan(&scanner, 4);
+    }
+    #[test]
+    fn this_token_test_02() {
+        check_none(this_token(&mut newparser("**")));
+    }
+
+    // LITERAL
+    #[test]
+    fn literal_test_debug() {
         assert_eq!(
-            scanner,
-            Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            }
+            format!(
+                "{:?}",
+                Literal {
+                    kind: LiteralKind::NullLiteral
+                }
+            ),
+            "Literal { kind: NullLiteral }"
         );
+    }
+    #[test]
+    fn literal_test_null() {
+        let (lit, scanner) = check(literal(&mut newparser("null")));
+        chk_scan(&scanner, 4);
+        assert!(matches!(lit.kind, LiteralKind::NullLiteral));
+    }
+    #[test]
+    fn literal_test_boolean_01() {
+        let (lit, scanner) = check(literal(&mut newparser("true")));
+        chk_scan(&scanner, 4);
+        assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(true)));
+    }
+    #[test]
+    fn literal_test_boolean_02() {
+        let (lit, scanner) = check(literal(&mut newparser("false")));
+        chk_scan(&scanner, 5);
+        assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(false)));
+    }
+    #[test]
+    fn literal_test_leading_dot() {
+        let (lit, scanner) = check(literal(&mut newparser(".25")));
+        chk_scan(&scanner, 3);
         assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)))
+    }
+    #[test]
+    fn literal_test_bigint() {
+        let (lit, scanner) = check(literal(&mut newparser("7173n")));
+        chk_scan(&scanner, 5);
+        assert!(matches!(lit.kind, LiteralKind::NumericLiteral(Numeric::BigInt(_))));
+    }
+    #[test]
+    fn literal_test_string() {
+        let (lit, scanner) = check(literal(&mut newparser("'string'")));
+        chk_scan(&scanner, 8);
+        assert!(matches!(lit.kind, LiteralKind::StringLiteral(_)));
+    }
+    #[test]
+    fn literal_test_keyword() {
+        check_none(literal(&mut newparser("function")));
+    }
+    #[test]
+    fn literal_test_punct() {
+        check_none(literal(&mut newparser("**")));
+    }
+
+    // MEMBER EXPRESSION
+    #[test]
+    fn member_expression_test_primary_expression() {
+        let (me, scanner) = check(member_expression(&mut newparser("6"), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(me.kind, MemberExpressionKind::PrimaryExpression(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_meta_property() {
+        let (me, scanner) = check(member_expression(&mut newparser("new.target"), false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(me.kind, MemberExpressionKind::MetaProperty(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_super_property() {
+        let (me, scanner) = check(member_expression(&mut newparser("super.ior"), false, false));
+        chk_scan(&scanner, 9);
+        assert!(matches!(me.kind, MemberExpressionKind::SuperProperty(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_new_me_args() {
+        let (me, scanner) = check(member_expression(
+            &mut newparser("new shoes('red', 'leather')"),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 27);
+        assert!(matches!(me.kind, MemberExpressionKind::NewArguments(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_me_expression() {
+        let (me, scanner) = check(member_expression(&mut newparser("bill[3]"), false, false));
+        chk_scan(&scanner, 7);
+        assert!(matches!(me.kind, MemberExpressionKind::Expression(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_me_ident() {
+        let (me, scanner) = check(member_expression(&mut newparser("alice.name"), false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(me.kind, MemberExpressionKind::IdentifierName(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", me);
+    }
+    #[test]
+    fn member_expression_test_bad_ident() {
+        let r = member_expression(&mut newparser("alice.'pool'"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn member_expression_test_bad_expr() {
+        let r = member_expression(&mut newparser("alice[while]"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn member_expression_test_bad_expr_close() {
+        let r = member_expression(&mut newparser("alice[73"), false, false);
+        assert!(r.is_err());
+    }
+
+    // SUPER PROPERTY
+    #[test]
+    fn super_property_test_expression() {
+        let (sp, scanner) = check(super_property(&mut newparser("super[3]"), false, false));
+        chk_scan(&scanner, 8);
+        assert!(matches!(sp.kind, SuperPropertyKind::Expression(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", sp);
+    }
+    #[test]
+    fn super_property_test_ident() {
+        let (sp, scanner) = check(super_property(&mut newparser("super.bob"), false, false));
+        chk_scan(&scanner, 9);
+        assert!(matches!(sp.kind, SuperPropertyKind::IdentifierName(_)));
+        // Excersize the Debug formatter, for code coverage
+        format!("{:?}", sp);
+    }
+    #[test]
+    fn super_property_test_nomatch() {
+        check_none(super_property(&mut newparser("silly"), false, false));
+    }
+    #[test]
+    fn super_property_test_bad_ident() {
+        let r = super_property(&mut newparser("super.**"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn super_property_test_bad_expression() {
+        let r = super_property(&mut newparser("super[while]"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn super_property_test_incomplete_expression() {
+        let r = super_property(&mut newparser("super[99"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn super_property_test_bad_following_token() {
+        let r = super_property(&mut newparser("super duper"), false, false);
+        assert!(r.is_err());
+    }
+
+    // META PROPERTY
+    #[test]
+    fn meta_property_test_newtarget() {
+        let (mp, scanner) = check(meta_property(&mut newparser("new.target")));
+        chk_scan(&scanner, 10);
+        assert!(matches!(mp.kind, MetaPropertyKind::NewTarget));
+        format!("{:?}", mp);
+    }
+    #[test]
+    fn meta_property_test_importmeta() {
+        let (mp, scanner) = check(meta_property(&mut newparser("import.meta")));
+        chk_scan(&scanner, 11);
+        assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta));
+        format!("{:?}", mp);
+    }
+    #[test]
+    fn meta_property_test_nomatch_01() {
+        check_none(meta_property(&mut newparser("silly")));
+    }
+    #[test]
+    fn meta_property_test_nomatch_02() {
+        check_none(meta_property(&mut newparser("new silly")));
+    }
+    #[test]
+    fn meta_property_test_nomatch_03() {
+        check_none(meta_property(&mut newparser("new.silly")));
+    }
+    #[test]
+    fn meta_property_test_nomatch_04() {
+        check_none(meta_property(&mut newparser("import silly")));
+    }
+    #[test]
+    fn meta_property_test_nomatch_05() {
+        check_none(meta_property(&mut newparser("import.silly")));
+    }
+
+    // ARGUMENTS
+    #[test]
+    fn arguments_test_onlyparens() {
+        let (args, scanner) = check(arguments(&mut newparser("()"), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(args.kind, ArgumentsKind::Empty));
+        format!("{:?}", args);
+    }
+    #[test]
+    fn arguments_test_trailing_comma() {
+        let (args, scanner) = check(arguments(&mut newparser("(3,)"), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(args.kind, ArgumentsKind::ArgumentListComma(_)));
+        format!("{:?}", args);
+    }
+    #[test]
+    fn arguments_test_arglist() {
+        let (args, scanner) = check(arguments(&mut newparser("(4,5)"), false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(args.kind, ArgumentsKind::ArgumentList(_)));
+        format!("{:?}", args);
+    }
+    #[test]
+    fn arguments_test_nomatch() {
+        check_none(arguments(&mut newparser("**"), false, false));
+    }
+    #[test]
+    fn arguments_test_unclosed_01() {
+        let r = arguments(&mut newparser("("), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn arguments_test_unclosed_02() {
+        let r = arguments(&mut newparser("(88"), false, false);
+        assert!(r.is_err());
+    }
+    #[test]
+    fn arguments_test_unclosed_03() {
+        let r = arguments(&mut newparser("(91,"), false, false);
+        assert!(r.is_err());
+    }
+
+    // ARGUMENT LIST
+    #[test]
+    fn argument_list_test_ae() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("101"), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+        format!("{:?}", al);
+    }
+    #[test]
+    fn argument_list_test_dots_ae() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("...101"), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(al.kind, ArgumentListKind::DotsAssignmentExpression(_)));
+        format!("{:?}", al);
+    }
+    #[test]
+    fn argument_list_test_al_ae() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,101"), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(al.kind, ArgumentListKind::ArgumentListAssignmentExpression(_)));
+        format!("{:?}", al);
+    }
+    #[test]
+    fn argument_list_test_al_dots_ae() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,...101"), false, false));
+        chk_scan(&scanner, 9);
+        assert!(matches!(
+            al.kind,
+            ArgumentListKind::ArgumentListDotsAssignmentExpression(_)
+        ));
+        format!("{:?}", al);
+    }
+    #[test]
+    fn argument_list_test_nomatch() {
+        check_none(ArgumentList::parse(&mut newparser("**"), false, false));
+    }
+    #[test]
+    fn argument_list_test_dotsonly() {
+        assert!(ArgumentList::parse(&mut newparser("..."), false, false).is_err());
+    }
+    #[test]
+    fn argument_list_test_dots_term() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,..."), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+    }
+    #[test]
+    fn argument_list_test_commas() {
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,,10"), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+    }
+
+    // UPDATE EXPRESSION
+    #[test]
+    fn update_expression_lhs() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("78"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
+        format!("{:?}", ue);
+    }
+    #[test]
+    fn update_expression_test_preinc() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
+        format!("{:?}", ue);
+    }
+    #[test]
+    fn update_expression_test_predec() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
+        format!("{:?}", ue);
+    }
+    #[test]
+    fn update_expression_test_postinc() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
+        format!("{:?}", ue);
+    }
+    #[test]
+    fn update_expression_test_postdec() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
+        format!("{:?}", ue);
+    }
+    #[test]
+    fn update_expression_test_newline() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a\n++"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
+    }
+    #[test]
+    fn update_expression_test_nomatch() {
+        check_none(UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn update_expression_test_syntax_error_01() {
+        check_none(UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn update_expression_test_syntax_error_02() {
+        check_none(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false));
     }
 }
