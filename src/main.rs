@@ -933,7 +933,7 @@ pub fn super_property(
                         },
                     )
                 }
-                _ => Err(String::from("‘super’ must be followed by ‘.’ or ‘[’.")),
+                _ => Ok(None),
             }),
             _ => Ok(None),
         },
@@ -1014,7 +1014,7 @@ pub fn arguments(
                                         }),
                                         scanner,
                                     ))),
-                                    _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                    _ => Ok(None),
                                 })
                         },
                         |(arglist_boxed, scanner)| {
@@ -1032,7 +1032,7 @@ pub fn arguments(
                                             }),
                                             scanner,
                                         ))),
-                                        _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                        _ => Ok(None),
                                     }),
                                     scanner::Token::RightParen => Ok(Some((
                                         Box::new(Arguments {
@@ -1040,7 +1040,7 @@ pub fn arguments(
                                         }),
                                         scanner,
                                     ))),
-                                    _ => Err(String::from("Argument Lists must be terminated by ‘)’.")),
+                                    _ => Ok(None),
                                 })
                         },
                     )
@@ -2702,8 +2702,7 @@ mod tests {
     }
     #[test]
     fn super_property_test_bad_following_token() {
-        let r = super_property(&mut newparser("super duper"), false, false);
-        assert!(r.is_err());
+        check_none(super_property(&mut newparser("super duper"), false, false));
     }
 
     // META PROPERTY
@@ -2770,18 +2769,15 @@ mod tests {
     }
     #[test]
     fn arguments_test_unclosed_01() {
-        let r = arguments(&mut newparser("("), false, false);
-        assert!(r.is_err());
+        check_none(arguments(&mut newparser("("), false, false));
     }
     #[test]
     fn arguments_test_unclosed_02() {
-        let r = arguments(&mut newparser("(88"), false, false);
-        assert!(r.is_err());
+        check_none(arguments(&mut newparser("(88"), false, false));
     }
     #[test]
     fn arguments_test_unclosed_03() {
-        let r = arguments(&mut newparser("(91,"), false, false);
-        assert!(r.is_err());
+        check_none(arguments(&mut newparser("(91,"), false, false));
     }
 
     // ARGUMENT LIST
@@ -2837,58 +2833,366 @@ mod tests {
         assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
     }
 
+    // NEW EXPRESSION
+    #[test]
+    fn new_expression_test_me() {
+        let (ne, scanner) = check(NewExpression::parse(
+            &mut newparser("true"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 4);
+        assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
+        format!("{:?}", ne);
+    }
+    #[test]
+    fn new_expression_test_new() {
+        let (ne, scanner) = check(NewExpression::parse(
+            &mut newparser("new bob"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 7);
+        assert!(matches!(ne.kind, NewExpressionKind::NewExpression(_)));
+        format!("{:?}", ne);
+    }
+    #[test]
+    fn new_expression_test_nomatch() {
+        check_none(NewExpression::parse(&mut newparser("**"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn new_expression_test_chopped() {
+        check_none(NewExpression::parse(
+            &mut newparser("new"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+
+    // CALL MEMBER EXPRESSION
+    #[test]
+    fn call_member_expression_test_me_args() {
+        let (cme, scanner) = check(CallMemberExpression::parse(
+            &mut newparser("a()"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 3);
+        format!("{:?}", cme);
+    }
+    #[test]
+    fn call_member_expression_test_nomatch() {
+        check_none(CallMemberExpression::parse(
+            &mut newparser("++"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+    #[test]
+    fn call_member_expression_test_incomplete() {
+        check_none(CallMemberExpression::parse(
+            &mut newparser("pop"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+
+    // SUPER CALL
+    #[test]
+    fn super_call_test_args() {
+        let (sc, scanner) = check(SuperCall::parse(
+            &mut newparser("super()"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 7);
+        assert!(matches!(sc.arguments.kind, ArgumentsKind::Empty));
+        format!("{:?}", sc);
+    }
+    #[test]
+    fn super_call_test_nomatch() {
+        check_none(SuperCall::parse(&mut newparser("++"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn super_call_test_incomplete() {
+        check_none(SuperCall::parse(&mut newparser("super"), Scanner::new(), false, false));
+    }
+
+    // IMPORT CALL
+    #[test]
+    fn import_call_test_ae() {
+        let (ic, scanner) = check(ImportCall::parse(
+            &mut newparser("import(bob)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 11);
+        assert!(matches!(
+            ic.assignment_expression.kind,
+            AssignmentExpressionKind::Temp(_)
+        ));
+        format!("{:?}", ic);
+    }
+    #[test]
+    fn import_call_test_nomatch() {
+        check_none(ImportCall::parse(&mut newparser("++"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn import_call_test_incomplete() {
+        check_none(ImportCall::parse(
+            &mut newparser("import"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+    #[test]
+    fn import_call_test_incomplete2() {
+        check_none(ImportCall::parse(
+            &mut newparser("import("),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+    #[test]
+    fn import_call_test_incomplete3() {
+        check_none(ImportCall::parse(
+            &mut newparser("import(bob"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+    }
+
+    // CALL EXPRESSION
+    #[test]
+    fn call_expression_test_me_args() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("a()"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 3);
+        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_super() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("super()"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 7);
+        assert!(matches!(ce.kind, CallExpressionKind::SuperCall(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_import() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("import(pop)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 11);
+        assert!(matches!(ce.kind, CallExpressionKind::ImportCall(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_ce_args() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)(snap)(10)(20)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 23);
+        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_ce_args2() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)(snap)(10)(++)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 19);
+        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_ce_exp() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)[snap]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 15);
+        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionExpression(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_ce_ident() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop).snap"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 14);
+        assert!(matches!(ce.kind, CallExpressionKind::CallExpressionIdentifierName(_)));
+        format!("{:?}", ce);
+    }
+    #[test]
+    fn call_expression_test_nomatch() {
+        check_none(CallExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn call_expression_test_incomplete_01() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)["),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 9);
+        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+    }
+    #[test]
+    fn call_expression_test_incomplete_02() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)[99"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 9);
+        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+    }
+    #[test]
+    fn call_expression_test_incomplete_03() {
+        let (ce, scanner) = check(CallExpression::parse(
+            &mut newparser("blue(pop)."),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        chk_scan(&scanner, 9);
+        assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
+    }
+
     // UPDATE EXPRESSION
     #[test]
     fn update_expression_lhs() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("78"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("78"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_preinc() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("++a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_predec() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("--a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_postinc() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("a++"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_postdec() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("a--"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
         format!("{:?}", ue);
     }
     #[test]
     fn update_expression_test_newline() {
-        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a\n++"), Scanner::new(), false, false));
+        let (ue, scanner) = check(UpdateExpression::parse(
+            &mut newparser("a\n++"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
     }
     #[test]
     fn update_expression_test_nomatch() {
-        check_none(UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false));
+        check_none(UpdateExpression::parse(
+            &mut newparser("**"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn update_expression_test_syntax_error_01() {
-        check_none(UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false));
+        check_none(UpdateExpression::parse(
+            &mut newparser("++ ++"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn update_expression_test_syntax_error_02() {
-        check_none(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false));
+        check_none(UpdateExpression::parse(
+            &mut newparser("-- ++"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 }
