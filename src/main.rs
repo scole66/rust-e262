@@ -2,6 +2,7 @@
 
 use num::bigint::BigInt;
 use std::env;
+use std::fmt;
 use std::io::{self, Write};
 
 mod scanner;
@@ -59,26 +60,71 @@ pub trait AssignmentTargetType {
     fn assignment_target_type(&self) -> ATTKind;
 }
 
+pub enum Spot {
+    Initial,
+    NotFinal,
+    Final,
+}
+
+fn prettypad(pad: &str, state: Spot) -> (String, String) {
+    let mut first = String::from(pad);
+    let mut successive = String::from(pad);
+    match state {
+        Spot::Initial => {}
+        Spot::NotFinal => {
+            first.push_str("├── ");
+            successive.push_str("│   ");
+        }
+        Spot::Final => {
+            first.push_str("└── ");
+            successive.push_str("    ");
+        }
+    }
+    (first, successive)
+}
+
+pub trait PrettyPrint {
+    fn pprint(&self);
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot);
+}
+
 //////// 12.1 Identifiers
 
 // Identifier:
 //      IdentifierName but not ReservedWord
 #[derive(Debug)]
-pub struct Identifier {
-    identifier_name: scanner::IdentifierData,
+pub enum Identifier {
+    IdentifierName(scanner::IdentifierData),
 }
 
 impl StringValue for Identifier {
     fn string_value(&self) -> scanner::JSString {
-        self.identifier_name.string_value.clone()
+        let Identifier::IdentifierName(identifier_name) = self;
+        identifier_name.string_value.clone()
     }
 }
 
-fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>, String> {
-    let tok = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-    match tok {
-        Err(err) => Err(err),
-        Ok(tpl) => match tpl.0 {
+impl PrettyPrint for Identifier {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, _) = prettypad(pad, state);
+        println!("{}Identifier: {}", first, self.string_value());
+    }
+}
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.string_value())
+    }
+}
+
+impl Identifier {
+    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Identifier>, Scanner)>, String> {
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
             scanner::Token::Identifier(id) => match id.keyword_id {
                 Some(scanner::Keyword::Await)
                 | Some(scanner::Keyword::Break)
@@ -172,14 +218,14 @@ fn identifier(parser: &mut Parser) -> Result<Option<(Box<Identifier>, Scanner)>,
                     {
                         Err(format!("{}:{}: ‘{}’ is a reserved word and may not be used as an identifier", id.line, id.column, id.string_value))
                     } else {
-                        let node = Identifier { identifier_name: id };
+                        let node = Identifier::IdentifierName(id);
                         let boxed = Box::new(node);
-                        Ok(Some((boxed, tpl.1)))
+                        Ok(Some((boxed, after_tok)))
                     }
                 }
             },
             _ => Ok(None),
-        },
+        }
     }
 }
 
@@ -234,39 +280,61 @@ impl AssignmentTargetType for IdentifierReference {
     }
 }
 
-fn identifier_reference(parser: &mut Parser, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
-    let production = identifier(parser)?;
-    use IdentifierReferenceKind::*;
-    match production {
-        Some((ident, scanner)) => {
-            let node = IdentifierReference {
-                kind: Identifier(ident),
-                strict: parser.strict,
-            };
-            let boxed = Box::new(node);
-            Ok(Some((boxed, scanner)))
+impl PrettyPrint for IdentifierReference {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}IdentifierReference: {}", first, self);
+        if let IdentifierReferenceKind::Identifier(boxed) = &self.kind {
+            boxed.pprint_with_leftpad(&successive, Spot::Final);
         }
-        None => {
-            let (token, scan) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
-            match token {
-                scanner::Token::Identifier(id) => match id.keyword_id {
-                    Some(scanner::Keyword::Await) => {
-                        if !arg_await {
-                            Ok(Some((Box::new(IdentifierReference { kind: Await, strict: parser.strict }), scan)))
-                        } else {
-                            Ok(None)
-                        }
-                    }
-                    Some(scanner::Keyword::Yield) => {
-                        if !arg_yield {
-                            Ok(Some((Box::new(IdentifierReference { kind: Yield, strict: parser.strict }), scan)))
-                        } else {
-                            Ok(None)
-                        }
-                    }
+    }
+}
+
+impl fmt::Display for IdentifierReference {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            IdentifierReferenceKind::Identifier(boxed) => write!(f, "{}", *boxed),
+            IdentifierReferenceKind::Yield => write!(f, "yield"),
+            IdentifierReferenceKind::Await => write!(f, "await"),
+        }
+    }
+}
+
+impl IdentifierReference {
+    fn parse(parser: &mut Parser, initial_scanner: Scanner, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
+        let production = Identifier::parse(parser, initial_scanner)?;
+        match production {
+            Some((ident, scanner)) => {
+                let node = IdentifierReference {
+                    kind: IdentifierReferenceKind::Identifier(ident),
+                    strict: parser.strict,
+                };
+                let boxed = Box::new(node);
+                Ok(Some((boxed, scanner)))
+            }
+            None => {
+                let (token, scan) = scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match token {
+                    scanner::Token::Identifier(id) if !arg_await && id.keyword_id == Some(scanner::Keyword::Await) => Ok(Some((
+                        Box::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Await,
+                            strict: parser.strict,
+                        }),
+                        scan,
+                    ))),
+                    scanner::Token::Identifier(id) if !arg_yield && id.keyword_id == Some(scanner::Keyword::Yield) => Ok(Some((
+                        Box::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Yield,
+                            strict: parser.strict,
+                        }),
+                        scan,
+                    ))),
                     _ => Ok(None),
-                },
-                _ => Ok(None),
+                }
             }
         }
     }
@@ -312,8 +380,32 @@ impl BoundNames for BindingIdentifier {
     }
 }
 
+impl fmt::Display for BindingIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            BindingIdentifierKind::Await => write!(f, "await"),
+            BindingIdentifierKind::Identifier(boxed) => write!(f, "{}", boxed),
+            BindingIdentifierKind::Yield => write!(f, "yield"),
+        }
+    }
+}
+
+impl PrettyPrint for BindingIdentifier {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}BindingIdentifier: {}", first, self);
+        if let BindingIdentifierKind::Identifier(boxed) = &self.kind {
+            boxed.pprint_with_leftpad(&successive, Spot::Final);
+        }
+    }
+}
+
 fn binding_identifier(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<BindingIdentifier>, Scanner)>, String> {
-    let production = identifier(parser)?;
+    let production = Identifier::parse(parser, parser.scanner)?;
     match production {
         Some((ident, scanner)) => {
             let node = BindingIdentifier {
@@ -379,6 +471,36 @@ pub enum PrimaryExpressionKind {
 #[derive(Debug)]
 pub struct PrimaryExpression {
     kind: PrimaryExpressionKind,
+}
+
+impl fmt::Display for PrimaryExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            PrimaryExpressionKind::This => write!(f, "this"),
+            PrimaryExpressionKind::IdentifierReference(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::Literal(boxed) => write!(f, "{}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for PrimaryExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}PrimaryExpression: {}", first, self);
+        match &self.kind {
+            PrimaryExpressionKind::This => {}
+            PrimaryExpressionKind::IdentifierReference(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            PrimaryExpressionKind::Literal(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
 }
 
 impl IsFunctionDefinition for PrimaryExpression {
@@ -453,7 +575,7 @@ where
 
 fn primary_expression(parser: &mut Parser, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String> {
     Ok(None)
-        .and_then(|opt| or_pe_kind(opt, parser, |p| identifier_reference(p, arg_yield, arg_await)))
+        .and_then(|opt| or_pe_kind(opt, parser, |p| IdentifierReference::parse(p, p.scanner, arg_yield, arg_await)))
         .and_then(|opt| or_pe_kind(opt, parser, literal))
         .and_then(|opt| or_pe_kind(opt, parser, this_token))
 }
@@ -496,6 +618,34 @@ pub enum LiteralKind {
 #[derive(Debug, PartialEq)]
 pub struct Literal {
     kind: LiteralKind,
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            LiteralKind::NullLiteral => write!(f, "null"),
+            LiteralKind::BooleanLiteral(b) => {
+                if *b {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
+            LiteralKind::NumericLiteral(n) => write!(f, "{:?}", *n),
+            LiteralKind::StringLiteral(s) => write!(f, "{:?}", *s),
+        }
+    }
+}
+
+impl PrettyPrint for Literal {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}Literal: {}", first, self);
+    }
 }
 
 fn literal(parser: &mut Parser) -> Result<Option<(Box<Literal>, Scanner)>, String> {
@@ -576,8 +726,34 @@ pub struct MemberExpressionExpression {
 pub struct IdentifierNameToken {
     value: scanner::Token,
 }
+impl fmt::Display for IdentifierNameToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let scanner::Token::Identifier(id) = &self.value {
+            write!(f, "{}", id.string_value)
+        } else {
+            unreachable!()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TemplateLiteral {}
+impl fmt::Display for TemplateLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "`unimplemented`")
+    }
+}
+
+impl PrettyPrint for TemplateLiteral {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}TemplateLiteral: {}", first, self);
+    }
+}
 
 #[derive(Debug)]
 pub struct MemberExpressionIdentifierName {
@@ -611,6 +787,51 @@ pub enum MemberExpressionKind {
 #[derive(Debug)]
 pub struct MemberExpression {
     kind: MemberExpressionKind,
+}
+
+impl fmt::Display for MemberExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(boxed) => write!(f, "{}", boxed),
+            MemberExpressionKind::Expression(mee) => {
+                write!(f, "{} [ {} ]", mee.member_expression, mee.expression)
+            }
+            MemberExpressionKind::IdentifierName(mein) => write!(f, "{} . {}", mein.member_expression, mein.identifier_name),
+            MemberExpressionKind::TemplateLiteral(metl) => write!(f, "{} {}", metl.member_expression, metl.template_literal),
+            MemberExpressionKind::SuperProperty(boxed) => write!(f, "{}", boxed),
+            MemberExpressionKind::MetaProperty(boxed) => write!(f, "{}", boxed),
+            MemberExpressionKind::NewArguments(nmea) => write!(f, "new {} {}", nmea.member_expression, nmea.arguments),
+        }
+    }
+}
+
+impl PrettyPrint for MemberExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}MemberExpression: {}", first, self);
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::Expression(mee) => {
+                mee.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
+                mee.expression.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            MemberExpressionKind::IdentifierName(mein) => mein.member_expression.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::TemplateLiteral(metl) => {
+                metl.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
+                metl.template_literal.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            MemberExpressionKind::SuperProperty(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::MetaProperty(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::NewArguments(nmea) => {
+                nmea.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
+                nmea.arguments.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
 }
 
 pub trait ToMemberExpressionKind {
@@ -762,6 +983,26 @@ pub enum Expression {
     Temp(Box<AssignmentExpression>),
 }
 
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Self::Temp(boxed) = &self;
+        write!(f, "{}", boxed)
+    }
+}
+
+impl PrettyPrint for Expression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}Expression: {}", first, self);
+        let Expression::Temp(boxed) = &self;
+        boxed.pprint_with_leftpad(&successive, Spot::Final);
+    }
+}
+
 pub fn expression(parser: &mut Parser, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Expression>, Scanner)>, String> {
     // todo!
     let potential = assignment_expression(parser, in_flag, yield_flag, await_flag)?;
@@ -773,14 +1014,35 @@ pub fn expression(parser: &mut Parser, in_flag: bool, yield_flag: bool, await_fl
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<UnaryExpression>),
+    Temp(Box<ExponentiationExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
     kind: AssignmentExpressionKind,
 }
+
+impl fmt::Display for AssignmentExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let AssignmentExpressionKind::Temp(boxed) = &self.kind;
+        write!(f, "{}", boxed)
+    }
+}
+
+impl PrettyPrint for AssignmentExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}AssignmentExpression: {}", first, self);
+        let AssignmentExpressionKind::Temp(boxed) = &self.kind;
+        boxed.pprint_with_leftpad(&successive, Spot::Final);
+    }
+}
+
 pub fn assignment_expression(parser: &mut Parser, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let potential = UnaryExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    let potential = ExponentiationExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
         Some((boxed, scanner)) => Ok(Some((
@@ -801,6 +1063,31 @@ pub enum SuperPropertyKind {
 pub struct SuperProperty {
     kind: SuperPropertyKind,
 }
+
+impl fmt::Display for SuperProperty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            SuperPropertyKind::Expression(boxed) => write!(f, "super [ {} ]", boxed),
+            SuperPropertyKind::IdentifierName(boxed) => write!(f, "super . {}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for SuperProperty {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}SuperProperty: {}", first, self);
+        match &self.kind {
+            SuperPropertyKind::Expression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            SuperPropertyKind::IdentifierName(boxed) => {}
+        }
+    }
+}
+
 pub fn super_property(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
     scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
         scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
@@ -852,6 +1139,26 @@ pub struct MetaProperty {
     kind: MetaPropertyKind,
 }
 
+impl fmt::Display for MetaProperty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            MetaPropertyKind::NewTarget => write!(f, "new . target"),
+            MetaPropertyKind::ImportMeta => write!(f, "import . meta"),
+        }
+    }
+}
+
+impl PrettyPrint for MetaProperty {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}MetaProperty: {}", first, self);
+    }
+}
+
 fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: scanner::Keyword, kind: MetaPropertyKind) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
     scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
         scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
@@ -880,6 +1187,32 @@ pub enum ArgumentsKind {
 pub struct Arguments {
     kind: ArgumentsKind,
 }
+
+impl fmt::Display for Arguments {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            ArgumentsKind::Empty => write!(f, "( )"),
+            ArgumentsKind::ArgumentList(boxed) => write!(f, "( {} )", boxed),
+            ArgumentsKind::ArgumentListComma(boxed) => write!(f, "( {} , )", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for Arguments {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}Arguments: {}", first, self);
+        match &self.kind {
+            ArgumentsKind::Empty => {}
+            ArgumentsKind::ArgumentList(boxed) | ArgumentsKind::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+        }
+    }
+}
+
 pub fn arguments(parser: &mut Parser, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
     scanner::scan_token(&parser.scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
         scanner::Token::LeftParen => {
@@ -1037,6 +1370,35 @@ pub struct ArgumentList {
     kind: ArgumentListKind,
 }
 
+impl fmt::Display for ArgumentList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            ArgumentListKind::AssignmentExpression(boxed) => write!(f, "{}", boxed),
+            ArgumentListKind::DotsAssignmentExpression(boxed) => write!(f, "... {}", boxed),
+            ArgumentListKind::ArgumentListAssignmentExpression(alae) => write!(f, "{} , {}", alae.argument_list, alae.assignment_expression),
+            ArgumentListKind::ArgumentListDotsAssignmentExpression(aldae) => write!(f, "{} , ... {}", aldae.argument_list, aldae.assignment_expression),
+        }
+    }
+}
+
+impl PrettyPrint for ArgumentList {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}ArgumentList: {}", first, self);
+        match &self.kind {
+            ArgumentListKind::AssignmentExpression(boxed) | ArgumentListKind::DotsAssignmentExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            ArgumentListKind::ArgumentListAssignmentExpression(alae) | ArgumentListKind::ArgumentListDotsAssignmentExpression(alae) => {
+                alae.argument_list.pprint_with_leftpad(&successive, Spot::NotFinal);
+                alae.assignment_expression.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
+}
+
 impl ArgumentList {
     fn boxer(kind: ArgumentListKind) -> Box<Self> {
         Box::new(Self { kind })
@@ -1097,6 +1459,30 @@ pub struct NewExpression {
     kind: NewExpressionKind,
 }
 
+impl fmt::Display for NewExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => write!(f, "{}", boxed),
+            NewExpressionKind::NewExpression(boxed) => write!(f, "new {}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for NewExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}NewExpression: {}", first, self);
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            NewExpressionKind::NewExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+        }
+    }
+}
+
 impl NewExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<NewExpression>, Scanner)>, String> {
         parser.scanner = scanner;
@@ -1136,6 +1522,25 @@ pub struct CallMemberExpression {
     arguments: Box<Arguments>,
 }
 
+impl fmt::Display for CallMemberExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.member_expression, self.arguments)
+    }
+}
+
+impl PrettyPrint for CallMemberExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}CallMemberExpression: {}", first, self);
+        self.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
+        self.arguments.pprint_with_leftpad(&successive, Spot::Final);
+    }
+}
+
 impl CallMemberExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<CallMemberExpression>, Scanner)>, String> {
         parser.scanner = scanner;
@@ -1165,6 +1570,24 @@ pub struct SuperCall {
     arguments: Box<Arguments>,
 }
 
+impl fmt::Display for SuperCall {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "super {}", self.arguments)
+    }
+}
+
+impl PrettyPrint for SuperCall {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}SuperCall: {}", first, self);
+        self.arguments.pprint_with_leftpad(&successive, Spot::Final);
+    }
+}
+
 impl SuperCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
@@ -1185,6 +1608,24 @@ impl SuperCall {
 #[derive(Debug)]
 pub struct ImportCall {
     assignment_expression: Box<AssignmentExpression>,
+}
+
+impl fmt::Display for ImportCall {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "import ( {} )", self.assignment_expression)
+    }
+}
+
+impl PrettyPrint for ImportCall {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}ImportCall: {}", first, self);
+        self.assignment_expression.pprint_with_leftpad(&successive, Spot::Final);
+    }
 }
 
 impl ImportCall {
@@ -1236,6 +1677,46 @@ pub enum CallExpressionKind {
 #[derive(Debug)]
 pub struct CallExpression {
     kind: CallExpressionKind,
+}
+
+impl fmt::Display for CallExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(boxed) => write!(f, "{}", boxed),
+            CallExpressionKind::SuperCall(boxed) => write!(f, "{}", boxed),
+            CallExpressionKind::ImportCall(boxed) => write!(f, "{}", boxed),
+            CallExpressionKind::CallExpressionArguments((ce, args)) => write!(f, "{} {}", ce, args),
+            CallExpressionKind::CallExpressionExpression((ce, exp)) => write!(f, "{} [ {} ]", ce, exp),
+            CallExpressionKind::CallExpressionIdentifierName((ce, int)) => write!(f, "{} . {}", ce, int),
+        }
+    }
+}
+
+impl PrettyPrint for CallExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}CallExpression: {}", first, self);
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            CallExpressionKind::SuperCall(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            CallExpressionKind::ImportCall(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            CallExpressionKind::CallExpressionArguments((ce, args)) => {
+                ce.pprint_with_leftpad(&successive, Spot::NotFinal);
+                args.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            CallExpressionKind::CallExpressionExpression((ce, exp)) => {
+                ce.pprint_with_leftpad(&successive, Spot::NotFinal);
+                exp.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            CallExpressionKind::CallExpressionIdentifierName((ce, int)) => {
+                ce.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
 }
 
 impl CallExpression {
@@ -1350,6 +1831,34 @@ pub enum LeftHandSideExpression {
     // OptionalExpression(Box<OptionalExpression>),
 }
 
+impl fmt::Display for LeftHandSideExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            LeftHandSideExpression::NewExpression(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::CallExpression(boxed) => write!(f, "{}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for LeftHandSideExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}LeftHandSideExpression: {}", first, self);
+        match &self {
+            LeftHandSideExpression::NewExpression(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            LeftHandSideExpression::CallExpression(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
+}
+
 impl LeftHandSideExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
@@ -1373,6 +1882,37 @@ pub enum UpdateExpression {
     PostDecrement(Box<LeftHandSideExpression>),
     PreIncrement(Box<UnaryExpression>),
     PreDecrement(Box<UnaryExpression>),
+}
+
+impl fmt::Display for UpdateExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            UpdateExpression::LeftHandSideExpression(boxed) => write!(f, "{}", boxed),
+            UpdateExpression::PostIncrement(boxed) => write!(f, "{} ++", boxed),
+            UpdateExpression::PostDecrement(boxed) => write!(f, "{} --", boxed),
+            UpdateExpression::PreIncrement(boxed) => write!(f, "++ {}", boxed),
+            UpdateExpression::PreDecrement(boxed) => write!(f, "-- {}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for UpdateExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}UpdateExpression: {}", first, self);
+        match &self {
+            UpdateExpression::LeftHandSideExpression(boxed) | UpdateExpression::PostIncrement(boxed) | UpdateExpression::PostDecrement(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
 }
 
 impl UpdateExpression {
@@ -1436,6 +1976,50 @@ pub enum UnaryExpression {
     Await(Box<AwaitExpression>),
 }
 
+impl fmt::Display for UnaryExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            UnaryExpression::UpdateExpression(boxed) => write!(f, "{}", boxed),
+            UnaryExpression::Delete(boxed) => write!(f, "delete {}", boxed),
+            UnaryExpression::Void(boxed) => write!(f, "void {}", boxed),
+            UnaryExpression::Typeof(boxed) => write!(f, "typeof {}", boxed),
+            UnaryExpression::NoOp(boxed) => write!(f, "+ {}", boxed),
+            UnaryExpression::Negate(boxed) => write!(f, "- {}", boxed),
+            UnaryExpression::Complement(boxed) => write!(f, "~ {}", boxed),
+            UnaryExpression::Not(boxed) => write!(f, "! {}", boxed),
+            UnaryExpression::Await(boxed) => write!(f, "{}", boxed),
+        }
+    }
+}
+
+impl PrettyPrint for UnaryExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}UnaryExpression: {}", first, self);
+        match &self {
+            UnaryExpression::UpdateExpression(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            UnaryExpression::Delete(boxed)
+            | UnaryExpression::Void(boxed)
+            | UnaryExpression::Typeof(boxed)
+            | UnaryExpression::NoOp(boxed)
+            | UnaryExpression::Negate(boxed)
+            | UnaryExpression::Complement(boxed)
+            | UnaryExpression::Not(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            UnaryExpression::Await(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
+}
+
 impl UnaryExpression {
     fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
@@ -1476,8 +2060,93 @@ impl UnaryExpression {
 }
 
 #[derive(Debug)]
+pub enum ExponentiationExpression {
+    UnaryExpression(Box<UnaryExpression>),
+    Exponentiation((Box<UpdateExpression>, Box<ExponentiationExpression>)),
+}
+
+impl fmt::Display for ExponentiationExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            ExponentiationExpression::UnaryExpression(boxed) => write!(f, "{}", boxed),
+            ExponentiationExpression::Exponentiation((ue, ee)) => write!(f, "{} ** {}", ue, ee),
+        }
+    }
+}
+
+impl PrettyPrint for ExponentiationExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}ExponentiationExpression: {}", first, self);
+        match &self {
+            ExponentiationExpression::UnaryExpression(boxed) => {
+                boxed.pprint_with_leftpad(&successive, Spot::Final);
+            }
+            ExponentiationExpression::Exponentiation((ue, ee)) => {
+                ue.pprint_with_leftpad(&successive, Spot::NotFinal);
+                ee.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
+}
+
+impl ExponentiationExpression {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        let mut result = match pot_ue {
+            Some((boxed_ue, after_ue)) => {
+                let (token, scanner) = scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match token {
+                    scanner::Token::StarStar => {
+                        let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
+                        match pot_ee {
+                            Some((boxed_ee, after_ee)) => Some((Box::new(ExponentiationExpression::Exponentiation((boxed_ue, boxed_ee))), after_ee)),
+                            None => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            None => None,
+        };
+        if result.is_none() {
+            let pot_unary = UnaryExpression::parse(parser, scanner, yield_flag, await_flag)?;
+            result = match pot_unary {
+                Some((boxed_unary, after_unary)) => Some((Box::new(ExponentiationExpression::UnaryExpression(boxed_unary)), after_unary)),
+                None => None,
+            }
+        }
+        Ok(result)
+    }
+}
+
+#[derive(Debug)]
 pub enum AwaitExpression {
     Await(Box<UnaryExpression>),
+}
+
+impl fmt::Display for AwaitExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let AwaitExpression::Await(boxed) = &self;
+        write!(f, "await {}", boxed)
+    }
+}
+
+impl PrettyPrint for AwaitExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}AwaitExpression: {}", first, self);
+        let AwaitExpression::Await(boxed) = &self;
+        boxed.pprint_with_leftpad(&successive, Spot::Final);
+    }
 }
 
 impl AwaitExpression {
@@ -1612,9 +2281,12 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     // );
     let mut parser = Parser::new(source, false, ParseGoal::Script);
     let result = expression(&mut parser, true, false, false);
-    println!("{:#?}", result);
     match result {
-        Ok(_) => Ok(0),
+        Ok(Some((node, scanner))) => {
+            node.pprint();
+            Ok(0)
+        }
+        Ok(None) => Ok(0),
         Err(msg) => Err(msg),
     }
 }
@@ -1670,7 +2342,7 @@ fn main() {
 mod tests {
     use super::*;
     fn id_kwd_test(kwd: &str) {
-        let result = super::identifier(&mut super::Parser::new(kwd, false, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new(kwd, false, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -1828,12 +2500,12 @@ mod tests {
     }
     #[test]
     fn identifier_test_err() {
-        let result = super::identifier(&mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "1:5: Invalid Identifier Continuation Character ' '")
     }
     fn identifier_test_strict(kwd: &str) {
-        let result = super::identifier(&mut super::Parser::new(kwd, true, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new(kwd, true, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), format!("1:1: ‘{}’ not allowed as an identifier in strict mode", kwd));
     }
@@ -1871,20 +2543,20 @@ mod tests {
     }
     #[test]
     fn identifier_test_await_module() {
-        let result = identifier(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module));
+        let result = Identifier::parse(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module), Scanner::new());
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "1:1: ‘await’ not allowed as an identifier in modules");
     }
     #[test]
     fn identifier_test_nothing() {
-        let result = identifier(&mut Parser::new(".", false, ParseGoal::Script));
+        let result = Identifier::parse(&mut Parser::new(".", false, ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
     fn identifier_test_keyword(kwd: &str) {
         let firstch = kwd.chars().next().unwrap();
         let id_src = format!("\\u{{{:x}}}{}", firstch as u32, &kwd[firstch.len_utf8()..]);
-        let result = super::identifier(&mut super::Parser::new(&id_src, false, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new(&id_src, false, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), format!("1:1: ‘{}’ is a reserved word and may not be used as an identifier", kwd));
     }
@@ -2034,13 +2706,13 @@ mod tests {
     }
     #[test]
     fn identifier_test_successful_bob() {
-        let result = super::identifier(&mut super::Parser::new("bob", true, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new("bob", true, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
         let (identifier, scanner) = optional_id.unwrap();
         assert_eq!(scanner, super::Scanner { line: 1, column: 4, start_idx: 3 });
-        let data = identifier.identifier_name;
+        let Identifier::IdentifierName(data) = *identifier;
         assert_eq!(data.string_value, "bob");
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.line, 1);
@@ -2049,13 +2721,13 @@ mod tests {
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let result = super::identifier(&mut super::Parser::new(text, true, super::ParseGoal::Script));
+        let result = Identifier::parse(&mut super::Parser::new(text, true, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
         let optional_id = result.unwrap();
         assert!(optional_id.is_some());
         let (identifier, scanner) = optional_id.unwrap();
         assert_eq!(scanner, super::Scanner { line: 1, column: 14, start_idx: 39 });
-        let data = identifier.identifier_name;
+        let Identifier::IdentifierName(data) = *identifier;
         assert_eq!(data.string_value, "手がける黒田征太郎さんです");
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.line, 1);
@@ -2078,7 +2750,7 @@ mod tests {
     fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
         let yield_syntax = false;
         let await_syntax = false;
-        let result = identifier_reference(&mut Parser::new(text, strict, ParseGoal::Script), yield_syntax, await_syntax);
+        let result = IdentifierReference::parse(&mut Parser::new(text, strict, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
         assert!(result.is_ok());
         let optional_idref = result.unwrap();
         assert!(optional_idref.is_some());
@@ -2117,7 +2789,7 @@ mod tests {
     }
     #[test]
     fn identifier_reference_test_yield_02() {
-        let idref = identifier_reference(&mut Parser::new("yield", false, ParseGoal::Script), true, true);
+        let idref = IdentifierReference::parse(&mut Parser::new("yield", false, ParseGoal::Script), Scanner::new(), true, true);
         assert!(idref.is_ok());
         assert!(idref.unwrap().is_none());
     }
@@ -2131,19 +2803,19 @@ mod tests {
     }
     #[test]
     fn identifier_reference_test_await_02() {
-        let idref = identifier_reference(&mut Parser::new("await", false, ParseGoal::Script), true, true);
+        let idref = IdentifierReference::parse(&mut Parser::new("await", false, ParseGoal::Script), Scanner::new(), true, true);
         assert!(idref.is_ok());
         assert!(idref.unwrap().is_none());
     }
     #[test]
     fn identifier_reference_test_kwd() {
-        let idref = identifier_reference(&mut Parser::new("new", false, ParseGoal::Script), true, true);
+        let idref = IdentifierReference::parse(&mut Parser::new("new", false, ParseGoal::Script), Scanner::new(), true, true);
         assert!(idref.is_ok());
         assert!(idref.unwrap().is_none());
     }
     #[test]
     fn identifier_reference_test_punct() {
-        let idref = identifier_reference(&mut Parser::new("**", false, ParseGoal::Script), true, true);
+        let idref = IdentifierReference::parse(&mut Parser::new("**", false, ParseGoal::Script), Scanner::new(), true, true);
         assert!(idref.is_ok());
         assert!(idref.unwrap().is_none());
     }
@@ -2224,8 +2896,7 @@ mod tests {
     }
     #[test]
     fn binding_identifier_test_debug() {
-        assert_eq!(format!("{:?}", bindingid_create("abcd", true, true)), 
-        "BindingIdentifier { kind: Identifier(Identifier { identifier_name: IdentifierData { string_value: \"abcd\", keyword_id: None, line: 1, column: 1 } }), yield_flag: true, await_flag: true }");
+        format!("{:?}", bindingid_create("abcd", true, true));
     }
     #[test]
     fn binding_identifier_test_non_matches() {
