@@ -1014,7 +1014,7 @@ pub fn expression(parser: &mut Parser, in_flag: bool, yield_flag: bool, await_fl
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<ExponentiationExpression>),
+    Temp(Box<MultiplicativeExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -1042,7 +1042,7 @@ impl PrettyPrint for AssignmentExpression {
 }
 
 pub fn assignment_expression(parser: &mut Parser, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let potential = ExponentiationExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    let potential = MultiplicativeExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
         Some((boxed, scanner)) => Ok(Some((
@@ -2121,6 +2121,112 @@ impl ExponentiationExpression {
             }
         }
         Ok(result)
+    }
+}
+
+#[derive(Debug)]
+pub enum MultiplicativeOperator {
+    Multiply,
+    Divide,
+    Modulo,
+}
+
+impl fmt::Display for MultiplicativeOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            MultiplicativeOperator::Multiply => write!(f, "*"),
+            MultiplicativeOperator::Divide => write!(f, "/"),
+            MultiplicativeOperator::Modulo => write!(f, "%"),
+        }
+    }
+}
+
+impl PrettyPrint for MultiplicativeOperator {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, _) = prettypad(pad, state);
+        println!("{}MultiplicativeOperator: {}", first, self);
+    }
+}
+
+impl MultiplicativeOperator {
+    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<MultiplicativeOperator>, Scanner)>, String> {
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv)?;
+        match tok {
+            scanner::Token::Star => Ok(Some((Box::new(MultiplicativeOperator::Multiply), after_tok))),
+            scanner::Token::Slash => Ok(Some((Box::new(MultiplicativeOperator::Divide), after_tok))),
+            scanner::Token::Percent => Ok(Some((Box::new(MultiplicativeOperator::Modulo), after_tok))),
+            _ => Ok(None)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum MultiplicativeExpression {
+    ExponentiationExpression(Box<ExponentiationExpression>),
+    MultiplicativeExpressionExponentiationExpression((Box<MultiplicativeExpression>, Box<MultiplicativeOperator>, Box<ExponentiationExpression>)),
+}
+
+impl fmt::Display for MultiplicativeExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            MultiplicativeExpression::ExponentiationExpression(boxed) => write!(f, "{}", boxed),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((me, mo, ee)) => {
+                write!(f, "{} {} {}", me, mo, ee)
+            }
+        }
+    }
+}
+
+impl PrettyPrint for MultiplicativeExpression {
+    fn pprint(&self) {
+        self.pprint_with_leftpad("", Spot::Initial);
+    }
+
+    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+        let (first, successive) = prettypad(pad, state);
+        println!("{}MultiplicativeExpression: {}", first, self);
+        match &self {
+            MultiplicativeExpression::ExponentiationExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((me, mo, ee)) => {
+                me.pprint_with_leftpad(&successive, Spot::NotFinal);
+                mo.pprint_with_leftpad(&successive, Spot::NotFinal);
+                ee.pprint_with_leftpad(&successive, Spot::Final);
+            }
+        }
+    }
+}
+
+impl MultiplicativeExpression {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_ee {
+            Some((ee, after_ee)) => {
+                let mut current = Box::new(MultiplicativeExpression::ExponentiationExpression(ee));
+                let mut current_scanner = after_ee;
+                loop {
+                    let pot_op = MultiplicativeOperator::parse(parser, current_scanner)?;
+                    if pot_op.is_none() {
+                        break;
+                    } else {
+                        let (op, after_op) = pot_op.unwrap();
+                        let pot_ee2 = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
+                        if pot_ee2.is_none() {
+                            break;
+                        } else {
+                            let (ee2, after_ee2) = pot_ee2.unwrap();
+                            current = Box::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((current, op, ee2)));
+                            current_scanner = after_ee2;
+                        }
+                    }
+                }
+                Ok(Some((current, current_scanner)))
+            }
+            _ => Ok(None)
+        }
     }
 }
 

@@ -55,9 +55,7 @@ impl From<&str> for JSString {
         for val in source.encode_utf16() {
             result.push(val);
         }
-        JSString {
-            string: Rc::new(result),
-        }
+        JSString { string: Rc::new(result) }
     }
 }
 
@@ -65,17 +63,13 @@ impl From<&[u16]> for JSString {
     fn from(source: &[u16]) -> Self {
         let mut result = Vec::with_capacity(source.len());
         result.extend_from_slice(source);
-        JSString {
-            string: Rc::new(result),
-        }
+        JSString { string: Rc::new(result) }
     }
 }
 
 impl JSString {
     pub fn take(source: Vec<u16>) -> JSString {
-        JSString {
-            string: Rc::new(source),
-        }
+        JSString { string: Rc::new(source) }
     }
 }
 
@@ -221,11 +215,7 @@ pub struct Scanner {
 }
 impl Scanner {
     pub fn new() -> Scanner {
-        Scanner {
-            line: 1,
-            column: 1,
-            start_idx: 0,
-        }
+        Scanner { line: 1, column: 1, start_idx: 0 }
     }
 }
 fn is_lineterm(ch: char) -> bool {
@@ -255,8 +245,7 @@ fn is_single_escape_char(ch: char) -> bool {
 
 fn is_escape_char(ch: char) -> bool {
     match ch {
-        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6'
-        | '7' | '8' | '9' => true,
+        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
         _ => false,
     }
 }
@@ -272,13 +261,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 
     let mut ch;
     match iter.next() {
-        None => {
-            return Ok(Scanner {
-                line,
-                column,
-                start_idx: idx,
-            })
-        }
+        None => return Ok(Scanner { line, column, start_idx: idx }),
         Some(c) => {
             ch = c;
             pending_idx = idx + ch.len_utf8();
@@ -291,13 +274,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
             let previous = ch;
             idx = pending_idx; // consume the ch
             match iter.next() {
-                None => {
-                    return Ok(Scanner {
-                        line,
-                        column,
-                        start_idx: idx,
-                    })
-                }
+                None => return Ok(Scanner { line, column, start_idx: idx }),
                 Some(c) => {
                     ch = c;
                     pending_idx = idx + ch.len_utf8();
@@ -306,13 +283,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
             if previous == '\r' && ch == '\n' {
                 idx = pending_idx;
                 match iter.next() {
-                    None => {
-                        return Ok(Scanner {
-                            line,
-                            column,
-                            start_idx: idx,
-                        })
-                    }
+                    None => return Ok(Scanner { line, column, start_idx: idx }),
                     Some(c) => {
                         ch = c;
                         pending_idx = idx + ch.len_utf8();
@@ -326,13 +297,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
             column = column + 1;
             idx = pending_idx;
             match iter.next() {
-                None => {
-                    return Ok(Scanner {
-                        line,
-                        column,
-                        start_idx: idx,
-                    })
-                }
+                None => return Ok(Scanner { line, column, start_idx: idx }),
                 Some(c) => {
                     ch = c;
                     pending_idx = idx + ch.len_utf8();
@@ -344,13 +309,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
         if ch == '/' {
             let ch_next;
             match iter.next() {
-                None => {
-                    return Ok(Scanner {
-                        line,
-                        column,
-                        start_idx: idx,
-                    })
-                }
+                None => return Ok(Scanner { line, column, start_idx: idx }),
                 Some(c) => {
                     ch_next = c;
                     pending_idx = pending_idx + ch_next.len_utf8();
@@ -363,13 +322,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                     idx = pending_idx;
                     loop {
                         match iter.next() {
-                            None => {
-                                return Ok(Scanner {
-                                    line,
-                                    column,
-                                    start_idx: idx,
-                                })
-                            }
+                            None => return Ok(Scanner { line, column, start_idx: idx }),
                             Some(c) => {
                                 ch = c;
                                 pending_idx = idx + ch.len_utf8();
@@ -391,12 +344,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 
                     match iter.next() {
                         // If None comes back, this is actually a syntax error.
-                        None => {
-                            return Err(format!(
-                                "Unterminated /*-style comment. Started on line {}, column {}.",
-                                comment_start_line, comment_start_column
-                            ))
-                        }
+                        None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
                         Some(c) => {
                             ch = c;
                             pending_idx = idx + ch.len_utf8();
@@ -409,12 +357,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             idx = pending_idx;
                             match iter.next() {
                                 // If None comes back, this is actually a syntax error.
-                                None => {
-                                    return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
-                                    ))
-                                }
+                                None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
                                 Some(c) => {
                                     ch = c;
                                     pending_idx = idx + ch.len_utf8();
@@ -424,13 +367,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 column = column + 1;
                                 idx = pending_idx;
                                 match iter.next() {
-                                    None => {
-                                        return Ok(Scanner {
-                                            line,
-                                            column,
-                                            start_idx: idx,
-                                        })
-                                    }
+                                    None => return Ok(Scanner { line, column, start_idx: idx }),
                                     Some(c) => {
                                         ch = c;
                                         pending_idx = idx + ch.len_utf8();
@@ -446,12 +383,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             idx = pending_idx;
                             let previous = ch;
                             match iter.next() {
-                                None => {
-                                    return Err(format!(
-                                        "Unterminated /*-style comment. Started on line {}, column {}.",
-                                        comment_start_line, comment_start_column
-                                    ))
-                                }
+                                None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
                                 Some(c) => {
                                     ch = c;
                                     pending_idx = idx + ch.len_utf8();
@@ -460,12 +392,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             if previous == '\r' && ch == '\n' {
                                 idx = pending_idx;
                                 match iter.next() {
-                                    None => {
-                                        return Err(format!(
-                                            "Unterminated /*-style comment. Started on line {}, column {}.",
-                                            comment_start_line, comment_start_column
-                                        ))
-                                    }
+                                    None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
                                     Some(c) => {
                                         ch = c;
                                         pending_idx = idx + ch.len_utf8();
@@ -478,12 +405,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         column = column + 1;
                         idx = pending_idx;
                         match iter.next() {
-                            None => {
-                                return Err(format!(
-                                    "Unterminated /*-style comment. Started on line {}, column {}.",
-                                    comment_start_line, comment_start_column
-                                ))
-                            }
+                            None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
                             Some(c) => {
                                 ch = c;
                                 pending_idx = idx + ch.len_utf8();
@@ -491,22 +413,12 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         }
                     }
                 }
-                _ => {
-                    return Ok(Scanner {
-                        line,
-                        column,
-                        start_idx: idx,
-                    })
-                }
+                _ => return Ok(Scanner { line, column, start_idx: idx }),
             }
             continue;
         }
 
-        return Ok(Scanner {
-            line,
-            column,
-            start_idx: idx,
-        });
+        return Ok(Scanner { line, column, start_idx: idx });
     }
 }
 
@@ -669,10 +581,7 @@ where
         };
         let ch_value = ues_char_value(&source[ues_scanner.start_idx..after_scanner.start_idx]);
         if !validate(ch_value) {
-            return Err(format!(
-                "{}:{}: Invalid Identifier {} Character {:?}",
-                scanner.line, scanner.column, style, ch_value
-            ));
+            return Err(format!("{}:{}: Invalid Identifier {} Character {:?}", scanner.line, scanner.column, style, ch_value));
         }
         Ok(Some(after_scanner))
     } else {
@@ -774,20 +683,12 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 let second = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let third = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let fourth = HexChar::try_from(iter.next().unwrap()).unwrap();
-                cp = char::from_u32(
-                    mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12
-                        | mv_of_hex_digit(second) << 8
-                        | mv_of_hex_digit(third) << 4
-                        | mv_of_hex_digit(fourth),
-                )
-                .unwrap();
+                cp = char::from_u32(mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12 | mv_of_hex_digit(second) << 8 | mv_of_hex_digit(third) << 4 | mv_of_hex_digit(fourth)).unwrap();
             }
             result.append(&mut code_point_to_utf16_code_units(cp))
         }
     }
-    JSString {
-        string: Rc::new(result),
-    }
+    JSString { string: Rc::new(result) }
 }
 
 fn keycomplete(source: &str, cmp: &str, kwd: Keyword) -> Option<Keyword> {
@@ -1324,12 +1225,7 @@ fn hex_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<Sca
 
 fn non_decimal_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<(NumberStyle, Scanner)> {
     binary_integer_literal(scanner, source, sep).map_or_else(
-        || {
-            octal_integer_literal(scanner, source, sep).map_or_else(
-                || hex_integer_literal(scanner, source, sep).map(|r| (NumberStyle::Hex, r)),
-                |r| Some((NumberStyle::Octal, r)),
-            )
-        },
+        || octal_integer_literal(scanner, source, sep).map_or_else(|| hex_integer_literal(scanner, source, sep).map(|r| (NumberStyle::Hex, r)), |r| Some((NumberStyle::Octal, r))),
         |r| Some((NumberStyle::Binary, r)),
     )
 }
@@ -1380,10 +1276,7 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
         .and_then(|(style, scan)| match_char(&scan, source, 'n').map(|r| (bigify(style), r)))
         .or_else(|| {
             decimal_big_integer_literal(scanner, source).map_or_else(
-                || {
-                    non_decimal_integer_literal(scanner, source, true)
-                        .or_else(|| decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r)))
-                },
+                || non_decimal_integer_literal(scanner, source, true).or_else(|| decimal_literal(scanner, source).map(|r| (NumberStyle::Decimal, r))),
                 |r| Some((NumberStyle::BigDecimal, r)),
             )
         })?;
@@ -1397,74 +1290,25 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
 
     match number_style {
         NumberStyle::BigDecimal => Some((
-            Token::BigInt(
-                BigInt::parse_bytes(
-                    strip_sep(&source[scanner.start_idx..after.start_idx - 1]).as_bytes(),
-                    10,
-                )
-                .unwrap(),
-            ),
+            Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx..after.start_idx - 1]).as_bytes(), 10).unwrap()),
             after,
         )),
         NumberStyle::BigBinary => Some((
-            Token::BigInt(
-                BigInt::parse_bytes(
-                    strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(),
-                    2,
-                )
-                .unwrap(),
-            ),
+            Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 2).unwrap()),
             after,
         )),
         NumberStyle::BigOctal => Some((
-            Token::BigInt(
-                BigInt::parse_bytes(
-                    strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(),
-                    8,
-                )
-                .unwrap(),
-            ),
+            Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 8).unwrap()),
             after,
         )),
         NumberStyle::BigHex => Some((
-            Token::BigInt(
-                BigInt::parse_bytes(
-                    strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(),
-                    16,
-                )
-                .unwrap(),
-            ),
+            Token::BigInt(BigInt::parse_bytes(strip_sep(&source[scanner.start_idx + 2..after.start_idx - 1]).as_bytes(), 16).unwrap()),
             after,
         )),
-        NumberStyle::Binary => Some((
-            Token::Number(int_to_number(
-                &strip_sep(&source[scanner.start_idx + 2..after.start_idx]),
-                2,
-            )),
-            after,
-        )),
-        NumberStyle::Octal => Some((
-            Token::Number(int_to_number(
-                &strip_sep(&source[scanner.start_idx + 2..after.start_idx]),
-                8,
-            )),
-            after,
-        )),
-        NumberStyle::Hex => Some((
-            Token::Number(int_to_number(
-                &strip_sep(&source[scanner.start_idx + 2..after.start_idx]),
-                16,
-            )),
-            after,
-        )),
-        NumberStyle::Decimal => Some((
-            Token::Number(
-                strip_sep(&source[scanner.start_idx..after.start_idx])
-                    .parse::<f64>()
-                    .unwrap(),
-            ),
-            after,
-        )),
+        NumberStyle::Binary => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 2)), after)),
+        NumberStyle::Octal => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 8)), after)),
+        NumberStyle::Hex => Some((Token::Number(int_to_number(&strip_sep(&source[scanner.start_idx + 2..after.start_idx]), 16)), after)),
+        NumberStyle::Decimal => Some((Token::Number(strip_sep(&source[scanner.start_idx..after.start_idx]).parse::<f64>().unwrap()), after)),
     }
 }
 
@@ -1550,8 +1394,7 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
                 after.column += 1;
                 after.start_idx += 1;
                 // This can come back poorly. If it does, this is a broken string, and we should return None.
-                let after_escape =
-                    escape_sequence(&after, source).or_else(|| line_terminator_sequence(&after, source))?;
+                let after_escape = escape_sequence(&after, source).or_else(|| line_terminator_sequence(&after, source))?;
                 // That probably consumed characters, but our iterator doesn't know that it should have been advanced.
                 // So consume some chars here to get us back in sync.
                 let mut idx = after.start_idx;
@@ -1737,15 +1580,11 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
         None
     }
 }
-fn regular_expression_literal(
-    scanner: &Scanner,
-    source: &str,
-    goal: ScanGoal,
-) -> Result<Option<(Token, Scanner)>, String> {
+fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<Option<(Token, Scanner)>, String> {
     if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('/') {
-            todo!();
+            Ok(None) //todo!();
         } else {
             Ok(None)
         }
@@ -1753,11 +1592,7 @@ fn regular_expression_literal(
         Ok(None)
     }
 }
-fn template_substitution_tail(
-    scanner: &Scanner,
-    source: &str,
-    goal: ScanGoal,
-) -> Result<Option<(Token, Scanner)>, String> {
+fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<Option<(Token, Scanner)>, String> {
     if goal == ScanGoal::InputElementRegExpOrTemplateTail || goal == ScanGoal::InputElementTemplateTail {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('}') {
@@ -1787,10 +1622,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(To
                 if r.is_none() {
                     r = template_substitution_tail(&after_skippable, source, goal)?;
                     if r.is_none() {
-                        return Err(format!(
-                            "{}:{}: Invalid or Unexpected token",
-                            after_skippable.line, after_skippable.column
-                        ));
+                        r = Some((Token::Error, after_skippable));
                     }
                 }
             }
@@ -1818,339 +1650,102 @@ mod tests {
 
     #[test]
     fn skippables_empty() {
-        let scanner = Scanner {
-            line: 10,
-            column: 80,
-            start_idx: 0,
-        };
+        let scanner = Scanner { line: 10, column: 80, start_idx: 0 };
         let result = skip_skippables(&scanner, "");
-        let expected = Scanner {
-            start_idx: 0,
-            line: 10,
-            column: 80,
-        };
+        let expected = Scanner { start_idx: 0, line: 10, column: 80 };
         assert_eq!(result, Ok(expected));
     }
     #[test]
     fn skippables_no_leading_whitespace() {
-        let scanner = Scanner {
-            line: 10,
-            column: 80,
-            start_idx: 0,
-        };
+        let scanner = Scanner { line: 10, column: 80, start_idx: 0 };
         let result = skip_skippables(&scanner, "abcd   uu");
-        let expected = Scanner {
-            start_idx: 0,
-            line: 10,
-            column: 80,
-        };
+        let expected = Scanner { start_idx: 0, line: 10, column: 80 };
         assert_eq!(result, Ok(expected));
     }
     #[test]
     fn skippables_only_whitespace() {
-        let result = skip_skippables(
-            &Scanner {
-                line: 1,
-                column: 1,
-                start_idx: 0,
-            },
-            "\t\r\n\t\t\t",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 6,
-                line: 2,
-                column: 4
-            })
-        );
+        let result = skip_skippables(&Scanner { line: 1, column: 1, start_idx: 0 }, "\t\r\n\t\t\t");
+        assert_eq!(result, Ok(Scanner { start_idx: 6, line: 2, column: 4 }));
     }
     #[test]
     fn skippables_ends_on_eol() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 2,
-                column: 2,
-            },
-            "\n",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 1,
-                line: 3,
-                column: 1
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 2, column: 2 }, "\n");
+        assert_eq!(result, Ok(Scanner { start_idx: 1, line: 3, column: 1 }));
     }
     #[test]
     fn skippables_ends_on_crlf() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 10,
-                column: 1,
-            },
-            "\r\n",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 2,
-                line: 11,
-                column: 1
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 10, column: 1 }, "\r\n");
+        assert_eq!(result, Ok(Scanner { start_idx: 2, line: 11, column: 1 }));
     }
     #[test]
     fn skippables_ends_on_slash() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 10,
-                column: 10,
-            },
-            "   /",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 3,
-                line: 10,
-                column: 13
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 10, column: 10 }, "   /");
+        assert_eq!(result, Ok(Scanner { start_idx: 3, line: 10, column: 13 }));
     }
     #[test]
     fn skippables_ends_in_doubleslash() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "\t\t//",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 4,
-                line: 3,
-                column: 6
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "\t\t//");
+        assert_eq!(result, Ok(Scanner { start_idx: 4, line: 3, column: 6 }));
     }
     #[test]
     fn skippables_not_comment() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/+",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/+");
+        assert_eq!(result, Ok(Scanner { start_idx: 0, line: 3, column: 2 }));
     }
     #[test]
     fn skippables_ends_in_slc() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "\t\t// this ends the line",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 23,
-                line: 3,
-                column: 25
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "\t\t// this ends the line");
+        assert_eq!(result, Ok(Scanner { start_idx: 23, line: 3, column: 25 }));
     }
     #[test]
     fn skippables_slc_then_white() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "\t\t// this ends the line\r\n\r\nblue",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 27,
-                line: 5,
-                column: 1
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "\t\t// this ends the line\r\n\r\nblue");
+        assert_eq!(result, Ok(Scanner { start_idx: 27, line: 5, column: 1 }));
     }
     #[test]
     fn skippables_mlc() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/**/",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 4,
-                line: 3,
-                column: 6
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/**/");
+        assert_eq!(result, Ok(Scanner { start_idx: 4, line: 3, column: 6 }));
     }
     #[test]
     fn skippables_mlc_then_white() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/* abcde */\t\t\nhat",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 14,
-                line: 4,
-                column: 1
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/* abcde */\t\t\nhat");
+        assert_eq!(result, Ok(Scanner { start_idx: 14, line: 4, column: 1 }));
     }
     #[test]
     fn skippables_mlc_with_newlines() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 1,
-            },
-            "/*\n * My Title\n */\nscarf",
-        );
-        assert_eq!(
-            result,
-            Ok(Scanner {
-                start_idx: 19,
-                line: 6,
-                column: 1
-            })
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 1 }, "/*\n * My Title\n */\nscarf");
+        assert_eq!(result, Ok(Scanner { start_idx: 19, line: 6, column: 1 }));
     }
     #[test]
     fn skippables_unterminated_mlc() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/*\t\t// this ends the line\r\n\r\nblue",
-        );
-        assert_eq!(
-            result,
-            Err(String::from(
-                "Unterminated /*-style comment. Started on line 3, column 2."
-            ))
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/*\t\t// this ends the line\r\n\r\nblue");
+        assert_eq!(result, Err(String::from("Unterminated /*-style comment. Started on line 3, column 2.")));
     }
     #[test]
     fn skippables_mlc_eof1() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/*",
-        );
-        assert_eq!(
-            result,
-            Err(String::from(
-                "Unterminated /*-style comment. Started on line 3, column 2."
-            ))
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/*");
+        assert_eq!(result, Err(String::from("Unterminated /*-style comment. Started on line 3, column 2.")));
     }
     #[test]
     fn skippables_mlc_eof2() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/***",
-        );
-        assert_eq!(
-            result,
-            Err(String::from(
-                "Unterminated /*-style comment. Started on line 3, column 2."
-            ))
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/***");
+        assert_eq!(result, Err(String::from("Unterminated /*-style comment. Started on line 3, column 2.")));
     }
     #[test]
     fn skippables_mlc_eof3() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/***\n",
-        );
-        assert_eq!(
-            result,
-            Err(String::from(
-                "Unterminated /*-style comment. Started on line 3, column 2."
-            ))
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/***\n");
+        assert_eq!(result, Err(String::from("Unterminated /*-style comment. Started on line 3, column 2.")));
     }
     #[test]
     fn skippables_mlc_eof4() {
-        let result = skip_skippables(
-            &Scanner {
-                start_idx: 0,
-                line: 3,
-                column: 2,
-            },
-            "/***\r\n",
-        );
-        assert_eq!(
-            result,
-            Err(String::from(
-                "Unterminated /*-style comment. Started on line 3, column 2."
-            ))
-        );
+        let result = skip_skippables(&Scanner { start_idx: 0, line: 3, column: 2 }, "/***\r\n");
+        assert_eq!(result, Err(String::from("Unterminated /*-style comment. Started on line 3, column 2.")));
     }
     #[test]
     fn new_simple() {
         let result = Scanner::new();
-        assert_eq!(
-            result,
-            Scanner {
-                start_idx: 0,
-                line: 1,
-                column: 1
-            }
-        );
+        assert_eq!(result, Scanner { start_idx: 0, line: 1, column: 1 });
     }
     #[test]
     fn hex_four_digits_01() {
@@ -2195,26 +1790,12 @@ mod tests {
     #[test]
     fn hex_four_digits_09() {
         let result = hex_four_digits(&Scanner::new(), "0089");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 5,
-                start_idx: 4
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 5, start_idx: 4 }));
     }
     #[test]
     fn hex_four_digits_10() {
         let result = hex_four_digits(&Scanner::new(), "00896661");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 5,
-                start_idx: 4
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 5, start_idx: 4 }));
     }
     #[test]
     fn is_hex_digit_01() {
@@ -2233,50 +1814,22 @@ mod tests {
     #[test]
     fn code_point_02() {
         let result = code_point(&Scanner::new(), "5");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn code_point_03() {
         let result = code_point(&Scanner::new(), "ffff");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 5,
-                start_idx: 4
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 5, start_idx: 4 }));
     }
     #[test]
     fn code_point_04() {
         let result = code_point(&Scanner::new(), "fffff");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 6,
-                start_idx: 5
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 6, start_idx: 5 }));
     }
     #[test]
     fn code_point_05() {
         let result = code_point(&Scanner::new(), "10ffff");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 7,
-                start_idx: 6
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 7, start_idx: 6 }));
     }
     #[test]
     fn code_point_06() {
@@ -2286,26 +1839,12 @@ mod tests {
     #[test]
     fn code_point_07() {
         let result = code_point(&Scanner::new(), "0000000098");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 11,
-                start_idx: 10
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 11, start_idx: 10 }));
     }
     #[test]
     fn code_point_08() {
         let result = code_point(&Scanner::new(), "000000000000000000000000000000000000000098");
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 43,
-                start_idx: 42
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 43, start_idx: 42 }));
     }
     #[test]
     fn code_point_09() {
@@ -2314,46 +1853,17 @@ mod tests {
     }
     #[test]
     fn unicode_escape_sequence_01() {
-        for s in &[
-            "",
-            "g",
-            "u",
-            "ug",
-            "u0",
-            "u0g",
-            "u00",
-            "u00g",
-            "u000",
-            "u000g",
-            "u{",
-            "u{0g",
-            "u{}",
-            "u{1234567890}",
-        ] {
+        for s in &["", "g", "u", "ug", "u0", "u0g", "u00", "u00g", "u000", "u000g", "u{", "u{0g", "u{}", "u{1234567890}"] {
             assert_eq!(unicode_escape_sequence(&Scanner::new(), s), None);
         }
     }
     #[test]
     fn unicode_escape_sequence_02() {
-        assert_eq!(
-            unicode_escape_sequence(&Scanner::new(), "u0067"),
-            Some(Scanner {
-                line: 1,
-                column: 6,
-                start_idx: 5
-            })
-        );
+        assert_eq!(unicode_escape_sequence(&Scanner::new(), "u0067"), Some(Scanner { line: 1, column: 6, start_idx: 5 }));
     }
     #[test]
     fn unicode_escape_sequence_03() {
-        assert_eq!(
-            unicode_escape_sequence(&Scanner::new(), "u{0067}"),
-            Some(Scanner {
-                line: 1,
-                column: 8,
-                start_idx: 7
-            })
-        );
+        assert_eq!(unicode_escape_sequence(&Scanner::new(), "u{0067}"), Some(Scanner { line: 1, column: 8, start_idx: 7 }));
     }
     #[test]
     fn identifier_start_01() {
@@ -2364,97 +1874,38 @@ mod tests {
     #[test]
     fn identifier_start_02() {
         for s in &["$name", "_name", "Gname"] {
-            assert_eq!(
-                identifier_start(&Scanner::new(), s),
-                Ok(Some(Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }))
-            )
+            assert_eq!(identifier_start(&Scanner::new(), s), Ok(Some(Scanner { line: 1, column: 2, start_idx: 1 })))
         }
-        assert_eq!(
-            identifier_start(&Scanner::new(), "ꘐblue"),
-            Ok(Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 3
-            }))
-        );
+        assert_eq!(identifier_start(&Scanner::new(), "ꘐblue"), Ok(Some(Scanner { line: 1, column: 2, start_idx: 3 })));
     }
     #[test]
     fn identifier_start_03() {
-        assert_eq!(
-            identifier_start(&Scanner::new(), "\\u0061blue"),
-            Ok(Some(Scanner {
-                line: 1,
-                column: 7,
-                start_idx: 6
-            }))
-        );
+        assert_eq!(identifier_start(&Scanner::new(), "\\u0061blue"), Ok(Some(Scanner { line: 1, column: 7, start_idx: 6 })));
     }
     #[test]
     fn identifier_start_04() {
-        assert_eq!(
-            identifier_start(&Scanner::new(), "\\u0024blue"),
-            Ok(Some(Scanner {
-                line: 1,
-                column: 7,
-                start_idx: 6
-            }))
-        );
+        assert_eq!(identifier_start(&Scanner::new(), "\\u0024blue"), Ok(Some(Scanner { line: 1, column: 7, start_idx: 6 })));
     }
     #[test]
     fn identifier_start_05() {
-        assert_eq!(
-            identifier_start(&Scanner::new(), "\\u005fblue"),
-            Ok(Some(Scanner {
-                line: 1,
-                column: 7,
-                start_idx: 6
-            }))
-        );
+        assert_eq!(identifier_start(&Scanner::new(), "\\u005fblue"), Ok(Some(Scanner { line: 1, column: 7, start_idx: 6 })));
     }
     #[test]
     fn identifier_start_06() {
-        assert_eq!(
-            identifier_start(&Scanner::new(), "\\u0095blue"),
-            Err(String::from("1:1: Invalid Identifier Start Character '\\u{95}'"))
-        );
+        assert_eq!(identifier_start(&Scanner::new(), "\\u0095blue"), Err(String::from("1:1: Invalid Identifier Start Character '\\u{95}'")));
     }
 
     #[test]
     fn radix_digits_01() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "43", false, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "43", false, is_digit), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn radix_digits_02() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "4_3", false, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "4_3", false, is_digit), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn radix_digits_03() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "43_", false, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "43_", false, is_digit), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn radix_digits_04() {
@@ -2462,36 +1913,15 @@ mod tests {
     }
     #[test]
     fn radix_digits_05() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "43", true, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "43", true, is_digit), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn radix_digits_06() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "4_3", true, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "4_3", true, is_digit), Some(Scanner { line: 1, column: 4, start_idx: 3 }));
     }
     #[test]
     fn radix_digits_07() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "43_", true, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "43_", true, is_digit), Some(Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn radix_digits_08() {
@@ -2499,25 +1929,11 @@ mod tests {
     }
     #[test]
     fn radix_digits_09() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "4__3", true, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "4__3", true, is_digit), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn radix_digits_10() {
-        assert_eq!(
-            radix_digits(&Scanner::new(), "4__3", false, is_digit),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
+        assert_eq!(radix_digits(&Scanner::new(), "4__3", false, is_digit), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn radix_digits_11() {
@@ -2529,127 +1945,51 @@ mod tests {
     }
     #[test]
     fn decimal_integer_0() {
-        assert_eq!(
-            decimal_integer_literal(&Scanner::new(), "0"),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        )
+        assert_eq!(decimal_integer_literal(&Scanner::new(), "0"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
     }
     #[test]
     fn decimal_integer_4() {
-        assert_eq!(
-            decimal_integer_literal(&Scanner::new(), "4"),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        )
+        assert_eq!(decimal_integer_literal(&Scanner::new(), "4"), Some(Scanner { line: 1, column: 2, start_idx: 1 }))
     }
     #[test]
     fn decimal_integer_4_3() {
-        assert_eq!(
-            decimal_integer_literal(&Scanner::new(), "4_3"),
-            Some(Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            })
-        )
+        assert_eq!(decimal_integer_literal(&Scanner::new(), "4_3"), Some(Scanner { line: 1, column: 4, start_idx: 3 }))
     }
     #[test]
     fn decimal_integer_43() {
-        assert_eq!(
-            decimal_integer_literal(&Scanner::new(), "43"),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        )
+        assert_eq!(decimal_integer_literal(&Scanner::new(), "43"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
     }
     #[test]
     fn decimal_integer_56_() {
-        assert_eq!(
-            decimal_integer_literal(&Scanner::new(), "56_"),
-            Some(Scanner {
-                line: 1,
-                column: 3,
-                start_idx: 2
-            })
-        )
+        assert_eq!(decimal_integer_literal(&Scanner::new(), "56_"), Some(Scanner { line: 1, column: 3, start_idx: 2 }))
     }
     #[test]
     fn non_decimal_integer_literal_01() {
         assert_eq!(
             non_decimal_integer_literal(&Scanner::new(), "0x10", true),
-            Some((
-                NumberStyle::Hex,
-                Scanner {
-                    line: 1,
-                    column: 5,
-                    start_idx: 4
-                }
-            ))
+            Some((NumberStyle::Hex, Scanner { line: 1, column: 5, start_idx: 4 }))
         )
     }
     #[test]
     fn numeric_literal_01() {
-        assert_eq!(
-            numeric_literal(&Scanner::new(), "0x10..."),
-            Some((
-                Token::Number(16.0),
-                Scanner {
-                    line: 1,
-                    column: 5,
-                    start_idx: 4
-                }
-            ))
-        )
+        assert_eq!(numeric_literal(&Scanner::new(), "0x10..."), Some((Token::Number(16.0), Scanner { line: 1, column: 5, start_idx: 4 })))
     }
     #[test]
     fn numeric_literal_02() {
-        assert_eq!(
-            numeric_literal(&Scanner::new(), ".25"),
-            Some((
-                Token::Number(0.25),
-                Scanner {
-                    line: 1,
-                    column: 4,
-                    start_idx: 3
-                }
-            ))
-        )
+        assert_eq!(numeric_literal(&Scanner::new(), ".25"), Some((Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 })))
     }
     #[test]
     fn numeric_literal_03() {
         assert_eq!(
             numeric_literal(&Scanner::new(), "0xabcdef"),
-            Some((
-                Token::Number(11259375.0),
-                Scanner {
-                    line: 1,
-                    column: 9,
-                    start_idx: 8
-                }
-            ))
+            Some((Token::Number(11259375.0), Scanner { line: 1, column: 9, start_idx: 8 }))
         )
     }
     #[test]
     fn numeric_literal_04() {
         assert_eq!(
             numeric_literal(&Scanner::new(), "0xFEDCBA"),
-            Some((
-                Token::Number(16702650.0),
-                Scanner {
-                    line: 1,
-                    column: 9,
-                    start_idx: 8
-                }
-            ))
+            Some((Token::Number(16702650.0), Scanner { line: 1, column: 9, start_idx: 8 }))
         )
     }
     #[test]
@@ -2662,100 +2002,37 @@ mod tests {
         let expected = clusters.iter().fold(BigInt::zero(), |acc, x| acc * 1000 + x);
         let result = numeric_literal(&Scanner::new(), "392_135_832_991_123_713_820_731_861n");
 
-        assert_eq!(
-            result,
-            Some((
-                Token::BigInt(expected),
-                Scanner {
-                    line: 1,
-                    column: 37,
-                    start_idx: 36
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::BigInt(expected), Scanner { line: 1, column: 37, start_idx: 36 })));
     }
     #[test]
     fn numeric_literal_07() {
         let result = numeric_literal(&Scanner::new(), "0b1_1100_0111n");
-        assert_eq!(
-            result,
-            Some((
-                Token::BigInt(BigInt::zero() + 0x1c7),
-                Scanner {
-                    line: 1,
-                    column: 15,
-                    start_idx: 14
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::BigInt(BigInt::zero() + 0x1c7), Scanner { line: 1, column: 15, start_idx: 14 })));
     }
     #[test]
     fn numeric_literal_08() {
         let result = numeric_literal(&Scanner::new(), "0o3_4576_1000n");
-        assert_eq!(
-            result,
-            Some((
-                Token::BigInt(BigInt::zero() + 0x0397e200),
-                Scanner {
-                    line: 1,
-                    column: 15,
-                    start_idx: 14
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::BigInt(BigInt::zero() + 0x0397e200), Scanner { line: 1, column: 15, start_idx: 14 })));
     }
     #[test]
     fn numeric_literal_09() {
         let result = numeric_literal(&Scanner::new(), "0x4576_1000n");
-        assert_eq!(
-            result,
-            Some((
-                Token::BigInt(BigInt::zero() + 0x45761000),
-                Scanner {
-                    line: 1,
-                    column: 13,
-                    start_idx: 12
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::BigInt(BigInt::zero() + 0x45761000), Scanner { line: 1, column: 13, start_idx: 12 })));
     }
     #[test]
     fn numeric_literal_10() {
         let result = numeric_literal(&Scanner::new(), "0b1010_1111_0010_0110");
-        assert_eq!(
-            result,
-            Some((
-                Token::Number(44838.0),
-                Scanner {
-                    line: 1,
-                    column: 22,
-                    start_idx: 21
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::Number(44838.0), Scanner { line: 1, column: 22, start_idx: 21 })));
     }
     #[test]
     fn numeric_literal_11() {
         let result = numeric_literal(&Scanner::new(), "0o7773153152");
-        assert_eq!(
-            result,
-            Some((
-                Token::Number(1072485994.0),
-                Scanner {
-                    line: 1,
-                    column: 13,
-                    start_idx: 12
-                }
-            ))
-        );
+        assert_eq!(result, Some((Token::Number(1072485994.0), Scanner { line: 1, column: 13, start_idx: 12 })));
     }
 
     #[test]
     fn bad_hex_char() {
-        assert_eq!(
-            HexChar::try_from('&'),
-            Err("HexChar can only be used with hexidecimal digits!")
-        );
+        assert_eq!(HexChar::try_from('&'), Err("HexChar can only be used with hexidecimal digits!"));
     }
     #[test]
     fn hex_char_debug_fmt() {
@@ -2774,17 +2051,7 @@ mod tests {
     #[test]
     fn scan_numeric() {
         let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
-        assert_eq!(
-            result,
-            Ok((
-                Token::Number(0.25),
-                Scanner {
-                    line: 1,
-                    column: 4,
-                    start_idx: 3
-                }
-            ))
-        );
+        assert_eq!(result, Ok((Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 })));
     }
     #[test]
     fn scan_token_id_01() {
@@ -2798,11 +2065,7 @@ mod tests {
                     line: 1,
                     column: 1
                 }),
-                Scanner {
-                    line: 1,
-                    column: 9,
-                    start_idx: 8
-                }
+                Scanner { line: 1, column: 9, start_idx: 8 }
             ))
         );
     }
@@ -2908,62 +2171,22 @@ mod tests {
     #[test]
     fn optional_chaining_test_01() {
         let result = scan_token(&Scanner::new(), "?.", ScanGoal::InputElementRegExp);
-        assert_eq!(
-            result,
-            Ok((
-                Token::QDot,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
-        );
+        assert_eq!(result, Ok((Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 })));
     }
     #[test]
     fn optional_chaining_test_02() {
         let result = scan_token(&Scanner::new(), "?.P", ScanGoal::InputElementRegExp);
-        assert_eq!(
-            result,
-            Ok((
-                Token::QDot,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
-        );
+        assert_eq!(result, Ok((Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 })));
     }
     #[test]
     fn optional_chaining_test_03() {
         let result = scan_token(&Scanner::new(), "?.999", ScanGoal::InputElementRegExp);
-        assert_eq!(
-            result,
-            Ok((
-                Token::Question,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
-        );
+        assert_eq!(result, Ok((Token::Question, Scanner { line: 1, column: 2, start_idx: 1 })));
     }
     #[test]
     fn optional_chaining_test_04() {
         let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
-        assert_eq!(
-            result,
-            Ok((
-                Token::Question,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
-        );
+        assert_eq!(result, Ok((Token::Question, Scanner { line: 1, column: 2, start_idx: 1 })));
     }
     fn punct_check(inp: &str, tok: Token) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
@@ -3053,8 +2276,7 @@ mod tests {
     #[test]
     fn punctuator_nomatch() {
         let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "1:1: Invalid or Unexpected token");
+        assert_eq!(result, Ok((Token::Error, Scanner {line:1, column:1, start_idx:0})));
     }
     #[test]
     fn signed_integer_01() {
@@ -3064,38 +2286,17 @@ mod tests {
     #[test]
     fn signed_integer_02() {
         let result = signed_integer(&Scanner::new(), "+10_9", false);
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 4, start_idx: 3 }));
     }
     #[test]
     fn signed_integer_03() {
         let result = signed_integer(&Scanner::new(), "-3_3", true);
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 5,
-                start_idx: 4
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 5, start_idx: 4 }));
     }
     #[test]
     fn signed_integer_04() {
         let result = signed_integer(&Scanner::new(), "899", false);
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 4, start_idx: 3 }));
     }
 
     fn decimal_literal_helper(text: &str, count: u32) {
@@ -3151,14 +2352,7 @@ mod tests {
     }
 
     fn nzd_helper(text: &str) {
-        assert_eq!(
-            non_zero_digit(&Scanner::new(), text),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
+        assert_eq!(non_zero_digit(&Scanner::new(), text), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn non_zero_digit_successes() {
@@ -3248,10 +2442,7 @@ mod tests {
         assert_eq!(int_to_number("0", 10), 0.0);
         assert_eq!(int_to_number("10000", 16), 65536.0);
         assert_eq!(
-            int_to_number(
-                "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
-                10
-            ),
+            int_to_number("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 10),
             f64::INFINITY
         );
     }
@@ -3269,30 +2460,9 @@ mod tests {
                 })
             );
         }
-        assert_eq!(
-            escape_sequence(&Scanner::new(), "0--"),
-            Some(Scanner {
-                line: 1,
-                column: 2,
-                start_idx: 1
-            })
-        );
-        assert_eq!(
-            escape_sequence(&Scanner::new(), "x7b7b"),
-            Some(Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            })
-        );
-        assert_eq!(
-            escape_sequence(&Scanner::new(), "u3333xxx"),
-            Some(Scanner {
-                line: 1,
-                column: 6,
-                start_idx: 5
-            })
-        );
+        assert_eq!(escape_sequence(&Scanner::new(), "0--"), Some(Scanner { line: 1, column: 2, start_idx: 1 }));
+        assert_eq!(escape_sequence(&Scanner::new(), "x7b7b"), Some(Scanner { line: 1, column: 4, start_idx: 3 }));
+        assert_eq!(escape_sequence(&Scanner::new(), "u3333xxx"), Some(Scanner { line: 1, column: 6, start_idx: 5 }));
         assert!(escape_sequence(&Scanner::new(), "09").is_none());
         assert!(escape_sequence(&Scanner::new(), "xpot").is_none());
         assert!(escape_sequence(&Scanner::new(), "xfoot").is_none());
@@ -3314,45 +2484,22 @@ mod tests {
             );
         }
         assert!(line_terminator_sequence(&Scanner::new(), "blue").is_none());
-        assert_eq!(
-            line_terminator_sequence(&Scanner::new(), "\rblue"),
-            Some(Scanner {
-                line: 2,
-                column: 1,
-                start_idx: 1,
-            })
-        );
+        assert_eq!(line_terminator_sequence(&Scanner::new(), "\rblue"), Some(Scanner { line: 2, column: 1, start_idx: 1 }));
     }
 
     #[test]
     fn string_characters_test() {
         let result = string_characters(&Scanner::new(), "a\\n\\u{2029}'", '\'');
-        assert_eq!(
-            result,
-            Some(Scanner {
-                line: 1,
-                column: 12,
-                start_idx: 11
-            })
-        );
+        assert_eq!(result, Some(Scanner { line: 1, column: 12, start_idx: 11 }));
 
         assert!(string_characters(&Scanner::new(), "\\u{3", '\'').is_none());
         assert!(string_characters(&Scanner::new(), "", '\'').is_none());
-        assert_eq!(
-            string_characters(&Scanner::new(), "1\\\n2\\\n3'\n", '\''),
-            Some(Scanner {
-                line: 3,
-                column: 2,
-                start_idx: 7
-            })
-        );
+        assert_eq!(string_characters(&Scanner::new(), "1\\\n2\\\n3'\n", '\''), Some(Scanner { line: 3, column: 2, start_idx: 7 }));
     }
 
     #[test]
     fn literal_string_value_test() {
-        let s = literal_string_value(
-            "a\\a\\b\\t\\n\\v\\f\\r\\'\\\"\\\\\\x66\\u{211c}\\u211d\\\n\\\u{2028}\\\u{2029}\\\r\\\n\\\r\n\\0",
-        );
+        let s = literal_string_value("a\\a\\b\\t\\n\\v\\f\\r\\'\\\"\\\\\\x66\\u{211c}\\u211d\\\n\\\u{2028}\\\u{2029}\\\r\\\n\\\r\n\\0");
         assert_eq!(s, "aa\u{8}\t\n\u{b}\u{c}\r'\"\\f\u{211c}\u{211d}\u{0}");
     }
 
@@ -3361,47 +2508,19 @@ mod tests {
         assert_eq!(string_literal(&Scanner::new(), "not_a_string"), None);
         assert_eq!(
             string_literal(&Scanner::new(), "''"),
-            Some((
-                Token::String(JSString::from("")),
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
+            Some((Token::String(JSString::from("")), Scanner { line: 1, column: 3, start_idx: 2 }))
         );
         assert_eq!(
             string_literal(&Scanner::new(), "\"\""),
-            Some((
-                Token::String(JSString::from("")),
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
+            Some((Token::String(JSString::from("")), Scanner { line: 1, column: 3, start_idx: 2 }))
         );
         assert_eq!(
             string_literal(&Scanner::new(), "'abcd'"),
-            Some((
-                Token::String(JSString::from("abcd")),
-                Scanner {
-                    line: 1,
-                    column: 7,
-                    start_idx: 6
-                }
-            ))
+            Some((Token::String(JSString::from("abcd")), Scanner { line: 1, column: 7, start_idx: 6 }))
         );
         assert_eq!(
             string_literal(&Scanner::new(), "\"abcd\""),
-            Some((
-                Token::String(JSString::from("abcd")),
-                Scanner {
-                    line: 1,
-                    column: 7,
-                    start_idx: 6
-                }
-            ))
+            Some((Token::String(JSString::from("abcd")), Scanner { line: 1, column: 7, start_idx: 6 }))
         );
     }
 
@@ -3419,121 +2538,46 @@ mod tests {
     fn div_punctuator_test() {
         assert_eq!(
             div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementDiv),
-            Some((
-                Token::Slash,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
+            Some((Token::Slash, Scanner { line: 1, column: 2, start_idx: 1 }))
         );
         assert_eq!(div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementRegExp), None);
-        assert_eq!(
-            div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementRegExpOrTemplateTail),
-            None
-        );
+        assert_eq!(div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementRegExpOrTemplateTail), None);
         assert_eq!(
             div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementTemplateTail),
-            Some((
-                Token::Slash,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
+            Some((Token::Slash, Scanner { line: 1, column: 2, start_idx: 1 }))
         );
         assert_eq!(
             div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
-            Some((
-                Token::SlashEq,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
+            Some((Token::SlashEq, Scanner { line: 1, column: 3, start_idx: 2 }))
         );
-        assert_eq!(
-            div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExp),
-            None
-        );
-        assert_eq!(
-            div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExpOrTemplateTail),
-            None
-        );
+        assert_eq!(div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExp), None);
+        assert_eq!(div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExpOrTemplateTail), None);
         assert_eq!(
             div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementTemplateTail),
-            Some((
-                Token::SlashEq,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
+            Some((Token::SlashEq, Scanner { line: 1, column: 3, start_idx: 2 }))
         );
         assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementDiv), None);
         assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExp), None);
-        assert_eq!(
-            div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail),
-            None
-        );
-        assert_eq!(
-            div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail),
-            None
-        );
+        assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail), None);
+        assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail), None);
     }
 
     #[test]
     fn right_brace_punctuator_test() {
         assert_eq!(
             right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementDiv),
-            Some((
-                Token::RightBrace,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
+            Some((Token::RightBrace, Scanner { line: 1, column: 2, start_idx: 1 }))
         );
         assert_eq!(
             right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
-            Some((
-                Token::RightBrace,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
+            Some((Token::RightBrace, Scanner { line: 1, column: 2, start_idx: 1 }))
         );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementTemplateTail),
-            None
-        );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementRegExpOrTemplateTail),
-            None
-        );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementDiv),
-            None
-        );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExp),
-            None
-        );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail),
-            None
-        );
-        assert_eq!(
-            right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail),
-            None
-        );
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementTemplateTail), None);
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementRegExpOrTemplateTail), None);
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementDiv), None);
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExp), None);
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail), None);
+        assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail), None);
     }
 
     #[test]
@@ -3547,45 +2591,14 @@ mod tests {
                     line: 1,
                     string_value: JSString::from("new")
                 }),
-                Scanner {
-                    line: 1,
-                    column: 4,
-                    start_idx: 3
-                }
+                Scanner { line: 1, column: 4, start_idx: 3 }
             )))
         );
-        assert_eq!(
-            common_token(&Scanner::new(), "10"),
-            Ok(Some((
-                Token::Number(10.0),
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            )))
-        );
-        assert_eq!(
-            common_token(&Scanner::new(), "**"),
-            Ok(Some((
-                Token::StarStar,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            )))
-        );
+        assert_eq!(common_token(&Scanner::new(), "10"), Ok(Some((Token::Number(10.0), Scanner { line: 1, column: 3, start_idx: 2 }))));
+        assert_eq!(common_token(&Scanner::new(), "**"), Ok(Some((Token::StarStar, Scanner { line: 1, column: 3, start_idx: 2 }))));
         assert_eq!(
             common_token(&Scanner::new(), "'truth'"),
-            Ok(Some((
-                Token::String(JSString::from("truth")),
-                Scanner {
-                    line: 1,
-                    column: 8,
-                    start_idx: 7
-                }
-            )))
+            Ok(Some((Token::String(JSString::from("truth")), Scanner { line: 1, column: 8, start_idx: 7 })))
         );
     }
     #[test]
@@ -3597,161 +2610,73 @@ mod tests {
 
     #[test]
     fn regular_expression_literal_test_01() {
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExp),
-            Ok(None)
-        );
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail),
-            Ok(None)
-        );
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementDiv),
-            Ok(None)
-        );
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementTemplateTail),
-            Ok(None)
-        );
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementDiv),
-            Ok(None)
-        );
-        assert_eq!(
-            regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementTemplateTail),
-            Ok(None)
-        );
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExp), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementDiv), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementDiv), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementTemplateTail), Ok(None));
     }
     #[test]
-    #[should_panic]
     fn regular_expression_literal_test_02() {
-        drop(regular_expression_literal(
-            &Scanner::new(),
-            "/abcd/",
-            ScanGoal::InputElementRegExp,
-        ));
+        let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
+        assert_eq!(result, Ok(None));
     }
     #[test]
-    #[should_panic]
     fn regular_expression_literal_test_03() {
-        drop(regular_expression_literal(
-            &Scanner::new(),
-            "/abcd/",
-            ScanGoal::InputElementRegExpOrTemplateTail,
-        ));
+        let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
 
     #[test]
     fn template_literal_test_01() {
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExp),
-            Ok(None)
-        );
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail),
-            Ok(None)
-        );
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementDiv),
-            Ok(None)
-        );
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementTemplateTail),
-            Ok(None)
-        );
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementDiv),
-            Ok(None)
-        );
-        assert_eq!(
-            template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExp),
-            Ok(None)
-        );
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExp), Ok(None));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), Ok(None));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementDiv), Ok(None));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), Ok(None));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementDiv), Ok(None));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExp), Ok(None));
     }
     #[test]
     #[should_panic]
     fn template_literal_test_02() {
-        drop(template_substitution_tail(
-            &Scanner::new(),
-            "} middle {",
-            ScanGoal::InputElementTemplateTail,
-        ));
+        drop(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementTemplateTail));
     }
     #[test]
     #[should_panic]
     fn template_literal_test_03() {
-        drop(template_substitution_tail(
-            &Scanner::new(),
-            "} middle {",
-            ScanGoal::InputElementRegExpOrTemplateTail,
-        ));
+        drop(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExpOrTemplateTail));
     }
 
     #[test]
     fn scan_token_test_01() {
         assert_eq!(
             scan_token(&Scanner::new(), "", ScanGoal::InputElementRegExp),
-            Ok((
-                Token::Eof,
-                Scanner {
-                    line: 1,
-                    column: 1,
-                    start_idx: 0
-                }
-            ))
+            Ok((Token::Eof, Scanner { line: 1, column: 1, start_idx: 0 }))
         );
         assert_eq!(
-            scan_token(
-                &Scanner::new(),
-                "  /* nothing to see here */   ",
-                ScanGoal::InputElementRegExp
-            ),
-            Ok((
-                Token::Eof,
-                Scanner {
-                    line: 1,
-                    column: 31,
-                    start_idx: 30
-                }
-            ))
+            scan_token(&Scanner::new(), "  /* nothing to see here */   ", ScanGoal::InputElementRegExp),
+            Ok((Token::Eof, Scanner { line: 1, column: 31, start_idx: 30 }))
         );
         assert_eq!(
             scan_token(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
-            Ok((
-                Token::SlashEq,
-                Scanner {
-                    line: 1,
-                    column: 3,
-                    start_idx: 2
-                }
-            ))
+            Ok((Token::SlashEq, Scanner { line: 1, column: 3, start_idx: 2 }))
         );
         assert_eq!(
             scan_token(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
-            Ok((
-                Token::RightBrace,
-                Scanner {
-                    line: 1,
-                    column: 2,
-                    start_idx: 1
-                }
-            ))
+            Ok((Token::RightBrace, Scanner { line: 1, column: 2, start_idx: 1 }))
         );
     }
     #[test]
-    #[should_panic]
     fn scan_token_panic_01() {
         let r = scan_token(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        drop(r);
+        assert_eq!(r, Ok((Token::Error, Scanner {line:1, column: 1, start_idx:0})));
     }
     #[test]
     #[should_panic]
     fn scan_token_panic_02() {
-        let r = scan_token(
-            &Scanner::new(),
-            "} middle template {",
-            ScanGoal::InputElementTemplateTail,
-        );
+        let r = scan_token(&Scanner::new(), "} middle template {", ScanGoal::InputElementTemplateTail);
         drop(r);
     }
 }
