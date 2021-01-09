@@ -3,6 +3,7 @@
 use num::bigint::BigInt;
 use std::env;
 use std::fmt;
+use std::io::Result as IoResult;
 use std::io::{self, Write};
 
 mod scanner;
@@ -84,8 +85,12 @@ fn prettypad(pad: &str, state: Spot) -> (String, String) {
 }
 
 pub trait PrettyPrint {
-    fn pprint(&self);
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write;
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write;
 }
 
 //////// 12.1 Identifiers
@@ -105,13 +110,19 @@ impl StringValue for Identifier {
 }
 
 impl PrettyPrint for Identifier {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, _) = prettypad(pad, state);
-        println!("{}Identifier: {}", first, self.string_value());
+        writeln!(writer, "{}Identifier: {}", first, self.string_value())
     }
 }
 
@@ -281,16 +292,23 @@ impl AssignmentTargetType for IdentifierReference {
 }
 
 impl PrettyPrint for IdentifierReference {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}IdentifierReference: {}", first, self);
+        writeln!(writer, "{}IdentifierReference: {}", first, self)?;
         if let IdentifierReferenceKind::Identifier(boxed) = &self.kind {
-            boxed.pprint_with_leftpad(&successive, Spot::Final);
+            boxed.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
+        Ok(())
     }
 }
 
@@ -391,16 +409,23 @@ impl fmt::Display for BindingIdentifier {
 }
 
 impl PrettyPrint for BindingIdentifier {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}BindingIdentifier: {}", first, self);
+        writeln!(writer, "{}BindingIdentifier: {}", first, self)?;
         if let BindingIdentifierKind::Identifier(boxed) = &self.kind {
-            boxed.pprint_with_leftpad(&successive, Spot::Final);
+            boxed.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
+        Ok(())
     }
 }
 
@@ -465,6 +490,7 @@ pub enum PrimaryExpressionKind {
     This,
     IdentifierReference(Box<IdentifierReference>),
     Literal(Box<Literal>),
+    ArrayLiteral(Box<ArrayLiteral>),
     // More to come
 }
 
@@ -479,26 +505,30 @@ impl fmt::Display for PrimaryExpression {
             PrimaryExpressionKind::This => write!(f, "this"),
             PrimaryExpressionKind::IdentifierReference(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::Literal(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => write!(f, "{}", boxed),
         }
     }
 }
 
 impl PrettyPrint for PrimaryExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}PrimaryExpression: {}", first, self);
+        writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
         match &self.kind {
-            PrimaryExpressionKind::This => {}
-            PrimaryExpressionKind::IdentifierReference(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
-            PrimaryExpressionKind::Literal(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            PrimaryExpressionKind::This => Ok(()),
+            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -507,7 +537,7 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
         match self.kind {
-            This | IdentifierReference(_) | Literal(_) => false,
+            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) => false,
         }
     }
 }
@@ -516,7 +546,7 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) => false,
+            This | Literal(_) | ArrayLiteral(_) => false,
             IdentifierReference(_) => true,
         }
     }
@@ -526,7 +556,7 @@ impl AssignmentTargetType for PrimaryExpression {
     fn assignment_target_type(&self) -> ATTKind {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) => ATTKind::Invalid,
+            This | Literal(_) | ArrayLiteral(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
         }
     }
@@ -544,6 +574,12 @@ impl ToPrimaryExpressionKind for IdentifierReference {
 impl ToPrimaryExpressionKind for Literal {
     fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Literal(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for ArrayLiteral {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::ArrayLiteral(node)
     }
 }
 
@@ -578,6 +614,7 @@ fn primary_expression(parser: &mut Parser, arg_yield: bool, arg_await: bool) -> 
         .and_then(|opt| or_pe_kind(opt, parser, |p| IdentifierReference::parse(p, p.scanner, arg_yield, arg_await)))
         .and_then(|opt| or_pe_kind(opt, parser, literal))
         .and_then(|opt| or_pe_kind(opt, parser, this_token))
+        .and_then(|opt| or_pe_kind(opt, parser, |p| ArrayLiteral::parse(p, p.scanner, arg_yield, arg_await)))
 }
 
 #[derive(Debug)]
@@ -595,6 +632,374 @@ fn this_token(parser: &mut Parser) -> Result<Option<(Box<ThisToken>, Scanner)>, 
         scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => Some((Box::new(ThisToken {}), scanner)),
         _ => None,
     })
+}
+
+#[derive(Debug)]
+pub struct Elisions {
+    count: usize,
+}
+
+impl fmt::Display for Elisions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        assert!(self.count > 0);
+        write!(f, ",")?;
+        for n in 1..self.count {
+            write!(f, " ,")?;
+        }
+        Ok(())
+    }
+}
+
+impl PrettyPrint for Elisions {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}Elisions: {}", first, self)
+    }
+}
+
+impl Elisions {
+    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Elisions>, Scanner)>, String> {
+        let mut comma_count: usize = 0;
+        let mut current_scanner = scanner;
+        loop {
+            let (token, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            if token != scanner::Token::Comma {
+                return if comma_count == 0 {
+                    Ok(None)
+                } else {
+                    Ok(Some((Box::new(Elisions { count: comma_count }), current_scanner)))
+                };
+            }
+            comma_count += 1;
+            current_scanner = after_comma;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SpreadElement {
+    AssignmentExpression(Box<AssignmentExpression>),
+}
+
+impl fmt::Display for SpreadElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let SpreadElement::AssignmentExpression(boxed) = self;
+        write!(f, "... {}", boxed)
+    }
+}
+
+impl PrettyPrint for SpreadElement {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}SpreadElement: {}", first, self)?;
+        let SpreadElement::AssignmentExpression(boxed) = self;
+        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl SpreadElement {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SpreadElement>, Scanner)>, String> {
+        let (token, after_ellipsis) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        if token != scanner::Token::Ellipsis {
+            Ok(None)
+        } else {
+            parser.scanner = after_ellipsis;
+            let pot_ae = assignment_expression(parser, true, yield_flag, await_flag)?;
+            match pot_ae {
+                None => Ok(None),
+                Some((ae, after_ae)) => Ok(Some((Box::new(SpreadElement::AssignmentExpression(ae)), after_ae))),
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ElementList {
+    AssignmentExpression((Option<Box<Elisions>>, Box<AssignmentExpression>)),
+    SpreadElement((Option<Box<Elisions>>, Box<SpreadElement>)),
+    ElementListAssignmentExpression((Box<ElementList>, Option<Box<Elisions>>, Box<AssignmentExpression>)),
+    ElementListSpreadElement((Box<ElementList>, Option<Box<Elisions>>, Box<SpreadElement>)),
+}
+
+impl fmt::Display for ElementList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ElementList::AssignmentExpression((elisions, ae)) => match elisions {
+                None => write!(f, "{}", ae),
+                Some(commas) => write!(f, "{} {}", commas, ae),
+            },
+            ElementList::SpreadElement((elisions, se)) => match elisions {
+                None => write!(f, "{}", se),
+                Some(commas) => write!(f, "{} {}", commas, se),
+            },
+            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => match elisions {
+                None => write!(f, "{} , {}", el, ae),
+                Some(commas) => write!(f, "{} , {} {}", el, commas, ae),
+            },
+            ElementList::ElementListSpreadElement((el, elisions, se)) => match elisions {
+                None => write!(f, "{} , {}", el, se),
+                Some(commas) => write!(f, "{} , {} {}", el, commas, se),
+            },
+        }
+    }
+}
+
+impl PrettyPrint for ElementList {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ElementList: {}", first, self)?;
+        match self {
+            ElementList::AssignmentExpression((elisions, ae)) => match elisions {
+                None => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
+                Some(commas) => {
+                    commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+            },
+            ElementList::SpreadElement((elisions, boxed)) => match elisions {
+                None => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+                Some(commas) => {
+                    commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+            },
+            ElementList::ElementListAssignmentExpression((right, elisions, left)) => match elisions {
+                None => {
+                    right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    left.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+                Some(commas) => {
+                    right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    left.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+            },
+            ElementList::ElementListSpreadElement((right, elisions, left)) => match elisions {
+                None => {
+                    right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    left.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+                Some(commas) => {
+                    right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                    left.pprint_with_leftpad(writer, &successive, Spot::Final)
+                }
+            },
+        }
+    }
+}
+
+impl ElementList {
+    fn non_recursive_part(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(Option<Box<Elisions>>, Option<Box<AssignmentExpression>>, Option<Box<SpreadElement>>, Scanner), String> {
+        let pot_elision = Elisions::parse(parser, scanner)?;
+        let elision: Option<Box<Elisions>>;
+        let after_e_scanner: Scanner;
+        match pot_elision {
+            None => {
+                elision = None;
+                after_e_scanner = scanner;
+            }
+            Some((boxed, after_elision)) => {
+                elision = Some(boxed);
+                after_e_scanner = after_elision;
+            }
+        }
+        parser.scanner = after_e_scanner;
+        let pot_ae = assignment_expression(parser, true, yield_flag, await_flag)?;
+        match pot_ae {
+            Some((boxed, after_ae_scanner)) => Ok((elision, Some(boxed), None, after_ae_scanner)),
+            None => {
+                let pot_se = SpreadElement::parse(parser, after_e_scanner, yield_flag, await_flag)?;
+                match pot_se {
+                    Some((boxed, after_se_scanner)) => Ok((elision, None, Some(boxed), after_se_scanner)),
+                    None => Ok((None, None, None, scanner)),
+                }
+            }
+        }
+    }
+
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<ElementList>, Scanner)>, String> {
+        let mut current_production: Box<ElementList>;
+        let mut current_scanner: Scanner;
+
+        let (elision, boxed_ae, boxed_se, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
+        if boxed_ae.is_some() {
+            current_production = Box::new(ElementList::AssignmentExpression((elision, boxed_ae.unwrap())));
+            current_scanner = after;
+        } else if boxed_se.is_some() {
+            current_production = Box::new(ElementList::SpreadElement((elision, boxed_se.unwrap())));
+            current_scanner = after;
+        } else {
+            return Ok(None);
+        }
+
+        loop {
+            let (token, after_tok) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            match token {
+                scanner::Token::Comma => {
+                    let (elision, boxed_ae, boxed_se, after) = Self::non_recursive_part(parser, after_tok, yield_flag, await_flag)?;
+                    if boxed_ae.is_some() {
+                        current_production = Box::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae.unwrap())));
+                        current_scanner = after;
+                    } else if boxed_se.is_some() {
+                        current_production = Box::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se.unwrap())));
+                        current_scanner = after;
+                    } else {
+                        break;
+                    }
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+        Ok(Some((current_production, current_scanner)))
+    }
+}
+
+#[derive(Debug)]
+pub enum ArrayLiteral {
+    Empty(Option<Box<Elisions>>),
+    ElementList(Box<ElementList>),
+    ElementListElision(Box<ElementList>, Option<Box<Elisions>>),
+}
+
+impl fmt::Display for ArrayLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ArrayLiteral::Empty(pot_elision) => match pot_elision {
+                None => write!(f, "[ ]"),
+                Some(elision) => write!(f, "[ {} ]", elision),
+            },
+            ArrayLiteral::ElementList(boxed) => write!(f, "[ {} ]", boxed),
+            ArrayLiteral::ElementListElision(boxed, pot_elision) => match pot_elision {
+                None => write!(f, "[ {} , ]", boxed),
+                Some(elision) => write!(f, "[ {} , {} ]", boxed, elision),
+            },
+        }
+    }
+}
+
+impl PrettyPrint for ArrayLiteral {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
+        match self {
+            ArrayLiteral::Empty(None) => Ok(()),
+            ArrayLiteral::Empty(Some(elision)) => elision.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayLiteral::ElementListElision(boxed, Some(elision)) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                elision.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl ArrayLiteral {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (token, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        if token != scanner::Token::LeftBracket {
+            return Ok(None);
+        }
+        let pot_el = ElementList::parse(parser, after, yield_flag, await_flag)?;
+        match pot_el {
+            None => {
+                let pot_elision = Elisions::parse(parser, after)?;
+                match pot_elision {
+                    None => {
+                        let (closing, end_scan) = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        if closing == scanner::Token::RightBracket {
+                            return Ok(Some((Box::new(ArrayLiteral::Empty(None)), end_scan)));
+                        }
+                        return Ok(None);
+                    }
+                    Some((elisions, after_2)) => {
+                        let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        if closing == scanner::Token::RightBracket {
+                            return Ok(Some((Box::new(ArrayLiteral::Empty(Some(elisions))), end_scan)));
+                        }
+                        return Ok(None);
+                    }
+                }
+            }
+            Some((boxed_el, after_el_scan)) => {
+                let (comma_or_bracket, after_cb) = scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match comma_or_bracket {
+                    scanner::Token::RightBracket => {
+                        return Ok(Some((Box::new(ArrayLiteral::ElementList(boxed_el)), after_cb)));
+                    }
+                    scanner::Token::Comma => {
+                        let pot_elision = Elisions::parse(parser, after_cb)?;
+                        match pot_elision {
+                            None => {
+                                let (closing, end_scan) = scanner::scan_token(&after_cb, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                if closing == scanner::Token::RightBracket {
+                                    return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, None)), end_scan)));
+                                }
+                                return Ok(None);
+                            }
+                            Some((elisions, after_2)) => {
+                                let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                if closing == scanner::Token::RightBracket {
+                                    return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, Some(elisions))), end_scan)));
+                                }
+                                return Ok(None);
+                            }
+                        }
+                    }
+                    _ => {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+    }
 }
 
 //////// 12.2.4 Literals
@@ -638,13 +1043,19 @@ impl fmt::Display for Literal {
 }
 
 impl PrettyPrint for Literal {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}Literal: {}", first, self);
+        writeln!(writer, "{}Literal: {}", first, self)
     }
 }
 
@@ -745,13 +1156,19 @@ impl fmt::Display for TemplateLiteral {
 }
 
 impl PrettyPrint for TemplateLiteral {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}TemplateLiteral: {}", first, self);
+        writeln!(writer, "{}TemplateLiteral: {}", first, self)
     }
 }
 
@@ -806,29 +1223,35 @@ impl fmt::Display for MemberExpression {
 }
 
 impl PrettyPrint for MemberExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}MemberExpression: {}", first, self);
+        writeln!(writer, "{}MemberExpression: {}", first, self)?;
         match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             MemberExpressionKind::Expression(mee) => {
-                mee.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
-                mee.expression.pprint_with_leftpad(&successive, Spot::Final);
+                mee.member_expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                mee.expression.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::IdentifierName(mein) => mein.member_expression.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::IdentifierName(mein) => mein.member_expression.pprint_with_leftpad(writer, &successive, Spot::Final),
             MemberExpressionKind::TemplateLiteral(metl) => {
-                metl.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
-                metl.template_literal.pprint_with_leftpad(&successive, Spot::Final);
+                metl.member_expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                metl.template_literal.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::SuperProperty(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
-            MemberExpressionKind::MetaProperty(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MemberExpressionKind::SuperProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpressionKind::MetaProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             MemberExpressionKind::NewArguments(nmea) => {
-                nmea.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
-                nmea.arguments.pprint_with_leftpad(&successive, Spot::Final);
+                nmea.member_expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                nmea.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -991,15 +1414,21 @@ impl fmt::Display for Expression {
 }
 
 impl PrettyPrint for Expression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}Expression: {}", first, self);
+        writeln!(writer, "{}Expression: {}", first, self)?;
         let Expression::Temp(boxed) = &self;
-        boxed.pprint_with_leftpad(&successive, Spot::Final);
+        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1014,7 +1443,7 @@ pub fn expression(parser: &mut Parser, in_flag: bool, yield_flag: bool, await_fl
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<MultiplicativeExpression>),
+    Temp(Box<AdditiveExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -1029,20 +1458,26 @@ impl fmt::Display for AssignmentExpression {
 }
 
 impl PrettyPrint for AssignmentExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}AssignmentExpression: {}", first, self);
+        writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
         let AssignmentExpressionKind::Temp(boxed) = &self.kind;
-        boxed.pprint_with_leftpad(&successive, Spot::Final);
+        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 pub fn assignment_expression(parser: &mut Parser, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-    let potential = MultiplicativeExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
+    let potential = AdditiveExpression::parse(parser, parser.scanner, yield_flag, await_flag)?;
     match potential {
         None => Ok(None),
         Some((boxed, scanner)) => Ok(Some((
@@ -1074,16 +1509,22 @@ impl fmt::Display for SuperProperty {
 }
 
 impl PrettyPrint for SuperProperty {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}SuperProperty: {}", first, self);
+        writeln!(writer, "{}SuperProperty: {}", first, self)?;
         match &self.kind {
-            SuperPropertyKind::Expression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
-            SuperPropertyKind::IdentifierName(boxed) => {}
+            SuperPropertyKind::Expression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            SuperPropertyKind::IdentifierName(boxed) => Ok(()),
         }
     }
 }
@@ -1149,13 +1590,19 @@ impl fmt::Display for MetaProperty {
 }
 
 impl PrettyPrint for MetaProperty {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}MetaProperty: {}", first, self);
+        writeln!(writer, "{}MetaProperty: {}", first, self)
     }
 }
 
@@ -1199,16 +1646,22 @@ impl fmt::Display for Arguments {
 }
 
 impl PrettyPrint for Arguments {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}Arguments: {}", first, self);
+        writeln!(writer, "{}Arguments: {}", first, self)?;
         match &self.kind {
-            ArgumentsKind::Empty => {}
-            ArgumentsKind::ArgumentList(boxed) | ArgumentsKind::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            ArgumentsKind::Empty => Ok(()),
+            ArgumentsKind::ArgumentList(boxed) | ArgumentsKind::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -1382,18 +1835,24 @@ impl fmt::Display for ArgumentList {
 }
 
 impl PrettyPrint for ArgumentList {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}ArgumentList: {}", first, self);
+        writeln!(writer, "{}ArgumentList: {}", first, self)?;
         match &self.kind {
-            ArgumentListKind::AssignmentExpression(boxed) | ArgumentListKind::DotsAssignmentExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            ArgumentListKind::AssignmentExpression(boxed) | ArgumentListKind::DotsAssignmentExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             ArgumentListKind::ArgumentListAssignmentExpression(alae) | ArgumentListKind::ArgumentListDotsAssignmentExpression(alae) => {
-                alae.argument_list.pprint_with_leftpad(&successive, Spot::NotFinal);
-                alae.assignment_expression.pprint_with_leftpad(&successive, Spot::Final);
+                alae.argument_list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                alae.assignment_expression.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -1469,16 +1928,22 @@ impl fmt::Display for NewExpression {
 }
 
 impl PrettyPrint for NewExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}NewExpression: {}", first, self);
+        writeln!(writer, "{}NewExpression: {}", first, self)?;
         match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
-            NewExpressionKind::NewExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            NewExpressionKind::MemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            NewExpressionKind::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -1529,15 +1994,21 @@ impl fmt::Display for CallMemberExpression {
 }
 
 impl PrettyPrint for CallMemberExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}CallMemberExpression: {}", first, self);
-        self.member_expression.pprint_with_leftpad(&successive, Spot::NotFinal);
-        self.arguments.pprint_with_leftpad(&successive, Spot::Final);
+        writeln!(writer, "{}CallMemberExpression: {}", first, self)?;
+        self.member_expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1577,14 +2048,20 @@ impl fmt::Display for SuperCall {
 }
 
 impl PrettyPrint for SuperCall {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}SuperCall: {}", first, self);
-        self.arguments.pprint_with_leftpad(&successive, Spot::Final);
+        writeln!(writer, "{}SuperCall: {}", first, self)?;
+        self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1617,14 +2094,20 @@ impl fmt::Display for ImportCall {
 }
 
 impl PrettyPrint for ImportCall {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}ImportCall: {}", first, self);
-        self.assignment_expression.pprint_with_leftpad(&successive, Spot::Final);
+        writeln!(writer, "{}ImportCall: {}", first, self)?;
+        self.assignment_expression.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1693,28 +2176,32 @@ impl fmt::Display for CallExpression {
 }
 
 impl PrettyPrint for CallExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}CallExpression: {}", first, self);
+        writeln!(writer, "{}CallExpression: {}", first, self)?;
         match &self.kind {
-            CallExpressionKind::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
-            CallExpressionKind::SuperCall(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
-            CallExpressionKind::ImportCall(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            CallExpressionKind::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpressionKind::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpressionKind::ImportCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             CallExpressionKind::CallExpressionArguments((ce, args)) => {
-                ce.pprint_with_leftpad(&successive, Spot::NotFinal);
-                args.pprint_with_leftpad(&successive, Spot::Final);
+                ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                args.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CallExpressionKind::CallExpressionExpression((ce, exp)) => {
-                ce.pprint_with_leftpad(&successive, Spot::NotFinal);
-                exp.pprint_with_leftpad(&successive, Spot::Final);
+                ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionIdentifierName((ce, int)) => {
-                ce.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            CallExpressionKind::CallExpressionIdentifierName((ce, int)) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -1841,20 +2328,22 @@ impl fmt::Display for LeftHandSideExpression {
 }
 
 impl PrettyPrint for LeftHandSideExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}LeftHandSideExpression: {}", first, self);
+        writeln!(writer, "{}LeftHandSideExpression: {}", first, self)?;
         match &self {
-            LeftHandSideExpression::NewExpression(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
-            LeftHandSideExpression::CallExpression(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            LeftHandSideExpression::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LeftHandSideExpression::CallExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -1897,20 +2386,24 @@ impl fmt::Display for UpdateExpression {
 }
 
 impl PrettyPrint for UpdateExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}UpdateExpression: {}", first, self);
+        writeln!(writer, "{}UpdateExpression: {}", first, self)?;
         match &self {
             UpdateExpression::LeftHandSideExpression(boxed) | UpdateExpression::PostIncrement(boxed) | UpdateExpression::PostDecrement(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -1993,29 +2486,29 @@ impl fmt::Display for UnaryExpression {
 }
 
 impl PrettyPrint for UnaryExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}UnaryExpression: {}", first, self);
+        writeln!(writer, "{}UnaryExpression: {}", first, self)?;
         match &self {
-            UnaryExpression::UpdateExpression(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            UnaryExpression::UpdateExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             UnaryExpression::Delete(boxed)
             | UnaryExpression::Void(boxed)
             | UnaryExpression::Typeof(boxed)
             | UnaryExpression::NoOp(boxed)
             | UnaryExpression::Negate(boxed)
             | UnaryExpression::Complement(boxed)
-            | UnaryExpression::Not(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
-            UnaryExpression::Await(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            | UnaryExpression::Not(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            UnaryExpression::Await(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -2075,20 +2568,24 @@ impl fmt::Display for ExponentiationExpression {
 }
 
 impl PrettyPrint for ExponentiationExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}ExponentiationExpression: {}", first, self);
+        writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
         match &self {
-            ExponentiationExpression::UnaryExpression(boxed) => {
-                boxed.pprint_with_leftpad(&successive, Spot::Final);
-            }
+            ExponentiationExpression::UnaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             ExponentiationExpression::Exponentiation((ue, ee)) => {
-                ue.pprint_with_leftpad(&successive, Spot::NotFinal);
-                ee.pprint_with_leftpad(&successive, Spot::Final);
+                ue.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                ee.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -2142,13 +2639,19 @@ impl fmt::Display for MultiplicativeOperator {
 }
 
 impl PrettyPrint for MultiplicativeOperator {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, _) = prettypad(pad, state);
-        println!("{}MultiplicativeOperator: {}", first, self);
+        writeln!(writer, "{}MultiplicativeOperator: {}", first, self)
     }
 }
 
@@ -2159,7 +2662,7 @@ impl MultiplicativeOperator {
             scanner::Token::Star => Ok(Some((Box::new(MultiplicativeOperator::Multiply), after_tok))),
             scanner::Token::Slash => Ok(Some((Box::new(MultiplicativeOperator::Divide), after_tok))),
             scanner::Token::Percent => Ok(Some((Box::new(MultiplicativeOperator::Modulo), after_tok))),
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 }
@@ -2182,19 +2685,25 @@ impl fmt::Display for MultiplicativeExpression {
 }
 
 impl PrettyPrint for MultiplicativeExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}MultiplicativeExpression: {}", first, self);
+        writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
         match &self {
-            MultiplicativeExpression::ExponentiationExpression(boxed) => boxed.pprint_with_leftpad(&successive, Spot::Final),
+            MultiplicativeExpression::ExponentiationExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((me, mo, ee)) => {
-                me.pprint_with_leftpad(&successive, Spot::NotFinal);
-                mo.pprint_with_leftpad(&successive, Spot::NotFinal);
-                ee.pprint_with_leftpad(&successive, Spot::Final);
+                me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                mo.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                ee.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -2225,7 +2734,91 @@ impl MultiplicativeExpression {
                 }
                 Ok(Some((current, current_scanner)))
             }
-            _ => Ok(None)
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AdditiveExpression {
+    MultiplicativeExpression(Box<MultiplicativeExpression>),
+    AdditiveExpressionAdd((Box<AdditiveExpression>, Box<MultiplicativeExpression>)),
+    AdditiveExpressionSubtract((Box<AdditiveExpression>, Box<MultiplicativeExpression>)),
+}
+
+impl fmt::Display for AdditiveExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            AdditiveExpression::MultiplicativeExpression(boxed) => write!(f, "{}", boxed),
+            AdditiveExpression::AdditiveExpressionAdd((ae, me)) => {
+                write!(f, "{} + {}", ae, me)
+            }
+            AdditiveExpression::AdditiveExpressionSubtract((ae, me)) => {
+                write!(f, "{} - {}", ae, me)
+            }
+        }
+    }
+}
+
+impl PrettyPrint for AdditiveExpression {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AdditiveExpression: {}", first, self)?;
+        match &self {
+            AdditiveExpression::MultiplicativeExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AdditiveExpression::AdditiveExpressionAdd((ae, me)) | AdditiveExpression::AdditiveExpressionSubtract((ae, me)) => {
+                ae.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                me.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl AdditiveExpression {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_me = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_me {
+            Some((me, after_me)) => {
+                let mut current = Box::new(AdditiveExpression::MultiplicativeExpression(me));
+                let mut current_scanner = after_me;
+                loop {
+                    let (token, after_op) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    let kind_fn: fn(Box<AdditiveExpression>, Box<MultiplicativeExpression>) -> AdditiveExpression;
+                    match token {
+                        scanner::Token::Plus => {
+                            kind_fn = |ae, me| AdditiveExpression::AdditiveExpressionAdd((ae, me));
+                        }
+                        scanner::Token::Minus => {
+                            kind_fn = |ae, me| AdditiveExpression::AdditiveExpressionSubtract((ae, me));
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                    let pot_me2 = MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag)?;
+                    match pot_me2 {
+                        None => {
+                            break;
+                        }
+                        Some((me2, after_me2)) => {
+                            current = Box::new(kind_fn(current, me2));
+                            current_scanner = after_me2;
+                        }
+                    }
+                }
+                Ok(Some((current, current_scanner)))
+            }
+            _ => Ok(None),
         }
     }
 }
@@ -2243,15 +2836,21 @@ impl fmt::Display for AwaitExpression {
 }
 
 impl PrettyPrint for AwaitExpression {
-    fn pprint(&self) {
-        self.pprint_with_leftpad("", Spot::Initial);
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
 
-    fn pprint_with_leftpad(&self, pad: &str, state: Spot) {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
         let (first, successive) = prettypad(pad, state);
-        println!("{}AwaitExpression: {}", first, self);
+        writeln!(writer, "{}AwaitExpression: {}", first, self)?;
         let AwaitExpression::Await(boxed) = &self;
-        boxed.pprint_with_leftpad(&successive, Spot::Final);
+        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -2389,7 +2988,7 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let result = expression(&mut parser, true, false, false);
     match result {
         Ok(Some((node, scanner))) => {
-            node.pprint();
+            node.pprint(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
         Ok(None) => Ok(0),
@@ -2447,10 +3046,50 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str;
+    fn pretty_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+    where
+        T: PrettyPrint,
+    {
+        let mut msg = Vec::new();
+        item.pprint(&mut msg).unwrap();
+        let whole_message = str::from_utf8(&msg).unwrap();
+
+        let mut line_iter = whole_message.split("\n");
+        let first = line_iter.next().unwrap();
+        assert_eq!(first, selfstring);
+
+        let mut expected_iter = childstrings.iter();
+        for line in line_iter {
+            match line.find(|c| c == '└' || c == '├') {
+                Some(0) => {
+                    println!("Checking child line {:?}", line);
+                    let expected = expected_iter.next().expect("Too many child strings");
+                    println!("Against the expected line {:?}", expected);
+                    // swallow the first 4 chars:
+                    let mut ch_iter = line.chars();
+                    for i in 0..4 {
+                        ch_iter.next().unwrap();
+                    }
+                    let child_content: Vec<char> = ch_iter.collect();
+                    let expected_content: Vec<char> = expected.chars().collect();
+                    assert_eq!(child_content, expected_content);
+                }
+                _ => {}
+            }
+        }
+        assert!(expected_iter.next().is_none());
+    }
     fn id_kwd_test(kwd: &str) {
         let result = Identifier::parse(&mut super::Parser::new(kwd, false, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
+    }
+    #[test]
+    fn identifier_test_pprint() {
+        let pot_id = Identifier::parse(&mut Parser::new("phil", false, ParseGoal::Script), Scanner::new());
+        let (id, _) = pot_id.unwrap().unwrap();
+        pretty_check(&*id, "Identifier: phil", vec![]);
     }
     #[test]
     fn identifier_test_await() {
@@ -2883,7 +3522,8 @@ mod tests {
         }
 
         assert_eq!(idref.string_value(), "identifier");
-        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+        pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
     }
     #[test]
     fn identifier_reference_test_yield() {
@@ -2891,7 +3531,8 @@ mod tests {
         assert_eq!(idref.strict, false);
         assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
         assert_eq!(idref.string_value(), "yield");
-        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+        pretty_check(&*idref, "IdentifierReference: yield", vec![]);
     }
     #[test]
     fn identifier_reference_test_yield_02() {
@@ -2905,7 +3546,8 @@ mod tests {
         assert_eq!(idref.strict, false);
         assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
         assert_eq!(idref.string_value(), "await");
-        assert_eq!(idref.assignment_target_type(), ATTKind::Simple)
+        assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
+        pretty_check(&*idref, "IdentifierReference: await", vec![]);
     }
     #[test]
     fn identifier_reference_test_await_02() {
@@ -3001,6 +3643,15 @@ mod tests {
         bid_allflags("await");
     }
     #[test]
+    fn binding_identifier_test_pprint() {
+        let b1 = bindingid_create("joe", false, false);
+        pretty_check(&*b1, "BindingIdentifier: joe", vec!["Identifier: joe"]);
+        let b2 = bindingid_create("yield", false, false);
+        pretty_check(&*b2, "BindingIdentifier: yield", vec![]);
+        let b3 = bindingid_create("await", false, false);
+        pretty_check(&*b3, "BindingIdentifier: await", vec![]);
+    }
+    #[test]
     fn binding_identifier_test_debug() {
         format!("{:?}", bindingid_create("abcd", true, true));
     }
@@ -3046,6 +3697,17 @@ mod tests {
         let pe = primary_expression(&mut newparser("this"), false, false);
         let (exp, _) = check(pe);
         assert_eq!(format!("{:?}", exp), "PrimaryExpression { kind: This }");
+    }
+    #[test]
+    fn primary_expression_test_pprint() {
+        let (pe1, _) = check(primary_expression(&mut newparser("this"), false, false));
+        pretty_check(&*pe1, "PrimaryExpression: this", vec![]);
+        let (pe2, _) = check(primary_expression(&mut newparser("1"), false, false));
+        pretty_check(&*pe2, "PrimaryExpression: Number(1.0)", vec!["Literal: Number(1.0)"]);
+        let (pe3, _) = check(primary_expression(&mut newparser("i"), false, false));
+        pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
+        let (pe4, _) = check(primary_expression(&mut newparser("[]"), false, false));
+        pretty_check(&*pe4, "PrimaryExpression: [ ]", vec!["ArrayLiteral: [ ]"]);
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -3100,24 +3762,28 @@ mod tests {
         let (lit, scanner) = check(literal(&mut newparser("null")));
         chk_scan(&scanner, 4);
         assert!(matches!(lit.kind, LiteralKind::NullLiteral));
+        pretty_check(&*lit, "Literal: null", vec![]);
     }
     #[test]
     fn literal_test_boolean_01() {
         let (lit, scanner) = check(literal(&mut newparser("true")));
         chk_scan(&scanner, 4);
         assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(true)));
+        pretty_check(&*lit, "Literal: true", vec![]);
     }
     #[test]
     fn literal_test_boolean_02() {
         let (lit, scanner) = check(literal(&mut newparser("false")));
         chk_scan(&scanner, 5);
         assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(false)));
+        pretty_check(&*lit, "Literal: false", vec![]);
     }
     #[test]
     fn literal_test_leading_dot() {
         let (lit, scanner) = check(literal(&mut newparser(".25")));
         chk_scan(&scanner, 3);
-        assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)))
+        assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)));
+        pretty_check(&*lit, "Literal: Number(0.25)", vec![]);
     }
     #[test]
     fn literal_test_bigint() {
@@ -3130,6 +3796,7 @@ mod tests {
         let (lit, scanner) = check(literal(&mut newparser("'string'")));
         chk_scan(&scanner, 8);
         assert!(matches!(lit.kind, LiteralKind::StringLiteral(_)));
+        pretty_check(&*lit, "Literal: \"string\"", vec![]);
     }
     #[test]
     fn literal_test_keyword() {
@@ -3143,11 +3810,12 @@ mod tests {
     // MEMBER EXPRESSION
     #[test]
     fn member_expression_test_primary_expression() {
-        let (me, scanner) = check(member_expression(&mut newparser("6"), false, false));
+        let (me, scanner) = check(member_expression(&mut newparser("a"), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(me.kind, MemberExpressionKind::PrimaryExpression(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(&*me, "MemberExpression: a", vec!["PrimaryExpression: a"]);
     }
     #[test]
     fn member_expression_test_meta_property() {
@@ -3156,6 +3824,7 @@ mod tests {
         assert!(matches!(me.kind, MemberExpressionKind::MetaProperty(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(&*me, "MemberExpression: new . target", vec!["MetaProperty: new . target"]);
     }
     #[test]
     fn member_expression_test_super_property() {
@@ -3164,6 +3833,7 @@ mod tests {
         assert!(matches!(me.kind, MemberExpressionKind::SuperProperty(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(&*me, "MemberExpression: super . ior", vec!["SuperProperty: super . ior"]);
     }
     #[test]
     fn member_expression_test_new_me_args() {
@@ -3172,14 +3842,20 @@ mod tests {
         assert!(matches!(me.kind, MemberExpressionKind::NewArguments(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(
+            &*me,
+            "MemberExpression: new shoes ( \"red\" , \"leather\" )",
+            vec!["MemberExpression: shoes", "Arguments: ( \"red\" , \"leather\" )"],
+        );
     }
     #[test]
     fn member_expression_test_me_expression() {
-        let (me, scanner) = check(member_expression(&mut newparser("bill[3]"), false, false));
+        let (me, scanner) = check(member_expression(&mut newparser("bill[a]"), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(me.kind, MemberExpressionKind::Expression(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
     }
     #[test]
     fn member_expression_test_me_ident() {
@@ -3188,6 +3864,7 @@ mod tests {
         assert!(matches!(me.kind, MemberExpressionKind::IdentifierName(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
+        pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
     }
     #[test]
     fn member_expression_test_bad_ident() {
@@ -3208,11 +3885,12 @@ mod tests {
     // SUPER PROPERTY
     #[test]
     fn super_property_test_expression() {
-        let (sp, scanner) = check(super_property(&mut newparser("super[3]"), false, false));
+        let (sp, scanner) = check(super_property(&mut newparser("super[a]"), false, false));
         chk_scan(&scanner, 8);
         assert!(matches!(sp.kind, SuperPropertyKind::Expression(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", sp);
+        pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
     }
     #[test]
     fn super_property_test_ident() {
@@ -3221,6 +3899,7 @@ mod tests {
         assert!(matches!(sp.kind, SuperPropertyKind::IdentifierName(_)));
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", sp);
+        pretty_check(&*sp, "SuperProperty: super . bob", vec![]);
     }
     #[test]
     fn super_property_test_nomatch() {
@@ -3253,6 +3932,7 @@ mod tests {
         chk_scan(&scanner, 10);
         assert!(matches!(mp.kind, MetaPropertyKind::NewTarget));
         format!("{:?}", mp);
+        pretty_check(&*mp, "MetaProperty: new . target", vec![]);
     }
     #[test]
     fn meta_property_test_importmeta() {
@@ -3260,6 +3940,7 @@ mod tests {
         chk_scan(&scanner, 11);
         assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta));
         format!("{:?}", mp);
+        pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
     }
     #[test]
     fn meta_property_test_nomatch_01() {
@@ -3289,20 +3970,23 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(args.kind, ArgumentsKind::Empty));
         format!("{:?}", args);
+        pretty_check(&*args, "Arguments: ( )", vec![]);
     }
     #[test]
     fn arguments_test_trailing_comma() {
-        let (args, scanner) = check(arguments(&mut newparser("(3,)"), false, false));
+        let (args, scanner) = check(arguments(&mut newparser("(a,)"), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(args.kind, ArgumentsKind::ArgumentListComma(_)));
         format!("{:?}", args);
+        pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
     }
     #[test]
     fn arguments_test_arglist() {
-        let (args, scanner) = check(arguments(&mut newparser("(4,5)"), false, false));
+        let (args, scanner) = check(arguments(&mut newparser("(a,b)"), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(args.kind, ArgumentsKind::ArgumentList(_)));
         format!("{:?}", args);
+        pretty_check(&*args, "Arguments: ( a , b )", vec!["ArgumentList: a , b"]);
     }
     #[test]
     fn arguments_test_nomatch() {
@@ -3324,31 +4008,35 @@ mod tests {
     // ARGUMENT LIST
     #[test]
     fn argument_list_test_ae() {
-        let (al, scanner) = check(ArgumentList::parse(&mut newparser("101"), false, false));
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("aba"), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
         format!("{:?}", al);
+        pretty_check(&*al, "ArgumentList: aba", vec!["AssignmentExpression: aba"]);
     }
     #[test]
     fn argument_list_test_dots_ae() {
-        let (al, scanner) = check(ArgumentList::parse(&mut newparser("...101"), false, false));
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(al.kind, ArgumentListKind::DotsAssignmentExpression(_)));
         format!("{:?}", al);
+        pretty_check(&*al, "ArgumentList: ... aba", vec!["AssignmentExpression: aba"]);
     }
     #[test]
     fn argument_list_test_al_ae() {
-        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,101"), false, false));
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(al.kind, ArgumentListKind::ArgumentListAssignmentExpression(_)));
         format!("{:?}", al);
+        pretty_check(&*al, "ArgumentList: ab , aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
     }
     #[test]
     fn argument_list_test_al_dots_ae() {
-        let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,...101"), false, false));
+        let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(al.kind, ArgumentListKind::ArgumentListDotsAssignmentExpression(_)));
         format!("{:?}", al);
+        pretty_check(&*al, "ArgumentList: ab , ... aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
     }
     #[test]
     fn argument_list_test_nomatch() {
@@ -3378,6 +4066,7 @@ mod tests {
         chk_scan(&scanner, 4);
         assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
         format!("{:?}", ne);
+        pretty_check(&*ne, "NewExpression: true", vec!["MemberExpression: true"]);
     }
     #[test]
     fn new_expression_test_new() {
@@ -3385,6 +4074,7 @@ mod tests {
         chk_scan(&scanner, 7);
         assert!(matches!(ne.kind, NewExpressionKind::NewExpression(_)));
         format!("{:?}", ne);
+        pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
     }
     #[test]
     fn new_expression_test_nomatch() {
@@ -3401,6 +4091,7 @@ mod tests {
         let (cme, scanner) = check(CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         format!("{:?}", cme);
+        pretty_check(&*cme, "CallMemberExpression: a ( )", vec!["MemberExpression: a", "Arguments: ( )"]);
     }
     #[test]
     fn call_member_expression_test_nomatch() {
@@ -3418,6 +4109,7 @@ mod tests {
         chk_scan(&scanner, 7);
         assert!(matches!(sc.arguments.kind, ArgumentsKind::Empty));
         format!("{:?}", sc);
+        pretty_check(&*sc, "SuperCall: super ( )", vec!["Arguments: ( )"]);
     }
     #[test]
     fn super_call_test_nomatch() {
@@ -3435,6 +4127,7 @@ mod tests {
         chk_scan(&scanner, 11);
         assert!(matches!(ic.assignment_expression.kind, AssignmentExpressionKind::Temp(_)));
         format!("{:?}", ic);
+        pretty_check(&*ic, "ImportCall: import ( bob )", vec!["AssignmentExpression: bob"]);
     }
     #[test]
     fn import_call_test_nomatch() {
@@ -3460,6 +4153,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
         format!("{:?}", ce);
+        pretty_check(&*ce, "CallExpression: a ( )", vec!["CallMemberExpression: a ( )"]);
     }
     #[test]
     fn call_expression_test_super() {
@@ -3467,6 +4161,7 @@ mod tests {
         chk_scan(&scanner, 7);
         assert!(matches!(ce.kind, CallExpressionKind::SuperCall(_)));
         format!("{:?}", ce);
+        pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"])
     }
     #[test]
     fn call_expression_test_import() {
@@ -3474,6 +4169,7 @@ mod tests {
         chk_scan(&scanner, 11);
         assert!(matches!(ce.kind, CallExpressionKind::ImportCall(_)));
         format!("{:?}", ce);
+        pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
     }
     #[test]
     fn call_expression_test_ce_args() {
@@ -3481,6 +4177,11 @@ mod tests {
         chk_scan(&scanner, 23);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionArguments(_)));
         format!("{:?}", ce);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) ( snap ) ( Number(10.0) ) ( Number(20.0) )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( Number(10.0) )", "Arguments: ( Number(20.0) )"],
+        );
     }
     #[test]
     fn call_expression_test_ce_args2() {
@@ -3495,6 +4196,7 @@ mod tests {
         chk_scan(&scanner, 15);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionExpression(_)));
         format!("{:?}", ce);
+        pretty_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallExpression: blue ( pop )", "Expression: snap"]);
     }
     #[test]
     fn call_expression_test_ce_ident() {
@@ -3502,6 +4204,7 @@ mod tests {
         chk_scan(&scanner, 14);
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionIdentifierName(_)));
         format!("{:?}", ce);
+        pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
     }
     #[test]
     fn call_expression_test_nomatch() {
@@ -3526,13 +4229,31 @@ mod tests {
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
     }
 
+    // LEFT-HAND-SIDE EXPRESSION
+    #[test]
+    fn left_hand_side_expression_test_01() {
+        let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(*lhs, LeftHandSideExpression::NewExpression(_)));
+        format!("{:?}", lhs);
+        pretty_check(&*lhs, "LeftHandSideExpression: a", vec!["NewExpression: a"]);
+    }
+    #[test]
+    fn left_hand_side_expression_test_02() {
+        let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*lhs, LeftHandSideExpression::CallExpression(_)));
+        pretty_check(&*lhs, "LeftHandSideExpression: a ( )", vec!["CallExpression: a ( )"]);
+    }
+
     // UPDATE EXPRESSION
     #[test]
-    fn update_expression_lhs() {
+    fn update_expression_test_lhs() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("78"), Scanner::new(), false, false));
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: Number(78.0)", vec!["LeftHandSideExpression: Number(78.0)"]);
     }
     #[test]
     fn update_expression_test_preinc() {
@@ -3540,6 +4261,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
         format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
     }
     #[test]
     fn update_expression_test_predec() {
@@ -3547,6 +4269,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
         format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
     }
     #[test]
     fn update_expression_test_postinc() {
@@ -3554,6 +4277,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
         format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
     }
     #[test]
     fn update_expression_test_postdec() {
@@ -3561,6 +4285,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
         format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
     }
     #[test]
     fn update_expression_test_newline() {
@@ -3587,48 +4312,56 @@ mod tests {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("900"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
+        pretty_check(&*ue, "UnaryExpression: Number(900.0)", vec!["UpdateExpression: Number(900.0)"]);
     }
     #[test]
     fn unary_expression_test_delete() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Delete(_)));
+        pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_void() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
         assert!(matches!(*ue, UnaryExpression::Void(_)));
+        pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_typeof() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Typeof(_)));
+        pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_numberify() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::NoOp(_)));
+        pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_negate() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Negate(_)));
+        pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_complement() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Complement(_)));
+        pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_not() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Not(_)));
+        pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_await() {
@@ -3652,5 +4385,161 @@ mod tests {
         check_none(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false));
         check_none(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false));
         check_none(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false));
+    }
+
+    #[test]
+    fn elision_test_01() {
+        check_none(Elisions::parse(&mut newparser(""), Scanner::new()));
+    }
+    #[test]
+    fn elision_test_02() {
+        let (e, scanner) = check(Elisions::parse(&mut newparser(",,"), Scanner::new()));
+        chk_scan(&scanner, 2);
+        assert!(matches!(*e, Elisions { count: 2 }));
+    }
+    #[test]
+    fn elision_test_03() {
+        let (e, scanner) = check(Elisions::parse(&mut newparser(",,,]"), Scanner::new()));
+        chk_scan(&scanner, 3);
+        assert!(matches!(*e, Elisions { count: 3 }));
+    }
+    #[test]
+    fn elision_test_pprint() {
+        let (e1, _) = check(Elisions::parse(&mut newparser(","), Scanner::new()));
+        pretty_check(&*e1, "Elisions: ,", vec![]);
+        let (e2, _) = check(Elisions::parse(&mut newparser(",,,,,,"), Scanner::new()));
+        pretty_check(&*e2, "Elisions: , , , , , ,", vec![]);
+        format!("{:?}", e1);
+    }
+
+    #[test]
+    fn spread_element_test_empty() {
+        check_none(SpreadElement::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(SpreadElement::parse(&mut newparser("..."), Scanner::new(), false, false));
+    }
+    #[test]
+    fn spread_element_test_assignment_expression() {
+        let (se, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*se, SpreadElement::AssignmentExpression(_)));
+    }
+    #[test]
+    fn spread_element_test_pretty() {
+        let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+        pretty_check(&*se, "SpreadElement: ... Number(1.0)", vec!["AssignmentExpression: Number(1.0)"]);
+        format!("{:?}", se);
+    }
+
+    #[test]
+    fn element_list_test_01() {
+        check_none(ElementList::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn element_list_test_02() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("3"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+        pretty_check(&*el, "ElementList: Number(3.0)", vec!["AssignmentExpression: Number(3.0)"]);
+    }
+    #[test]
+    fn element_list_test_03() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*el, ElementList::AssignmentExpression((Some(be), _)) if be.count == 2));
+        pretty_check(&*el, "ElementList: , , Number(3.0)", vec!["Elisions: , ,", "AssignmentExpression: Number(3.0)"]);
+    }
+    #[test]
+    fn element_list_test_05() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*el, ElementList::SpreadElement((None, _))));
+        pretty_check(&*el, "ElementList: ... a", vec!["SpreadElement: ... a"]);
+    }
+    #[test]
+    fn element_list_test_06() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser(",,...a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*el, ElementList::SpreadElement((Some(be), _)) if be.count == 2));
+        pretty_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
+    }
+    #[test]
+    fn element_list_test_07() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, None, _))));
+        pretty_check(&*el, "ElementList: a , b", vec!["ElementList: a", "AssignmentExpression: b"]);
+    }
+    #[test]
+    fn element_list_test_08() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, Some(be), _)) if be.count == 1));
+        pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
+    }
+    #[test]
+    fn element_list_test_09() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, None, _))));
+        pretty_check(&*el, "ElementList: a , ... b", vec!["ElementList: a", "SpreadElement: ... b"]);
+    }
+    #[test]
+    fn element_list_test_10() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 7);
+        assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, Some(be), _)) if be.count == 1));
+        pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
+    }
+    #[test]
+    fn element_list_test_04() {
+        let (el, scanner) = check(ElementList::parse(&mut newparser("0,"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+    }
+
+    #[test]
+    fn array_literal_test_01() {
+        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*al, ArrayLiteral::Empty(None)));
+        pretty_check(&*al, "ArrayLiteral: [ ]", vec![]);
+        format!("{:?}", &*al);
+    }
+    #[test]
+    fn array_literal_test_02() {
+        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[,]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*al, ArrayLiteral::Empty(Some(be)) if be.count == 1));
+        pretty_check(&*al, "ArrayLiteral: [ , ]", vec!["Elisions: ,"]);
+    }
+    #[test]
+    fn array_literal_test_03() {
+        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*al, ArrayLiteral::ElementList(_)));
+        pretty_check(&*al, "ArrayLiteral: [ a ]", vec!["ElementList: a"]);
+    }
+    #[test]
+    fn array_literal_test_04() {
+        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(*al, ArrayLiteral::ElementListElision(_, None)));
+        pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
+    }
+    #[test]
+    fn array_literal_test_05() {
+        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*al, ArrayLiteral::ElementListElision(_, Some(be)) if be.count == 1));
+        pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
+    }
+    #[test]
+    fn array_literal_test_nones() {
+        check_none(ArrayLiteral::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(&mut newparser("["), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(&mut newparser("[,,"), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(&mut newparser("[a,"), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(&mut newparser("[a,,"), Scanner::new(), false, false));
     }
 }
