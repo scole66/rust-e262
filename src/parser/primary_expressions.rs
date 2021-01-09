@@ -5,6 +5,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::identifiers::{IdentifierNameToken, IdentifierReference};
+use super::method_definitions::MethodDefinition;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
@@ -718,6 +719,120 @@ impl PropertyName {
     }
 }
 
+// PropertyDefinition[Yield, Await] :
+//      IdentifierReference[?Yield, ?Await]
+//      CoverInitializedName[?Yield, ?Await]
+//      PropertyName[?Yield, ?Await] : AssignmentExpression[+In, ?Yield, ?Await]
+//      MethodDefinition[?Yield, ?Await]
+//      ... AssignmentExpression[+In, ?Yield, ?Await]
+#[derive(Debug)]
+pub enum PropertyDefinition {
+    IdentifierReference(Box<IdentifierReference>),
+    CoverInitializedName(Box<CoverInitializedName>),
+    PropertyNameAssignmentExpression(Box<PropertyName>, Box<AssignmentExpression>),
+    MethodDefinition(Box<MethodDefinition>),
+    AssignmentExpression(Box<AssignmentExpression>),
+}
+
+impl fmt::Display for PropertyDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => write!(f, "{}", idref),
+            PropertyDefinition::CoverInitializedName(cin) => write!(f, "{}", cin),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => write!(f, "{} : {}", pn, ae),
+            PropertyDefinition::MethodDefinition(md) => write!(f, "{}", md),
+            PropertyDefinition::AssignmentExpression(ae) => write!(f, "... {}", ae),
+        }
+    }
+}
+
+impl PrettyPrint for PropertyDefinition {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => idref.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::CoverInitializedName(cin) => cin.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            PropertyDefinition::MethodDefinition(md) => md.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::AssignmentExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+}
+
+impl PropertyDefinition {
+    fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_pn = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_pn {
+            Some((pn, after_pn)) => {
+                let (tok, after_tok) = scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                match tok {
+                    scanner::Token::Colon => {
+                        let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
+                        match pot_ae {
+                            Some((ae, after_ae)) => Ok(Some((Box::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))),
+                            None => Ok(None),
+                        }
+                    }
+                    _ => Ok(None),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn parse_cin(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_cin = CoverInitializedName::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_cin {
+            Some((cin, after_cin)) => Ok(Some((Box::new(PropertyDefinition::CoverInitializedName(cin)), after_cin))),
+            None => Ok(None),
+        }
+    }
+
+    fn parse_md(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_md = MethodDefinition::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_md {
+            Some((md, after_md)) => Ok(Some((Box::new(PropertyDefinition::MethodDefinition(md)), after_md))),
+            None => Ok(None),
+        }
+    }
+
+    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_idref = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_idref {
+            Some((idref, after_idref)) => Ok(Some((Box::new(PropertyDefinition::IdentifierReference(idref)), after_idref))),
+            None => Ok(None),
+        }
+    }
+
+    fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::Ellipsis => {
+                let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
+                match pot_ae {
+                    Some((ae, after_ae)) => Ok(Some((Box::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))),
+                    None => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        Self::parse_pn_ae(parser, scanner, yield_flag, await_flag)
+            .and_then(|opt| opt.map_or_else(|| Self::parse_cin(parser, scanner, yield_flag, await_flag), rewrap))
+            .and_then(|opt| opt.map_or_else(|| Self::parse_md(parser, scanner, yield_flag, await_flag), rewrap))
+            .and_then(|opt| opt.map_or_else(|| Self::parse_idref(parser, scanner, yield_flag, await_flag), rewrap))
+            .and_then(|opt| opt.map_or_else(|| Self::parse_ae(parser, scanner, yield_flag, await_flag), rewrap))
+    }
+}
 //////// 12.2.4 Literals
 // Literal :
 //      NullLiteral
@@ -1215,5 +1330,43 @@ mod tests {
         assert!(matches!(&*pn, PropertyName::ComputedPropertyName(_)));
         pretty_check(&*pn, "PropertyName: [ a ]", vec!["ComputedPropertyName: [ a ]"]);
         format!("{:?}", *pn);
+    }
+
+    // PROPERTY DEFINITION
+    #[test]
+    fn property_definition_test_01() {
+        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*pd, PropertyDefinition::IdentifierReference(_)));
+        pretty_check(&*pd, "PropertyDefinition: a", vec!["IdentifierReference: a"]);
+        format!("{:?}", *pd);
+    }
+    #[test]
+    fn property_definition_test_02() {
+        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a=b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*pd, PropertyDefinition::CoverInitializedName(_)));
+        pretty_check(&*pd, "PropertyDefinition: a = b", vec!["CoverInitializedName: a = b"]);
+    }
+    #[test]
+    fn property_definition_test_03() {
+        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a:b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*pd, PropertyDefinition::PropertyNameAssignmentExpression(_, _)));
+        pretty_check(&*pd, "PropertyDefinition: a : b", vec!["PropertyName: a", "AssignmentExpression: b"]);
+    }
+    #[test]
+    fn property_definition_test_04() {
+        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*pd, PropertyDefinition::AssignmentExpression(_)));
+        pretty_check(&*pd, "PropertyDefinition: ... a", vec!["AssignmentExpression: a"]);
+    }
+    #[test]
+    fn property_definition_test_nomatch() {
+        check_none(PropertyDefinition::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(PropertyDefinition::parse(&mut newparser("..."), Scanner::new(), false, false));
+        check_none(PropertyDefinition::parse(&mut newparser("3"), Scanner::new(), false, false));
+        check_none(PropertyDefinition::parse(&mut newparser("3:"), Scanner::new(), false, false));
     }
 }

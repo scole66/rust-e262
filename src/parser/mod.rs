@@ -58,6 +58,7 @@ pub mod comma_operator;
 pub mod exponentiation_operator;
 pub mod identifiers;
 pub mod left_hand_side_expressions;
+pub mod method_definitions;
 pub mod multiplicative_operators;
 pub mod primary_expressions;
 pub mod unary_operators;
