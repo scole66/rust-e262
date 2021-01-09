@@ -1002,6 +1002,258 @@ impl ArrayLiteral {
     }
 }
 
+#[derive(Debug)]
+pub enum Initializer {
+    AssignmentExpression(Box<AssignmentExpression>),
+}
+
+impl fmt::Display for Initializer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Initializer::AssignmentExpression(boxed_ae) = self;
+        write!(f, "= {}", *boxed_ae)
+    }
+}
+
+impl PrettyPrint for Initializer {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}Initializer: {}", first, self)?;
+        let Initializer::AssignmentExpression(boxed_ae) = self;
+        boxed_ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl Initializer {
+    fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Initializer>, Scanner)>, String> {
+        let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        if token != scanner::Token::Eq {
+            return Ok(None);
+        }
+        parser.scanner = after_tok;
+        let pot_ae = assignment_expression(parser, in_flag, yield_flag, await_flag)?;
+        match pot_ae {
+            None => Ok(None),
+            Some((boxed_ae, after_ae)) => Ok(Some((Box::new(Initializer::AssignmentExpression(boxed_ae)), after_ae))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CoverInitializedName {
+    InitializedName(Box<IdentifierReference>, Box<Initializer>),
+}
+
+impl fmt::Display for CoverInitializedName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let CoverInitializedName::InitializedName(idref, izer) = self;
+        write!(f, "{} {}", idref, izer)
+    }
+}
+
+impl PrettyPrint for CoverInitializedName {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}CoverInitializedName: {}", first, self)?;
+        let CoverInitializedName::InitializedName(idref, izer) = self;
+        idref.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        izer.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl CoverInitializedName {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_idref = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_idref {
+            None => Ok(None),
+            Some((idref, after_idref)) => {
+                let pot_init = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
+                match pot_init {
+                    None => Ok(None),
+                    Some((izer, after_izer)) => Ok(Some((Box::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ComputedPropertyName {
+    AssignmentExpression(Box<AssignmentExpression>),
+}
+
+impl fmt::Display for ComputedPropertyName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let ComputedPropertyName::AssignmentExpression(ae) = self;
+        write!(f, "[ {} ]", ae)
+    }
+}
+
+impl PrettyPrint for ComputedPropertyName {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
+        let ComputedPropertyName::AssignmentExpression(ae) = self;
+        ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl ComputedPropertyName {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::LeftBracket => {
+                parser.scanner = after_tok;
+                let pot_ae = assignment_expression(parser, true, yield_flag, await_flag)?;
+                match pot_ae {
+                    None => Ok(None),
+                    Some((ae, after_ae)) => {
+                        let (tok2, after_rb) = scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        match tok2 {
+                            scanner::Token::RightBracket => Ok(Some((Box::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))),
+                            _ => Ok(None),
+                        }
+                    }
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum LiteralPropertyName {
+    IdentifierName(Box<IdentifierNameToken>),
+    StringLiteral(scanner::JSString),
+    NumericLiteral(Numeric),
+}
+
+impl fmt::Display for LiteralPropertyName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LiteralPropertyName::IdentifierName(id) => write!(f, "{}", id),
+            LiteralPropertyName::StringLiteral(s) => write!(f, "{:?}", s),
+            LiteralPropertyName::NumericLiteral(n) => write!(f, "{:?}", n),
+        }
+    }
+}
+
+impl PrettyPrint for LiteralPropertyName {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}LiteralPropertyName: {}", first, self)
+    }
+}
+
+impl LiteralPropertyName {
+    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::Identifier(id) => Ok(Some((
+                Box::new(LiteralPropertyName::IdentifierName(Box::new(IdentifierNameToken {
+                    value: scanner::Token::Identifier(id),
+                }))),
+                after_tok,
+            ))),
+            scanner::Token::String(s) => Ok(Some((Box::new(LiteralPropertyName::StringLiteral(s)), after_tok))),
+            scanner::Token::Number(n) => Ok(Some((Box::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok))),
+            scanner::Token::BigInt(b) => Ok(Some((Box::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok))),
+            _ => Ok(None),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum PropertyName {
+    LiteralPropertyName(Box<LiteralPropertyName>),
+    ComputedPropertyName(Box<ComputedPropertyName>),
+}
+
+impl fmt::Display for PropertyName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PropertyName::LiteralPropertyName(lpn) => write!(f, "{}", lpn),
+            PropertyName::ComputedPropertyName(cpn) => write!(f, "{}", cpn),
+        }
+    }
+}
+
+impl PrettyPrint for PropertyName {
+    fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, "", Spot::Initial)
+    }
+
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}PropertyName: {}", first, self)?;
+        match &self {
+            PropertyName::LiteralPropertyName(lpn) => lpn.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyName::ComputedPropertyName(cpn) => cpn.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+}
+
+impl PropertyName {
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_lpn = LiteralPropertyName::parse(parser, scanner)?;
+        match pot_lpn {
+            None => {
+                let pot_cpn = ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag)?;
+                match pot_cpn {
+                    None => Ok(None),
+                    Some((cpn, after_cpn)) => Ok(Some((Box::new(PropertyName::ComputedPropertyName(cpn)), after_cpn))),
+                }
+            },
+            Some((lpn, after_lpn)) => Ok(Some((Box::new(PropertyName::LiteralPropertyName(lpn)), after_lpn))),
+        }
+    }
+}
+
 //////// 12.2.4 Literals
 // Literal :
 //      NullLiteral
@@ -4541,5 +4793,108 @@ mod tests {
         check_none(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false));
         check_none(ArrayLiteral::parse(&mut newparser("[a,"), Scanner::new(), false, false));
         check_none(ArrayLiteral::parse(&mut newparser("[a,,"), Scanner::new(), false, false));
+    }
+
+    // INITIALIZER
+    #[test]
+    fn initializer_test_nomatch() {
+        check_none(Initializer::parse(&mut newparser(""), Scanner::new(), false, false, false));
+        check_none(Initializer::parse(&mut newparser("="), Scanner::new(), false, false, false));
+    }
+    #[test]
+    fn initializer_test_01() {
+        let (izer, scanner) = check(Initializer::parse(&mut newparser("=a"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*izer, Initializer::AssignmentExpression(_)));
+        pretty_check(&*izer, "Initializer: = a", vec!["AssignmentExpression: a"]);
+        format!("{:?}", *izer);
+    }
+
+    // COVER INITIALIZED NAME
+    #[test]
+    fn cover_initialized_name_test_nomatch() {
+        check_none(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(CoverInitializedName::parse(&mut newparser("a"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn cover_initialized_name_test_01() {
+        let (cin, scanner) = check(CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*cin, CoverInitializedName::InitializedName(_, _)));
+        pretty_check(&*cin, "CoverInitializedName: a = b", vec!["IdentifierReference: a", "Initializer: = b"]);
+        format!("{:?}", *cin);
+    }
+
+    // COMPUTED PROPERTY NAME
+    #[test]
+    fn computed_property_name_test_nomatch() {
+        check_none(ComputedPropertyName::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(ComputedPropertyName::parse(&mut newparser("["), Scanner::new(), false, false));
+        check_none(ComputedPropertyName::parse(&mut newparser("[a"), Scanner::new(), false, false));
+    }
+    #[test]
+    fn computed_property_name_test_01() {
+        let (cpn, scanner) = check(ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*cpn, ComputedPropertyName::AssignmentExpression(_)));
+        pretty_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["AssignmentExpression: a"]);
+        format!("{:?}", &*cpn);
+    }
+
+    // LITERAL PROPERTY NAME
+    #[test]
+    fn literal_property_name_test_none() {
+        check_none(LiteralPropertyName::parse(&mut newparser(""), Scanner::new()));
+    }
+    #[test]
+    fn literal_property_name_test_01() {
+        let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*lpn, LiteralPropertyName::IdentifierName(_)));
+        pretty_check(&*lpn, "LiteralPropertyName: b", vec![]);
+        format!("{:?}", *lpn);
+    }
+    #[test]
+    fn literal_property_name_test_02() {
+        let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("'b'"), Scanner::new()));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*lpn, LiteralPropertyName::StringLiteral(_)));
+        pretty_check(&*lpn, "LiteralPropertyName: \"b\"", vec![]);
+    }
+    #[test]
+    fn literal_property_name_test_03() {
+        let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+        pretty_check(&*lpn, "LiteralPropertyName: Number(0.0)", vec![]);
+    }
+    #[test]
+    fn literal_property_name_test_04() {
+        let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("1n"), Scanner::new()));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+        pretty_check(&*lpn, "LiteralPropertyName: BigInt(BigInt { sign: Plus, data: BigUint { data: [1] } })", vec![]);
+    }
+
+    // PROPERTY NAME
+    #[test]
+    fn property_name_test_nomatch() {
+        check_none(PropertyName::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn property_name_test_01() {
+        let (pn, scanner) = check(PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*pn, PropertyName::LiteralPropertyName(_)));
+        pretty_check(&*pn, "PropertyName: a", vec!["LiteralPropertyName: a"]);
+        format!("{:?}", *pn);
+    }
+    #[test]
+    fn property_name_test_02() {
+        let (pn, scanner) = check(PropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*pn, PropertyName::ComputedPropertyName(_)));
+        pretty_check(&*pn, "PropertyName: [ a ]", vec!["ComputedPropertyName: [ a ]"]);
+        format!("{:?}", *pn);
     }
 }
