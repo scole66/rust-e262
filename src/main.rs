@@ -643,7 +643,7 @@ impl fmt::Display for Elisions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         assert!(self.count > 0);
         write!(f, ",")?;
-        for n in 1..self.count {
+        for _ in 1..self.count {
             write!(f, " ,")?;
         }
         Ok(())
@@ -662,7 +662,7 @@ impl PrettyPrint for Elisions {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}Elisions: {}", first, self)
     }
 }
@@ -1179,7 +1179,7 @@ impl PrettyPrint for LiteralPropertyName {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}LiteralPropertyName: {}", first, self)
     }
 }
@@ -1306,7 +1306,7 @@ impl PrettyPrint for Literal {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}Literal: {}", first, self)
     }
 }
@@ -1419,7 +1419,7 @@ impl PrettyPrint for TemplateLiteral {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}TemplateLiteral: {}", first, self)
     }
 }
@@ -1776,7 +1776,7 @@ impl PrettyPrint for SuperProperty {
         writeln!(writer, "{}SuperProperty: {}", first, self)?;
         match &self.kind {
             SuperPropertyKind::Expression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            SuperPropertyKind::IdentifierName(boxed) => Ok(()),
+            SuperPropertyKind::IdentifierName(_) => Ok(()),
         }
     }
 }
@@ -1853,7 +1853,7 @@ impl PrettyPrint for MetaProperty {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}MetaProperty: {}", first, self)
     }
 }
@@ -2453,7 +2453,7 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionIdentifierName((ce, int)) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpressionKind::CallExpressionIdentifierName((ce, _)) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -3107,7 +3107,7 @@ impl PrettyPrint for AwaitExpression {
 }
 
 impl AwaitExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(_parser: &mut Parser, _scanner: Scanner, _yield_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
     }
 }
@@ -3239,7 +3239,7 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let mut parser = Parser::new(source, false, ParseGoal::Script);
     let result = expression(&mut parser, true, false, false);
     match result {
-        Ok(Some((node, scanner))) => {
+        Ok(Some((node, _))) => {
             node.pprint(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
@@ -3320,7 +3320,7 @@ mod tests {
                     println!("Against the expected line {:?}", expected);
                     // swallow the first 4 chars:
                     let mut ch_iter = line.chars();
-                    for i in 0..4 {
+                    for _ in 0..4 {
                         ch_iter.next().unwrap();
                     }
                     let child_content: Vec<char> = ch_iter.collect();
