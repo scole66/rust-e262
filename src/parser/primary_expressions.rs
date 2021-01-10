@@ -833,6 +833,76 @@ impl PropertyDefinition {
             .and_then(|opt| opt.map_or_else(|| Self::parse_ae(parser, scanner, yield_flag, await_flag), rewrap))
     }
 }
+
+// PropertyDefinitionList[Yield, Await] :
+//      PropertyDefinition[?Yield, ?Await]
+//      PropertyDefinitionList[?Yield, ?Await] , PropertyDefinition[?Yield, ?Await]
+#[derive(Debug)]
+pub enum PropertyDefinitionList {
+    OneDef(Box<PropertyDefinition>),
+    ManyDefs(Box<PropertyDefinitionList>, Box<PropertyDefinition>),
+}
+
+impl fmt::Display for PropertyDefinitionList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PropertyDefinitionList::OneDef(pd) => write!(f, "{}", pd),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => write!(f, "{} , {}", pdl, pd),
+        }
+    }
+}
+
+impl PrettyPrint for PropertyDefinitionList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}PropertyDefinitionList: {}", first, self)?;
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pd.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl PropertyDefinitionList {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_pd = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
+        match pot_pd {
+            None => Ok(None),
+            Some((pd, after_pd)) => {
+                let mut current_production = Box::new(PropertyDefinitionList::OneDef(pd));
+                let mut current_scanner = after_pd;
+                loop {
+                    let (comma, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    match comma {
+                        scanner::Token::Comma => {
+                            let pot_pd2 = PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag)?;
+                            match pot_pd2 {
+                                None => {
+                                    break;
+                                }
+                                Some((pd2, after_pd2)) => {
+                                    current_production = Box::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
+                                    current_scanner = after_pd2;
+                                }
+                            }
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                Ok(Some((current_production, current_scanner)))
+            }
+        }
+    }
+}
+
 //////// 12.2.4 Literals
 // Literal :
 //      NullLiteral
@@ -1368,5 +1438,32 @@ mod tests {
         check_none(PropertyDefinition::parse(&mut newparser("..."), Scanner::new(), false, false));
         check_none(PropertyDefinition::parse(&mut newparser("3"), Scanner::new(), false, false));
         check_none(PropertyDefinition::parse(&mut newparser("3:"), Scanner::new(), false, false));
+    }
+
+    #[test]
+    fn property_definition_list_test_01() {
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
+        pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
+        format!("{:?}", *pdl);
+    }
+    #[test]
+    fn property_definition_list_test_02() {
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
+        pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
+    }
+    #[test]
+    fn property_definition_list_test_03() {
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*pdl, PropertyDefinitionList::ManyDefs(_, _)));
+        pretty_check(&*pdl, "PropertyDefinitionList: a , b", vec!["PropertyDefinitionList: a", "PropertyDefinition: b"]);
+    }
+    #[test]
+    fn property_definition_list_test_04() {
+        check_none(PropertyDefinitionList::parse(&mut newparser(""), Scanner::new(), false, false));
     }
 }
