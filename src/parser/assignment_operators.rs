@@ -36,6 +36,20 @@ impl PrettyPrint for AssignmentExpression {
     }
 }
 
+impl IsFunctionDefinition for AssignmentExpression {
+    fn is_function_definition(&self) -> bool {
+        let AssignmentExpressionKind::Temp(boxed) = &self.kind;
+        boxed.is_function_definition()
+    }
+}
+
+impl AssignmentTargetType for AssignmentExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        let AssignmentExpressionKind::Temp(boxed) = &self.kind;
+        boxed.assignment_target_type()
+    }
+}
+
 impl AssignmentExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
         let potential = AdditiveExpression::parse(parser, scanner, yield_flag, await_flag)?;

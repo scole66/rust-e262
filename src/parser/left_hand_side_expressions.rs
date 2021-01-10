@@ -114,6 +114,34 @@ impl PrettyPrint for MemberExpression {
     }
 }
 
+impl IsFunctionDefinition for MemberExpression {
+    fn is_function_definition(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(boxed) => boxed.is_function_definition(),
+            MemberExpressionKind::Expression(_)
+            | MemberExpressionKind::IdentifierName(_)
+            | MemberExpressionKind::TemplateLiteral(_)
+            | MemberExpressionKind::SuperProperty(_)
+            | MemberExpressionKind::MetaProperty(_)
+            | MemberExpressionKind::NewArguments(_) => false,
+        }
+    }
+}
+
+impl AssignmentTargetType for MemberExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(boxed) => boxed.assignment_target_type(),
+            MemberExpressionKind::Expression(_) => ATTKind::Simple,
+            MemberExpressionKind::IdentifierName(_) => ATTKind::Simple,
+            MemberExpressionKind::TemplateLiteral(_) => ATTKind::Invalid,
+            MemberExpressionKind::SuperProperty(_) => ATTKind::Simple,
+            MemberExpressionKind::MetaProperty(boxed) => boxed.assignment_target_type(),
+            MemberExpressionKind::NewArguments(_) => ATTKind::Invalid,
+        }
+    }
+}
+
 pub trait ToMemberExpressionKind {
     fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind;
 }
@@ -352,6 +380,12 @@ impl PrettyPrint for MetaProperty {
     {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}MetaProperty: {}", first, self)
+    }
+}
+
+impl AssignmentTargetType for MetaProperty {
+    fn assignment_target_type(&self) -> ATTKind {
+        ATTKind::Invalid
     }
 }
 
@@ -665,6 +699,24 @@ impl PrettyPrint for NewExpression {
     }
 }
 
+impl IsFunctionDefinition for NewExpression {
+    fn is_function_definition(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.is_function_definition(),
+            NewExpressionKind::NewExpression(_) => false,
+        }
+    }
+}
+
+impl AssignmentTargetType for NewExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.assignment_target_type(),
+            NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
+        }
+    }
+}
+
 impl NewExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<NewExpression>, Scanner)>, String> {
         let pot_me = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
@@ -890,6 +942,15 @@ impl PrettyPrint for CallExpression {
     }
 }
 
+impl AssignmentTargetType for CallExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(_) | CallExpressionKind::SuperCall(_) | CallExpressionKind::ImportCall(_) | CallExpressionKind::CallExpressionArguments(_) => ATTKind::Invalid,
+            CallExpressionKind::CallExpressionExpression(_) | CallExpressionKind::CallExpressionIdentifierName(_) => ATTKind::Simple,
+        }
+    }
+}
+
 impl CallExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let first_parse = {
@@ -1023,6 +1084,24 @@ impl PrettyPrint for LeftHandSideExpression {
     }
 }
 
+impl IsFunctionDefinition for LeftHandSideExpression {
+    fn is_function_definition(&self) -> bool {
+        match self {
+            LeftHandSideExpression::NewExpression(boxed) => boxed.is_function_definition(),
+            LeftHandSideExpression::CallExpression(_) => false,
+        }
+    }
+}
+
+impl AssignmentTargetType for LeftHandSideExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match self {
+            LeftHandSideExpression::NewExpression(boxed) => boxed.assignment_target_type(),
+            LeftHandSideExpression::CallExpression(boxed) => boxed.assignment_target_type(),
+        }
+    }
+}
+
 impl LeftHandSideExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
@@ -1055,6 +1134,8 @@ mod tests {
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
         pretty_check(&*me, "MemberExpression: a", vec!["PrimaryExpression: a"]);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn member_expression_test_meta_property() {
@@ -1064,6 +1145,8 @@ mod tests {
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
         pretty_check(&*me, "MemberExpression: new . target", vec!["MetaProperty: new . target"]);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn member_expression_test_super_property() {
@@ -1073,6 +1156,8 @@ mod tests {
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
         pretty_check(&*me, "MemberExpression: super . ior", vec!["SuperProperty: super . ior"]);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn member_expression_test_new_me_args() {
@@ -1086,6 +1171,8 @@ mod tests {
             "MemberExpression: new shoes ( \"red\" , \"leather\" )",
             vec!["MemberExpression: shoes", "Arguments: ( \"red\" , \"leather\" )"],
         );
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn member_expression_test_me_expression() {
@@ -1095,6 +1182,8 @@ mod tests {
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
         pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn member_expression_test_me_ident() {
@@ -1104,6 +1193,8 @@ mod tests {
         // Excersize the Debug formatter, for code coverage
         format!("{:?}", me);
         pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn member_expression_test_bad_ident() {
@@ -1306,6 +1397,8 @@ mod tests {
         assert!(matches!(ne.kind, NewExpressionKind::MemberExpression(_)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: true", vec!["MemberExpression: true"]);
+        assert_eq!(ne.is_function_definition(), false);
+        assert_eq!(ne.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn new_expression_test_new() {
@@ -1314,6 +1407,8 @@ mod tests {
         assert!(matches!(ne.kind, NewExpressionKind::NewExpression(_)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
+        assert_eq!(ne.is_function_definition(), false);
+        assert_eq!(ne.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn new_expression_test_nomatch() {
@@ -1393,6 +1488,7 @@ mod tests {
         assert!(matches!(ce.kind, CallExpressionKind::CallMemberExpression(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: a ( )", vec!["CallMemberExpression: a ( )"]);
+        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn call_expression_test_super() {
@@ -1400,7 +1496,8 @@ mod tests {
         chk_scan(&scanner, 7);
         assert!(matches!(ce.kind, CallExpressionKind::SuperCall(_)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"])
+        pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"]);
+        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn call_expression_test_import() {
@@ -1409,6 +1506,7 @@ mod tests {
         assert!(matches!(ce.kind, CallExpressionKind::ImportCall(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
+        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn call_expression_test_ce_args() {
@@ -1421,6 +1519,7 @@ mod tests {
             "CallExpression: blue ( pop ) ( snap ) ( Number(10.0) ) ( Number(20.0) )",
             vec!["CallExpression: blue ( pop ) ( snap ) ( Number(10.0) )", "Arguments: ( Number(20.0) )"],
         );
+        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn call_expression_test_ce_args2() {
@@ -1436,6 +1535,7 @@ mod tests {
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionExpression(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallExpression: blue ( pop )", "Expression: snap"]);
+        assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn call_expression_test_ce_ident() {
@@ -1444,6 +1544,7 @@ mod tests {
         assert!(matches!(ce.kind, CallExpressionKind::CallExpressionIdentifierName(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
+        assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn call_expression_test_nomatch() {
@@ -1476,6 +1577,8 @@ mod tests {
         assert!(matches!(*lhs, LeftHandSideExpression::NewExpression(_)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "LeftHandSideExpression: a", vec!["NewExpression: a"]);
+        assert_eq!(lhs.is_function_definition(), false);
+        assert_eq!(lhs.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn left_hand_side_expression_test_02() {
@@ -1483,5 +1586,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*lhs, LeftHandSideExpression::CallExpression(_)));
         pretty_check(&*lhs, "LeftHandSideExpression: a ( )", vec!["CallExpression: a ( )"]);
+        assert_eq!(lhs.is_function_definition(), false);
+        assert_eq!(lhs.assignment_target_type(), ATTKind::Invalid);
     }
 }

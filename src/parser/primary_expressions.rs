@@ -6,6 +6,7 @@ use std::io::Write;
 use super::assignment_operators::AssignmentExpression;
 use super::identifiers::{IdentifierNameToken, IdentifierReference};
 use super::method_definitions::MethodDefinition;
+use super::comma_operator::Expression;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
@@ -33,6 +34,7 @@ pub enum PrimaryExpressionKind {
     Literal(Box<Literal>),
     ArrayLiteral(Box<ArrayLiteral>),
     ObjectLiteral(Box<ObjectLiteral>),
+    Parenthesized(Box<ParenthesizedExpression>),
     // More to come
 }
 
@@ -49,6 +51,7 @@ impl fmt::Display for PrimaryExpression {
             PrimaryExpressionKind::Literal(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::ArrayLiteral(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::ObjectLiteral(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::Parenthesized(boxed) => write!(f, "{}", boxed),
         }
     }
 }
@@ -66,6 +69,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -73,8 +77,9 @@ impl PrettyPrint for PrimaryExpression {
 impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
-        match self.kind {
+        match &self.kind {
             This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => false,
+            Parenthesized(exp) => exp.is_function_definition()
         }
     }
 }
@@ -83,7 +88,7 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => false,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) => false,
             IdentifierReference(_) => true,
         }
     }
@@ -95,6 +100,7 @@ impl AssignmentTargetType for PrimaryExpression {
         match &self.kind {
             This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
+            Parenthesized(expr) => expr.assignment_target_type(),
         }
     }
 }
@@ -123,6 +129,12 @@ impl ToPrimaryExpressionKind for ArrayLiteral {
 impl ToPrimaryExpressionKind for ObjectLiteral {
     fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::ObjectLiteral(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for ParenthesizedExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::Parenthesized(node)
     }
 }
 
@@ -156,6 +168,7 @@ impl PrimaryExpression {
             .and_then(|opt| or_pe_kind(opt, parser, |p| this_token(p, scanner)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ArrayLiteral::parse(p, scanner, arg_yield, arg_await)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ObjectLiteral::parse(p, scanner, arg_yield, arg_await)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| ParenthesizedExpression::parse(p, scanner, arg_yield, arg_await)))
     }
 }
 
@@ -1102,6 +1115,68 @@ impl PrettyPrint for TemplateLiteral {
     }
 }
 
+// ParenthesizedExpression[Yield, Await] :
+//      ( Expression[+In, ?Yield, ?Await] )
+#[derive(Debug)]
+pub enum ParenthesizedExpression {
+    Expression(Box<Expression>)
+}
+
+impl fmt::Display for ParenthesizedExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let ParenthesizedExpression::Expression(e) = self;
+        write!(f, "( {} )", e)
+    }
+}
+
+impl PrettyPrint for ParenthesizedExpression {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
+        let ParenthesizedExpression::Expression(e) = self;
+        e.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl IsFunctionDefinition for ParenthesizedExpression {
+    fn is_function_definition(&self) -> bool {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.is_function_definition()
+    }
+}
+
+impl AssignmentTargetType for ParenthesizedExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.assignment_target_type()
+    }
+}
+
+impl ParenthesizedExpression {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (left_paren, after_lp) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match left_paren {
+            scanner::Token::LeftParen => {
+                let pot_exp = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
+                match pot_exp {
+                    Some((exp, after_exp)) => {
+                        let (right_paren, after_rp) = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        match right_paren {
+                            scanner::Token::RightParen => Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp))),
+                            _ => Ok(None)
+                        }
+                    }
+                    None => Ok(None)
+                }
+            }
+            _ => Ok(None)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::testhelp::{check, check_none, chk_scan, newparser};
@@ -1125,6 +1200,10 @@ mod tests {
         pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
         let (pe4, _) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
         pretty_check(&*pe4, "PrimaryExpression: [ ]", vec!["ArrayLiteral: [ ]"]);
+        let (pe5, _) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
+        pretty_check(&*pe5, "PrimaryExpression: { }", vec!["ObjectLiteral: { }"]);
+        let (pe6, _) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
+        pretty_check(&*pe6, "PrimaryExpression: ( a )", vec!["ParenthesizedExpression: ( a )"]);
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -1153,6 +1232,33 @@ mod tests {
         assert_eq!(node.is_function_definition(), false);
         assert_eq!(node.is_identifier_reference(), false);
         assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn primary_expression_test_arraylit() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(node.kind, PrimaryExpressionKind::ArrayLiteral(_)));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn primary_expression_test_objlit() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(node.kind, PrimaryExpressionKind::ObjectLiteral(_)));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn primary_expression_test_group() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(node.kind, PrimaryExpressionKind::Parenthesized(_)));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Simple);
     }
 
     #[test]
@@ -1276,6 +1382,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
         pretty_check(&*el, "ElementList: Number(3.0)", vec!["AssignmentExpression: Number(3.0)"]);
+        format!("{:?}", *el);
     }
     #[test]
     fn element_list_test_03() {
@@ -1576,5 +1683,23 @@ mod tests {
         check_none(ObjectLiteral::parse(&mut newparser("{"), Scanner::new(), false, false));
         check_none(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false));
         check_none(ObjectLiteral::parse(&mut newparser("{a:b,"), Scanner::new(), false, false));
+    }
+
+    // PARENTHESIZED EXPRESSION
+    #[test]
+    fn parenthesized_expression_test_01() {
+        let (pe, scanner) = check(ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*pe, ParenthesizedExpression::Expression(_)));
+        pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
+        format!("{:?}", pe);
+        assert_eq!(pe.is_function_definition(), false);
+        assert_eq!(pe.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn parenthesized_expression_test_02() {
+        check_none(ParenthesizedExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(ParenthesizedExpression::parse(&mut newparser("("), Scanner::new(), false, false));
+        check_none(ParenthesizedExpression::parse(&mut newparser("(0"), Scanner::new(), false, false));
     }
 }

@@ -45,6 +45,24 @@ impl PrettyPrint for AdditiveExpression {
     }
 }
 
+impl IsFunctionDefinition for AdditiveExpression {
+    fn is_function_definition(&self) -> bool {
+        match self {
+            AdditiveExpression::AdditiveExpressionAdd(_) | AdditiveExpression::AdditiveExpressionSubtract(_) => false,
+            AdditiveExpression::MultiplicativeExpression(me) => me.is_function_definition()
+        }
+    }
+}
+
+impl AssignmentTargetType for AdditiveExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match self {
+            AdditiveExpression::AdditiveExpressionAdd(_) | AdditiveExpression::AdditiveExpressionSubtract(_) => ATTKind::Invalid,
+            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type()
+        }
+    }
+}
+
 impl AdditiveExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_me = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;

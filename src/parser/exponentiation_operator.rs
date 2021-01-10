@@ -40,6 +40,24 @@ impl PrettyPrint for ExponentiationExpression {
     }
 }
 
+impl IsFunctionDefinition for ExponentiationExpression {
+    fn is_function_definition(&self) -> bool {
+        match self {
+            ExponentiationExpression::Exponentiation(_) => false,
+            ExponentiationExpression::UnaryExpression(ue) => ue.is_function_definition()
+        }
+    }
+}
+
+impl AssignmentTargetType for ExponentiationExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match self {
+            ExponentiationExpression::Exponentiation(_) => ATTKind::Invalid,
+            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type()
+        }
+    }
+}
+
 impl ExponentiationExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;

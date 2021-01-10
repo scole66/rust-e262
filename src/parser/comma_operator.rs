@@ -32,6 +32,20 @@ impl PrettyPrint for Expression {
     }
 }
 
+impl IsFunctionDefinition for Expression {
+    fn is_function_definition(&self) -> bool {
+        let Expression::Temp(boxed) = self;
+        boxed.is_function_definition()
+    }
+}
+
+impl AssignmentTargetType for Expression {
+    fn assignment_target_type(&self) -> ATTKind {
+        let Expression::Temp(boxed) = self;
+        boxed.assignment_target_type()
+    }
+}
+
 impl Expression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         // todo!

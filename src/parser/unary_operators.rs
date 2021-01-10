@@ -58,6 +58,38 @@ impl PrettyPrint for UnaryExpression {
     }
 }
 
+impl IsFunctionDefinition for UnaryExpression {
+    fn is_function_definition(&self) -> bool {
+        match self {
+            UnaryExpression::UpdateExpression(boxed) => boxed.is_function_definition(),
+            UnaryExpression::Delete(_)
+            | UnaryExpression::Void(_)
+            | UnaryExpression::Typeof(_)
+            | UnaryExpression::NoOp(_)
+            | UnaryExpression::Negate(_)
+            | UnaryExpression::Complement(_)
+            | UnaryExpression::Not(_)
+            | UnaryExpression::Await(_) => false,
+        }
+    }
+}
+
+impl AssignmentTargetType for UnaryExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match self {
+            UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(),
+            UnaryExpression::Delete(_)
+            | UnaryExpression::Void(_)
+            | UnaryExpression::Typeof(_)
+            | UnaryExpression::NoOp(_)
+            | UnaryExpression::Negate(_)
+            | UnaryExpression::Complement(_)
+            | UnaryExpression::Not(_)
+            | UnaryExpression::Await(_) => ATTKind::Invalid,
+        }
+    }
+}
+
 impl UnaryExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;

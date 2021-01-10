@@ -45,6 +45,24 @@ impl PrettyPrint for UpdateExpression {
     }
 }
 
+impl IsFunctionDefinition for UpdateExpression {
+    fn is_function_definition(&self) -> bool {
+        match self {
+            UpdateExpression::LeftHandSideExpression(boxed) => boxed.is_function_definition(),
+            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => false,
+        }
+    }
+}
+
+impl AssignmentTargetType for UpdateExpression {
+    fn assignment_target_type(&self) -> ATTKind {
+        match self {
+            UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(),
+            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
+        }
+    }
+}
+
 impl UpdateExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
