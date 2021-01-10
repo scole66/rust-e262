@@ -32,6 +32,7 @@ pub enum PrimaryExpressionKind {
     IdentifierReference(Box<IdentifierReference>),
     Literal(Box<Literal>),
     ArrayLiteral(Box<ArrayLiteral>),
+    ObjectLiteral(Box<ObjectLiteral>),
     // More to come
 }
 
@@ -47,6 +48,7 @@ impl fmt::Display for PrimaryExpression {
             PrimaryExpressionKind::IdentifierReference(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::Literal(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::ArrayLiteral(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => write!(f, "{}", boxed),
         }
     }
 }
@@ -63,6 +65,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -71,7 +74,7 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
         match self.kind {
-            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) => false,
+            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => false,
         }
     }
 }
@@ -80,7 +83,7 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) => false,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => false,
             IdentifierReference(_) => true,
         }
     }
@@ -90,7 +93,7 @@ impl AssignmentTargetType for PrimaryExpression {
     fn assignment_target_type(&self) -> ATTKind {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) => ATTKind::Invalid,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
         }
     }
@@ -114,6 +117,12 @@ impl ToPrimaryExpressionKind for Literal {
 impl ToPrimaryExpressionKind for ArrayLiteral {
     fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::ArrayLiteral(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for ObjectLiteral {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::ObjectLiteral(node)
     }
 }
 
@@ -146,6 +155,7 @@ impl PrimaryExpression {
             .and_then(|opt| or_pe_kind(opt, parser, |p| Literal::parse(p, scanner)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| this_token(p, scanner)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ArrayLiteral::parse(p, scanner, arg_yield, arg_await)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| ObjectLiteral::parse(p, scanner, arg_yield, arg_await)))
     }
 }
 
@@ -903,6 +913,76 @@ impl PropertyDefinitionList {
     }
 }
 
+// ObjectLiteral[Yield, Await] :
+//      { }
+//      { PropertyDefinitionList[?Yield, ?Await] }
+//      { PropertyDefinitionList[?Yield, ?Await] , }
+#[derive(Debug)]
+pub enum ObjectLiteral {
+    Empty,
+    Normal(Box<PropertyDefinitionList>),
+    TrailingComma(Box<PropertyDefinitionList>),
+}
+
+impl fmt::Display for ObjectLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ObjectLiteral::Empty => write!(f, "{{ }}"),
+            ObjectLiteral::Normal(pdl) => write!(f, "{{ {} }}", pdl),
+            ObjectLiteral::TrailingComma(pdl) => write!(f, "{{ {} , }}", pdl),
+        }
+    }
+}
+
+impl PrettyPrint for ObjectLiteral {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
+        match self {
+            ObjectLiteral::Empty => Ok(()),
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+}
+
+impl ObjectLiteral {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (lb, after_brace) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match lb {
+            scanner::Token::LeftBrace => {
+                let pot_pdl = PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag)?;
+                match pot_pdl {
+                    None => {
+                        let (rb, after_brace2) = scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        match rb {
+                            scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Empty), after_brace2))),
+                            _ => Ok(None),
+                        }
+                    }
+                    Some((pdl, after_pdl)) => {
+                        let (comma_or_brace, after_punct) = scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        match comma_or_brace {
+                            scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Normal(pdl)), after_punct))),
+                            scanner::Token::Comma => {
+                                let (rb2, after_brace3) = scanner::scan_token(&after_punct, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                match rb2 {
+                                    scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))),
+                                    _ => Ok(None),
+                                }
+                            }
+                            _ => Ok(None),
+                        }
+                    }
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
 //////// 12.2.4 Literals
 // Literal :
 //      NullLiteral
@@ -1465,5 +1545,36 @@ mod tests {
     #[test]
     fn property_definition_list_test_04() {
         check_none(PropertyDefinitionList::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+
+    // OBJECT LITERAL
+    #[test]
+    fn object_literal_test_01() {
+        let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*ol, ObjectLiteral::Empty));
+        pretty_check(&*ol, "ObjectLiteral: { }", vec![]);
+        format!("{:?}", *ol);
+    }
+    #[test]
+    fn object_literal_test_02() {
+        let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*ol, ObjectLiteral::Normal(_)));
+        pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
+    }
+    #[test]
+    fn object_literal_test_03() {
+        let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b,}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*ol, ObjectLiteral::TrailingComma(_)));
+        pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
+    }
+    #[test]
+    fn object_literal_test_04() {
+        check_none(ObjectLiteral::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(ObjectLiteral::parse(&mut newparser("{"), Scanner::new(), false, false));
+        check_none(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false));
+        check_none(ObjectLiteral::parse(&mut newparser("{a:b,"), Scanner::new(), false, false));
     }
 }
