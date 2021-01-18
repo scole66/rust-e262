@@ -4,12 +4,13 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
+use super::comma_operator::Expression;
 use super::identifiers::{IdentifierNameToken, IdentifierReference};
 use super::method_definitions::MethodDefinition;
-use super::comma_operator::Expression;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::values::number_to_string;
 
 //////// 12.2 Primary Expression
 // PrimaryExpression[Yield, Await] :
@@ -35,6 +36,7 @@ pub enum PrimaryExpressionKind {
     ArrayLiteral(Box<ArrayLiteral>),
     ObjectLiteral(Box<ObjectLiteral>),
     Parenthesized(Box<ParenthesizedExpression>),
+    TemplateLiteral(Box<TemplateLiteral>),
     // More to come
 }
 
@@ -52,6 +54,7 @@ impl fmt::Display for PrimaryExpression {
             PrimaryExpressionKind::ArrayLiteral(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::ObjectLiteral(boxed) => write!(f, "{}", boxed),
             PrimaryExpressionKind::Parenthesized(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => write!(f, "{}", boxed),
         }
     }
 }
@@ -70,6 +73,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -78,8 +82,8 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => false,
-            Parenthesized(exp) => exp.is_function_definition()
+            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) => false,
+            Parenthesized(exp) => exp.is_function_definition(),
         }
     }
 }
@@ -88,7 +92,7 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) => false,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_) => false,
             IdentifierReference(_) => true,
         }
     }
@@ -98,7 +102,7 @@ impl AssignmentTargetType for PrimaryExpression {
     fn assignment_target_type(&self) -> ATTKind {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) => ATTKind::Invalid,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
             Parenthesized(expr) => expr.assignment_target_type(),
         }
@@ -138,6 +142,12 @@ impl ToPrimaryExpressionKind for ParenthesizedExpression {
     }
 }
 
+impl ToPrimaryExpressionKind for TemplateLiteral {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::TemplateLiteral(node)
+    }
+}
+
 fn pe_boxer<T>(opt: Option<(Box<T>, Scanner)>) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
 where
     T: ToPrimaryExpressionKind,
@@ -169,6 +179,7 @@ impl PrimaryExpression {
             .and_then(|opt| or_pe_kind(opt, parser, |p| ArrayLiteral::parse(p, scanner, arg_yield, arg_await)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ObjectLiteral::parse(p, scanner, arg_yield, arg_await)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ParenthesizedExpression::parse(p, scanner, arg_yield, arg_await)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| TemplateLiteral::parse(p, scanner, arg_yield, arg_await, false)))
     }
 }
 
@@ -664,7 +675,12 @@ impl fmt::Display for LiteralPropertyName {
         match self {
             LiteralPropertyName::IdentifierName(id) => write!(f, "{}", id),
             LiteralPropertyName::StringLiteral(s) => write!(f, "{:?}", s),
-            LiteralPropertyName::NumericLiteral(n) => write!(f, "{:?}", n),
+            LiteralPropertyName::NumericLiteral(Numeric::Number(n)) => {
+                let mut s = Vec::new();
+                number_to_string(&mut s, *n).unwrap();
+                write!(f, "{}", String::from_utf8(s).unwrap())
+            }
+            LiteralPropertyName::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", b),
         }
     }
 }
@@ -1030,7 +1046,12 @@ impl fmt::Display for Literal {
                     write!(f, "false")
                 }
             }
-            LiteralKind::NumericLiteral(n) => write!(f, "{:?}", *n),
+            LiteralKind::NumericLiteral(Numeric::Number(n)) => {
+                let mut s = Vec::new();
+                number_to_string(&mut s, *n).unwrap();
+                write!(f, "{}", String::from_utf8(s).unwrap())
+            }
+            LiteralKind::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", *b),
             LiteralKind::StringLiteral(s) => write!(f, "{:?}", *s),
         }
     }
@@ -1097,11 +1118,27 @@ impl Literal {
     }
 }
 
+// TemplateLiteral[Yield, Await, Tagged] :
+//      NoSubstitutionTemplate
+//      SubstitutionTemplate[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
-pub struct TemplateLiteral {}
+pub enum TemplateLiteral {
+    NoSubstitutionTemplate(scanner::TemplateData, bool),
+    SubstitutionTemplate(Box<SubstitutionTemplate>),
+}
+
 impl fmt::Display for TemplateLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "`unimplemented`")
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(td, _) => match &td.tv {
+                None => write!(f, "`{}` (TV undefined)", td.trv),
+                Some(s) => {
+                    let printable = format!("{}", s).replace(char::is_control, "\u{2426}");
+                    write!(f, "`{}` ({})", td.trv, printable)
+                }
+            },
+            TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{}", boxed),
+        }
     }
 }
 
@@ -1110,8 +1147,220 @@ impl PrettyPrint for TemplateLiteral {
     where
         T: Write,
     {
-        let (first, _) = prettypad(pad, state);
-        writeln!(writer, "{}TemplateLiteral: {}", first, self)
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}TemplateLiteral: {}", first, self)?;
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(_, _) => Ok(()),
+            TemplateLiteral::SubstitutionTemplate(st) => st.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+}
+
+impl TemplateLiteral {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, after_nst) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match tok {
+            scanner::Token::NoSubstitutionTemplate(td) => Ok(Some((Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))),
+            scanner::Token::TemplateHead(_) => {
+                let pot_st = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
+                match pot_st {
+                    Some((boxed, after_scan)) => Ok(Some((Box::new(TemplateLiteral::SubstitutionTemplate(boxed)), after_scan))),
+                    None => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+// SubstitutionTemplate[Yield, Await, Tagged] :
+//      TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
+#[derive(Debug)]
+pub struct SubstitutionTemplate {
+    template_head: scanner::TemplateData,
+    tagged: bool,
+    expression: Box<Expression>,
+    template_spans: Box<TemplateSpans>,
+}
+
+impl fmt::Display for SubstitutionTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "`{}${{ {} {}",
+            format!("{}", self.template_head.trv).replace(char::is_control, "\u{2426}"),
+            self.expression,
+            self.template_spans
+        )
+    }
+}
+
+impl PrettyPrint for SubstitutionTemplate {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
+        self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.template_spans.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl SubstitutionTemplate {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (head, after_head) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        match head {
+            scanner::Token::TemplateHead(td) => {
+                let pot_exp = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
+                match pot_exp {
+                    None => Ok(None),
+                    Some((exp_boxed, after_exp)) => {
+                        let pot_spans = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
+                        match pot_spans {
+                            None => Ok(None),
+                            Some((spans_boxed, after_spans)) => Ok(Some((
+                                Box::new(SubstitutionTemplate {
+                                    template_head: td,
+                                    tagged: tagged_flag,
+                                    expression: exp_boxed,
+                                    template_spans: spans_boxed,
+                                }),
+                                after_spans,
+                            ))),
+                        }
+                    }
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+// TemplateSpans[Yield, Await, Tagged] :
+//      TemplateTail
+//      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateTail
+#[derive(Debug)]
+pub enum TemplateSpans {
+    Tail(scanner::TemplateData, bool),
+    List(Box<TemplateMiddleList>, scanner::TemplateData, bool),
+}
+
+impl fmt::Display for TemplateSpans {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TemplateSpans::Tail(td, _) => write!(f, "}}{}`", format!("{}", td.trv).replace(char::is_control, "\u{2426}")),
+            TemplateSpans::List(tml, td, _) => write!(f, "{} }}{}`", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}")),
+        }
+    }
+}
+
+impl PrettyPrint for TemplateSpans {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}TemplateSpans: {}", first, self)?;
+        match self {
+            TemplateSpans::Tail(_, _) => Ok(()),
+            TemplateSpans::List(tml, _, _) => tml.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+}
+
+impl TemplateSpans {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (token, after_tmplt) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+        match token {
+            scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
+            scanner::Token::TemplateMiddle(td) => {
+                let pot_tml = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
+                match pot_tml {
+                    None => Ok(None),
+                    Some((boxed_tml, after_tml)) => {
+                        let (tail, after_tail) = scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+                        match tail {
+                            scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::List(boxed_tml, td, tagged_flag)), after_tail))),
+                            _ => Ok(None),
+                        }
+                    }
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
+// TemplateMiddleList[Yield, Await, Tagged] :
+//      TemplateMiddle Expression[+In, ?Yield, ?Await]
+//      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
+#[derive(Debug)]
+pub enum TemplateMiddleList {
+    ListEnd(scanner::TemplateData, Box<Expression>, bool),
+    ListMid(Box<TemplateMiddleList>, scanner::TemplateData, Box<Expression>, bool),
+}
+
+impl fmt::Display for TemplateMiddleList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TemplateMiddleList::ListEnd(td, exp, _) => write!(f, "}}{}${{ {}", format!("{}", td.trv).replace(char::is_control, "\u{2426}"), exp),
+            TemplateMiddleList::ListMid(tml, td, exp, _) => write!(f, "{} }}{}${{ {}", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}"), exp),
+        }
+    }
+}
+
+impl PrettyPrint for TemplateMiddleList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
+        match self {
+            TemplateMiddleList::ListEnd(_, exp, _) => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            TemplateMiddleList::ListMid(tml, _, exp, _) => {
+                tml.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                exp.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl TemplateMiddleList {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let mut current_node = None;
+        let mut current_scanner = scanner;
+        loop {
+            let (middle, after_mid) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+            match middle {
+                scanner::Token::TemplateMiddle(td) => {
+                    let pot_exp = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
+                    match pot_exp {
+                        None => {
+                            return match current_node {
+                                None => Ok(None),
+                                Some(boxed) => Ok(Some((boxed, current_scanner))),
+                            };
+                        }
+                        Some((boxed_exp, after_exp)) => {
+                            let node = Some(Box::new(match current_node {
+                                None => TemplateMiddleList::ListEnd(td, boxed_exp, tagged_flag),
+                                Some(previous) => TemplateMiddleList::ListMid(previous, td, boxed_exp, tagged_flag),
+                            }));
+                            current_node = node;
+                            current_scanner = after_exp;
+                        }
+                    }
+                }
+                _ => {
+                    return match current_node {
+                        None => Ok(None),
+                        Some(boxed) => Ok(Some((boxed, current_scanner))),
+                    };
+                }
+            }
+        }
     }
 }
 
@@ -1119,7 +1368,7 @@ impl PrettyPrint for TemplateLiteral {
 //      ( Expression[+In, ?Yield, ?Await] )
 #[derive(Debug)]
 pub enum ParenthesizedExpression {
-    Expression(Box<Expression>)
+    Expression(Box<Expression>),
 }
 
 impl fmt::Display for ParenthesizedExpression {
@@ -1166,13 +1415,13 @@ impl ParenthesizedExpression {
                         let (right_paren, after_rp) = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
                         match right_paren {
                             scanner::Token::RightParen => Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp))),
-                            _ => Ok(None)
+                            _ => Ok(None),
                         }
                     }
-                    None => Ok(None)
+                    None => Ok(None),
                 }
             }
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 }
@@ -1195,7 +1444,7 @@ mod tests {
         let (pe1, _) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
         pretty_check(&*pe1, "PrimaryExpression: this", vec![]);
         let (pe2, _) = check(PrimaryExpression::parse(&mut newparser("1"), Scanner::new(), false, false));
-        pretty_check(&*pe2, "PrimaryExpression: Number(1.0)", vec!["Literal: Number(1.0)"]);
+        pretty_check(&*pe2, "PrimaryExpression: 1", vec!["Literal: 1"]);
         let (pe3, _) = check(PrimaryExpression::parse(&mut newparser("i"), Scanner::new(), false, false));
         pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
         let (pe4, _) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
@@ -1204,6 +1453,8 @@ mod tests {
         pretty_check(&*pe5, "PrimaryExpression: { }", vec!["ObjectLiteral: { }"]);
         let (pe6, _) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
         pretty_check(&*pe6, "PrimaryExpression: ( a )", vec!["ParenthesizedExpression: ( a )"]);
+        let (pe7, _) = check(PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false));
+        pretty_check(&*pe7, "PrimaryExpression: `rust` (rust)", vec!["TemplateLiteral: `rust` (rust)"]);
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -1306,7 +1557,7 @@ mod tests {
         let (lit, scanner) = check(Literal::parse(&mut newparser(".25"), Scanner::new()));
         chk_scan(&scanner, 3);
         assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)));
-        pretty_check(&*lit, "Literal: Number(0.25)", vec![]);
+        pretty_check(&*lit, "Literal: 0.25", vec![]);
     }
     #[test]
     fn literal_test_bigint() {
@@ -1368,7 +1619,7 @@ mod tests {
     #[test]
     fn spread_element_test_pretty() {
         let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
-        pretty_check(&*se, "SpreadElement: ... Number(1.0)", vec!["AssignmentExpression: Number(1.0)"]);
+        pretty_check(&*se, "SpreadElement: ... 1", vec!["AssignmentExpression: 1"]);
         format!("{:?}", se);
     }
 
@@ -1381,7 +1632,7 @@ mod tests {
         let (el, scanner) = check(ElementList::parse(&mut newparser("3"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
-        pretty_check(&*el, "ElementList: Number(3.0)", vec!["AssignmentExpression: Number(3.0)"]);
+        pretty_check(&*el, "ElementList: 3", vec!["AssignmentExpression: 3"]);
         format!("{:?}", *el);
     }
     #[test]
@@ -1389,7 +1640,7 @@ mod tests {
         let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*el, ElementList::AssignmentExpression((Some(be), _)) if be.count == 2));
-        pretty_check(&*el, "ElementList: , , Number(3.0)", vec!["Elisions: , ,", "AssignmentExpression: Number(3.0)"]);
+        pretty_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "AssignmentExpression: 3"]);
     }
     #[test]
     fn element_list_test_05() {
@@ -1557,14 +1808,14 @@ mod tests {
         let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()));
         chk_scan(&scanner, 1);
         assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
-        pretty_check(&*lpn, "LiteralPropertyName: Number(0.0)", vec![]);
+        pretty_check(&*lpn, "LiteralPropertyName: 0", vec![]);
     }
     #[test]
     fn literal_property_name_test_04() {
         let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("1n"), Scanner::new()));
         chk_scan(&scanner, 2);
         assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
-        pretty_check(&*lpn, "LiteralPropertyName: BigInt(BigInt { sign: Plus, data: BigUint { data: [1] } })", vec![]);
+        pretty_check(&*lpn, "LiteralPropertyName: 1", vec![]);
     }
 
     // PROPERTY NAME
@@ -1701,5 +1952,101 @@ mod tests {
         check_none(ParenthesizedExpression::parse(&mut newparser(""), Scanner::new(), false, false));
         check_none(ParenthesizedExpression::parse(&mut newparser("("), Scanner::new(), false, false));
         check_none(ParenthesizedExpression::parse(&mut newparser("(0"), Scanner::new(), false, false));
+    }
+
+    // TEMPLATE MIDDLE LIST
+    #[test]
+    fn template_middle_list_test_01() {
+        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}a${0"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*tml, TemplateMiddleList::ListEnd(_, _, _)));
+        pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
+        format!("{:?}", tml);
+    }
+    #[test]
+    fn template_middle_list_test_02() {
+        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 8);
+        assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
+        pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "Expression: b"]);
+        format!("{:?}", tml);
+    }
+    #[test]
+    fn template_middle_list_test_03() {
+        check_none(TemplateMiddleList::parse(&mut newparser(""), Scanner::new(), false, false, false));
+        check_none(TemplateMiddleList::parse(&mut newparser("}abc${@"), Scanner::new(), false, false, false));
+    }
+    #[test]
+    fn template_middle_list_test_04() {
+        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*tml, TemplateMiddleList::ListEnd(_, _, _)));
+        pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
+        format!("{:?}", tml);
+    }
+
+    // TEMPLATE SPANS
+    #[test]
+    fn template_spans_test_01() {
+        let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}done`"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*ts, TemplateSpans::Tail(_, _)));
+        pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
+        format!("{:?}", ts);
+    }
+    #[test]
+    fn template_spans_test_02() {
+        let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}${a}done`"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(&*ts, TemplateSpans::List(_, _, _)));
+        pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
+        format!("{:?}", ts);
+    }
+    #[test]
+    fn template_spans_test_03() {
+        check_none(TemplateSpans::parse(&mut newparser(""), Scanner::new(), false, false, false));
+        check_none(TemplateSpans::parse(&mut newparser("}${blue"), Scanner::new(), false, false, false));
+    }
+
+    // SUBSTITUTION TEMPLATE
+    #[test]
+    fn substitution_template_test_01() {
+        let (st, scanner) = check(SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 6);
+        assert_eq!(st.tagged, false);
+        pretty_check(&*st, "SubstitutionTemplate: `${ a }`", vec!["Expression: a", "TemplateSpans: }`"]);
+        format!("{:?}", st);
+    }
+    #[test]
+    fn substitution_template_test_02() {
+        check_none(SubstitutionTemplate::parse(&mut newparser(""), Scanner::new(), false, false, false));
+        check_none(SubstitutionTemplate::parse(&mut newparser("`${"), Scanner::new(), false, false, false));
+        check_none(SubstitutionTemplate::parse(&mut newparser("`${a"), Scanner::new(), false, false, false));
+    }
+
+    // TEMPLATE LITERAL
+    #[test]
+    fn template_literal_test_01() {
+        let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`rust`"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate(_, _)));
+        if let TemplateLiteral::NoSubstitutionTemplate(_, tagged) = &*tl {
+            assert_eq!(*tagged, false);
+        }
+        pretty_check(&*tl, "TemplateLiteral: `rust` (rust)", vec![]);
+        format!("{:?}", tl);
+    }
+    #[test]
+    fn template_literal_test_02() {
+        let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate(_)));
+        pretty_check(&*tl, "TemplateLiteral: `${ a }`", vec!["SubstitutionTemplate: `${ a }`"]);
+        format!("{:?}", tl);
+    }
+    #[test]
+    fn template_literal_test_03() {
+        check_none(TemplateLiteral::parse(&mut newparser(""), Scanner::new(), false, false, false));
+        check_none(TemplateLiteral::parse(&mut newparser("`${"), Scanner::new(), false, false, false));
     }
 }

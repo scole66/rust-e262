@@ -123,7 +123,7 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
-        pretty_check(&*ue, "UpdateExpression: Number(78.0)", vec!["LeftHandSideExpression: Number(78.0)"]);
+        pretty_check(&*ue, "UpdateExpression: 78", vec!["LeftHandSideExpression: 78"]);
     }
     #[test]
     fn update_expression_test_preinc() {

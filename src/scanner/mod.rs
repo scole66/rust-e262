@@ -204,6 +204,10 @@ pub enum Token {
     Number(f64),
     BigInt(BigInt),
     String(JSString),
+    NoSubstitutionTemplate(TemplateData),
+    TemplateHead(TemplateData),
+    TemplateMiddle(TemplateData),
+    TemplateTail(TemplateData),
     Error,
 }
 
@@ -611,11 +615,7 @@ fn identifier_part(scanner: &Scanner, source: &str) -> Result<Option<Scanner>, S
 }
 
 fn code_point_to_utf16_code_units(ch: char) -> Vec<u16> {
-    let mut buf = [0; 2];
-    let code_units = ch.encode_utf16(&mut buf);
-    let mut result = Vec::new();
-    result.extend_from_slice(code_units);
-    result
+    utf16_encode_code_point(CharVal::from(ch))
 }
 
 #[derive(Debug, PartialEq)]
@@ -1509,9 +1509,350 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     Some((Token::String(value), after))
 }
 
+#[derive(Debug, PartialEq)]
+pub struct TemplateData {
+    pub tv: Option<JSString>,
+    pub trv: JSString,
+    pub starting_index: usize,
+    pub byte_length: usize,
+}
+
+fn push_utf16(buf: &mut Vec<u16>, ch: char) {
+    let mut b = [0; 2];
+    buf.extend_from_slice(ch.encode_utf16(&mut b));
+}
+
+#[derive(Debug, PartialEq)]
+struct THDCount(usize);
+impl TryFrom<usize> for THDCount {
+    type Error = &'static str;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if value <= 4 {
+            Ok(THDCount(value))
+        } else {
+            Err("THDCount can only be used with values <= 4")
+        }
+    }
+}
+
+impl From<THDCount> for usize {
+    fn from(tc: THDCount) -> Self {
+        let THDCount(num) = tc;
+        num
+    }
+}
+
+fn template_hex_digits(iter: &mut std::iter::Peekable<std::str::Chars>, identifier: u16, count: THDCount, scanner: &Scanner) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
+    let mut accumulator = 0;
+    let mut successful = true;
+    let mut consumed = 1;
+    let mut raw_chars = [identifier, 0, 0, 0, 0];
+    for i in 0..usize::from(count) {
+        let pot_digit = iter.next();
+        if !pot_digit.map_or(false, |c| c.is_ascii_hexdigit()) {
+            successful = false;
+            break;
+        }
+        consumed += 1;
+        accumulator = (accumulator << 4) + pot_digit.unwrap().to_digit(16).unwrap();
+        raw_chars[i + 1] = pot_digit.unwrap() as u16;
+    }
+    (
+        if successful { Some(vec![accumulator as u16]) } else { None },
+        raw_chars[..consumed].to_vec(),
+        Scanner {
+            line: scanner.line,
+            column: scanner.column + consumed as u32,
+            start_idx: scanner.start_idx + consumed,
+        },
+        consumed,
+    )
+}
+
+#[derive(Debug, PartialEq)]
+pub struct CharVal(u32);
+impl TryFrom<u32> for CharVal {
+    type Error = &'static str;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value <= 0x10ffff {
+            Ok(CharVal(value))
+        } else {
+            Err("CharVal can only be used with values <= 0x10ffff")
+        }
+    }
+}
+
+//impl From<u16> for CharVal {
+//    fn from(val: u16) -> Self {
+//        CharVal(val as u32)
+//    }
+//}
+
+impl From<char> for CharVal {
+    fn from(val: char) -> Self {
+        CharVal(val as u32)
+    }
+}
+
+//impl From<CharVal> for u32 {
+//    fn from(cv: CharVal) -> Self {
+//        let CharVal(num) = cv;
+//        num
+//    }
+//}
+
+fn utf16_encode_code_point(cv: CharVal) -> Vec<u16> {
+    let CharVal(value) = cv;
+    if value <= 0xffff {
+        vec![value as u16]
+    } else {
+        vec![(((value - 0x10000) >> 10) + 0xD800) as u16, (((value - 0x10000) & 0x3ff) + 0xDC00) as u16]
+    }
+}
+
+fn template_hex_digits_by_value(iter: &mut std::iter::Peekable<std::str::Chars>, scanner: &Scanner) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
+    let mut accumulator = 0;
+    let mut consumed = 2;
+    let mut raw_chars = vec!['u' as u16, '{' as u16];
+    loop {
+        let pot_digit = iter.next();
+        if !pot_digit.map_or(false, |c| c.is_ascii_hexdigit()) {
+            let tv;
+            let cv = CharVal::try_from(accumulator);
+            if consumed == 2 || pot_digit != Some('}') || cv.is_err() {
+                tv = None;
+            } else {
+                // "unwrap" below is ok, because we've just validated the cv is_ok().
+                tv = Some(utf16_encode_code_point(cv.unwrap()));
+                raw_chars.push('}' as u16);
+                consumed += 1;
+            }
+            return (
+                tv,
+                raw_chars,
+                Scanner {
+                    line: scanner.line,
+                    column: scanner.column + consumed as u32,
+                    start_idx: scanner.start_idx + consumed,
+                },
+                consumed,
+            );
+        } else {
+            consumed += 1;
+            let digit = pot_digit.unwrap(); // This is ok, because we've already validated as a hex digit char.
+            let value = digit.to_digit(16).unwrap(); // This is also ok, because we've already validated as a hex digit char.
+
+            // If the _current_ accumulator fits in a CharVal, add the new value to the accumulator. (This may produce
+            // an invalid char; we're only checking to prevent overflow, which takes many additional digits.)
+            match CharVal::try_from(accumulator) {
+                Err(_) => {} // Value already not-a-character. Don't add any more.
+                Ok(_) => {
+                    // There's still room to build up a value. Add 4 more bits!
+                    accumulator = (accumulator << 4) + value;
+                }
+            }
+            raw_chars.push(digit as u16);
+        }
+    }
+}
+
+fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16>, Scanner, usize) {
+    let mut chars = source[scanner.start_idx..].chars().peekable();
+    let single_char = |ch: char, val: u16, scanner: &Scanner| {
+        (
+            Some(vec![val]),
+            utf16_encode_code_point(CharVal::from(ch)),
+            Scanner {
+                line: scanner.line,
+                column: scanner.column + 1,
+                start_idx: scanner.start_idx + ch.len_utf8(),
+            },
+            1,
+        )
+    };
+    match chars.next() {
+        None =>
+        // This is "The file ended at a backslash while inside a template". It's gonna fail the Template token
+        // match, because there's no terminating character sequence, so it doesn't much matter _what_ we return.
+        {
+            (None, vec![], scanner, 0)
+        }
+        Some('b') => single_char('b', 8, &scanner),
+        Some('t') => single_char('t', 9, &scanner),
+        Some('n') => single_char('n', 10, &scanner),
+        Some('v') => single_char('v', 11, &scanner),
+        Some('f') => single_char('f', 12, &scanner),
+        Some('r') => single_char('r', 13, &scanner),
+        Some('"') => single_char('"', 0x22, &scanner),
+        Some('\'') => single_char('\'', 0x27, &scanner),
+        Some('\\') => single_char('\\', 0x5c, &scanner),
+        Some('0') if !chars.peek().map_or(false, |c| c.is_digit(10)) => single_char('0', 0, &scanner),
+        Some(c) if c.is_digit(10) => (
+            None,
+            utf16_encode_code_point(CharVal::from(c)),
+            Scanner {
+                line: scanner.line,
+                column: scanner.column + 1,
+                start_idx: scanner.start_idx + c.len_utf8(),
+            },
+            1,
+        ),
+        Some('x') => template_hex_digits(&mut chars, 'x' as u16, THDCount::try_from(2).unwrap(), &scanner),
+        Some('u') => {
+            let pot_brace_or_digit = chars.peek();
+            if pot_brace_or_digit.map_or(false, |c| *c == '{') {
+                // \u{digits} style
+                chars.next();
+                template_hex_digits_by_value(&mut chars, &scanner)
+            } else {
+                template_hex_digits(&mut chars, 'u' as u16, THDCount::try_from(4).unwrap(), &scanner)
+            }
+        }
+        Some(c) if ['\n', '\u{2028}', '\u{2029}'].contains(&c) => (
+            Some(vec![]),
+            utf16_encode_code_point(CharVal::from(c)),
+            Scanner {
+                line: scanner.line + 1,
+                column: 1,
+                start_idx: scanner.start_idx + c.len_utf8(),
+            },
+            1,
+        ),
+        Some('\r') => {
+            let consumed;
+            if chars.peek() == Some(&'\n') {
+                consumed = 2;
+            } else {
+                consumed = 1;
+            }
+            (
+                Some(vec![]),
+                vec!['\n' as u16],
+                Scanner {
+                    line: scanner.line + 1,
+                    column: 1,
+                    start_idx: scanner.start_idx + consumed,
+                },
+                consumed,
+            )
+        }
+        Some(c) => (
+            Some(utf16_encode_code_point(CharVal::from(c))),
+            utf16_encode_code_point(CharVal::from(c)),
+            Scanner {
+                line: scanner.line,
+                column: scanner.column + 1,
+                start_idx: scanner.start_idx + c.len_utf8(),
+            },
+            1,
+        ),
+    }
+}
+
+fn template_characters(scanner: &Scanner, source: &str) -> (Option<JSString>, JSString, Scanner) {
+    let mut tv: Option<Vec<u16>> = Some(Vec::new());
+    let mut trv: Vec<u16> = Vec::new();
+    let mut chars = source[scanner.start_idx..].chars().peekable();
+    let mut current_scanner = *scanner;
+    loop {
+        let ch = chars.next();
+        match ch {
+            None | Some('`') => {
+                return (tv.map(|t| JSString::take(t)), JSString::take(trv), current_scanner);
+            }
+            Some('$') if chars.peek() == Some(&'{') => {
+                return (tv.map(|t| JSString::take(t)), JSString::take(trv), current_scanner);
+            }
+            Some('\\') => {
+                current_scanner.column += 1;
+                current_scanner.start_idx += 1;
+                let (newtv, newtrv, after_escape, chars_consumed) = template_escape(current_scanner, source);
+                for _ in 0..chars_consumed {
+                    chars.next();
+                }
+                current_scanner = after_escape;
+                push_utf16(&mut trv, '\\');
+                trv.extend(newtrv.iter());
+                if let Some(ttv) = &mut tv {
+                    match &newtv {
+                        Some(newttv) => {
+                            ttv.extend(newttv.iter());
+                        }
+                        None => {
+                            tv = None;
+                        }
+                    }
+                }
+            }
+            Some(c) => {
+                if let Some(ttv) = &mut tv {
+                    push_utf16(ttv, c);
+                }
+                push_utf16(&mut trv, c);
+                current_scanner.column += 1;
+                current_scanner.start_idx += c.len_utf8();
+            }
+        }
+    }
+}
+
+enum TemplateStyle {
+    NoSubOrHead,
+    MiddleOrTail,
+}
+
+fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Option<(Token, Scanner)> {
+    let first_match = match style {
+        TemplateStyle::NoSubOrHead => '`',
+        TemplateStyle::MiddleOrTail => '}',
+    };
+    let after_leading_quote = match_char(scanner, source, first_match)?;
+    let (tv, trv, after_chars) = template_characters(&after_leading_quote, source);
+    let pot_trailing_quote = match_char(&after_chars, source, '`');
+    match pot_trailing_quote {
+        Some(after_trailing_quote) => {
+            let make_token = match style {
+                TemplateStyle::NoSubOrHead => |td| Token::NoSubstitutionTemplate(td),
+                TemplateStyle::MiddleOrTail => |td| Token::TemplateTail(td),
+            };
+            Some((
+                make_token(TemplateData {
+                    tv,
+                    trv,
+                    starting_index: scanner.start_idx,
+                    byte_length: after_trailing_quote.start_idx - scanner.start_idx,
+                }),
+                after_trailing_quote,
+            ))
+        }
+        None => {
+            let pot_template_head = match_char(&after_chars, source, '$').and_then(|r| match_char(&r, source, '{'));
+            match pot_template_head {
+                Some(after_template_head) => {
+                    let make_token = match style {
+                        TemplateStyle::NoSubOrHead => |td| Token::TemplateHead(td),
+                        TemplateStyle::MiddleOrTail => |td| Token::TemplateMiddle(td),
+                    };
+                    Some((
+                        make_token(TemplateData {
+                            tv,
+                            trv,
+                            starting_index: scanner.start_idx,
+                            byte_length: after_template_head.start_idx - scanner.start_idx,
+                        }),
+                        after_template_head,
+                    ))
+                }
+                None => None,
+            }
+        }
+    }
+}
+
 fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    match_char(scanner, source, '`')?;
-    todo!();
+    template_token(scanner, source, TemplateStyle::NoSubOrHead)
 }
 
 fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
@@ -1592,16 +1933,11 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
         Ok(None)
     }
 }
-fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<Option<(Token, Scanner)>, String> {
+fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementRegExpOrTemplateTail || goal == ScanGoal::InputElementTemplateTail {
-        let ch = source[scanner.start_idx..].chars().next();
-        if ch == Some('}') {
-            todo!();
-        } else {
-            Ok(None)
-        }
+        template_token(scanner, source, TemplateStyle::MiddleOrTail)
     } else {
-        Ok(None)
+        None
     }
 }
 
@@ -1620,7 +1956,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(To
             if r.is_none() {
                 r = regular_expression_literal(&after_skippable, source, goal)?;
                 if r.is_none() {
-                    r = template_substitution_tail(&after_skippable, source, goal)?;
+                    r = template_substitution_tail(&after_skippable, source, goal);
                     if r.is_none() {
                         r = Some((Token::Error, after_skippable));
                     }
@@ -2276,7 +2612,7 @@ mod tests {
     #[test]
     fn punctuator_nomatch() {
         let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::Error, Scanner {line:1, column:1, start_idx:0})));
+        assert_eq!(result, Ok((Token::Error, Scanner { line: 1, column: 1, start_idx: 0 })));
     }
     #[test]
     fn signed_integer_01() {
@@ -2528,11 +2864,6 @@ mod tests {
     fn template_test() {
         assert_eq!(template(&Scanner::new(), "Q"), None);
     }
-    #[should_panic]
-    #[test]
-    fn template_test_panic() {
-        template(&Scanner::new(), "``");
-    }
 
     #[test]
     fn div_punctuator_test() {
@@ -2602,10 +2933,20 @@ mod tests {
         );
     }
     #[test]
-    #[should_panic]
-    fn common_token_test_panic() {
+    fn common_token_test_nstemp() {
         let r = common_token(&Scanner::new(), "``");
-        drop(r);
+        assert_eq!(
+            r,
+            Ok(Some((
+                Token::NoSubstitutionTemplate(TemplateData {
+                    tv: Some(JSString::from("")),
+                    trv: JSString::from(""),
+                    starting_index: 0,
+                    byte_length: 2
+                }),
+                Scanner { line: 1, column: 3, start_idx: 2 }
+            )))
+        )
     }
 
     #[test]
@@ -2631,22 +2972,12 @@ mod tests {
 
     #[test]
     fn template_literal_test_01() {
-        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExp), Ok(None));
-        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), Ok(None));
-        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementDiv), Ok(None));
-        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), Ok(None));
-        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementDiv), Ok(None));
-        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExp), Ok(None));
-    }
-    #[test]
-    #[should_panic]
-    fn template_literal_test_02() {
-        drop(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementTemplateTail));
-    }
-    #[test]
-    #[should_panic]
-    fn template_literal_test_03() {
-        drop(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExpOrTemplateTail));
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExp), None);
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), None);
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementDiv), None);
+        assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), None);
+        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementDiv), None);
+        assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExp), None);
     }
 
     #[test]
@@ -2671,12 +3002,260 @@ mod tests {
     #[test]
     fn scan_token_panic_01() {
         let r = scan_token(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        assert_eq!(r, Ok((Token::Error, Scanner {line:1, column: 1, start_idx:0})));
+        assert_eq!(r, Ok((Token::Error, Scanner { line: 1, column: 1, start_idx: 0 })));
+    }
+
+    #[test]
+    fn thd_count_test_01() {
+        assert!(THDCount::try_from(5).is_err())
     }
     #[test]
-    #[should_panic]
-    fn scan_token_panic_02() {
-        let r = scan_token(&Scanner::new(), "} middle template {", ScanGoal::InputElementTemplateTail);
-        drop(r);
+    fn thd_count_test_02() {
+        assert!(THDCount::try_from(4) == Ok(THDCount(4)));
+    }
+    #[test]
+    fn thd_count_test_03() {
+        assert!(THDCount::try_from(0) == Ok(THDCount(0)));
+    }
+
+    #[test]
+    fn template_test_01() {
+        let r = scan_token(&Scanner::new(), "``", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: Some(JSString::from("")),
+                trv: JSString::from(""),
+                starting_index: 0,
+                byte_length: 2,
+            })
+        );
+    }
+    #[test]
+    fn template_test_02() {
+        let r = scan_token(&Scanner::new(), "`a`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: Some(JSString::from("a")),
+                trv: JSString::from("a"),
+                starting_index: 0,
+                byte_length: 3,
+            })
+        );
+    }
+    #[test]
+    fn template_test_03() {
+        let r = scan_token(&Scanner::new(), "`aa`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 5, start_idx: 4 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: Some(JSString::from("aa")),
+                trv: JSString::from("aa"),
+                starting_index: 0,
+                byte_length: 4,
+            })
+        );
+    }
+    #[test]
+    fn template_test_04() {
+        let r = scan_token(&Scanner::new(), "`=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 45, start_idx: 47 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: Some(JSString::from("=\u{0}\u{8}\u{9}\u{a}\u{b}\u{c}\u{d}\"'\\f\u{2288}\u{1f48b}\u{1f498}")),
+                trv: JSString::from("=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}"),
+                starting_index: 0,
+                byte_length: 47,
+            })
+        );
+    }
+    #[test]
+    fn template_test_05() {
+        let r = scan_token(&Scanner::new(), "`\\ubob`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 8, start_idx: 7 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\ubob"),
+                starting_index: 0,
+                byte_length: 7,
+            })
+        );
+    }
+    #[test]
+    fn template_test_06() {
+        let r = scan_token(&Scanner::new(), "`\\u{}`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 7, start_idx: 6 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\u{}"),
+                starting_index: 0,
+                byte_length: 6,
+            })
+        );
+    }
+    #[test]
+    fn template_test_07() {
+        let r = scan_token(&Scanner::new(), "`\\u{9999999999999999999999999999999999999999999999999999999999}`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 65, start_idx: 64 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\u{9999999999999999999999999999999999999999999999999999999999}"),
+                starting_index: 0,
+                byte_length: 64,
+            })
+        );
+    }
+    #[test]
+    fn template_test_08() {
+        let r = scan_token(&Scanner::new(), "`\\u{9999:`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 11, start_idx: 10 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\u{9999:"),
+                starting_index: 0,
+                byte_length: 10,
+            })
+        );
+    }
+    #[test]
+    fn template_test_09() {
+        let r = scan_token(&Scanner::new(), "`\\", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
+        assert_eq!(token, Token::Error);
+    }
+    #[test]
+    fn template_test_10() {
+        let r = scan_token(&Scanner::new(), "`\\03`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\03"),
+                starting_index: 0,
+                byte_length: 5,
+            })
+        );
+    }
+    #[test]
+    fn template_test_11() {
+        let r = scan_token(&Scanner::new(), "`\\03 and escapes later? \\u{1f48b}?`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 36, start_idx: 35 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: None,
+                trv: JSString::from("\\03 and escapes later? \\u{1f48b}?"),
+                starting_index: 0,
+                byte_length: 35,
+            })
+        );
+    }
+    #[test]
+    fn template_test_12() {
+        let r = scan_token(&Scanner::new(), "`one\\\ntwo\\\u{2028}three\\\u{2029}four\\\r\nfive\\\rsix`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 6, column: 5, start_idx: 39 });
+        assert_eq!(
+            token,
+            Token::NoSubstitutionTemplate(TemplateData {
+                tv: Some(JSString::from("onetwothreefourfivesix")),
+                trv: JSString::from("one\\\ntwo\\\u{2028}three\\\u{2029}four\\\nfive\\\nsix"),
+                starting_index: 0,
+                byte_length: 39,
+            })
+        );
+    }
+    #[test]
+    fn template_test_13() {
+        let r = scan_token(&Scanner::new(), "`This ${thing} is great`", ScanGoal::InputElementRegExp);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 9, start_idx: 8 });
+        assert_eq!(
+            token,
+            Token::TemplateHead(TemplateData {
+                tv: Some(JSString::from("This ")),
+                trv: JSString::from("This "),
+                starting_index: 0,
+                byte_length: 8,
+            })
+        );
+    }
+
+    #[test]
+    fn template_test_14() {
+        let r = scan_token(&Scanner::new(), "}${", ScanGoal::InputElementTemplateTail);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
+        assert_eq!(
+            token,
+            Token::TemplateMiddle(TemplateData {
+                tv: Some(JSString::from("")),
+                trv: JSString::from(""),
+                starting_index: 0,
+                byte_length: 3,
+            })
+        );
+    }
+    #[test]
+    fn template_test_15() {
+        let r = scan_token(&Scanner::new(), "}`", ScanGoal::InputElementTemplateTail);
+        assert!(r.is_ok());
+        let (token, scanner) = r.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
+        assert_eq!(
+            token,
+            Token::TemplateTail(TemplateData {
+                tv: Some(JSString::from("")),
+                trv: JSString::from(""),
+                starting_index: 0,
+                byte_length: 2
+            })
+        );
+    }
+
+    #[test]
+    fn charval_test() {
+        assert_eq!(CharVal::try_from(0x10fffe), Ok(CharVal(0x10fffe)));
+        assert!(CharVal::try_from(0x200000).is_err());
+        assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x10ab32));
     }
 }

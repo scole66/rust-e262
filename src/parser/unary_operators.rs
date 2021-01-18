@@ -141,7 +141,7 @@ mod tests {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("900"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
-        pretty_check(&*ue, "UnaryExpression: Number(900.0)", vec!["UpdateExpression: Number(900.0)"]);
+        pretty_check(&*ue, "UnaryExpression: 900", vec!["UpdateExpression: 900"]);
     }
     #[test]
     fn unary_expression_test_delete() {

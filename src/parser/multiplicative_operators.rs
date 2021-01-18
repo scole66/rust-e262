@@ -67,7 +67,7 @@ impl IsFunctionDefinition for MultiplicativeExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_) => false,
-            MultiplicativeExpression::ExponentiationExpression(ee) => ee.is_function_definition()
+            MultiplicativeExpression::ExponentiationExpression(ee) => ee.is_function_definition(),
         }
     }
 }
@@ -76,7 +76,7 @@ impl AssignmentTargetType for MultiplicativeExpression {
     fn assignment_target_type(&self) -> ATTKind {
         match self {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_) => ATTKind::Invalid,
-            MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type()
+            MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(),
         }
     }
 }

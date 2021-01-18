@@ -1516,8 +1516,8 @@ mod tests {
         format!("{:?}", ce);
         pretty_check(
             &*ce,
-            "CallExpression: blue ( pop ) ( snap ) ( Number(10.0) ) ( Number(20.0) )",
-            vec!["CallExpression: blue ( pop ) ( snap ) ( Number(10.0) )", "Arguments: ( Number(20.0) )"],
+            "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
         );
         assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }

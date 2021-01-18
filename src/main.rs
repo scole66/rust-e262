@@ -3,9 +3,11 @@
 use std::env;
 use std::io::{self, Write};
 
+mod dtoa_r;
 mod parser;
 mod prettyprint;
 mod scanner;
+mod values;
 
 use parser::comma_operator::Expression;
 use parser::unary_operators::UnaryExpression;
