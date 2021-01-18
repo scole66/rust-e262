@@ -7,7 +7,7 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MultiplicativeOperator {
     Multiply,
     Divide,
@@ -46,6 +46,9 @@ impl MultiplicativeOperator {
     }
 }
 
+// MultiplicativeExpression[Yield, Await] :
+//      ExponentiationExpression[?Yield, ?Await]
+//      MultiplicativeExpression[?Yield, ?Await] MultiplicativeOperator ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum MultiplicativeExpression {
     ExponentiationExpression(Box<ExponentiationExpression>),
@@ -129,9 +132,81 @@ impl MultiplicativeExpression {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::pretty_check;
+
+    // MULTIPLICATIVE OPERATOR
+    #[test]
+    fn multiplicative_operator_test_01() {
+        let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("*"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        assert_eq!(*mo, MultiplicativeOperator::Multiply);
+        pretty_check(&*mo, "MultiplicativeOperator: *", vec![]);
+        format!("{:?}", mo);
+    }
+    #[test]
+    fn multiplicative_operator_test_02() {
+        let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("/"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        assert_eq!(*mo, MultiplicativeOperator::Divide);
+        pretty_check(&*mo, "MultiplicativeOperator: /", vec![]);
+        format!("{:?}", mo);
+    }
+    #[test]
+    fn multiplicative_operator_test_03() {
+        let (mo, scanner) = check(MultiplicativeOperator::parse(&mut newparser("%"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        assert_eq!(*mo, MultiplicativeOperator::Modulo);
+        pretty_check(&*mo, "MultiplicativeOperator: %", vec![]);
+        format!("{:?}", mo);
+    }
+    #[test]
+    fn multiplicative_operator_test_04() {
+        check_none(MultiplicativeOperator::parse(&mut newparser("@"), Scanner::new()));
+    }
+
+    // MULTIPLICATIVE EXPRESSION
+    #[test]
+    fn multiplicative_expression_test_01() {
+        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*me, MultiplicativeExpression::ExponentiationExpression(_)));
+        pretty_check(&*me, "MultiplicativeExpression: a", vec!["ExponentiationExpression: a"]);
+        format!("{:?}", me);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn multiplicative_expression_test_02() {
+        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)));
+        pretty_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+        );
+        format!("{:?}", me);
+        assert_eq!(me.is_function_definition(), false);
+        assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn multiplicative_expression_test_04() {
+        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b * @"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)));
+        pretty_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+        );
+        format!("{:?}", me);
+    }
+    #[test]
+    fn multiplicative_expression_test_03() {
+        check_none(MultiplicativeExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+}
