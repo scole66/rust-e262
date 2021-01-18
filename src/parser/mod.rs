@@ -62,6 +62,7 @@ pub mod left_hand_side_expressions;
 pub mod method_definitions;
 pub mod multiplicative_operators;
 pub mod primary_expressions;
+pub mod relational_operators;
 pub mod unary_operators;
 pub mod update_expressions;
 

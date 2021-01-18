@@ -6,11 +6,11 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
-use super::bitwise_shift_operators::ShiftExpression;
+use super::relational_operators::RelationalExpression;
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<ShiftExpression>),
+    Temp(Box<RelationalExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -51,8 +51,8 @@ impl AssignmentTargetType for AssignmentExpression {
 }
 
 impl AssignmentExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-        let potential = ShiftExpression::parse(parser, scanner, yield_flag, await_flag)?;
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
+        let potential = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match potential {
             None => Ok(None),
             Some((boxed, scanner)) => Ok(Some((
