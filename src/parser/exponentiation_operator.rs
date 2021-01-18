@@ -44,7 +44,7 @@ impl IsFunctionDefinition for ExponentiationExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             ExponentiationExpression::Exponentiation(_) => false,
-            ExponentiationExpression::UnaryExpression(ue) => ue.is_function_definition()
+            ExponentiationExpression::UnaryExpression(ue) => ue.is_function_definition(),
         }
     }
 }
@@ -53,7 +53,7 @@ impl AssignmentTargetType for ExponentiationExpression {
     fn assignment_target_type(&self) -> ATTKind {
         match self {
             ExponentiationExpression::Exponentiation(_) => ATTKind::Invalid,
-            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type()
+            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(),
         }
     }
 }
@@ -88,9 +88,45 @@ impl ExponentiationExpression {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::pretty_check;
+
+    // EXPONENTIATION EXPRESSION
+    #[test]
+    fn exponentiation_expression_test_01() {
+        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
+        pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
+        format!("{:?}", se);
+        assert_eq!(se.is_function_definition(), false);
+        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn exponentiation_expression_test_02() {
+        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*se, ExponentiationExpression::Exponentiation(_)));
+        pretty_check(&*se, "ExponentiationExpression: a ** b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
+        format!("{:?}", se);
+        assert_eq!(se.is_function_definition(), false);
+        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn exponentiation_expression_test_03() {
+        check_none(ExponentiationExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn exponentiation_expression_test_04() {
+        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
+        pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
+        format!("{:?}", se);
+        assert_eq!(se.is_function_definition(), false);
+        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
+    }
+}
