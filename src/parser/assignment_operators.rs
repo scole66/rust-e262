@@ -6,11 +6,11 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
-use super::additive_operators::AdditiveExpression;
+use super::bitwise_shift_operators::ShiftExpression;
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<AdditiveExpression>),
+    Temp(Box<ShiftExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -52,7 +52,7 @@ impl AssignmentTargetType for AssignmentExpression {
 
 impl AssignmentExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, _in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-        let potential = AdditiveExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        let potential = ShiftExpression::parse(parser, scanner, yield_flag, await_flag)?;
         match potential {
             None => Ok(None),
             Some((boxed, scanner)) => Ok(Some((
