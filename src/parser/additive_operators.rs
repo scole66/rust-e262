@@ -49,7 +49,7 @@ impl IsFunctionDefinition for AdditiveExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             AdditiveExpression::AdditiveExpressionAdd(_) | AdditiveExpression::AdditiveExpressionSubtract(_) => false,
-            AdditiveExpression::MultiplicativeExpression(me) => me.is_function_definition()
+            AdditiveExpression::MultiplicativeExpression(me) => me.is_function_definition(),
         }
     }
 }
@@ -58,7 +58,7 @@ impl AssignmentTargetType for AdditiveExpression {
     fn assignment_target_type(&self) -> ATTKind {
         match self {
             AdditiveExpression::AdditiveExpressionAdd(_) | AdditiveExpression::AdditiveExpressionSubtract(_) => ATTKind::Invalid,
-            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type()
+            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(),
         }
     }
 }
@@ -102,9 +102,55 @@ impl AdditiveExpression {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::pretty_check;
+
+    // ADDITIVE EXPRESSION
+    #[test]
+    fn additive_expression_test_01() {
+        let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(_)));
+        pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
+        format!("{:?}", ae);
+        assert_eq!(ae.is_function_definition(), false);
+        assert_eq!(ae.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn additive_expression_test_02() {
+        let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a+b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*ae, AdditiveExpression::AdditiveExpressionAdd(_)));
+        pretty_check(&*ae, "AdditiveExpression: a + b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
+        format!("{:?}", ae);
+        assert_eq!(ae.is_function_definition(), false);
+        assert_eq!(ae.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn additive_expression_test_03() {
+        let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a-b"), Scanner::new(), false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*ae, AdditiveExpression::AdditiveExpressionSubtract(_)));
+        pretty_check(&*ae, "AdditiveExpression: a - b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
+        format!("{:?}", ae);
+        assert_eq!(ae.is_function_definition(), false);
+        assert_eq!(ae.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn additive_expression_test_04() {
+        let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a-@"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(_)));
+        pretty_check(&*ae, "AdditiveExpression: a", vec!["MultiplicativeExpression: a"]);
+        format!("{:?}", ae);
+        assert_eq!(ae.is_function_definition(), false);
+        assert_eq!(ae.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn additive_expression_test_05() {
+        check_none(AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+}
