@@ -71,7 +71,7 @@ impl AdditiveExpression {
                 let mut current = Box::new(AdditiveExpression::MultiplicativeExpression(me));
                 let mut current_scanner = after_me;
                 loop {
-                    let (token, after_op) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    let (token, after_op) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                     let kind_fn: fn(Box<AdditiveExpression>, Box<MultiplicativeExpression>) -> AdditiveExpression;
                     match token {
                         scanner::Token::Plus => {
@@ -106,7 +106,7 @@ impl AdditiveExpression {
 mod tests {
     use super::testhelp::{check, check_none, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
 
     // ADDITIVE EXPRESSION
     #[test]
@@ -152,5 +152,15 @@ mod tests {
     #[test]
     fn additive_expression_test_05() {
         check_none(AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+    }
+    #[test]
+    fn additive_expression_test_06() {
+        assert!(AdditiveExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), false, false).is_err());
+        assert!(AdditiveExpression::parse(&mut newparser("a + \\u0066or"), Scanner::new(), false, false).is_err());
+    }
+    #[test]
+    fn additive_expression_test_prettyerrors() {
+        let (item, _) = AdditiveExpression::parse(&mut newparser("3+4"), Scanner::new(), false, false).unwrap().unwrap();
+        pretty_error_validate(*item);
     }
 }

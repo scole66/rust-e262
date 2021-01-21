@@ -36,7 +36,7 @@ impl PrettyPrint for MultiplicativeOperator {
 
 impl MultiplicativeOperator {
     fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<MultiplicativeOperator>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv)?;
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
         match tok {
             scanner::Token::Star => Ok(Some((Box::new(MultiplicativeOperator::Multiply), after_tok))),
             scanner::Token::Slash => Ok(Some((Box::new(MultiplicativeOperator::Divide), after_tok))),

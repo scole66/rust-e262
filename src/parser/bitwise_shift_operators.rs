@@ -75,7 +75,7 @@ impl ShiftExpression {
                 let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
                 let mut current_scan = after_ae;
                 loop {
-                    let (shift_op, after_op) = scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv)?;
+                    let (shift_op, after_op) = scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv);
                     match shift_op {
                         scanner::Token::GtGt | scanner::Token::GtGtGt | scanner::Token::LtLt => {
                             let pot_ae2 = AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)?;
@@ -111,7 +111,7 @@ impl ShiftExpression {
 mod tests {
     use super::testhelp::{check, check_none, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
 
     // SHIFT EXPRESSION
     #[test]
@@ -166,4 +166,15 @@ mod tests {
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
+    #[test]
+    fn shift_expression_test_07() {
+        assert!(ShiftExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), false, false).is_err());
+        assert!(ShiftExpression::parse(&mut newparser("a >> \\u0066or"), Scanner::new(), false, false).is_err());
+    }
+    #[test]
+    fn shift_expression_test_prettyerrors() {
+        let (item, _) = ShiftExpression::parse(&mut newparser("3>>4"), Scanner::new(), false, false).unwrap().unwrap();
+        pretty_error_validate(*item);
+    }
+
 }

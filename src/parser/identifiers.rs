@@ -39,7 +39,7 @@ impl fmt::Display for Identifier {
 
 impl Identifier {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Identifier(id) => match id.keyword_id {
                 Some(scanner::Keyword::Await)
@@ -233,7 +233,7 @@ impl IdentifierReference {
                 Ok(Some((boxed, scanner)))
             }
             None => {
-                let (token, scan) = scanner::scan_token(&initial_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scan) = scanner::scan_token(&initial_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::Identifier(id) if !arg_await && id.keyword_id == Some(scanner::Keyword::Await) => Ok(Some((
                         Box::new(IdentifierReference {
@@ -334,7 +334,7 @@ impl BindingIdentifier {
                 Ok(Some((boxed, scanner)))
             }
             None => {
-                let (token, scan) = scanner::scan_token(&starting_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scan) = scanner::scan_token(&starting_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::Identifier(id) => match id.keyword_id {
                         Some(scanner::Keyword::Await) => Ok(Some((
@@ -546,8 +546,8 @@ mod tests {
     #[test]
     fn identifier_test_err() {
         let result = Identifier::parse(&mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script), Scanner::new());
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "1:5: Invalid Identifier Continuation Character ' '")
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
     fn identifier_test_strict(kwd: &str) {
         let result = Identifier::parse(&mut super::Parser::new(kwd, true, super::ParseGoal::Script), Scanner::new());

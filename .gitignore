@@ -1,4 +1,6 @@
 /target
 .vscode/
 *.profraw
+*.profdata
 *.lst
+.cargo

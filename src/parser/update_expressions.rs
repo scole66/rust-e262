@@ -65,7 +65,7 @@ impl AssignmentTargetType for UpdateExpression {
 
 impl UpdateExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match token {
             scanner::Token::PlusPlus => {
                 // Seen ++ ...
@@ -93,7 +93,7 @@ impl UpdateExpression {
                 let pot_lhs = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 match pot_lhs {
                     Some((boxed, after_lhs)) => {
-                        let (token, after_token) = scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (token, after_token) = scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp);
                         if after_token.line != after_lhs.line {
                             Ok(Some((Box::new(UpdateExpression::LeftHandSideExpression(boxed)), after_lhs)))
                         } else {

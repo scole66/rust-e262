@@ -193,7 +193,7 @@ impl ToPrimaryExpressionKind for ThisToken {
 }
 
 fn this_token(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
-    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
     Ok(match tok {
         scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => Some((Box::new(ThisToken {}), scanner)),
         _ => None,
@@ -231,7 +231,7 @@ impl Elisions {
         let mut comma_count: usize = 0;
         let mut current_scanner = scanner;
         loop {
-            let (token, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (token, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
             if token != scanner::Token::Comma {
                 return if comma_count == 0 {
                     Ok(None)
@@ -271,7 +271,7 @@ impl PrettyPrint for SpreadElement {
 
 impl SpreadElement {
     fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SpreadElement>, Scanner)>, String> {
-        let (token, after_ellipsis) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, after_ellipsis) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::Ellipsis {
             Ok(None)
         } else {
@@ -412,7 +412,7 @@ impl ElementList {
         }
 
         loop {
-            let (token, after_tok) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (token, after_tok) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
             match token {
                 scanner::Token::Comma => {
                     let (elision, boxed_ae, boxed_se, after) = Self::non_recursive_part(parser, after_tok, yield_flag, await_flag)?;
@@ -479,7 +479,7 @@ impl PrettyPrint for ArrayLiteral {
 
 impl ArrayLiteral {
     fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::LeftBracket {
             return Ok(None);
         }
@@ -489,14 +489,14 @@ impl ArrayLiteral {
                 let pot_elision = Elisions::parse(parser, after)?;
                 match pot_elision {
                     None => {
-                        let (closing, end_scan) = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (closing, end_scan) = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp);
                         if closing == scanner::Token::RightBracket {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(None)), end_scan)));
                         }
                         return Ok(None);
                     }
                     Some((elisions, after_2)) => {
-                        let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
                         if closing == scanner::Token::RightBracket {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(Some(elisions))), end_scan)));
                         }
@@ -505,7 +505,7 @@ impl ArrayLiteral {
                 }
             }
             Some((boxed_el, after_el_scan)) => {
-                let (comma_or_bracket, after_cb) = scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (comma_or_bracket, after_cb) = scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match comma_or_bracket {
                     scanner::Token::RightBracket => {
                         return Ok(Some((Box::new(ArrayLiteral::ElementList(boxed_el)), after_cb)));
@@ -514,14 +514,14 @@ impl ArrayLiteral {
                         let pot_elision = Elisions::parse(parser, after_cb)?;
                         match pot_elision {
                             None => {
-                                let (closing, end_scan) = scanner::scan_token(&after_cb, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                let (closing, end_scan) = scanner::scan_token(&after_cb, parser.source, scanner::ScanGoal::InputElementRegExp);
                                 if closing == scanner::Token::RightBracket {
                                     return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, None)), end_scan)));
                                 }
                                 return Ok(None);
                             }
                             Some((elisions, after_2)) => {
-                                let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
                                 if closing == scanner::Token::RightBracket {
                                     return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, Some(elisions))), end_scan)));
                                 }
@@ -564,7 +564,7 @@ impl PrettyPrint for Initializer {
 
 impl Initializer {
     fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Initializer>, Scanner)>, String> {
-        let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::Eq {
             return Ok(None);
         }
@@ -643,14 +643,14 @@ impl PrettyPrint for ComputedPropertyName {
 
 impl ComputedPropertyName {
     fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::LeftBracket => {
                 let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 match pot_ae {
                     None => Ok(None),
                     Some((ae, after_ae)) => {
-                        let (tok2, after_rb) = scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (tok2, after_rb) = scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match tok2 {
                             scanner::Token::RightBracket => Ok(Some((Box::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))),
                             _ => Ok(None),
@@ -697,7 +697,7 @@ impl PrettyPrint for LiteralPropertyName {
 
 impl LiteralPropertyName {
     fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Identifier(id) => Ok(Some((
                 Box::new(LiteralPropertyName::IdentifierName(Box::new(IdentifierNameToken {
@@ -810,7 +810,7 @@ impl PropertyDefinition {
         let pot_pn = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_pn {
             Some((pn, after_pn)) => {
-                let (tok, after_tok) = scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (tok, after_tok) = scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match tok {
                     scanner::Token::Colon => {
                         let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
@@ -851,7 +851,7 @@ impl PropertyDefinition {
     }
 
     fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Ellipsis => {
                 let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
@@ -917,7 +917,7 @@ impl PropertyDefinitionList {
                 let mut current_production = Box::new(PropertyDefinitionList::OneDef(pd));
                 let mut current_scanner = after_pd;
                 loop {
-                    let (comma, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    let (comma, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                     match comma {
                         scanner::Token::Comma => {
                             let pot_pd2 = PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag)?;
@@ -979,24 +979,24 @@ impl PrettyPrint for ObjectLiteral {
 
 impl ObjectLiteral {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (lb, after_brace) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (lb, after_brace) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match lb {
             scanner::Token::LeftBrace => {
                 let pot_pdl = PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag)?;
                 match pot_pdl {
                     None => {
-                        let (rb, after_brace2) = scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (rb, after_brace2) = scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match rb {
                             scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Empty), after_brace2))),
                             _ => Ok(None),
                         }
                     }
                     Some((pdl, after_pdl)) => {
-                        let (comma_or_brace, after_punct) = scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (comma_or_brace, after_punct) = scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match comma_or_brace {
                             scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Normal(pdl)), after_punct))),
                             scanner::Token::Comma => {
-                                let (rb2, after_brace3) = scanner::scan_token(&after_punct, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                let (rb2, after_brace3) = scanner::scan_token(&after_punct, parser.source, scanner::ScanGoal::InputElementRegExp);
                                 match rb2 {
                                     scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))),
                                     _ => Ok(None),
@@ -1069,7 +1069,7 @@ impl PrettyPrint for Literal {
 
 impl Literal {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Literal>, Scanner)>, String> {
-        let scan_result = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let scan_result = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         let (token, newscanner) = scan_result;
         match token {
             scanner::Token::Identifier(id) => match id.keyword_id {
@@ -1158,7 +1158,7 @@ impl PrettyPrint for TemplateLiteral {
 
 impl TemplateLiteral {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_nst) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after_nst) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::NoSubstitutionTemplate(td) => Ok(Some((Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))),
             scanner::Token::TemplateHead(_) => {
@@ -1209,7 +1209,7 @@ impl PrettyPrint for SubstitutionTemplate {
 
 impl SubstitutionTemplate {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (head, after_head) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (head, after_head) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match head {
             scanner::Token::TemplateHead(td) => {
                 let pot_exp = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
@@ -1271,7 +1271,7 @@ impl PrettyPrint for TemplateSpans {
 
 impl TemplateSpans {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_tmplt) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+        let (token, after_tmplt) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
         match token {
             scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
             scanner::Token::TemplateMiddle(td) => {
@@ -1279,7 +1279,7 @@ impl TemplateSpans {
                 match pot_tml {
                     None => Ok(None),
                     Some((boxed_tml, after_tml)) => {
-                        let (tail, after_tail) = scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+                        let (tail, after_tail) = scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail);
                         match tail {
                             scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::List(boxed_tml, td, tagged_flag)), after_tail))),
                             _ => Ok(None),
@@ -1332,7 +1332,7 @@ impl TemplateMiddleList {
         let mut current_node = None;
         let mut current_scanner = scanner;
         loop {
-            let (middle, after_mid) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail)?;
+            let (middle, after_mid) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
             match middle {
                 scanner::Token::TemplateMiddle(td) => {
                     let pot_exp = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
@@ -1406,13 +1406,13 @@ impl AssignmentTargetType for ParenthesizedExpression {
 
 impl ParenthesizedExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (left_paren, after_lp) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (left_paren, after_lp) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match left_paren {
             scanner::Token::LeftParen => {
                 let pot_exp = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
                 match pot_exp {
                     Some((exp, after_exp)) => {
-                        let (right_paren, after_rp) = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let (right_paren, after_rp) = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match right_paren {
                             scanner::Token::RightParen => Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp))),
                             _ => Ok(None),

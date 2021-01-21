@@ -92,7 +92,7 @@ impl AssignmentTargetType for UnaryExpression {
 
 impl UnaryExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         let mut unary_helper =
             |f: fn(Box<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).and_then(|opt| opt.map_or(Ok(None), |(boxed, after)| Ok(Some((Box::new(f(boxed)), after)))));
         match token {

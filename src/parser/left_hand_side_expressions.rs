@@ -195,10 +195,10 @@ where
 fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await_flag: bool, pair: (Box<MemberExpression>, Scanner)) -> Result<Option<(Box<MemberExpression>, Scanner)>, String> {
     let (mut current_me, mut after_scan) = pair;
     loop {
-        let (tok, after) = scanner::scan_token(&after_scan, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, after) = scanner::scan_token(&after_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Dot => {
-                let token_after_dot = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let token_after_dot = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp);
                 if let (scanner::Token::Identifier(id), after_id) = token_after_dot {
                     let me = Box::new(MemberExpression {
                         kind: MemberExpressionKind::IdentifierName(MemberExpressionIdentifierName {
@@ -221,7 +221,7 @@ fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await
                         return Err(format!("Expect Expression after ‘[’."));
                     }
                     Some((expression, after_exp)) => {
-                        let after_exp = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                        let after_exp = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match after_exp {
                             (scanner::Token::RightBracket, scanner) => {
                                 let me = Box::new(MemberExpression {
@@ -260,7 +260,8 @@ impl MemberExpression {
             .and_then(|opt| opt.map_or(Ok(None), |x| member_expression_head_recursive(parser, yield_flag, await_flag, x)))
     }
     fn new_memberexpression_arguments(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<NewMemberExpressionArguments>, Scanner)>, String> {
-        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        match token {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => MemberExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|opt| {
                 opt.map_or(Ok(None), |(me, scan)| {
                     Arguments::parse(parser, scan, yield_flag, await_flag).and_then(|opt| {
@@ -277,7 +278,7 @@ impl MemberExpression {
                 })
             }),
             _ => Ok(None),
-        })
+        }
     }
 }
 
@@ -316,14 +317,14 @@ impl PrettyPrint for SuperProperty {
 
 impl SuperProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SuperProperty>, Scanner)>, String> {
-        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
-                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
                     scanner::Token::LeftBracket => Expression::parse(parser, scanner, true, yield_flag, await_flag).and_then(|opt| {
                         opt.map_or_else(
                             || Err(String::from("‘super[’ must be followed by an Expression")),
                             |(exp_boxed, scanner)| {
-                                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                                Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
                                     scanner::Token::RightBracket => Ok(Some((
                                         Box::new(SuperProperty {
                                             kind: SuperPropertyKind::Expression(exp_boxed),
@@ -335,7 +336,7 @@ impl SuperProperty {
                             },
                         )
                     }),
-                    scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                    scanner::Token::Dot => Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
                         scanner::Token::Identifier(id) => Ok(Some((
                             Box::new(SuperProperty {
                                 kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken {
@@ -390,18 +391,22 @@ impl AssignmentTargetType for MetaProperty {
 }
 
 fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: scanner::Keyword, kind: MetaPropertyKind) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
-    scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
-        scanner::Token::Dot => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(kwd) => Ok(Some((Box::new(MetaProperty { kind }), scanner))),
-            _ => Ok(None),
-        }),
+    let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+    match token {
+        scanner::Token::Dot => {
+            let (token2, scanner2) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+            match token2 {
+                scanner::Token::Identifier(id) if id.keyword_id == Some(kwd) => Ok(Some((Box::new(MetaProperty { kind }), scanner2))),
+                _ => Ok(None),
+            }
+        }
         _ => Ok(None),
-    })
+    }
 }
 
 impl MetaProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<MetaProperty>, Scanner)>, String> {
-        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => dot_token(parser, scanner, scanner::Keyword::Target, MetaPropertyKind::NewTarget),
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => dot_token(parser, scanner, scanner::Keyword::Meta, MetaPropertyKind::ImportMeta),
             _ => Ok(None),
@@ -446,18 +451,18 @@ impl PrettyPrint for Arguments {
 
 impl Arguments {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Arguments>, Scanner)>, String> {
-        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+        Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
             scanner::Token::LeftParen => ArgumentList::parse(parser, scanner, yield_flag, await_flag).and_then(|opt| {
                 opt.map_or_else(
                     || {
-                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                        Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
                             scanner::Token::RightParen => Ok(Some((Box::new(Arguments { kind: ArgumentsKind::Empty }), scanner))),
                             _ => Ok(None),
                         })
                     },
                     |(arglist_boxed, scanner)| {
-                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
-                            scanner::Token::Comma => scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp).and_then(|(token, scanner)| match token {
+                        Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
+                            scanner::Token::Comma => Ok(scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
                                 scanner::Token::RightParen => Ok(Some((
                                     Box::new(Arguments {
                                         kind: ArgumentsKind::ArgumentListComma(arglist_boxed),
@@ -527,7 +532,7 @@ impl ArgumentListKind {
     // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
     pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Self, Scanner)>, String> {
         // Get the next token
-        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match token {
             scanner::Token::Ellipsis => {
                 // It was an ellipsis, so now try to get the AssignmentExpression
@@ -558,7 +563,7 @@ impl ArgumentListKind {
     //    * None, indicating that no ',' was detected
     //    * an Err with a human readable message about what went wrong
     fn parse_al_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match token {
             scanner::Token::Comma => AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag),
             _ => Ok(None),
@@ -573,10 +578,10 @@ impl ArgumentListKind {
     //    * None, indicating that neither a ',' nor a '...' was detected
     //    * an Err with a human readable message about what went wrong
     fn parse_al_dots_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match token {
             scanner::Token::Comma => {
-                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::Ellipsis => AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag),
                     _ => Ok(None),
@@ -722,7 +727,7 @@ impl NewExpression {
         let pot_me = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_me {
             None => {
-                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::New) => {
                         let pot_ne = Self::parse(parser, scanner, yield_flag, await_flag)?;
@@ -819,7 +824,7 @@ impl PrettyPrint for SuperCall {
 
 impl SuperCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Super) => {
                 let pot_args = Arguments::parse(parser, scanner, yield_flag, await_flag)?;
@@ -857,11 +862,11 @@ impl PrettyPrint for ImportCall {
 
 impl ImportCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+        let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Import) => {
                 // Got "import"
-                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match tok {
                     scanner::Token::LeftParen => {
                         // Got "import ("
@@ -870,7 +875,7 @@ impl ImportCall {
                             None => Ok(None),
                             Some((ae_boxed, scanner)) => {
                                 // Got "import ( AssignmentExpression"
-                                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                                let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                                 match tok {
                                     scanner::Token::RightParen => {
                                         // Got "import ( AssignmentExpression )"
@@ -992,7 +997,7 @@ impl CallExpression {
         }
         let (mut top_box, mut top_scanner) = first_parse.unwrap();
         loop {
-            let (tok, scanner) = scanner::scan_token(&top_scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+            let (tok, scanner) = scanner::scan_token(&top_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
             match tok {
                 scanner::Token::LeftParen => {
                     // Don't consume the token in this particular case.
@@ -1016,7 +1021,7 @@ impl CallExpression {
                             break;
                         }
                         Some((exp_boxed, scanner)) => {
-                            let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                            let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                             match tok {
                                 scanner::Token::RightBracket => {
                                     top_box = Box::new(Self {
@@ -1032,7 +1037,7 @@ impl CallExpression {
                     }
                 }
                 scanner::Token::Dot => {
-                    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                     match tok {
                         scanner::Token::Identifier(_) => {
                             top_box = Box::new(Self {

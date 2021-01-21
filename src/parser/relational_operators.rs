@@ -97,7 +97,7 @@ impl RelationalExpression {
                 let mut current = Box::new(RelationalExpression::ShiftExpression(se));
                 let mut current_scanner = after_se;
                 loop {
-                    let (op, after_op) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv)?;
+                    let (op, after_op) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
                     let make_re = match &op {
                         scanner::Token::Lt => |re, se| RelationalExpression::Less(re, se),
                         scanner::Token::Gt => |re, se| RelationalExpression::Greater(re, se),

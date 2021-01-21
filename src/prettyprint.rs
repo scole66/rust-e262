@@ -73,4 +73,60 @@ pub mod testhelp {
         }
         assert!(expected_iter.next().is_none());
     }
+
+    struct MockWriter<T>
+    where
+        T: Write,
+    {
+        writer: T,
+        pub count: usize,
+        target: usize,
+        pub error_generated: bool,
+    }
+    impl<T> std::io::Write for MockWriter<T>
+    where
+        T: Write,
+    {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.count += 1;
+            if self.count >= self.target {
+                self.error_generated = true;
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
+            } else {
+                self.writer.write(buf)
+            }
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.writer.flush()
+        }
+    }
+    impl<T> MockWriter<T>
+    where
+        T: Write,
+    {
+        fn new(writer: T, errat: usize) -> Self {
+            MockWriter {
+                writer,
+                count: 0,
+                target: errat,
+                error_generated: false,
+            }
+        }
+    }
+    pub fn pretty_error_validate<T>(item: T)
+    where
+        T: PrettyPrint,
+    {
+        let mut target = 1;
+        loop {
+            let mut writer = MockWriter::new(Vec::new(), target);
+            let result = item.pprint(&mut writer);
+            assert!(result.is_err() || !writer.error_generated);
+            if !writer.error_generated {
+                break;
+            }
+            target += 1;
+        }
+        assert!(target > 5); // Just to be sure the system is not utterly broken
+    }
 }

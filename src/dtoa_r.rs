@@ -7,7 +7,7 @@ extern "C" {
     pub fn dtoa_rust(value: c_double, decpt: *mut c_int, sign: *mut c_int, outbuf: *mut c_uchar, buflen: size_t);
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct DtoAResult {
     pub chars: String,
     pub decpt: i32,

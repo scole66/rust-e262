@@ -63,7 +63,7 @@ impl ExponentiationExpression {
         let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut result = match pot_ue {
             Some((boxed_ue, after_ue)) => {
-                let (token, scanner) = scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp)?;
+                let (token, scanner) = scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::StarStar => {
                         let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
@@ -92,7 +92,7 @@ impl ExponentiationExpression {
 mod tests {
     use super::testhelp::{check, check_none, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
 
     // EXPONENTIATION EXPRESSION
     #[test]
@@ -128,5 +128,15 @@ mod tests {
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn exponentiation_expression_test_05() {
+        assert!(ExponentiationExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), false, false).is_err());
+        assert!(ExponentiationExpression::parse(&mut newparser("a ** \\u0066or"), Scanner::new(), false, false).is_err());
+    }
+    #[test]
+    fn exponentiation_expression_test_prettyerrors() {
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap().unwrap();
+        pretty_error_validate(*item);
     }
 }

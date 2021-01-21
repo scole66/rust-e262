@@ -208,7 +208,7 @@ pub enum Token {
     TemplateHead(TemplateData),
     TemplateMiddle(TemplateData),
     TemplateTail(TemplateData),
-    Error,
+    Error(String),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -832,32 +832,40 @@ fn identifier_name_keyword(source: &str) -> Option<Keyword> {
     }
 }
 
-pub fn identifier_name(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
+pub fn identifier_name(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     // IdentifierName ::
     //    IdentifierStart
     //    IdentifierName IdentifierPart
     // (I.e.: An IdentifierStart followed by any number of IdentifierParts)
 
-    let is_result = identifier_start(scanner, source)?;
+    let is_result = identifier_start(scanner, source);
     let mut scanner_1;
     match is_result {
-        None => return Ok(None),
-        Some(scanner) => scanner_1 = scanner,
+        Err(msg) => {
+            return Some((Token::Error(msg), *scanner));
+        }
+        Ok(None) => {
+            return None;
+        }
+        Ok(Some(scanner)) => scanner_1 = scanner,
     };
 
     loop {
-        let ip_result = identifier_part(&scanner_1, source)?;
+        let ip_result = identifier_part(&scanner_1, source);
         match ip_result {
-            None => {
+            Err(msg) => {
+                return Some((Token::Error(msg), scanner_1));
+            }
+            Ok(None) => {
                 break;
             }
-            Some(after) => {
+            Ok(Some(after)) => {
                 scanner_1 = after;
             }
         }
     }
 
-    Ok(Some((
+    Some((
         Token::Identifier(IdentifierData {
             string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
@@ -865,7 +873,7 @@ pub fn identifier_name(scanner: &Scanner, source: &str) -> Result<Option<(Token,
             column: scanner.column,
         }),
         scanner_1,
-    )))
+    ))
 }
 
 fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
@@ -1855,9 +1863,9 @@ fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     template_token(scanner, source, TemplateStyle::NoSubOrHead)
 }
 
-fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanner)>, String> {
+fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     let mut r;
-    r = identifier_name(scanner, source)?;
+    r = identifier_name(scanner, source);
     if r.is_none() {
         r = numeric_literal(scanner, source);
         if r.is_none() {
@@ -1870,7 +1878,7 @@ fn common_token(scanner: &Scanner, source: &str) -> Result<Option<(Token, Scanne
             }
         }
     }
-    Ok(r)
+    r
 }
 
 fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
@@ -1921,16 +1929,16 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
         None
     }
 }
-fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<Option<(Token, Scanner)>, String> {
+fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('/') {
-            Ok(None) //todo!();
+            None //todo!();
         } else {
-            Ok(None)
+            None
         }
     } else {
-        Ok(None)
+        None
     }
 }
 fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
@@ -1941,30 +1949,35 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
     }
 }
 
-pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> Result<(Token, Scanner), String> {
-    let after_skippable = skip_skippables(scanner, source)?;
-    if after_skippable.start_idx >= source.len() {
-        return Ok((Token::Eof, after_skippable));
-    }
-
-    let mut r;
-    r = common_token(&after_skippable, source)?;
-    if r.is_none() {
-        r = div_punctuator(&after_skippable, source, goal);
-        if r.is_none() {
-            r = right_brace_punctuator(&after_skippable, source, goal);
-            if r.is_none() {
-                r = regular_expression_literal(&after_skippable, source, goal)?;
+pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
+    let skip_result = skip_skippables(scanner, source);
+    match skip_result {
+        Err(msg) => (Token::Error(msg), *scanner),
+        Ok(after_skippable) => {
+            if after_skippable.start_idx >= source.len() {
+                (Token::Eof, after_skippable)
+            } else {
+                let mut r;
+                r = common_token(&after_skippable, source);
                 if r.is_none() {
-                    r = template_substitution_tail(&after_skippable, source, goal);
+                    r = div_punctuator(&after_skippable, source, goal);
                     if r.is_none() {
-                        r = Some((Token::Error, after_skippable));
+                        r = right_brace_punctuator(&after_skippable, source, goal);
+                        if r.is_none() {
+                            r = regular_expression_literal(&after_skippable, source, goal);
+                            if r.is_none() {
+                                r = template_substitution_tail(&after_skippable, source, goal);
+                                if r.is_none() {
+                                    r = Some((Token::Error(String::from("Unrecognized Token")), after_skippable));
+                                }
+                            }
+                        }
                     }
                 }
+                r.unwrap()
             }
         }
     }
-    Ok(r.unwrap())
 }
 
 #[cfg(test)]
@@ -2387,14 +2400,14 @@ mod tests {
     #[test]
     fn scan_numeric() {
         let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 })));
+        assert_eq!(result, (Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 }));
     }
     #[test]
     fn scan_token_id_01() {
         let result = scan_token(&Scanner::new(), "\\u004Abc", ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
-            Ok((
+            (
                 Token::Identifier(IdentifierData {
                     string_value: JSString::from("Jbc"),
                     keyword_id: None,
@@ -2402,14 +2415,14 @@ mod tests {
                     column: 1
                 }),
                 Scanner { line: 1, column: 9, start_idx: 8 }
-            ))
+            )
         );
     }
     fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
-            Ok((
+            (
                 Token::Identifier(IdentifierData {
                     string_value: JSString::from(inp),
                     keyword_id: expected,
@@ -2421,7 +2434,7 @@ mod tests {
                     column: inp.len() as u32 + 1,
                     start_idx: inp.len()
                 }
-            ))
+            )
         );
     }
     #[test]
@@ -2507,35 +2520,35 @@ mod tests {
     #[test]
     fn optional_chaining_test_01() {
         let result = scan_token(&Scanner::new(), "?.", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 })));
+        assert_eq!(result, (Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn optional_chaining_test_02() {
         let result = scan_token(&Scanner::new(), "?.P", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 })));
+        assert_eq!(result, (Token::QDot, Scanner { line: 1, column: 3, start_idx: 2 }));
     }
     #[test]
     fn optional_chaining_test_03() {
         let result = scan_token(&Scanner::new(), "?.999", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::Question, Scanner { line: 1, column: 2, start_idx: 1 })));
+        assert_eq!(result, (Token::Question, Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     #[test]
     fn optional_chaining_test_04() {
         let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::Question, Scanner { line: 1, column: 2, start_idx: 1 })));
+        assert_eq!(result, (Token::Question, Scanner { line: 1, column: 2, start_idx: 1 }));
     }
     fn punct_check(inp: &str, tok: Token) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
-            Ok((
+            (
                 tok,
                 Scanner {
                     line: 1,
                     column: inp.chars().count() as u32 + 1,
                     start_idx: inp.len()
                 }
-            ))
+            )
         );
     }
     #[test]
@@ -2594,14 +2607,14 @@ mod tests {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
         assert_eq!(
             result,
-            Ok((
+            (
                 tok,
                 Scanner {
                     line: 1,
                     column: consumed + 1,
                     start_idx: consumed as usize
                 }
-            ))
+            )
         );
     }
 
@@ -2612,7 +2625,9 @@ mod tests {
     #[test]
     fn punctuator_nomatch() {
         let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok((Token::Error, Scanner { line: 1, column: 1, start_idx: 0 })));
+        let (token, scanner) = result;
+        assert!(matches!(token, Token::Error(_)));
+        assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     }
     #[test]
     fn signed_integer_01() {
@@ -2915,7 +2930,7 @@ mod tests {
     fn common_token_test() {
         assert_eq!(
             common_token(&Scanner::new(), "new"),
-            Ok(Some((
+            Some((
                 Token::Identifier(IdentifierData {
                     column: 1,
                     keyword_id: Some(Keyword::New),
@@ -2923,13 +2938,13 @@ mod tests {
                     string_value: JSString::from("new")
                 }),
                 Scanner { line: 1, column: 4, start_idx: 3 }
-            )))
+            ))
         );
-        assert_eq!(common_token(&Scanner::new(), "10"), Ok(Some((Token::Number(10.0), Scanner { line: 1, column: 3, start_idx: 2 }))));
-        assert_eq!(common_token(&Scanner::new(), "**"), Ok(Some((Token::StarStar, Scanner { line: 1, column: 3, start_idx: 2 }))));
+        assert_eq!(common_token(&Scanner::new(), "10"), Some((Token::Number(10.0), Scanner { line: 1, column: 3, start_idx: 2 })));
+        assert_eq!(common_token(&Scanner::new(), "**"), Some((Token::StarStar, Scanner { line: 1, column: 3, start_idx: 2 })));
         assert_eq!(
             common_token(&Scanner::new(), "'truth'"),
-            Ok(Some((Token::String(JSString::from("truth")), Scanner { line: 1, column: 8, start_idx: 7 })))
+            Some((Token::String(JSString::from("truth")), Scanner { line: 1, column: 8, start_idx: 7 }))
         );
     }
     #[test]
@@ -2937,7 +2952,7 @@ mod tests {
         let r = common_token(&Scanner::new(), "``");
         assert_eq!(
             r,
-            Ok(Some((
+            Some((
                 Token::NoSubstitutionTemplate(TemplateData {
                     tv: Some(JSString::from("")),
                     trv: JSString::from(""),
@@ -2945,29 +2960,28 @@ mod tests {
                     byte_length: 2
                 }),
                 Scanner { line: 1, column: 3, start_idx: 2 }
-            )))
+            ))
         )
     }
 
     #[test]
     fn regular_expression_literal_test_01() {
-        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExp), Ok(None));
-        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), Ok(None));
-        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementDiv), Ok(None));
-        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), Ok(None));
-        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementDiv), Ok(None));
-        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementTemplateTail), Ok(None));
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExp), None);
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), None);
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementDiv), None);
+        assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), None);
+        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementDiv), None);
+        assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementTemplateTail), None);
     }
     #[test]
     fn regular_expression_literal_test_02() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Ok(None));
+        assert_eq!(result, None);
     }
     #[test]
     fn regular_expression_literal_test_03() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -2984,25 +2998,26 @@ mod tests {
     fn scan_token_test_01() {
         assert_eq!(
             scan_token(&Scanner::new(), "", ScanGoal::InputElementRegExp),
-            Ok((Token::Eof, Scanner { line: 1, column: 1, start_idx: 0 }))
+            (Token::Eof, Scanner { line: 1, column: 1, start_idx: 0 })
         );
         assert_eq!(
             scan_token(&Scanner::new(), "  /* nothing to see here */   ", ScanGoal::InputElementRegExp),
-            Ok((Token::Eof, Scanner { line: 1, column: 31, start_idx: 30 }))
+            (Token::Eof, Scanner { line: 1, column: 31, start_idx: 30 })
         );
         assert_eq!(
             scan_token(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
-            Ok((Token::SlashEq, Scanner { line: 1, column: 3, start_idx: 2 }))
+            (Token::SlashEq, Scanner { line: 1, column: 3, start_idx: 2 })
         );
         assert_eq!(
             scan_token(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
-            Ok((Token::RightBrace, Scanner { line: 1, column: 2, start_idx: 1 }))
+            (Token::RightBrace, Scanner { line: 1, column: 2, start_idx: 1 })
         );
     }
     #[test]
     fn scan_token_panic_01() {
-        let r = scan_token(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        assert_eq!(r, Ok((Token::Error, Scanner { line: 1, column: 1, start_idx: 0 })));
+        let (token, scanner) = scan_token(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
+        assert!(matches!(token, Token::Error(_)));
+        assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     }
 
     #[test]
@@ -3021,8 +3036,7 @@ mod tests {
     #[test]
     fn template_test_01() {
         let r = scan_token(&Scanner::new(), "``", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
         assert_eq!(
             token,
@@ -3037,8 +3051,7 @@ mod tests {
     #[test]
     fn template_test_02() {
         let r = scan_token(&Scanner::new(), "`a`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
         assert_eq!(
             token,
@@ -3053,8 +3066,7 @@ mod tests {
     #[test]
     fn template_test_03() {
         let r = scan_token(&Scanner::new(), "`aa`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 5, start_idx: 4 });
         assert_eq!(
             token,
@@ -3069,8 +3081,7 @@ mod tests {
     #[test]
     fn template_test_04() {
         let r = scan_token(&Scanner::new(), "`=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 45, start_idx: 47 });
         assert_eq!(
             token,
@@ -3085,8 +3096,7 @@ mod tests {
     #[test]
     fn template_test_05() {
         let r = scan_token(&Scanner::new(), "`\\ubob`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 8, start_idx: 7 });
         assert_eq!(
             token,
@@ -3101,8 +3111,7 @@ mod tests {
     #[test]
     fn template_test_06() {
         let r = scan_token(&Scanner::new(), "`\\u{}`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 7, start_idx: 6 });
         assert_eq!(
             token,
@@ -3117,8 +3126,7 @@ mod tests {
     #[test]
     fn template_test_07() {
         let r = scan_token(&Scanner::new(), "`\\u{9999999999999999999999999999999999999999999999999999999999}`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 65, start_idx: 64 });
         assert_eq!(
             token,
@@ -3133,8 +3141,7 @@ mod tests {
     #[test]
     fn template_test_08() {
         let r = scan_token(&Scanner::new(), "`\\u{9999:`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 11, start_idx: 10 });
         assert_eq!(
             token,
@@ -3149,16 +3156,14 @@ mod tests {
     #[test]
     fn template_test_09() {
         let r = scan_token(&Scanner::new(), "`\\", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
-        assert_eq!(token, Token::Error);
+        assert!(matches!(token, Token::Error(_)));
     }
     #[test]
     fn template_test_10() {
         let r = scan_token(&Scanner::new(), "`\\03`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
         assert_eq!(
             token,
@@ -3173,8 +3178,7 @@ mod tests {
     #[test]
     fn template_test_11() {
         let r = scan_token(&Scanner::new(), "`\\03 and escapes later? \\u{1f48b}?`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 36, start_idx: 35 });
         assert_eq!(
             token,
@@ -3189,8 +3193,7 @@ mod tests {
     #[test]
     fn template_test_12() {
         let r = scan_token(&Scanner::new(), "`one\\\ntwo\\\u{2028}three\\\u{2029}four\\\r\nfive\\\rsix`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 6, column: 5, start_idx: 39 });
         assert_eq!(
             token,
@@ -3205,8 +3208,7 @@ mod tests {
     #[test]
     fn template_test_13() {
         let r = scan_token(&Scanner::new(), "`This ${thing} is great`", ScanGoal::InputElementRegExp);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 9, start_idx: 8 });
         assert_eq!(
             token,
@@ -3222,8 +3224,7 @@ mod tests {
     #[test]
     fn template_test_14() {
         let r = scan_token(&Scanner::new(), "}${", ScanGoal::InputElementTemplateTail);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
         assert_eq!(
             token,
@@ -3238,8 +3239,7 @@ mod tests {
     #[test]
     fn template_test_15() {
         let r = scan_token(&Scanner::new(), "}`", ScanGoal::InputElementTemplateTail);
-        assert!(r.is_ok());
-        let (token, scanner) = r.unwrap();
+        let (token, scanner) = r;
         assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
         assert_eq!(
             token,
