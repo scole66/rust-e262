@@ -6,11 +6,11 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
-use super::relational_operators::RelationalExpression;
+use super::equality_operators::EqualityExpression;
 
 #[derive(Debug)]
 pub enum AssignmentExpressionKind {
-    Temp(Box<RelationalExpression>),
+    Temp(Box<EqualityExpression>),
 }
 #[derive(Debug)]
 pub struct AssignmentExpression {
@@ -52,7 +52,7 @@ impl AssignmentTargetType for AssignmentExpression {
 
 impl AssignmentExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<AssignmentExpression>, Scanner)>, String> {
-        let potential = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
+        let potential = EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match potential {
             None => Ok(None),
             Some((boxed, scanner)) => Ok(Some((

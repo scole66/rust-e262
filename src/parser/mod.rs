@@ -56,6 +56,7 @@ pub mod assignment_operators;
 pub mod async_function_definitions;
 pub mod bitwise_shift_operators;
 pub mod comma_operator;
+pub mod equality_operators;
 pub mod exponentiation_operator;
 pub mod identifiers;
 pub mod left_hand_side_expressions;
