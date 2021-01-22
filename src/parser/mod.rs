@@ -54,6 +54,7 @@ pub fn rewrap<T, E>(value: T) -> Result<Option<T>, E> {
 pub mod additive_operators;
 pub mod assignment_operators;
 pub mod async_function_definitions;
+pub mod binary_bitwise_operators;
 pub mod bitwise_shift_operators;
 pub mod comma_operator;
 pub mod equality_operators;
