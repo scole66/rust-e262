@@ -7,16 +7,21 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
+// Expression[In, Yield, Await] :
+//      AssignmentExpression[?In, ?Yield, ?Await]
+//      Expression[?In, ?Yield, ?Await] , AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum Expression {
-    // todo!
-    Temp(Box<AssignmentExpression>),
+    FallThru(Box<AssignmentExpression>),
+    Comma(Box<Expression>, Box<AssignmentExpression>),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Self::Temp(boxed) = &self;
-        write!(f, "{}", boxed)
+        match &self {
+            Expression::FallThru(node) => node.fmt(f),
+            Expression::Comma(left, right) => write!(f, "{} , {}", left, right),
+        }
     }
 }
 
@@ -27,32 +32,72 @@ impl PrettyPrint for Expression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Expression: {}", first, self)?;
-        let Expression::Temp(boxed) = &self;
-        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+        match &self {
+            Expression::FallThru(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Expression::Comma(left, right) => {
+                left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
     }
 }
 
 impl IsFunctionDefinition for Expression {
     fn is_function_definition(&self) -> bool {
-        let Expression::Temp(boxed) = self;
-        boxed.is_function_definition()
+        match &self {
+            Expression::FallThru(node) => node.is_function_definition(),
+            Expression::Comma(_, _) => false,
+        }
     }
 }
 
 impl AssignmentTargetType for Expression {
     fn assignment_target_type(&self) -> ATTKind {
-        let Expression::Temp(boxed) = self;
-        boxed.assignment_target_type()
+        match &self {
+            Expression::FallThru(node) => node.assignment_target_type(),
+            Expression::Comma(_, _) => ATTKind::Invalid,
+        }
     }
 }
 
 impl Expression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        // todo!
-        let potential = AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        match potential {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_left = AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
+        match pot_left {
             None => Ok(None),
-            Some((boxed, scanner)) => Ok(Some((Box::new(Expression::Temp(boxed)), scanner))),
+            Some((left, after_left)) => {
+                let mut current = Box::new(Expression::FallThru(left));
+                let mut current_scanner = after_left;
+                loop {
+                    let (token, after_token) =
+                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    match token {
+                        scanner::Token::Comma => {
+                            let pot_right =
+                                AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)?;
+                            match pot_right {
+                                None => {
+                                    break;
+                                }
+                                Some((right, after_right)) => {
+                                    current = Box::new(Expression::Comma(current, right));
+                                    current_scanner = after_right;
+                                }
+                            }
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                Ok(Some((current, current_scanner)))
+            }
         }
     }
 }
