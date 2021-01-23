@@ -52,13 +52,18 @@ pub fn rewrap<T, E>(value: T) -> Result<Option<T>, E> {
 }
 
 pub mod additive_operators;
+pub mod arrow_function_definitions;
 pub mod assignment_operators;
+pub mod async_arrow_function_definitions;
 pub mod async_function_definitions;
 pub mod binary_bitwise_operators;
+pub mod binary_logical_operators;
 pub mod bitwise_shift_operators;
 pub mod comma_operator;
+pub mod conditional_operator;
 pub mod equality_operators;
 pub mod exponentiation_operator;
+pub mod generator_function_definitions;
 pub mod identifiers;
 pub mod left_hand_side_expressions;
 pub mod method_definitions;
