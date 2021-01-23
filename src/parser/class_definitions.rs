@@ -7,6 +7,37 @@ use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
 #[derive(Debug)]
+pub enum ClassDeclaration {}
+
+impl fmt::Display for ClassDeclaration {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "unimplemented")
+    }
+}
+
+impl PrettyPrint for ClassDeclaration {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassDeclaration: {}", first, self)
+    }
+}
+
+impl ClassDeclaration {
+    pub fn parse(
+        _parser: &mut Parser,
+        _scanner: Scanner,
+        _yield_flag: bool,
+        _await_flag: bool,
+        _default_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        Ok(None)
+    }
+}
+
+#[derive(Debug)]
 pub enum ClassExpression {}
 
 impl fmt::Display for ClassExpression {
@@ -41,7 +72,6 @@ impl ClassExpression {
         Ok(None)
     }
 }
-
 //#[cfg(test)]
 //mod tests {
 //    use super::testhelp::{check, check_none, chk_scan, newparser};

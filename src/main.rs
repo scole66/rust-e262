@@ -15,82 +15,6 @@ use parser::Parser;
 use prettyprint::PrettyPrint;
 use scanner::Scanner;
 
-//////// 13.2 Block
-
-// StatementList[Yield, Await, Return]:
-//    StatementListItem[?Yield, ?Await, ?Return]
-//    StatementList[?Yield, ?Await, ?Return] StatementListItem[?Yield, ?Await, ?Return]
-#[derive(Debug)]
-struct StatementlistStatementlistitem {
-    statement_list_item: Box<StatementListItem>,
-}
-#[derive(Debug)]
-struct StatementlistStatementlistStatementlistitem {
-    statement_list: Box<StatementList>,
-    statement_list_item: Box<StatementListItem>,
-}
-#[derive(Debug)]
-enum StatementlistProduction {
-    StatementListItem(StatementlistStatementlistitem),
-    StatementListStatmentListItem(StatementlistStatementlistStatementlistitem),
-}
-#[derive(Debug)]
-struct StatementList {
-    yield_arg: bool,
-    await_arg: bool,
-    return_arg: bool,
-    production: Box<StatementlistProduction>,
-}
-
-// StatementListItem[Yield, Await, Return]:
-//    Statement[?Yield, ?Await, ?Return]
-//    Declaration[?Yield, ?Await]
-#[derive(Debug)]
-struct StatementlistitemStatement {
-    statement: Box<Statement>,
-}
-#[derive(Debug)]
-struct StatementlistitemDeclaration {
-    declaration: Box<Declaration>,
-}
-#[derive(Debug)]
-enum StatementlistitemProduction {
-    Statement(StatementlistitemStatement),
-    Declaration(StatementlistitemDeclaration),
-}
-#[derive(Debug)]
-struct StatementListItem {
-    yield_arg: bool,
-    await_arg: bool,
-    return_arg: bool,
-    production: StatementlistitemProduction,
-}
-
-// tbd
-#[derive(Debug)]
-struct Statement {
-    faux: String,
-}
-#[derive(Debug)]
-struct Declaration {
-    faux: String,
-}
-
-//////// 15.1 Scripts
-
-// Script:
-//    ScriptBody[opt]
-#[derive(Debug)]
-struct Script {
-    script_body: Option<Box<ScriptBody>>,
-}
-
-// ScriptBody:
-//    StatementList[~Yield, ~Await, ~Return]
-#[derive(Debug)]
-struct ScriptBody {
-    statement_list: Box<StatementList>,
-}
 
 #[derive(Debug)]
 struct VM {
@@ -102,42 +26,17 @@ impl VM {
         VM {}
     }
 
-    fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
-        Ok(0)
-    }
+    //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
+    //    Ok(0)
+    //}
 
     fn run(&mut self) -> Result<i32, String> {
         Ok(0)
     }
 }
 
-fn script<'a>(_scanner: &'a mut Scanner) -> Result<Box<Script>, String> {
-    //let ch = scanner.scan_token(ScanGoal::InputElementRegExp);
-    Ok(Box::new(Script { script_body: None }))
-}
-
-#[derive(Debug)]
-struct AST {
-    script: Box<Script>,
-}
-impl AST {
-    fn generate(_source: &str) -> Result<Box<AST>, String> {
-        let mut scanner = Scanner::new();
-        script(&mut scanner).and_then(|s| Ok(Box::new(AST { script: s })))
-    }
-}
-
-fn generate_ast<'a>(_vm: &'a VM, source: &'a str) -> Result<Box<AST>, String> {
-    AST::generate(source)
-}
 
 fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
-    //generate_ast(vm, source).and_then(|ast| vm.compile(&ast)).and_then(|_| vm.run())
-    // let result = scanner::scan_token(
-    //     &Scanner::new(),
-    //     source,
-    //     scanner::ScanGoal::InputElementRegExp,
-    // );
     let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
     let result = Expression::parse(&mut parser, Scanner::new(), true, false, false);
     match result {

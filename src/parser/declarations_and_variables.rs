@@ -7,63 +7,62 @@ use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
 #[derive(Debug)]
-pub enum FunctionDeclaration {}
+pub enum LexicalDeclaration {}
 
-impl fmt::Display for FunctionDeclaration {
+impl fmt::Display for LexicalDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "unimplemented")
     }
 }
 
-impl PrettyPrint for FunctionDeclaration {
+impl PrettyPrint for LexicalDeclaration {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionDeclaration: {}", first, self)
+        writeln!(writer, "{}LexicalDeclaration: {}", first, self)
     }
 }
 
-impl FunctionDeclaration {
+impl LexicalDeclaration {
     pub fn parse(
         _parser: &mut Parser,
         _scanner: Scanner,
+        _in_flag: bool,
         _yield_flag: bool,
         _await_flag: bool,
-        _default_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
     }
 }
 
 #[derive(Debug)]
-pub enum FunctionExpression {}
+pub enum VariableStatement {}
 
-impl fmt::Display for FunctionExpression {
+impl fmt::Display for VariableStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "unimplemented")
     }
 }
 
-impl PrettyPrint for FunctionExpression {
+impl PrettyPrint for VariableStatement {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}FunctionExpression: {}", first, self)
+        writeln!(writer, "{}VariableStatement: {}", first, self)
     }
 }
 
-impl IsFunctionDefinition for FunctionExpression {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
-impl FunctionExpression {
-    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
+impl VariableStatement {
+    pub fn parse(
+        _parser: &mut Parser,
+        _scanner: Scanner,
+        _yield_flag: bool,
+        _await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
     }
 }

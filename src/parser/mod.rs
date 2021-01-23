@@ -60,21 +60,37 @@ pub mod async_generator_function_definitions;
 pub mod binary_bitwise_operators;
 pub mod binary_logical_operators;
 pub mod bitwise_shift_operators;
+pub mod block;
+pub mod break_statement;
 pub mod class_definitions;
 pub mod comma_operator;
 pub mod conditional_operator;
+pub mod continue_statement;
+pub mod debugger_statement;
+pub mod declarations_and_variables;
+pub mod empty_statement;
 pub mod equality_operators;
 pub mod exponentiation_operator;
+pub mod expression_statement;
 pub mod function_definitions;
 pub mod generator_function_definitions;
 pub mod identifiers;
+pub mod if_statement;
+pub mod iteration_statements;
+pub mod labelled_statements;
 pub mod left_hand_side_expressions;
 pub mod method_definitions;
 pub mod multiplicative_operators;
 pub mod primary_expressions;
 pub mod relational_operators;
+pub mod return_statement;
+pub mod statements_and_declarations;
+pub mod switch_statement;
+pub mod throw_statement;
+pub mod try_statement;
 pub mod unary_operators;
 pub mod update_expressions;
+pub mod with_statement;
 
 #[cfg(test)]
 pub mod testhelp {
