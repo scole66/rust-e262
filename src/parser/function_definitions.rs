@@ -20,7 +20,7 @@ impl PrettyPrint for FunctionDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionDeclaration: {}", first, self)
     }
 }
@@ -51,7 +51,7 @@ impl PrettyPrint for FunctionExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionExpression: {}", first, self)
     }
 }

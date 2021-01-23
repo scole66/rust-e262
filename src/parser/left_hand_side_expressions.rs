@@ -3,13 +3,13 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
+use super::comma_operator::Expression;
 use super::identifiers::IdentifierNameToken;
 use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
-use crate::Expression;
 
 //////// 12.3 Left-Hand-Side Expressions
 

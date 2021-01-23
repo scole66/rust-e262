@@ -22,7 +22,7 @@ impl PrettyPrint for ArrowFunction {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFunction: {}", first, self)
     }
 }

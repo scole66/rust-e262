@@ -20,7 +20,7 @@ impl PrettyPrint for GeneratorDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}GeneratorDeclaration: {}", first, self)
     }
 }
@@ -51,7 +51,7 @@ impl PrettyPrint for GeneratorExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}GeneratorExpression: {}", first, self)
     }
 }
@@ -82,7 +82,7 @@ impl PrettyPrint for YieldExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}YieldExpression: {}", first, self)
     }
 }

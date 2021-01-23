@@ -9,12 +9,10 @@ mod prettyprint;
 mod scanner;
 mod values;
 
-use parser::comma_operator::Expression;
-use parser::unary_operators::UnaryExpression;
+use parser::block::StatementList;
 use parser::Parser;
 use prettyprint::PrettyPrint;
 use scanner::Scanner;
-
 
 #[derive(Debug)]
 struct VM {
@@ -35,10 +33,9 @@ impl VM {
     }
 }
 
-
 fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
-    let result = Expression::parse(&mut parser, Scanner::new(), true, false, false);
+    let result = StatementList::parse(&mut parser, Scanner::new(), true, false, false);
     match result {
         Ok(Some((node, _))) => {
             node.pprint(&mut io::stdout()).expect("Output Error");

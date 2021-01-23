@@ -20,7 +20,7 @@ impl PrettyPrint for LabelledStatement {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}LabelledStatement: {}", first, self)
     }
 }

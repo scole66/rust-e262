@@ -21,7 +21,7 @@ impl PrettyPrint for AsyncFunctionDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncFunctionDeclaration: {}", first, self)
     }
 }
@@ -52,7 +52,7 @@ impl PrettyPrint for AsyncFunctionExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncFunctionExpression: {}", first, self)
     }
 }

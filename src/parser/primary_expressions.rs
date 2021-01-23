@@ -99,7 +99,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::AsyncFunction(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::RegularExpression(node) => Ok(()),
+            PrimaryExpressionKind::RegularExpression(_) => Ok(()),
         }
     }
 }
@@ -1584,7 +1584,7 @@ impl TemplateSpans {
             scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
         match token {
             scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
-            scanner::Token::TemplateMiddle(td) => {
+            scanner::Token::TemplateMiddle(_) => {
                 let pot_tml = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
                 match pot_tml {
                     None => Ok(None),

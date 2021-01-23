@@ -20,7 +20,7 @@ impl PrettyPrint for LexicalDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}LexicalDeclaration: {}", first, self)
     }
 }
@@ -51,7 +51,7 @@ impl PrettyPrint for VariableStatement {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}VariableStatement: {}", first, self)
     }
 }

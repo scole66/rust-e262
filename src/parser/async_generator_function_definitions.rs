@@ -20,7 +20,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)
     }
 }
@@ -57,7 +57,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)
     }
 }

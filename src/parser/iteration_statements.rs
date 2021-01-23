@@ -20,7 +20,7 @@ impl PrettyPrint for IterationStatement {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}IterationStatement: {}", first, self)
     }
 }

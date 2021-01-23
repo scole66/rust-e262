@@ -20,7 +20,7 @@ impl PrettyPrint for ClassDeclaration {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}ClassDeclaration: {}", first, self)
     }
 }
@@ -51,7 +51,7 @@ impl PrettyPrint for ClassExpression {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}ClassExpression: {}", first, self)
     }
 }

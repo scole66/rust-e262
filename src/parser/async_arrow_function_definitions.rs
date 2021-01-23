@@ -20,7 +20,7 @@ impl PrettyPrint for AsyncArrowFunction {
     where
         T: Write,
     {
-        let (first, successive) = prettypad(pad, state);
+        let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncArrowFunction: {}", first, self)
     }
 }
