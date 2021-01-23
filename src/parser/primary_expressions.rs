@@ -4,7 +4,12 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
+use super::async_function_definitions::AsyncFunctionExpression;
+use super::async_generator_function_definitions::AsyncGeneratorExpression;
+use super::class_definitions::ClassExpression;
 use super::comma_operator::Expression;
+use super::function_definitions::FunctionExpression;
+use super::generator_function_definitions::GeneratorExpression;
 use super::identifiers::{IdentifierNameToken, IdentifierReference};
 use super::method_definitions::MethodDefinition;
 use super::scanner::Scanner;
@@ -37,7 +42,12 @@ pub enum PrimaryExpressionKind {
     ObjectLiteral(Box<ObjectLiteral>),
     Parenthesized(Box<ParenthesizedExpression>),
     TemplateLiteral(Box<TemplateLiteral>),
-    // More to come
+    Function(Box<FunctionExpression>),
+    Class(Box<ClassExpression>),
+    Generator(Box<GeneratorExpression>),
+    AsyncFunction(Box<AsyncFunctionExpression>),
+    AsyncGenerator(Box<AsyncGeneratorExpression>),
+    RegularExpression(Box<scanner::RegularExpressionData>),
 }
 
 #[derive(Debug)]
@@ -49,12 +59,18 @@ impl fmt::Display for PrimaryExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
             PrimaryExpressionKind::This => write!(f, "this"),
-            PrimaryExpressionKind::IdentifierReference(boxed) => write!(f, "{}", boxed),
-            PrimaryExpressionKind::Literal(boxed) => write!(f, "{}", boxed),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => write!(f, "{}", boxed),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => write!(f, "{}", boxed),
-            PrimaryExpressionKind::Parenthesized(boxed) => write!(f, "{}", boxed),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => write!(f, "{}", boxed),
+            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::Literal(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpressionKind::Function(node) => node.fmt(f),
+            PrimaryExpressionKind::Class(node) => node.fmt(f),
+            PrimaryExpressionKind::Generator(node) => node.fmt(f),
+            PrimaryExpressionKind::AsyncFunction(node) => node.fmt(f),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.fmt(f),
+            PrimaryExpressionKind::RegularExpression(node) => node.fmt(f),
         }
     }
 }
@@ -68,12 +84,22 @@ impl PrettyPrint for PrimaryExpression {
         writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
         match &self.kind {
             PrimaryExpressionKind::This => Ok(()),
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::IdentifierReference(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             PrimaryExpressionKind::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            PrimaryExpressionKind::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::Class(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::AsyncFunction(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpressionKind::RegularExpression(node) => Ok(()),
         }
     }
 }
@@ -82,8 +108,19 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) => false,
+            This
+            | IdentifierReference(_)
+            | Literal(_)
+            | ArrayLiteral(_)
+            | ObjectLiteral(_)
+            | TemplateLiteral(_)
+            | RegularExpression(_) => false,
             Parenthesized(exp) => exp.is_function_definition(),
+            Function(node) => node.is_function_definition(),
+            Class(node) => node.is_function_definition(),
+            Generator(node) => node.is_function_definition(),
+            AsyncFunction(node) => node.is_function_definition(),
+            AsyncGenerator(node) => node.is_function_definition(),
         }
     }
 }
@@ -92,7 +129,10 @@ impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_) => false,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_)
+            | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_) | AsyncGenerator(_) => {
+                false
+            }
             IdentifierReference(_) => true,
         }
     }
@@ -102,7 +142,8 @@ impl AssignmentTargetType for PrimaryExpression {
     fn assignment_target_type(&self) -> ATTKind {
         use PrimaryExpressionKind::*;
         match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) => ATTKind::Invalid,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_)
+            | Function(_) | Class(_) | Generator(_) | AsyncFunction(_) | AsyncGenerator(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(),
             Parenthesized(expr) => expr.assignment_target_type(),
         }
@@ -148,6 +189,42 @@ impl ToPrimaryExpressionKind for TemplateLiteral {
     }
 }
 
+impl ToPrimaryExpressionKind for FunctionExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::Function(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for ClassExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::Class(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for GeneratorExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::Generator(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for AsyncFunctionExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::AsyncFunction(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for AsyncGeneratorExpression {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::AsyncGenerator(node)
+    }
+}
+
+impl ToPrimaryExpressionKind for scanner::RegularExpressionData {
+    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+        PrimaryExpressionKind::RegularExpression(node)
+    }
+}
+
 fn pe_boxer<T>(opt: Option<(Box<T>, Scanner)>) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
 where
     T: ToPrimaryExpressionKind,
@@ -162,7 +239,11 @@ where
     }))
 }
 
-fn or_pe_kind<F, T>(opt: Option<(Box<PrimaryExpression>, Scanner)>, parser: &mut Parser, parse_func: F) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
+fn or_pe_kind<F, T>(
+    opt: Option<(Box<PrimaryExpression>, Scanner)>,
+    parser: &mut Parser,
+    parse_func: F,
+) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
 where
     F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
     T: ToPrimaryExpressionKind,
@@ -171,15 +252,42 @@ where
 }
 
 impl PrimaryExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, arg_yield: bool, arg_await: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        arg_yield: bool,
+        arg_await: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
-            .and_then(|opt| or_pe_kind(opt, parser, |p| IdentifierReference::parse(p, scanner, arg_yield, arg_await)))
+            .and_then(|opt| {
+                or_pe_kind(opt, parser, |p| {
+                    IdentifierReference::parse(p, scanner, arg_yield, arg_await)
+                })
+            })
             .and_then(|opt| or_pe_kind(opt, parser, |p| Literal::parse(p, scanner)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| this_token(p, scanner)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ArrayLiteral::parse(p, scanner, arg_yield, arg_await)))
             .and_then(|opt| or_pe_kind(opt, parser, |p| ObjectLiteral::parse(p, scanner, arg_yield, arg_await)))
-            .and_then(|opt| or_pe_kind(opt, parser, |p| ParenthesizedExpression::parse(p, scanner, arg_yield, arg_await)))
-            .and_then(|opt| or_pe_kind(opt, parser, |p| TemplateLiteral::parse(p, scanner, arg_yield, arg_await, false)))
+            .and_then(|opt| {
+                or_pe_kind(opt, parser, |p| {
+                    ParenthesizedExpression::parse(p, scanner, arg_yield, arg_await)
+                })
+            })
+            .and_then(|opt| {
+                or_pe_kind(opt, parser, |p| {
+                    TemplateLiteral::parse(p, scanner, arg_yield, arg_await, false)
+                })
+            })
+            .and_then(|opt| or_pe_kind(opt, parser, |p| FunctionExpression::parse(p, scanner)))
+            .and_then(|opt| {
+                or_pe_kind(opt, parser, |p| {
+                    ClassExpression::parse(p, scanner, arg_yield, arg_await)
+                })
+            })
+            .and_then(|opt| or_pe_kind(opt, parser, |p| GeneratorExpression::parse(p, scanner)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| AsyncFunctionExpression::parse(p, scanner)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| AsyncGeneratorExpression::parse(p, scanner)))
+            .and_then(|opt| or_pe_kind(opt, parser, |p| regex_token(p, scanner)))
     }
 }
 
@@ -195,9 +303,22 @@ impl ToPrimaryExpressionKind for ThisToken {
 fn this_token(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
     let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
     Ok(match tok {
-        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => Some((Box::new(ThisToken {}), scanner)),
+        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => {
+            Some((Box::new(ThisToken {}), scanner))
+        }
         _ => None,
     })
+}
+
+fn regex_token(
+    parser: &mut Parser,
+    scanner: Scanner,
+) -> Result<Option<(Box<scanner::RegularExpressionData>, Scanner)>, String> {
+    let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+    match tok {
+        scanner::Token::RegularExpression(rd) => Ok(Some((Box::new(rd), after_tok))),
+        _ => Ok(None),
+    }
 }
 
 #[derive(Debug)]
@@ -231,7 +352,8 @@ impl Elisions {
         let mut comma_count: usize = 0;
         let mut current_scanner = scanner;
         loop {
-            let (token, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+            let (token, after_comma) =
+                scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
             if token != scanner::Token::Comma {
                 return if comma_count == 0 {
                     Ok(None)
@@ -270,8 +392,14 @@ impl PrettyPrint for SpreadElement {
 }
 
 impl SpreadElement {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<SpreadElement>, Scanner)>, String> {
-        let (token, after_ellipsis) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<SpreadElement>, Scanner)>, String> {
+        let (token, after_ellipsis) =
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::Ellipsis {
             Ok(None)
         } else {
@@ -369,7 +497,15 @@ impl ElementList {
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
-    ) -> Result<(Option<Box<Elisions>>, Option<Box<AssignmentExpression>>, Option<Box<SpreadElement>>, Scanner), String> {
+    ) -> Result<
+        (
+            Option<Box<Elisions>>,
+            Option<Box<AssignmentExpression>>,
+            Option<Box<SpreadElement>>,
+            Scanner,
+        ),
+        String,
+    > {
         let pot_elision = Elisions::parse(parser, scanner)?;
         let elision: Option<Box<Elisions>>;
         let after_e_scanner: Scanner;
@@ -396,7 +532,12 @@ impl ElementList {
         }
     }
 
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<ElementList>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<ElementList>, Scanner)>, String> {
         let mut current_production: Box<ElementList>;
         let mut current_scanner: Scanner;
 
@@ -412,15 +553,25 @@ impl ElementList {
         }
 
         loop {
-            let (token, after_tok) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+            let (token, after_tok) =
+                scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
             match token {
                 scanner::Token::Comma => {
-                    let (elision, boxed_ae, boxed_se, after) = Self::non_recursive_part(parser, after_tok, yield_flag, await_flag)?;
+                    let (elision, boxed_ae, boxed_se, after) =
+                        Self::non_recursive_part(parser, after_tok, yield_flag, await_flag)?;
                     if boxed_ae.is_some() {
-                        current_production = Box::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae.unwrap())));
+                        current_production = Box::new(ElementList::ElementListAssignmentExpression((
+                            current_production,
+                            elision,
+                            boxed_ae.unwrap(),
+                        )));
                         current_scanner = after;
                     } else if boxed_se.is_some() {
-                        current_production = Box::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se.unwrap())));
+                        current_production = Box::new(ElementList::ElementListSpreadElement((
+                            current_production,
+                            elision,
+                            boxed_se.unwrap(),
+                        )));
                         current_scanner = after;
                     } else {
                         break;
@@ -468,7 +619,9 @@ impl PrettyPrint for ArrayLiteral {
         match self {
             ArrayLiteral::Empty(None) => Ok(()),
             ArrayLiteral::Empty(Some(elision)) => elision.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ArrayLiteral::ElementListElision(boxed, Some(elision)) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elision.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -478,7 +631,12 @@ impl PrettyPrint for ArrayLiteral {
 }
 
 impl ArrayLiteral {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (token, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::LeftBracket {
             return Ok(None);
@@ -489,14 +647,16 @@ impl ArrayLiteral {
                 let pot_elision = Elisions::parse(parser, after)?;
                 match pot_elision {
                     None => {
-                        let (closing, end_scan) = scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (closing, end_scan) =
+                            scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp);
                         if closing == scanner::Token::RightBracket {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(None)), end_scan)));
                         }
                         return Ok(None);
                     }
                     Some((elisions, after_2)) => {
-                        let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (closing, end_scan) =
+                            scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
                         if closing == scanner::Token::RightBracket {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(Some(elisions))), end_scan)));
                         }
@@ -505,7 +665,8 @@ impl ArrayLiteral {
                 }
             }
             Some((boxed_el, after_el_scan)) => {
-                let (comma_or_bracket, after_cb) = scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (comma_or_bracket, after_cb) =
+                    scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match comma_or_bracket {
                     scanner::Token::RightBracket => {
                         return Ok(Some((Box::new(ArrayLiteral::ElementList(boxed_el)), after_cb)));
@@ -514,16 +675,27 @@ impl ArrayLiteral {
                         let pot_elision = Elisions::parse(parser, after_cb)?;
                         match pot_elision {
                             None => {
-                                let (closing, end_scan) = scanner::scan_token(&after_cb, parser.source, scanner::ScanGoal::InputElementRegExp);
+                                let (closing, end_scan) = scanner::scan_token(
+                                    &after_cb,
+                                    parser.source,
+                                    scanner::ScanGoal::InputElementRegExp,
+                                );
                                 if closing == scanner::Token::RightBracket {
-                                    return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, None)), end_scan)));
+                                    return Ok(Some((
+                                        Box::new(ArrayLiteral::ElementListElision(boxed_el, None)),
+                                        end_scan,
+                                    )));
                                 }
                                 return Ok(None);
                             }
                             Some((elisions, after_2)) => {
-                                let (closing, end_scan) = scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
+                                let (closing, end_scan) =
+                                    scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
                                 if closing == scanner::Token::RightBracket {
-                                    return Ok(Some((Box::new(ArrayLiteral::ElementListElision(boxed_el, Some(elisions))), end_scan)));
+                                    return Ok(Some((
+                                        Box::new(ArrayLiteral::ElementListElision(boxed_el, Some(elisions))),
+                                        end_scan,
+                                    )));
                                 }
                                 return Ok(None);
                             }
@@ -563,7 +735,13 @@ impl PrettyPrint for Initializer {
 }
 
 impl Initializer {
-    fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Initializer>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Initializer>, Scanner)>, String> {
         let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         if token != scanner::Token::Eq {
             return Ok(None);
@@ -602,7 +780,12 @@ impl PrettyPrint for CoverInitializedName {
 }
 
 impl CoverInitializedName {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_idref = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_idref {
             None => Ok(None),
@@ -610,7 +793,10 @@ impl CoverInitializedName {
                 let pot_init = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
                 match pot_init {
                     None => Ok(None),
-                    Some((izer, after_izer)) => Ok(Some((Box::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))),
+                    Some((izer, after_izer)) => Ok(Some((
+                        Box::new(CoverInitializedName::InitializedName(idref, izer)),
+                        after_izer,
+                    ))),
                 }
             }
         }
@@ -642,7 +828,12 @@ impl PrettyPrint for ComputedPropertyName {
 }
 
 impl ComputedPropertyName {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::LeftBracket => {
@@ -650,9 +841,13 @@ impl ComputedPropertyName {
                 match pot_ae {
                     None => Ok(None),
                     Some((ae, after_ae)) => {
-                        let (tok2, after_rb) = scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (tok2, after_rb) =
+                            scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match tok2 {
-                            scanner::Token::RightBracket => Ok(Some((Box::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))),
+                            scanner::Token::RightBracket => Ok(Some((
+                                Box::new(ComputedPropertyName::AssignmentExpression(ae)),
+                                after_rb,
+                            ))),
                             _ => Ok(None),
                         }
                     }
@@ -706,8 +901,14 @@ impl LiteralPropertyName {
                 after_tok,
             ))),
             scanner::Token::String(s) => Ok(Some((Box::new(LiteralPropertyName::StringLiteral(s)), after_tok))),
-            scanner::Token::Number(n) => Ok(Some((Box::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok))),
-            scanner::Token::BigInt(b) => Ok(Some((Box::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok))),
+            scanner::Token::Number(n) => Ok(Some((
+                Box::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))),
+                after_tok,
+            ))),
+            scanner::Token::BigInt(b) => Ok(Some((
+                Box::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))),
+                after_tok,
+            ))),
             _ => Ok(None),
         }
     }
@@ -743,7 +944,12 @@ impl PrettyPrint for PropertyName {
 }
 
 impl PropertyName {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_lpn = LiteralPropertyName::parse(parser, scanner)?;
         match pot_lpn {
             None => {
@@ -793,7 +999,9 @@ impl PrettyPrint for PropertyDefinition {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
         match self {
-            PropertyDefinition::IdentifierReference(idref) => idref.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::IdentifierReference(idref) => {
+                idref.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             PropertyDefinition::CoverInitializedName(cin) => cin.pprint_with_leftpad(writer, &successive, Spot::Final),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
                 pn.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -806,16 +1014,25 @@ impl PrettyPrint for PropertyDefinition {
 }
 
 impl PropertyDefinition {
-    fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse_pn_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_pn = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_pn {
             Some((pn, after_pn)) => {
-                let (tok, after_tok) = scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (tok, after_tok) =
+                    scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match tok {
                     scanner::Token::Colon => {
                         let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                         match pot_ae {
-                            Some((ae, after_ae)) => Ok(Some((Box::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))),
+                            Some((ae, after_ae)) => Ok(Some((
+                                Box::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)),
+                                after_ae,
+                            ))),
                             None => Ok(None),
                         }
                     }
@@ -826,15 +1043,28 @@ impl PropertyDefinition {
         }
     }
 
-    fn parse_cin(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse_cin(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_cin = CoverInitializedName::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_cin {
-            Some((cin, after_cin)) => Ok(Some((Box::new(PropertyDefinition::CoverInitializedName(cin)), after_cin))),
+            Some((cin, after_cin)) => Ok(Some((
+                Box::new(PropertyDefinition::CoverInitializedName(cin)),
+                after_cin,
+            ))),
             None => Ok(None),
         }
     }
 
-    fn parse_md(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse_md(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_md = MethodDefinition::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_md {
             Some((md, after_md)) => Ok(Some((Box::new(PropertyDefinition::MethodDefinition(md)), after_md))),
@@ -842,21 +1072,36 @@ impl PropertyDefinition {
         }
     }
 
-    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse_idref(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_idref = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_idref {
-            Some((idref, after_idref)) => Ok(Some((Box::new(PropertyDefinition::IdentifierReference(idref)), after_idref))),
+            Some((idref, after_idref)) => Ok(Some((
+                Box::new(PropertyDefinition::IdentifierReference(idref)),
+                after_idref,
+            ))),
             None => Ok(None),
         }
     }
 
-    fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    fn parse_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
             scanner::Token::Ellipsis => {
                 let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 match pot_ae {
-                    Some((ae, after_ae)) => Ok(Some((Box::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))),
+                    Some((ae, after_ae)) => {
+                        Ok(Some((Box::new(PropertyDefinition::AssignmentExpression(ae)), after_ae)))
+                    }
                     None => Ok(None),
                 }
             }
@@ -864,7 +1109,12 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Self::parse_pn_ae(parser, scanner, yield_flag, await_flag)
             .and_then(|opt| opt.map_or_else(|| Self::parse_cin(parser, scanner, yield_flag, await_flag), rewrap))
             .and_then(|opt| opt.map_or_else(|| Self::parse_md(parser, scanner, yield_flag, await_flag), rewrap))
@@ -909,7 +1159,12 @@ impl PrettyPrint for PropertyDefinitionList {
 }
 
 impl PropertyDefinitionList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_pd = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_pd {
             None => Ok(None),
@@ -917,7 +1172,8 @@ impl PropertyDefinitionList {
                 let mut current_production = Box::new(PropertyDefinitionList::OneDef(pd));
                 let mut current_scanner = after_pd;
                 loop {
-                    let (comma, after_comma) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+                    let (comma, after_comma) =
+                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
                     match comma {
                         scanner::Token::Comma => {
                             let pot_pd2 = PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag)?;
@@ -926,7 +1182,8 @@ impl PropertyDefinitionList {
                                     break;
                                 }
                                 Some((pd2, after_pd2)) => {
-                                    current_production = Box::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
+                                    current_production =
+                                        Box::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
                                     current_scanner = after_pd2;
                                 }
                             }
@@ -972,33 +1229,48 @@ impl PrettyPrint for ObjectLiteral {
         writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
         match self {
             ObjectLiteral::Empty => Ok(()),
-            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+                pdl.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 }
 
 impl ObjectLiteral {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (lb, after_brace) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match lb {
             scanner::Token::LeftBrace => {
                 let pot_pdl = PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag)?;
                 match pot_pdl {
                     None => {
-                        let (rb, after_brace2) = scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (rb, after_brace2) =
+                            scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match rb {
                             scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Empty), after_brace2))),
                             _ => Ok(None),
                         }
                     }
                     Some((pdl, after_pdl)) => {
-                        let (comma_or_brace, after_punct) = scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (comma_or_brace, after_punct) =
+                            scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match comma_or_brace {
                             scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Normal(pdl)), after_punct))),
                             scanner::Token::Comma => {
-                                let (rb2, after_brace3) = scanner::scan_token(&after_punct, parser.source, scanner::ScanGoal::InputElementRegExp);
+                                let (rb2, after_brace3) = scanner::scan_token(
+                                    &after_punct,
+                                    parser.source,
+                                    scanner::ScanGoal::InputElementRegExp,
+                                );
                                 match rb2 {
-                                    scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))),
+                                    scanner::Token::RightBrace => {
+                                        Ok(Some((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3)))
+                                    }
                                     _ => Ok(None),
                                 }
                             }
@@ -1074,7 +1346,9 @@ impl Literal {
         match token {
             scanner::Token::Identifier(id) => match id.keyword_id {
                 Some(scanner::Keyword::Null) => {
-                    let node = Literal { kind: LiteralKind::NullLiteral };
+                    let node = Literal {
+                        kind: LiteralKind::NullLiteral,
+                    };
                     let boxed = Box::new(node);
                     return Ok(Some((boxed, newscanner)));
                 }
@@ -1109,7 +1383,9 @@ impl Literal {
                 return Ok(Some((boxed, newscanner)));
             }
             scanner::Token::String(s) => {
-                let node = Literal { kind: LiteralKind::StringLiteral(s) };
+                let node = Literal {
+                    kind: LiteralKind::StringLiteral(s),
+                };
                 let boxed = Box::new(node);
                 return Ok(Some((boxed, newscanner)));
             }
@@ -1157,14 +1433,26 @@ impl PrettyPrint for TemplateLiteral {
 }
 
 impl TemplateLiteral {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok, after_nst) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::NoSubstitutionTemplate(td) => Ok(Some((Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))),
+            scanner::Token::NoSubstitutionTemplate(td) => Ok(Some((
+                Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)),
+                after_nst,
+            ))),
             scanner::Token::TemplateHead(_) => {
                 let pot_st = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
                 match pot_st {
-                    Some((boxed, after_scan)) => Ok(Some((Box::new(TemplateLiteral::SubstitutionTemplate(boxed)), after_scan))),
+                    Some((boxed, after_scan)) => Ok(Some((
+                        Box::new(TemplateLiteral::SubstitutionTemplate(boxed)),
+                        after_scan,
+                    ))),
                     None => Ok(None),
                 }
             }
@@ -1202,13 +1490,21 @@ impl PrettyPrint for SubstitutionTemplate {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
-        self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        self.template_spans.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.expression
+            .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.template_spans
+            .pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl SubstitutionTemplate {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (head, after_head) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match head {
             scanner::Token::TemplateHead(td) => {
@@ -1249,8 +1545,15 @@ pub enum TemplateSpans {
 impl fmt::Display for TemplateSpans {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateSpans::Tail(td, _) => write!(f, "}}{}`", format!("{}", td.trv).replace(char::is_control, "\u{2426}")),
-            TemplateSpans::List(tml, td, _) => write!(f, "{} }}{}`", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}")),
+            TemplateSpans::Tail(td, _) => {
+                write!(f, "}}{}`", format!("{}", td.trv).replace(char::is_control, "\u{2426}"))
+            }
+            TemplateSpans::List(tml, td, _) => write!(
+                f,
+                "{} }}{}`",
+                tml,
+                format!("{}", td.trv).replace(char::is_control, "\u{2426}")
+            ),
         }
     }
 }
@@ -1270,8 +1573,15 @@ impl PrettyPrint for TemplateSpans {
 }
 
 impl TemplateSpans {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_tmplt) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (token, after_tmplt) =
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
         match token {
             scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
             scanner::Token::TemplateMiddle(td) => {
@@ -1279,9 +1589,13 @@ impl TemplateSpans {
                 match pot_tml {
                     None => Ok(None),
                     Some((boxed_tml, after_tml)) => {
-                        let (tail, after_tail) = scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail);
+                        let (tail, after_tail) =
+                            scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail);
                         match tail {
-                            scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::List(boxed_tml, td, tagged_flag)), after_tail))),
+                            scanner::Token::TemplateTail(td) => Ok(Some((
+                                Box::new(TemplateSpans::List(boxed_tml, td, tagged_flag)),
+                                after_tail,
+                            ))),
                             _ => Ok(None),
                         }
                     }
@@ -1304,8 +1618,19 @@ pub enum TemplateMiddleList {
 impl fmt::Display for TemplateMiddleList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateMiddleList::ListEnd(td, exp, _) => write!(f, "}}{}${{ {}", format!("{}", td.trv).replace(char::is_control, "\u{2426}"), exp),
-            TemplateMiddleList::ListMid(tml, td, exp, _) => write!(f, "{} }}{}${{ {}", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}"), exp),
+            TemplateMiddleList::ListEnd(td, exp, _) => write!(
+                f,
+                "}}{}${{ {}",
+                format!("{}", td.trv).replace(char::is_control, "\u{2426}"),
+                exp
+            ),
+            TemplateMiddleList::ListMid(tml, td, exp, _) => write!(
+                f,
+                "{} }}{}${{ {}",
+                tml,
+                format!("{}", td.trv).replace(char::is_control, "\u{2426}"),
+                exp
+            ),
         }
     }
 }
@@ -1328,11 +1653,21 @@ impl PrettyPrint for TemplateMiddleList {
 }
 
 impl TemplateMiddleList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let mut current_node = None;
         let mut current_scanner = scanner;
         loop {
-            let (middle, after_mid) = scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
+            let (middle, after_mid) = scanner::scan_token(
+                &current_scanner,
+                parser.source,
+                scanner::ScanGoal::InputElementTemplateTail,
+            );
             match middle {
                 scanner::Token::TemplateMiddle(td) => {
                     let pot_exp = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
@@ -1405,16 +1740,25 @@ impl AssignmentTargetType for ParenthesizedExpression {
 }
 
 impl ParenthesizedExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (left_paren, after_lp) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (left_paren, after_lp) =
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
         match left_paren {
             scanner::Token::LeftParen => {
                 let pot_exp = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
                 match pot_exp {
                     Some((exp, after_exp)) => {
-                        let (right_paren, after_rp) = scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (right_paren, after_rp) =
+                            scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
                         match right_paren {
-                            scanner::Token::RightParen => Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp))),
+                            scanner::Token::RightParen => {
+                                Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp)))
+                            }
                             _ => Ok(None),
                         }
                     }
@@ -1441,20 +1785,63 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_pprint() {
-        let (pe1, _) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
+        let (pe1, _) = check(PrimaryExpression::parse(
+            &mut newparser("this"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*pe1, "PrimaryExpression: this", vec![]);
-        let (pe2, _) = check(PrimaryExpression::parse(&mut newparser("1"), Scanner::new(), false, false));
+        let (pe2, _) = check(PrimaryExpression::parse(
+            &mut newparser("1"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*pe2, "PrimaryExpression: 1", vec!["Literal: 1"]);
-        let (pe3, _) = check(PrimaryExpression::parse(&mut newparser("i"), Scanner::new(), false, false));
+        let (pe3, _) = check(PrimaryExpression::parse(
+            &mut newparser("i"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
-        let (pe4, _) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
+        let (pe4, _) = check(PrimaryExpression::parse(
+            &mut newparser("[]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*pe4, "PrimaryExpression: [ ]", vec!["ArrayLiteral: [ ]"]);
-        let (pe5, _) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
+        let (pe5, _) = check(PrimaryExpression::parse(
+            &mut newparser("{}"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*pe5, "PrimaryExpression: { }", vec!["ObjectLiteral: { }"]);
-        let (pe6, _) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
-        pretty_check(&*pe6, "PrimaryExpression: ( a )", vec!["ParenthesizedExpression: ( a )"]);
-        let (pe7, _) = check(PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false));
-        pretty_check(&*pe7, "PrimaryExpression: `rust` (rust)", vec!["TemplateLiteral: `rust` (rust)"]);
+        let (pe6, _) = check(PrimaryExpression::parse(
+            &mut newparser("(a)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        pretty_check(
+            &*pe6,
+            "PrimaryExpression: ( a )",
+            vec!["ParenthesizedExpression: ( a )"],
+        );
+        let (pe7, _) = check(PrimaryExpression::parse(
+            &mut newparser("`rust`"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        pretty_check(
+            &*pe7,
+            "PrimaryExpression: `rust` (rust)",
+            vec!["TemplateLiteral: `rust` (rust)"],
+        );
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -1468,7 +1855,12 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_literal() {
-        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
+        let (node, scanner) = check(PrimaryExpression::parse(
+            &mut newparser("371"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(node.kind, PrimaryExpressionKind::Literal(_)));
         assert_eq!(node.is_function_definition(), false);
@@ -1477,7 +1869,12 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_this() {
-        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
+        let (node, scanner) = check(PrimaryExpression::parse(
+            &mut newparser("this"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 4);
         assert!(matches!(node.kind, PrimaryExpressionKind::This));
         assert_eq!(node.is_function_definition(), false);
@@ -1486,7 +1883,12 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_arraylit() {
-        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
+        let (node, scanner) = check(PrimaryExpression::parse(
+            &mut newparser("[]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 2);
         assert!(matches!(node.kind, PrimaryExpressionKind::ArrayLiteral(_)));
         assert_eq!(node.is_function_definition(), false);
@@ -1495,7 +1897,12 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_objlit() {
-        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
+        let (node, scanner) = check(PrimaryExpression::parse(
+            &mut newparser("{}"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 2);
         assert!(matches!(node.kind, PrimaryExpressionKind::ObjectLiteral(_)));
         assert_eq!(node.is_function_definition(), false);
@@ -1504,7 +1911,12 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_group() {
-        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
+        let (node, scanner) = check(PrimaryExpression::parse(
+            &mut newparser("(a)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(node.kind, PrimaryExpressionKind::Parenthesized(_)));
         assert_eq!(node.is_function_definition(), false);
@@ -1529,7 +1941,15 @@ mod tests {
     // LITERAL
     #[test]
     fn literal_test_debug() {
-        assert_eq!(format!("{:?}", Literal { kind: LiteralKind::NullLiteral }), "Literal { kind: NullLiteral }");
+        assert_eq!(
+            format!(
+                "{:?}",
+                Literal {
+                    kind: LiteralKind::NullLiteral
+                }
+            ),
+            "Literal { kind: NullLiteral }"
+        );
     }
     #[test]
     fn literal_test_null() {
@@ -1608,17 +2028,32 @@ mod tests {
     #[test]
     fn spread_element_test_empty() {
         check_none(SpreadElement::parse(&mut newparser(""), Scanner::new(), false, false));
-        check_none(SpreadElement::parse(&mut newparser("..."), Scanner::new(), false, false));
+        check_none(SpreadElement::parse(
+            &mut newparser("..."),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn spread_element_test_assignment_expression() {
-        let (se, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+        let (se, scanner) = check(SpreadElement::parse(
+            &mut newparser("...1"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 4);
         assert!(matches!(*se, SpreadElement::AssignmentExpression(_)));
     }
     #[test]
     fn spread_element_test_pretty() {
-        let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+        let (se, _) = check(SpreadElement::parse(
+            &mut newparser("...1"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         pretty_check(&*se, "SpreadElement: ... 1", vec!["AssignmentExpression: 1"]);
         format!("{:?}", se);
     }
@@ -1640,7 +2075,11 @@ mod tests {
         let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*el, ElementList::AssignmentExpression((Some(be), _)) if be.count == 2));
-        pretty_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "AssignmentExpression: 3"]);
+        pretty_check(
+            &*el,
+            "ElementList: , , 3",
+            vec!["Elisions: , ,", "AssignmentExpression: 3"],
+        );
     }
     #[test]
     fn element_list_test_05() {
@@ -1651,38 +2090,76 @@ mod tests {
     }
     #[test]
     fn element_list_test_06() {
-        let (el, scanner) = check(ElementList::parse(&mut newparser(",,...a"), Scanner::new(), false, false));
+        let (el, scanner) = check(ElementList::parse(
+            &mut newparser(",,...a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*el, ElementList::SpreadElement((Some(be), _)) if be.count == 2));
-        pretty_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
+        pretty_check(
+            &*el,
+            "ElementList: , , ... a",
+            vec!["Elisions: , ,", "SpreadElement: ... a"],
+        );
     }
     #[test]
     fn element_list_test_07() {
         let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, None, _))));
-        pretty_check(&*el, "ElementList: a , b", vec!["ElementList: a", "AssignmentExpression: b"]);
+        assert!(matches!(
+            &*el,
+            ElementList::ElementListAssignmentExpression((_, None, _))
+        ));
+        pretty_check(
+            &*el,
+            "ElementList: a , b",
+            vec!["ElementList: a", "AssignmentExpression: b"],
+        );
     }
     #[test]
     fn element_list_test_08() {
         let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, Some(be), _)) if be.count == 1));
-        pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
+        pretty_check(
+            &*el,
+            "ElementList: a , , b",
+            vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"],
+        );
     }
     #[test]
     fn element_list_test_09() {
-        let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
+        let (el, scanner) = check(ElementList::parse(
+            &mut newparser("a,...b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, None, _))));
-        pretty_check(&*el, "ElementList: a , ... b", vec!["ElementList: a", "SpreadElement: ... b"]);
+        pretty_check(
+            &*el,
+            "ElementList: a , ... b",
+            vec!["ElementList: a", "SpreadElement: ... b"],
+        );
     }
     #[test]
     fn element_list_test_10() {
-        let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
+        let (el, scanner) = check(ElementList::parse(
+            &mut newparser("a,,...b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 7);
         assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, Some(be), _)) if be.count == 1));
-        pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
+        pretty_check(
+            &*el,
+            "ElementList: a , , ... b",
+            vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"],
+        );
     }
     #[test]
     fn element_list_test_04() {
@@ -1715,14 +2192,24 @@ mod tests {
     }
     #[test]
     fn array_literal_test_04() {
-        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
+        let (al, scanner) = check(ArrayLiteral::parse(
+            &mut newparser("[a,]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 4);
         assert!(matches!(*al, ArrayLiteral::ElementListElision(_, None)));
         pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
     }
     #[test]
     fn array_literal_test_05() {
-        let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
+        let (al, scanner) = check(ArrayLiteral::parse(
+            &mut newparser("[a,,]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 5);
         assert!(matches!(&*al, ArrayLiteral::ElementListElision(_, Some(be)) if be.count == 1));
         pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
@@ -1734,18 +2221,41 @@ mod tests {
         check_none(ArrayLiteral::parse(&mut newparser("[,,"), Scanner::new(), false, false));
         check_none(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false));
         check_none(ArrayLiteral::parse(&mut newparser("[a,"), Scanner::new(), false, false));
-        check_none(ArrayLiteral::parse(&mut newparser("[a,,"), Scanner::new(), false, false));
+        check_none(ArrayLiteral::parse(
+            &mut newparser("[a,,"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 
     // INITIALIZER
     #[test]
     fn initializer_test_nomatch() {
-        check_none(Initializer::parse(&mut newparser(""), Scanner::new(), false, false, false));
-        check_none(Initializer::parse(&mut newparser("="), Scanner::new(), false, false, false));
+        check_none(Initializer::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(Initializer::parse(
+            &mut newparser("="),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
     }
     #[test]
     fn initializer_test_01() {
-        let (izer, scanner) = check(Initializer::parse(&mut newparser("=a"), Scanner::new(), false, false, false));
+        let (izer, scanner) = check(Initializer::parse(
+            &mut newparser("=a"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 2);
         assert!(matches!(&*izer, Initializer::AssignmentExpression(_)));
         pretty_check(&*izer, "Initializer: = a", vec!["AssignmentExpression: a"]);
@@ -1755,28 +2265,67 @@ mod tests {
     // COVER INITIALIZED NAME
     #[test]
     fn cover_initialized_name_test_nomatch() {
-        check_none(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false));
-        check_none(CoverInitializedName::parse(&mut newparser("a"), Scanner::new(), false, false));
+        check_none(CoverInitializedName::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(CoverInitializedName::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn cover_initialized_name_test_01() {
-        let (cin, scanner) = check(CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), false, false));
+        let (cin, scanner) = check(CoverInitializedName::parse(
+            &mut newparser("a=b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(&*cin, CoverInitializedName::InitializedName(_, _)));
-        pretty_check(&*cin, "CoverInitializedName: a = b", vec!["IdentifierReference: a", "Initializer: = b"]);
+        pretty_check(
+            &*cin,
+            "CoverInitializedName: a = b",
+            vec!["IdentifierReference: a", "Initializer: = b"],
+        );
         format!("{:?}", *cin);
     }
 
     // COMPUTED PROPERTY NAME
     #[test]
     fn computed_property_name_test_nomatch() {
-        check_none(ComputedPropertyName::parse(&mut newparser(""), Scanner::new(), false, false));
-        check_none(ComputedPropertyName::parse(&mut newparser("["), Scanner::new(), false, false));
-        check_none(ComputedPropertyName::parse(&mut newparser("[a"), Scanner::new(), false, false));
+        check_none(ComputedPropertyName::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(ComputedPropertyName::parse(
+            &mut newparser("["),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(ComputedPropertyName::parse(
+            &mut newparser("[a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn computed_property_name_test_01() {
-        let (cpn, scanner) = check(ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
+        let (cpn, scanner) = check(ComputedPropertyName::parse(
+            &mut newparser("[a]"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(&*cpn, ComputedPropertyName::AssignmentExpression(_)));
         pretty_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["AssignmentExpression: a"]);
@@ -1843,7 +2392,12 @@ mod tests {
     // PROPERTY DEFINITION
     #[test]
     fn property_definition_test_01() {
-        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false));
+        let (pd, scanner) = check(PropertyDefinition::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pd, PropertyDefinition::IdentifierReference(_)));
         pretty_check(&*pd, "PropertyDefinition: a", vec!["IdentifierReference: a"]);
@@ -1851,36 +2405,83 @@ mod tests {
     }
     #[test]
     fn property_definition_test_02() {
-        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a=b"), Scanner::new(), false, false));
+        let (pd, scanner) = check(PropertyDefinition::parse(
+            &mut newparser("a=b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(&*pd, PropertyDefinition::CoverInitializedName(_)));
         pretty_check(&*pd, "PropertyDefinition: a = b", vec!["CoverInitializedName: a = b"]);
     }
     #[test]
     fn property_definition_test_03() {
-        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("a:b"), Scanner::new(), false, false));
+        let (pd, scanner) = check(PropertyDefinition::parse(
+            &mut newparser("a:b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
-        assert!(matches!(&*pd, PropertyDefinition::PropertyNameAssignmentExpression(_, _)));
-        pretty_check(&*pd, "PropertyDefinition: a : b", vec!["PropertyName: a", "AssignmentExpression: b"]);
+        assert!(matches!(
+            &*pd,
+            PropertyDefinition::PropertyNameAssignmentExpression(_, _)
+        ));
+        pretty_check(
+            &*pd,
+            "PropertyDefinition: a : b",
+            vec!["PropertyName: a", "AssignmentExpression: b"],
+        );
     }
     #[test]
     fn property_definition_test_04() {
-        let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false));
+        let (pd, scanner) = check(PropertyDefinition::parse(
+            &mut newparser("...a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 4);
         assert!(matches!(&*pd, PropertyDefinition::AssignmentExpression(_)));
         pretty_check(&*pd, "PropertyDefinition: ... a", vec!["AssignmentExpression: a"]);
     }
     #[test]
     fn property_definition_test_nomatch() {
-        check_none(PropertyDefinition::parse(&mut newparser(""), Scanner::new(), false, false));
-        check_none(PropertyDefinition::parse(&mut newparser("..."), Scanner::new(), false, false));
-        check_none(PropertyDefinition::parse(&mut newparser("3"), Scanner::new(), false, false));
-        check_none(PropertyDefinition::parse(&mut newparser("3:"), Scanner::new(), false, false));
+        check_none(PropertyDefinition::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(PropertyDefinition::parse(
+            &mut newparser("..."),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(PropertyDefinition::parse(
+            &mut newparser("3"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(PropertyDefinition::parse(
+            &mut newparser("3:"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 
     #[test]
     fn property_definition_list_test_01() {
-        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a"), Scanner::new(), false, false));
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
         pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
@@ -1888,21 +2489,40 @@ mod tests {
     }
     #[test]
     fn property_definition_list_test_02() {
-        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,"), Scanner::new(), false, false));
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(
+            &mut newparser("a,"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
         pretty_check(&*pdl, "PropertyDefinitionList: a", vec!["PropertyDefinition: a"]);
     }
     #[test]
     fn property_definition_list_test_03() {
-        let (pdl, scanner) = check(PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
+        let (pdl, scanner) = check(PropertyDefinitionList::parse(
+            &mut newparser("a,b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(&*pdl, PropertyDefinitionList::ManyDefs(_, _)));
-        pretty_check(&*pdl, "PropertyDefinitionList: a , b", vec!["PropertyDefinitionList: a", "PropertyDefinition: b"]);
+        pretty_check(
+            &*pdl,
+            "PropertyDefinitionList: a , b",
+            vec!["PropertyDefinitionList: a", "PropertyDefinition: b"],
+        );
     }
     #[test]
     fn property_definition_list_test_04() {
-        check_none(PropertyDefinitionList::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(PropertyDefinitionList::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 
     // OBJECT LITERAL
@@ -1916,30 +2536,59 @@ mod tests {
     }
     #[test]
     fn object_literal_test_02() {
-        let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false));
+        let (ol, scanner) = check(ObjectLiteral::parse(
+            &mut newparser("{a:b}"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 5);
         assert!(matches!(&*ol, ObjectLiteral::Normal(_)));
         pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
     }
     #[test]
     fn object_literal_test_03() {
-        let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b,}"), Scanner::new(), false, false));
+        let (ol, scanner) = check(ObjectLiteral::parse(
+            &mut newparser("{a:b,}"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*ol, ObjectLiteral::TrailingComma(_)));
-        pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
+        pretty_check(
+            &*ol,
+            "ObjectLiteral: { a : b , }",
+            vec!["PropertyDefinitionList: a : b"],
+        );
     }
     #[test]
     fn object_literal_test_04() {
         check_none(ObjectLiteral::parse(&mut newparser(""), Scanner::new(), false, false));
         check_none(ObjectLiteral::parse(&mut newparser("{"), Scanner::new(), false, false));
-        check_none(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false));
-        check_none(ObjectLiteral::parse(&mut newparser("{a:b,"), Scanner::new(), false, false));
+        check_none(ObjectLiteral::parse(
+            &mut newparser("{a:b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(ObjectLiteral::parse(
+            &mut newparser("{a:b,"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 
     // PARENTHESIZED EXPRESSION
     #[test]
     fn parenthesized_expression_test_01() {
-        let (pe, scanner) = check(ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
+        let (pe, scanner) = check(ParenthesizedExpression::parse(
+            &mut newparser("(a)"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
         assert!(matches!(&*pe, ParenthesizedExpression::Expression(_)));
         pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
@@ -1949,15 +2598,36 @@ mod tests {
     }
     #[test]
     fn parenthesized_expression_test_02() {
-        check_none(ParenthesizedExpression::parse(&mut newparser(""), Scanner::new(), false, false));
-        check_none(ParenthesizedExpression::parse(&mut newparser("("), Scanner::new(), false, false));
-        check_none(ParenthesizedExpression::parse(&mut newparser("(0"), Scanner::new(), false, false));
+        check_none(ParenthesizedExpression::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(ParenthesizedExpression::parse(
+            &mut newparser("("),
+            Scanner::new(),
+            false,
+            false,
+        ));
+        check_none(ParenthesizedExpression::parse(
+            &mut newparser("(0"),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 
     // TEMPLATE MIDDLE LIST
     #[test]
     fn template_middle_list_test_01() {
-        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}a${0"), Scanner::new(), false, false, false));
+        let (tml, scanner) = check(TemplateMiddleList::parse(
+            &mut newparser("}a${0"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 5);
         assert!(matches!(&*tml, TemplateMiddleList::ListEnd(_, _, _)));
         pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
@@ -1965,20 +2635,48 @@ mod tests {
     }
     #[test]
     fn template_middle_list_test_02() {
-        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
+        let (tml, scanner) = check(TemplateMiddleList::parse(
+            &mut newparser("}${a}${b}"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 8);
         assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
-        pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "Expression: b"]);
+        pretty_check(
+            &*tml,
+            "TemplateMiddleList: }${ a }${ b",
+            vec!["TemplateMiddleList: }${ a", "Expression: b"],
+        );
         format!("{:?}", tml);
     }
     #[test]
     fn template_middle_list_test_03() {
-        check_none(TemplateMiddleList::parse(&mut newparser(""), Scanner::new(), false, false, false));
-        check_none(TemplateMiddleList::parse(&mut newparser("}abc${@"), Scanner::new(), false, false, false));
+        check_none(TemplateMiddleList::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(TemplateMiddleList::parse(
+            &mut newparser("}abc${@"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
     }
     #[test]
     fn template_middle_list_test_04() {
-        let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
+        let (tml, scanner) = check(TemplateMiddleList::parse(
+            &mut newparser("}${a}${@}"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 4);
         assert!(matches!(&*tml, TemplateMiddleList::ListEnd(_, _, _)));
         pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
@@ -1988,7 +2686,13 @@ mod tests {
     // TEMPLATE SPANS
     #[test]
     fn template_spans_test_01() {
-        let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}done`"), Scanner::new(), false, false, false));
+        let (ts, scanner) = check(TemplateSpans::parse(
+            &mut newparser("}done`"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*ts, TemplateSpans::Tail(_, _)));
         pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
@@ -1996,7 +2700,13 @@ mod tests {
     }
     #[test]
     fn template_spans_test_02() {
-        let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}${a}done`"), Scanner::new(), false, false, false));
+        let (ts, scanner) = check(TemplateSpans::parse(
+            &mut newparser("}${a}done`"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 10);
         assert!(matches!(&*ts, TemplateSpans::List(_, _, _)));
         pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
@@ -2004,30 +2714,76 @@ mod tests {
     }
     #[test]
     fn template_spans_test_03() {
-        check_none(TemplateSpans::parse(&mut newparser(""), Scanner::new(), false, false, false));
-        check_none(TemplateSpans::parse(&mut newparser("}${blue"), Scanner::new(), false, false, false));
+        check_none(TemplateSpans::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(TemplateSpans::parse(
+            &mut newparser("}${blue"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
     }
 
     // SUBSTITUTION TEMPLATE
     #[test]
     fn substitution_template_test_01() {
-        let (st, scanner) = check(SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
+        let (st, scanner) = check(SubstitutionTemplate::parse(
+            &mut newparser("`${a}`"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert_eq!(st.tagged, false);
-        pretty_check(&*st, "SubstitutionTemplate: `${ a }`", vec!["Expression: a", "TemplateSpans: }`"]);
+        pretty_check(
+            &*st,
+            "SubstitutionTemplate: `${ a }`",
+            vec!["Expression: a", "TemplateSpans: }`"],
+        );
         format!("{:?}", st);
     }
     #[test]
     fn substitution_template_test_02() {
-        check_none(SubstitutionTemplate::parse(&mut newparser(""), Scanner::new(), false, false, false));
-        check_none(SubstitutionTemplate::parse(&mut newparser("`${"), Scanner::new(), false, false, false));
-        check_none(SubstitutionTemplate::parse(&mut newparser("`${a"), Scanner::new(), false, false, false));
+        check_none(SubstitutionTemplate::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(SubstitutionTemplate::parse(
+            &mut newparser("`${"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(SubstitutionTemplate::parse(
+            &mut newparser("`${a"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
     }
 
     // TEMPLATE LITERAL
     #[test]
     fn template_literal_test_01() {
-        let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`rust`"), Scanner::new(), false, false, false));
+        let (tl, scanner) = check(TemplateLiteral::parse(
+            &mut newparser("`rust`"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate(_, _)));
         if let TemplateLiteral::NoSubstitutionTemplate(_, tagged) = &*tl {
@@ -2038,15 +2794,37 @@ mod tests {
     }
     #[test]
     fn template_literal_test_02() {
-        let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
+        let (tl, scanner) = check(TemplateLiteral::parse(
+            &mut newparser("`${a}`"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate(_)));
-        pretty_check(&*tl, "TemplateLiteral: `${ a }`", vec!["SubstitutionTemplate: `${ a }`"]);
+        pretty_check(
+            &*tl,
+            "TemplateLiteral: `${ a }`",
+            vec!["SubstitutionTemplate: `${ a }`"],
+        );
         format!("{:?}", tl);
     }
     #[test]
     fn template_literal_test_03() {
-        check_none(TemplateLiteral::parse(&mut newparser(""), Scanner::new(), false, false, false));
-        check_none(TemplateLiteral::parse(&mut newparser("`${"), Scanner::new(), false, false, false));
+        check_none(TemplateLiteral::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
+        check_none(TemplateLiteral::parse(
+            &mut newparser("`${"),
+            Scanner::new(),
+            false,
+            false,
+            false,
+        ));
     }
 }

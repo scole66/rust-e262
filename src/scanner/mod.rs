@@ -208,6 +208,7 @@ pub enum Token {
     TemplateHead(TemplateData),
     TemplateMiddle(TemplateData),
     TemplateTail(TemplateData),
+    RegularExpression(RegularExpressionData),
     Error(String),
 }
 
@@ -1946,6 +1947,18 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
         template_token(scanner, source, TemplateStyle::MiddleOrTail)
     } else {
         None
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct RegularExpressionData {
+    body: String,
+    flags: String,
+}
+
+impl fmt::Display for RegularExpressionData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "/{}/{}", self.body, self.flags)
     }
 }
 

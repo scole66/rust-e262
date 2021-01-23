@@ -36,6 +36,37 @@ impl YieldExpression {
     }
 }
 
+#[derive(Debug)]
+pub enum GeneratorExpression {}
+
+impl fmt::Display for GeneratorExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "unimplemented")
+    }
+}
+
+impl PrettyPrint for GeneratorExpression {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}GeneratorExpression: {}", first, self)
+    }
+}
+
+impl IsFunctionDefinition for GeneratorExpression {
+    fn is_function_definition(&self) -> bool {
+        true
+    }
+}
+
+impl GeneratorExpression {
+    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        Ok(None)
+    }
+}
+
 //#[cfg(test)]
 //mod tests {
 //    use super::testhelp::{check, check_none, chk_scan, newparser};
