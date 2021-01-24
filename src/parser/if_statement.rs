@@ -2,16 +2,27 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
+use super::comma_operator::Expression;
 use super::scanner::Scanner;
+use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
+// IfStatement[Yield, Await, Return] :
+//      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] else Statement[?Yield, ?Await, ?Return]
+//      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] [lookahead ≠ else]
 #[derive(Debug)]
-pub enum IfStatement {}
+pub enum IfStatement {
+    WithElse(Box<Expression>, Box<Statement>, Box<Statement>),
+    WithoutElse(Box<Expression>, Box<Statement>),
+}
 
 impl fmt::Display for IfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unimplemented")
+        match self {
+            IfStatement::WithElse(e, s1, s2) => write!(f, "if ( {} ) {} else {}", e, s1, s2),
+            IfStatement::WithoutElse(e, s1) => write!(f, "if ( {} ) {}", e, s1),
+        }
     }
 }
 
@@ -20,19 +31,60 @@ impl PrettyPrint for IfStatement {
     where
         T: Write,
     {
-        let (first, _successive) = prettypad(pad, state);
-        writeln!(writer, "{}IfStatement: {}", first, self)
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}IfStatement: {}", first, self)?;
+        match self {
+            IfStatement::WithoutElse(e, s1) => {
+                e.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                s1.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            IfStatement::WithElse(e, s1, s2) => {
+                e.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                s1.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                s2.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
     }
 }
 
 impl IfStatement {
     pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-        _return_flag: bool,
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (lead_token, after_lead) =
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        if matches!(lead_token, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::If)) {
+            let (open, after_open) =
+                scanner::scan_token(&after_lead, parser.source, scanner::ScanGoal::InputElementDiv);
+            if open == scanner::Token::LeftParen {
+                let pot_exp = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
+                if let Some((exp, after_exp)) = pot_exp {
+                    let (close, after_close) =
+                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
+                    if close == scanner::Token::RightParen {
+                        let pot_stmt1 = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        if let Some((stmt1, after_stmt1)) = pot_stmt1 {
+                            let (else_tok, after_else) =
+                                scanner::scan_token(&after_stmt1, parser.source, scanner::ScanGoal::InputElementRegExp);
+                            if matches!(else_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Else))
+                            {
+                                let pot_stmt2 =
+                                    Statement::parse(parser, after_else, yield_flag, await_flag, return_flag)?;
+                                if let Some((stmt2, after_stmt2)) = pot_stmt2 {
+                                    return Ok(Some((Box::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2)));
+                                }
+                            } else {
+                                return Ok(Some((Box::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Ok(None)
     }
 }
