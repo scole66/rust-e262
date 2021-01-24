@@ -348,7 +348,7 @@ impl PrettyPrint for Elisions {
 }
 
 impl Elisions {
-    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Elisions>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Elisions>, Scanner)>, String> {
         let mut comma_count: usize = 0;
         let mut current_scanner = scanner;
         loop {
@@ -735,7 +735,7 @@ impl PrettyPrint for Initializer {
 }
 
 impl Initializer {
-    fn parse(
+    pub fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -944,7 +944,7 @@ impl PrettyPrint for PropertyName {
 }
 
 impl PropertyName {
-    fn parse(
+    pub fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
