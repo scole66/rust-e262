@@ -6,12 +6,14 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
+// EmptyStatement :
+//      ;
 #[derive(Debug)]
-pub enum EmptyStatement {}
+pub struct EmptyStatement;
 
 impl fmt::Display for EmptyStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unimplemented")
+        write!(f, ";")
     }
 }
 
@@ -20,17 +22,18 @@ impl PrettyPrint for EmptyStatement {
     where
         T: Write,
     {
-        let (first, _successive) = prettypad(pad, state);
+        let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}EmptyStatement: {}", first, self)
     }
 }
 
 impl EmptyStatement {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (tok, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        match tok {
+            scanner::Token::Semicolon => Ok(Some((Box::new(EmptyStatement), after))),
+            _ => Ok(None),
+        }
     }
 }
 
