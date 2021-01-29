@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 use super::arrow_function_definitions::ArrowFunction;
 use super::async_arrow_function_definitions::AsyncArrowFunction;
@@ -22,7 +22,6 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 //      LeftHandSideExpression[?Yield, ?Await] &&= AssignmentExpression[?In, ?Yield, ?Await]
 //      LeftHandSideExpression[?Yield, ?Await] ||= AssignmentExpression[?In, ?Yield, ?Await]
 //      LeftHandSideExpression[?Yield, ?Await] ??= AssignmentExpression[?In, ?Yield, ?Await]
-
 #[derive(Debug)]
 pub enum AssignmentExpression {
     FallThru(Box<ConditionalExpression>),
@@ -79,6 +78,48 @@ impl PrettyPrint for AssignmentExpression {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 op.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        match self {
+            AssignmentExpression::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
+            AssignmentExpression::Yield(node) => node.concise_with_leftpad(writer, pad, state),
+            AssignmentExpression::Arrow(node) => node.concise_with_leftpad(writer, pad, state),
+            AssignmentExpression::AsyncArrow(node) => node.concise_with_leftpad(writer, pad, state),
+            AssignmentExpression::Assignment(left, right) => {
+                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "=", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentExpression::OpAssignment(left, op, right) => {
+                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                op.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentExpression::LandAssignment(left, right) => {
+                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&&=", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentExpression::LorAssignment(left, right) => {
+                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "||=", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentExpression::CoalAssignment(left, right) => {
+                writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "??=", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -264,6 +305,12 @@ impl PrettyPrint for AssignmentOperator {
     {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}AssignmentOperator: {}", first, self)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, pad, state)
     }
 }
 

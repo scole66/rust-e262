@@ -5,7 +5,7 @@ use std::io::Write;
 use super::scanner::Scanner;
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // BlockStatement[Yield, Await, Return] :
 //      Block[?Yield, ?Await, ?Return]
@@ -30,6 +30,14 @@ impl PrettyPrint for BlockStatement {
         writeln!(writer, "{}BlockStatement: {}", first, self)?;
         let BlockStatement::Block(node) = self;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let BlockStatement::Block(node) = self;
+        node.concise_with_leftpad(writer, pad, state)
     }
 }
 
@@ -78,6 +86,22 @@ impl PrettyPrint for Block {
             None => Ok(()),
             Some(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}Block: {}", first, self)?;
+        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        match self {
+            Block::Statements(None) => {}
+            Block::Statements(Some(node)) => {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+        }
+        pprint_token(writer, "}", &successive, Spot::Final)
     }
 }
 
@@ -139,6 +163,20 @@ impl PrettyPrint for StatementList {
             StatementList::List(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        match self {
+            StatementList::Item(node) => node.concise_with_leftpad(writer, pad, state),
+            StatementList::List(lst, item) => {
+                writeln!(writer, "{}StatementList: {}", first, self)?;
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -207,13 +245,31 @@ impl PrettyPrint for StatementListItem {
             StatementListItem::Statement(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            StatementListItem::Statement(node) => node.concise_with_leftpad(writer, pad, state),
+            StatementListItem::Declaration(node) => node.concise_with_leftpad(writer, pad, state),
+        }
+    }
 }
 
 impl StatementListItem {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_statement = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         if let Some((statement, after_statement)) = pot_statement {
-            return Ok(Some((Box::new(StatementListItem::Statement(statement)), after_statement)));
+            return Ok(Some((
+                Box::new(StatementListItem::Statement(statement)),
+                after_statement,
+            )));
         }
 
         let pot_decl = Declaration::parse(parser, scanner, yield_flag, await_flag)?;

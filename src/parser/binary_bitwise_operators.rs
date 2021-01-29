@@ -5,7 +5,7 @@ use std::io::Write;
 use super::equality_operators::EqualityExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // BitwiseANDExpression[In, Yield, Await] :
 //      EqualityExpression[?In, ?Yield, ?Await]
@@ -37,6 +37,21 @@ impl PrettyPrint for BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(be, ee) => {
                 be.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ee.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            BitwiseANDExpression::BitwiseAND(be, ee) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
+                be.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&", &successive, Spot::NotFinal)?;
+                ee.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -136,6 +151,21 @@ impl PrettyPrint for BitwiseXORExpression {
             }
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            BitwiseXORExpression::BitwiseXOR(bxor, band) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}BitwiseXORExpression: {}", first, self)?;
+                bxor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "^", &successive, Spot::NotFinal)?;
+                band.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl IsFunctionDefinition for BitwiseXORExpression {
@@ -230,6 +260,21 @@ impl PrettyPrint for BitwiseORExpression {
             BitwiseORExpression::BitwiseOR(bor, bxor) => {
                 bor.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 bxor.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            BitwiseORExpression::BitwiseOR(bor, bxor) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}BitwiseORExpression: {}", first, self)?;
+                bor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "|", &successive, Spot::NotFinal)?;
+                bxor.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }

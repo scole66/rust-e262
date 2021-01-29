@@ -32,6 +32,12 @@ impl PrettyPrint for MultiplicativeOperator {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}MultiplicativeOperator: {}", first, self)
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, pad, state)
+    }
 }
 
 impl MultiplicativeOperator {
@@ -52,7 +58,13 @@ impl MultiplicativeOperator {
 #[derive(Debug)]
 pub enum MultiplicativeExpression {
     ExponentiationExpression(Box<ExponentiationExpression>),
-    MultiplicativeExpressionExponentiationExpression((Box<MultiplicativeExpression>, Box<MultiplicativeOperator>, Box<ExponentiationExpression>)),
+    MultiplicativeExpressionExponentiationExpression(
+        (
+            Box<MultiplicativeExpression>,
+            Box<MultiplicativeOperator>,
+            Box<ExponentiationExpression>,
+        ),
+    ),
 }
 
 impl fmt::Display for MultiplicativeExpression {
@@ -92,7 +104,9 @@ impl PrettyPrint for MultiplicativeExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
         match &self {
-            MultiplicativeExpression::ExponentiationExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MultiplicativeExpression::ExponentiationExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((me, mo, ee)) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 mo.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -100,10 +114,31 @@ impl PrettyPrint for MultiplicativeExpression {
             }
         }
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((me, mo, ee)) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
+                me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                mo.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                ee.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl MultiplicativeExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_ee {
             Some((ee, after_ee)) => {
@@ -120,7 +155,11 @@ impl MultiplicativeExpression {
                             break;
                         } else {
                             let (ee2, after_ee2) = pot_ee2.unwrap();
-                            current = Box::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((current, op, ee2)));
+                            current = Box::new(
+                                MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression((
+                                    current, op, ee2,
+                                )),
+                            );
                             current_scanner = after_ee2;
                         }
                     }
@@ -171,7 +210,12 @@ mod tests {
     // MULTIPLICATIVE EXPRESSION
     #[test]
     fn multiplicative_expression_test_01() {
-        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        let (me, scanner) = check(MultiplicativeExpression::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*me, MultiplicativeExpression::ExponentiationExpression(_)));
         pretty_check(&*me, "MultiplicativeExpression: a", vec!["ExponentiationExpression: a"]);
@@ -181,13 +225,25 @@ mod tests {
     }
     #[test]
     fn multiplicative_expression_test_02() {
-        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b"), Scanner::new(), false, false));
+        let (me, scanner) = check(MultiplicativeExpression::parse(
+            &mut newparser("a/b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
-        assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)));
+        assert!(matches!(
+            &*me,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)
+        ));
         pretty_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+            vec![
+                "MultiplicativeExpression: a",
+                "MultiplicativeOperator: /",
+                "ExponentiationExpression: b",
+            ],
         );
         format!("{:?}", me);
         assert_eq!(me.is_function_definition(), false);
@@ -195,18 +251,35 @@ mod tests {
     }
     #[test]
     fn multiplicative_expression_test_04() {
-        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b * @"), Scanner::new(), false, false));
+        let (me, scanner) = check(MultiplicativeExpression::parse(
+            &mut newparser("a/b * @"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 3);
-        assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)));
+        assert!(matches!(
+            &*me,
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(_)
+        ));
         pretty_check(
             &*me,
             "MultiplicativeExpression: a / b",
-            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+            vec![
+                "MultiplicativeExpression: a",
+                "MultiplicativeOperator: /",
+                "ExponentiationExpression: b",
+            ],
         );
         format!("{:?}", me);
     }
     #[test]
     fn multiplicative_expression_test_03() {
-        check_none(MultiplicativeExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(MultiplicativeExpression::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
 }

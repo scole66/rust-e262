@@ -24,6 +24,13 @@ impl PrettyPrint for AsyncFunctionDeclaration {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncFunctionDeclaration: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl AsyncFunctionDeclaration {
@@ -54,6 +61,13 @@ impl PrettyPrint for AsyncFunctionExpression {
     {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncFunctionExpression: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 
@@ -90,6 +104,13 @@ impl PrettyPrint for AwaitExpression {
         writeln!(writer, "{}AwaitExpression: {}", first, self)?;
         let AwaitExpression::Await(boxed) = &self;
         boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 

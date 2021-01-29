@@ -5,7 +5,7 @@ use std::io::Write;
 use super::binary_bitwise_operators::BitwiseORExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // LogicalANDExpression[In, Yield, Await] :
 //      BitwiseORExpression[?In, ?Yield, ?Await]
@@ -39,6 +39,21 @@ impl PrettyPrint for LogicalANDExpression {
             LogicalANDExpression::LogicalAND(left, right) => {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            LogicalANDExpression::LogicalAND(left, right) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}LogicalANDExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&&", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -139,6 +154,21 @@ impl PrettyPrint for LogicalORExpression {
             }
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            LogicalORExpression::LogicalOR(left, right) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}LogicalORExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "||", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl IsFunctionDefinition for LogicalORExpression {
@@ -224,6 +254,16 @@ impl PrettyPrint for CoalesceExpression {
         writeln!(writer, "{}CoalesceExpression: {}", first, self)?;
         self.head.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.tail.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}CoalesceExpression: {}", first, self)?;
+        self.head.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "??", &successive, Spot::NotFinal)?;
+        self.tail.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -312,6 +352,16 @@ impl PrettyPrint for CoalesceExpressionHead {
             }
         }
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            CoalesceExpressionHead::BitwiseORExpression(node) => node.concise_with_leftpad(writer, pad, state),
+        }
+    }
 }
 
 impl CoalesceExpressionHead {
@@ -352,6 +402,15 @@ impl PrettyPrint for ShortCircuitExpression {
             ShortCircuitExpression::CoalesceExpression(node) => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            ShortCircuitExpression::CoalesceExpression(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }

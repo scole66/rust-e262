@@ -5,7 +5,7 @@ use std::io::Write;
 use super::assignment_operators::AssignmentExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // Expression[In, Yield, Await] :
 //      AssignmentExpression[?In, ?Yield, ?Await]
@@ -37,6 +37,21 @@ impl PrettyPrint for Expression {
             Expression::Comma(left, right) => {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            Expression::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
+            Expression::Comma(left, right) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}Expression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }

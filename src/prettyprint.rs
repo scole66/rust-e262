@@ -1,6 +1,7 @@
 use std::io::Result as IoResult;
 use std::io::Write;
 
+#[derive(Copy, Clone)]
 pub enum Spot {
     Initial,
     NotFinal,
@@ -24,6 +25,14 @@ pub fn prettypad(pad: &str, state: Spot) -> (String, String) {
     (first, successive)
 }
 
+pub fn pprint_token<T>(writer: &mut T, tokstr: &str, pad: &str, state: Spot) -> IoResult<()>
+where
+    T: Write,
+{
+    let (first, _) = prettypad(pad, state);
+    writeln!(writer, "{}Token: {}", first, tokstr)
+}
+
 pub trait PrettyPrint {
     fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
     where
@@ -32,6 +41,16 @@ pub trait PrettyPrint {
         self.pprint_with_leftpad(writer, "", Spot::Initial)
     }
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write;
+
+    fn pprint_concise<T>(&self, writer: &mut T) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.concise_with_leftpad(writer, "", Spot::Initial)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write;
 }

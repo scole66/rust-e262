@@ -6,7 +6,7 @@ use super::scanner::Scanner;
 use super::unary_operators::UnaryExpression;
 use super::update_expressions::UpdateExpression;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 #[derive(Debug)]
 pub enum ExponentiationExpression {
@@ -31,10 +31,28 @@ impl PrettyPrint for ExponentiationExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
         match &self {
-            ExponentiationExpression::UnaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ExponentiationExpression::UnaryExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ExponentiationExpression::Exponentiation((ue, ee)) => {
                 ue.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ee.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            ExponentiationExpression::UnaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            ExponentiationExpression::Exponentiation((left, right)) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "**", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -59,16 +77,25 @@ impl AssignmentTargetType for ExponentiationExpression {
 }
 
 impl ExponentiationExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut result = match pot_ue {
             Some((boxed_ue, after_ue)) => {
-                let (token, scanner) = scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (token, scanner) =
+                    scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp);
                 match token {
                     scanner::Token::StarStar => {
                         let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
                         match pot_ee {
-                            Some((boxed_ee, after_ee)) => Some((Box::new(ExponentiationExpression::Exponentiation((boxed_ue, boxed_ee))), after_ee)),
+                            Some((boxed_ee, after_ee)) => Some((
+                                Box::new(ExponentiationExpression::Exponentiation((boxed_ue, boxed_ee))),
+                                after_ee,
+                            )),
                             None => None,
                         }
                     }
@@ -80,7 +107,10 @@ impl ExponentiationExpression {
         if result.is_none() {
             let pot_unary = UnaryExpression::parse(parser, scanner, yield_flag, await_flag)?;
             result = match pot_unary {
-                Some((boxed_unary, after_unary)) => Some((Box::new(ExponentiationExpression::UnaryExpression(boxed_unary)), after_unary)),
+                Some((boxed_unary, after_unary)) => Some((
+                    Box::new(ExponentiationExpression::UnaryExpression(boxed_unary)),
+                    after_unary,
+                )),
                 None => None,
             }
         }
@@ -97,7 +127,12 @@ mod tests {
     // EXPONENTIATION EXPRESSION
     #[test]
     fn exponentiation_expression_test_01() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        let (se, scanner) = check(ExponentiationExpression::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
@@ -107,21 +142,40 @@ mod tests {
     }
     #[test]
     fn exponentiation_expression_test_02() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
+        let (se, scanner) = check(ExponentiationExpression::parse(
+            &mut newparser("a ** b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ExponentiationExpression::Exponentiation(_)));
-        pretty_check(&*se, "ExponentiationExpression: a ** b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
+        pretty_check(
+            &*se,
+            "ExponentiationExpression: a ** b",
+            vec!["UpdateExpression: a", "ExponentiationExpression: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn exponentiation_expression_test_03() {
-        check_none(ExponentiationExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_none(ExponentiationExpression::parse(
+            &mut newparser(""),
+            Scanner::new(),
+            false,
+            false,
+        ));
     }
     #[test]
     fn exponentiation_expression_test_04() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
+        let (se, scanner) = check(ExponentiationExpression::parse(
+            &mut newparser("a ** @"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
@@ -132,11 +186,15 @@ mod tests {
     #[test]
     fn exponentiation_expression_test_05() {
         assert!(ExponentiationExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), false, false).is_err());
-        assert!(ExponentiationExpression::parse(&mut newparser("a ** \\u0066or"), Scanner::new(), false, false).is_err());
+        assert!(
+            ExponentiationExpression::parse(&mut newparser("a ** \\u0066or"), Scanner::new(), false, false).is_err()
+        );
     }
     #[test]
     fn exponentiation_expression_test_prettyerrors() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap().unwrap();
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false)
+            .unwrap()
+            .unwrap();
         pretty_error_validate(*item);
     }
 }

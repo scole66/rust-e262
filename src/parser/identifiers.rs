@@ -1,6 +1,6 @@
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -28,6 +28,13 @@ impl PrettyPrint for Identifier {
     {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}Identifier: {}", first, self.string_value())
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, pad, state)
     }
 }
 
@@ -217,6 +224,22 @@ impl PrettyPrint for IdentifierReference {
         }
         Ok(())
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut work = |tok: &str| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}IdentifierReference: {}", first, self)?;
+            pprint_token(writer, tok, &successive, Spot::Final)
+        };
+        match &self.kind {
+            IdentifierReferenceKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
+            IdentifierReferenceKind::Await => work("await"),
+            IdentifierReferenceKind::Yield => work("yield"),
+        }
+    }
 }
 
 impl fmt::Display for IdentifierReference {
@@ -336,6 +359,22 @@ impl PrettyPrint for BindingIdentifier {
             boxed.pprint_with_leftpad(writer, &successive, Spot::Final)?;
         }
         Ok(())
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut work = |tok: &str| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}BindingIdentifier: {}", first, self)?;
+            pprint_token(writer, tok, &successive, Spot::Final)
+        };
+        match &self.kind {
+            BindingIdentifierKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
+            BindingIdentifierKind::Await => work("await"),
+            BindingIdentifierKind::Yield => work("yield"),
+        }
     }
 }
 

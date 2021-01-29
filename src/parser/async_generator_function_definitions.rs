@@ -23,6 +23,13 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl IsFunctionDefinition for AsyncGeneratorDeclaration {
@@ -59,6 +66,13 @@ impl PrettyPrint for AsyncGeneratorExpression {
     {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 

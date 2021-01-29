@@ -25,6 +25,13 @@ impl PrettyPrint for EmptyStatement {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}EmptyStatement: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.pprint_with_leftpad(writer, pad, state)
+    }
 }
 
 impl EmptyStatement {

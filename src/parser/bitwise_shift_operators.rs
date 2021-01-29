@@ -5,7 +5,7 @@ use std::io::Write;
 use super::additive_operators::AdditiveExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // ShiftExpression[Yield, Await] :
 //      AdditiveExpression[?Yield, ?Await]
@@ -40,10 +40,32 @@ impl PrettyPrint for ShiftExpression {
         writeln!(writer, "{}ShiftExpression: {}", first, self)?;
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ShiftExpression::LeftShift(se, ae) | ShiftExpression::SignedRightShift(se, ae) | ShiftExpression::UnsignedRightShift(se, ae) => {
+            ShiftExpression::LeftShift(se, ae)
+            | ShiftExpression::SignedRightShift(se, ae)
+            | ShiftExpression::UnsignedRightShift(se, ae) => {
                 se.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut work = |left: &Box<ShiftExpression>, right: &Box<AdditiveExpression>, op| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}ShiftExpression: {}", first, self)
+                .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))
+        };
+
+        match self {
+            ShiftExpression::AdditiveExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            ShiftExpression::LeftShift(left, right) => work(left, right, "<<"),
+            ShiftExpression::SignedRightShift(left, right) => work(left, right, ">>"),
+            ShiftExpression::UnsignedRightShift(left, right) => work(left, right, ">>>"),
         }
     }
 }
@@ -67,7 +89,12 @@ impl AssignmentTargetType for ShiftExpression {
 }
 
 impl ShiftExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_ae = AdditiveExpression::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_ae {
             None => Ok(None),
@@ -75,7 +102,8 @@ impl ShiftExpression {
                 let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
                 let mut current_scan = after_ae;
                 loop {
-                    let (shift_op, after_op) = scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (shift_op, after_op) =
+                        scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv);
                     match shift_op {
                         scanner::Token::GtGt | scanner::Token::GtGtGt | scanner::Token::LtLt => {
                             let pot_ae2 = AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)?;
@@ -116,7 +144,12 @@ mod tests {
     // SHIFT EXPRESSION
     #[test]
     fn shift_expression_test_01() {
-        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
+        let (se, scanner) = check(ShiftExpression::parse(
+            &mut newparser("a"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
         pretty_check(&*se, "ShiftExpression: a", vec!["AdditiveExpression: a"]);
@@ -126,30 +159,57 @@ mod tests {
     }
     #[test]
     fn shift_expression_test_02() {
-        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a << b"), Scanner::new(), false, false));
+        let (se, scanner) = check(ShiftExpression::parse(
+            &mut newparser("a << b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ShiftExpression::LeftShift(_, _)));
-        pretty_check(&*se, "ShiftExpression: a << b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
+        pretty_check(
+            &*se,
+            "ShiftExpression: a << b",
+            vec!["ShiftExpression: a", "AdditiveExpression: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn shift_expression_test_03() {
-        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >> b"), Scanner::new(), false, false));
+        let (se, scanner) = check(ShiftExpression::parse(
+            &mut newparser("a >> b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ShiftExpression::SignedRightShift(_, _)));
-        pretty_check(&*se, "ShiftExpression: a >> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
+        pretty_check(
+            &*se,
+            "ShiftExpression: a >> b",
+            vec!["ShiftExpression: a", "AdditiveExpression: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn shift_expression_test_04() {
-        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> b"), Scanner::new(), false, false));
+        let (se, scanner) = check(ShiftExpression::parse(
+            &mut newparser("a >>> b"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 7);
         assert!(matches!(&*se, ShiftExpression::UnsignedRightShift(_, _)));
-        pretty_check(&*se, "ShiftExpression: a >>> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
+        pretty_check(
+            &*se,
+            "ShiftExpression: a >>> b",
+            vec!["ShiftExpression: a", "AdditiveExpression: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -160,7 +220,12 @@ mod tests {
     }
     #[test]
     fn shift_expression_test_06() {
-        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> @"), Scanner::new(), false, false));
+        let (se, scanner) = check(ShiftExpression::parse(
+            &mut newparser("a >>> @"),
+            Scanner::new(),
+            false,
+            false,
+        ));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
         assert_eq!(se.is_function_definition(), false);
@@ -173,8 +238,9 @@ mod tests {
     }
     #[test]
     fn shift_expression_test_prettyerrors() {
-        let (item, _) = ShiftExpression::parse(&mut newparser("3>>4"), Scanner::new(), false, false).unwrap().unwrap();
+        let (item, _) = ShiftExpression::parse(&mut newparser("3>>4"), Scanner::new(), false, false)
+            .unwrap()
+            .unwrap();
         pretty_error_validate(*item);
     }
-
 }

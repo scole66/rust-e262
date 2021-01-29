@@ -38,7 +38,7 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let result = StatementList::parse(&mut parser, Scanner::new(), true, false, false);
     match result {
         Ok(Some((node, _))) => {
-            node.pprint(&mut io::stdout()).expect("Output Error");
+            node.pprint_concise(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
         Ok(None) => Ok(0),

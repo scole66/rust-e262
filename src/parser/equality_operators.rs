@@ -5,7 +5,7 @@ use std::io::Write;
 use super::relational_operators::RelationalExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // EqualityExpression[In, Yield, Await] :
 //      RelationalExpression[?In, ?Yield, ?Await]
@@ -50,6 +50,27 @@ impl PrettyPrint for EqualityExpression {
                 ee.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 re.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut work = |ee: &Box<EqualityExpression>, re: &Box<RelationalExpression>, op| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}EqualityExpression: {}", first, self)
+                .and_then(|_| ee.concise_with_leftpad(writer, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::Final))
+        };
+
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            EqualityExpression::Equal(ee, re) => work(ee, re, "=="),
+            EqualityExpression::NotEqual(ee, re) => work(ee, re, "!="),
+            EqualityExpression::StrictEqual(ee, re) => work(ee, re, "==="),
+            EqualityExpression::NotStrictEqual(ee, re) => work(ee, re, "!=="),
         }
     }
 }

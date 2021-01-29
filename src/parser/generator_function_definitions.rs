@@ -23,6 +23,13 @@ impl PrettyPrint for GeneratorDeclaration {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}GeneratorDeclaration: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl GeneratorDeclaration {
@@ -54,6 +61,13 @@ impl PrettyPrint for GeneratorExpression {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}GeneratorExpression: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl IsFunctionDefinition for GeneratorExpression {
@@ -84,6 +98,13 @@ impl PrettyPrint for YieldExpression {
     {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}YieldExpression: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 

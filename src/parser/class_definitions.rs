@@ -23,6 +23,13 @@ impl PrettyPrint for ClassDeclaration {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}ClassDeclaration: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl ClassDeclaration {
@@ -53,6 +60,13 @@ impl PrettyPrint for ClassExpression {
     {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}ClassExpression: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 

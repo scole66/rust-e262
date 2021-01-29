@@ -6,7 +6,7 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::Scanner;
 use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 #[derive(Debug)]
 pub enum UpdateExpression {
@@ -43,6 +43,34 @@ impl PrettyPrint for UpdateExpression {
             UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let head = |writer: &mut T| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}UpdateExpression: {}", first, self).and(Ok(successive))
+        };
+        let workafter = |writer: &mut T, node: &Box<LeftHandSideExpression>, op: &str| {
+            head(writer).and_then(|successive| {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)
+                    .and_then(|_| pprint_token(writer, op, &successive, Spot::Final))
+            })
+        };
+        let workbefore = |writer: &mut T, node: &Box<UnaryExpression>, op: &str| {
+            head(writer).and_then(|successive| {
+                pprint_token(writer, op, &successive, Spot::NotFinal)
+                    .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
+            })
+        };
+        match self {
+            UpdateExpression::LeftHandSideExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            UpdateExpression::PostIncrement(node) => workafter(writer, node, "++"),
+            UpdateExpression::PostDecrement(node) => workafter(writer, node, "--"),
+            UpdateExpression::PreIncrement(node) => workbefore(writer, node, "++"),
+            UpdateExpression::PreDecrement(node) => workbefore(writer, node, "--"),
         }
     }
 }

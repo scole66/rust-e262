@@ -23,13 +23,17 @@ impl PrettyPrint for DebuggerStatement {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}DebuggerStatement: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl DebuggerStatement {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
     }
 }

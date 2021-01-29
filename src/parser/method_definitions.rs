@@ -23,10 +23,22 @@ impl PrettyPrint for MethodDefinition {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}MethodDefinition: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl MethodDefinition {
-    pub fn parse(_parser: &mut Parser, _scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(
+        _parser: &mut Parser,
+        _scanner: Scanner,
+        _yield_flag: bool,
+        _await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         Ok(None)
     }
 }

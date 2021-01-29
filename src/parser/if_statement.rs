@@ -6,7 +6,7 @@ use super::comma_operator::Expression;
 use super::scanner::Scanner;
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // IfStatement[Yield, Await, Return] :
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] else Statement[?Yield, ?Await, ?Return]
@@ -42,6 +42,32 @@ impl PrettyPrint for IfStatement {
                 e.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 s1.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 s2.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}IfStatement: {}", first, self)?;
+        pprint_token(writer, "if", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        let condition = |writer: &mut T, exp: &Box<Expression>| {
+            exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)
+                .and_then(|_| pprint_token(writer, ")", &successive, Spot::NotFinal))
+        };
+        match self {
+            IfStatement::WithoutElse(e, s1) => {
+                condition(writer, e)?;
+                s1.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            IfStatement::WithElse(e, s1, s2) => {
+                condition(writer, e)?;
+                s1.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "else", &successive, Spot::NotFinal)?;
+                s2.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }

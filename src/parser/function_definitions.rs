@@ -23,6 +23,13 @@ impl PrettyPrint for FunctionDeclaration {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionDeclaration: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl FunctionDeclaration {
@@ -53,6 +60,13 @@ impl PrettyPrint for FunctionExpression {
     {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionExpression: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
     }
 }
 

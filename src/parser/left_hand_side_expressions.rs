@@ -9,7 +9,7 @@ use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 //////// 12.3 Left-Hand-Side Expressions
 
@@ -122,6 +122,50 @@ impl PrettyPrint for MemberExpression {
                 nmea.member_expression
                     .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 nmea.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut head = |pad, state| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}MemberExpression: {}", first, self).and(Ok(successive))
+        };
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpressionKind::SuperProperty(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpressionKind::MetaProperty(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpressionKind::Expression(m) => {
+                let successive = head(pad, state)?;
+                m.member_expression
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                m.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", &successive, Spot::Final)
+            }
+            MemberExpressionKind::IdentifierName(m) => {
+                let successive = head(pad, state)?;
+                m.member_expression
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", m.identifier_name), &successive, Spot::Final)
+            }
+            MemberExpressionKind::TemplateLiteral(metl) => {
+                let successive = head(pad, state)?;
+                metl.member_expression
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                metl.template_literal
+                    .concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            MemberExpressionKind::NewArguments(mea) => {
+                let successive = head(pad, state)?;
+                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
+                mea.member_expression
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                mea.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
@@ -364,6 +408,27 @@ impl PrettyPrint for SuperProperty {
             SuperPropertyKind::IdentifierName(_) => Ok(()),
         }
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}SuperProperty: {}", first, self)?;
+        match &self.kind {
+            SuperPropertyKind::Expression(node) => {
+                pprint_token(writer, "super", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", &successive, Spot::Final)
+            }
+            SuperPropertyKind::IdentifierName(id) => {
+                pprint_token(writer, "super", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", id), &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl SuperProperty {
@@ -455,6 +520,25 @@ impl PrettyPrint for MetaProperty {
         let (first, _) = prettypad(pad, state);
         writeln!(writer, "{}MetaProperty: {}", first, self)
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}MetaProperty: {}", first, self)?;
+        match &self.kind {
+            MetaPropertyKind::NewTarget => {
+                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "target", &successive, Spot::Final)
+            }
+            MetaPropertyKind::ImportMeta => {
+                pprint_token(writer, "import", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "meta", &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl AssignmentTargetType for MetaProperty {
@@ -538,6 +622,25 @@ impl PrettyPrint for Arguments {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}Arguments: {}", first, self)?;
+        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        match &self.kind {
+            ArgumentsKind::Empty => {}
+            ArgumentsKind::ArgumentList(node) => {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            ArgumentsKind::ArgumentListComma(node) => {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+            }
+        }
+        pprint_token(writer, ")", &successive, Spot::Final)
     }
 }
 
@@ -777,6 +880,40 @@ impl PrettyPrint for ArgumentList {
             }
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let mut head = |pad, state| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}ArgumentList: {}", first, self).and(Ok(successive))
+        };
+        match &self.kind {
+            ArgumentListKind::AssignmentExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            ArgumentListKind::DotsAssignmentExpression(node) => {
+                let successive = head(pad, state)?;
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArgumentListKind::ArgumentListAssignmentExpression(alae) => {
+                let successive = head(pad, state)?;
+                alae.argument_list
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                alae.assignment_expression
+                    .concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArgumentListKind::ArgumentListDotsAssignmentExpression(alae) => {
+                let successive = head(pad, state)?;
+                alae.argument_list
+                    .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                alae.assignment_expression
+                    .concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl ArgumentList {
@@ -865,6 +1002,20 @@ impl PrettyPrint for NewExpression {
             NewExpressionKind::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            NewExpressionKind::NewExpression(node) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}NewExpression: {}", first, self)?;
+                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
 }
 
 impl IsFunctionDefinition for NewExpression {
@@ -946,6 +1097,16 @@ impl PrettyPrint for CallMemberExpression {
             .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}CallMemberExpression: {}", first, self)?;
+        self.member_expression
+            .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
+    }
 }
 
 impl CallMemberExpression {
@@ -995,6 +1156,15 @@ impl PrettyPrint for SuperCall {
         writeln!(writer, "{}SuperCall: {}", first, self)?;
         self.arguments.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}SuperCall: {}", first, self)?;
+        pprint_token(writer, "super", &successive, Spot::NotFinal)?;
+        self.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
+    }
 }
 
 impl SuperCall {
@@ -1038,6 +1208,18 @@ impl PrettyPrint for ImportCall {
         writeln!(writer, "{}ImportCall: {}", first, self)?;
         self.assignment_expression
             .pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ImportCall: {}", first, self)?;
+        pprint_token(writer, "import", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        self.assignment_expression
+            .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", &successive, Spot::Final)
     }
 }
 
@@ -1139,6 +1321,36 @@ impl PrettyPrint for CallExpression {
             }
             CallExpressionKind::CallExpressionIdentifierName((ce, _)) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let head = |writer: &mut T, node: &Box<CallExpression>| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}CallExpression: {}", first, self).and(Ok(successive))
+        };
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpressionKind::SuperCall(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpressionKind::ImportCall(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpressionKind::CallExpressionArguments((ce, right)) => {
+                let successive = head(writer, ce)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CallExpressionKind::CallExpressionExpression((ce, right)) => {
+                let successive = head(writer, ce)?;
+                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", &successive, Spot::Final)
+            }
+            CallExpressionKind::CallExpressionIdentifierName((ce, right)) => {
+                let successive = head(writer, ce)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", right), &successive, Spot::NotFinal)
             }
         }
     }
@@ -1300,6 +1512,15 @@ impl PrettyPrint for LeftHandSideExpression {
             LeftHandSideExpression::CallExpression(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            LeftHandSideExpression::NewExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            LeftHandSideExpression::CallExpression(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }

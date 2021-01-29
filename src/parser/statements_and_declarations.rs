@@ -104,6 +104,27 @@ impl PrettyPrint for Statement {
             Statement::Debugger(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            Statement::Block(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Variable(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Empty(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Expression(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::If(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Breakable(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Continue(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Break(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Return(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::With(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Labelled(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Throw(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Try(node) => node.concise_with_leftpad(writer, pad, state),
+            Statement::Debugger(node) => node.concise_with_leftpad(writer, pad, state),
+        }
+    }
 }
 
 impl Statement {
@@ -222,6 +243,17 @@ impl PrettyPrint for Declaration {
             Declaration::Lexical(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            Declaration::Hoistable(node) => node.concise_with_leftpad(writer, pad, state),
+            Declaration::Class(node) => node.concise_with_leftpad(writer, pad, state),
+            Declaration::Lexical(node) => node.concise_with_leftpad(writer, pad, state),
+        }
+    }
 }
 
 impl Declaration {
@@ -286,6 +318,18 @@ impl PrettyPrint for HoistableDeclaration {
             HoistableDeclaration::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            HoistableDeclaration::Function(node) => node.concise_with_leftpad(writer, pad, state),
+            HoistableDeclaration::Generator(node) => node.concise_with_leftpad(writer, pad, state),
+            HoistableDeclaration::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
+            HoistableDeclaration::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
+        }
+    }
 }
 
 impl HoistableDeclaration {
@@ -344,6 +388,16 @@ impl PrettyPrint for BreakableStatement {
         match &self {
             BreakableStatement::Iteration(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BreakableStatement::Switch(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            BreakableStatement::Iteration(node) => node.concise_with_leftpad(writer, pad, state),
+            BreakableStatement::Switch(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }

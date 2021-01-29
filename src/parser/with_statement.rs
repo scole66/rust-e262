@@ -23,6 +23,13 @@ impl PrettyPrint for WithStatement {
         let (first, _successive) = prettypad(pad, state);
         writeln!(writer, "{}WithStatement: {}", first, self)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
 }
 
 impl WithStatement {

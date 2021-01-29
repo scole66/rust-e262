@@ -10,7 +10,7 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::Scanner;
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // IterationStatement[Yield, Await, Return] :
 //      DoWhileStatement[?Yield, ?Await, ?Return]
@@ -48,6 +48,18 @@ impl PrettyPrint for IterationStatement {
             IterationStatement::While(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             IterationStatement::For(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             IterationStatement::ForInOf(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            IterationStatement::DoWhile(node) => node.concise_with_leftpad(writer, pad, state),
+            IterationStatement::While(node) => node.concise_with_leftpad(writer, pad, state),
+            IterationStatement::For(node) => node.concise_with_leftpad(writer, pad, state),
+            IterationStatement::ForInOf(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -107,6 +119,22 @@ impl PrettyPrint for DoWhileStatement {
         writeln!(w, "{}DoWhileStatement: {}", first, self)?;
         let DoWhileStatement::Do(s, e) = self;
         pp_two(w, &suc, s, e)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, suc) = prettypad(pad, state);
+        writeln!(writer, "{}DoWhileStatement: {}", first, self)?;
+        pprint_token(writer, "do", &suc, Spot::NotFinal)?;
+        let DoWhileStatement::Do(s, e) = self;
+        s.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        pprint_token(writer, "while", &suc, Spot::NotFinal)?;
+        pprint_token(writer, "(", &suc, Spot::NotFinal)?;
+        e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        pprint_token(writer, ")", &suc, Spot::NotFinal)?;
+        pprint_token(writer, ";", &suc, Spot::Final)
     }
 }
 
@@ -176,6 +204,20 @@ impl PrettyPrint for WhileStatement {
         writeln!(w, "{}WhileStatement: {}", first, self)?;
         let WhileStatement::While(e, s) = self;
         pp_two(w, &suc, e, s)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, suc) = prettypad(pad, state);
+        writeln!(writer, "{}WhileStatement: {}", first, self)?;
+        let WhileStatement::While(e, s) = self;
+        pprint_token(writer, "while", &suc, Spot::NotFinal)?;
+        pprint_token(writer, "(", &suc, Spot::NotFinal)?;
+        e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        pprint_token(writer, ")", &suc, Spot::NotFinal)?;
+        s.concise_with_leftpad(writer, &suc, Spot::Final)
     }
 }
 
@@ -255,11 +297,11 @@ impl fmt::Display for ForStatement {
             ForStatement::ForVar(v, None, Some(e2), s) => write!(f, "for ( var {} ; ; {} ) {}", v, e2, s),
             ForStatement::ForVar(v, None, None, s) => write!(f, "for ( var {} ; ; ) {}", v, s),
             ForStatement::ForLex(lex, Some(e1), Some(e2), s) => {
-                write!(f, "for ( {} ; {} ; {} ) {}", lex, e1, e2, s)
+                write!(f, "for ( {} {} ; {} ) {}", lex, e1, e2, s)
             }
-            ForStatement::ForLex(lex, Some(e1), None, s) => write!(f, "for ( {} ; {} ; ) {}", lex, e1, s),
-            ForStatement::ForLex(lex, None, Some(e2), s) => write!(f, "for ( {} ; ; {} ) {}", lex, e2, s),
-            ForStatement::ForLex(lex, None, None, s) => write!(f, "for ( {} ; ; ) {}", lex, s),
+            ForStatement::ForLex(lex, Some(e1), None, s) => write!(f, "for ( {} {} ; ) {}", lex, e1, s),
+            ForStatement::ForLex(lex, None, Some(e2), s) => write!(f, "for ( {} ; {} ) {}", lex, e2, s),
+            ForStatement::ForLex(lex, None, None, s) => write!(f, "for ( {} ; ) {}", lex, s),
         }
     }
 }
@@ -288,6 +330,52 @@ impl PrettyPrint for ForStatement {
             ForStatement::ForLex(lex, Some(e1), None, s) => pp_three(w, &suc, lex, e1, s),
             ForStatement::ForLex(lex, None, Some(e2), s) => pp_three(w, &suc, lex, e2, s),
             ForStatement::ForLex(lex, None, None, s) => pp_two(w, &suc, lex, s),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, w: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, suc) = prettypad(pad, state);
+        writeln!(w, "{}ForStatement: {}", first, self)?;
+        pprint_token(w, "for", &suc, Spot::NotFinal)?;
+        pprint_token(w, "(", &suc, Spot::NotFinal)?;
+        let maybeprint = |w: &mut T, e: &Option<Box<Expression>>| {
+            if let Some(exp) = e {
+                exp.concise_with_leftpad(w, &suc, Spot::NotFinal)
+            } else {
+                Ok(())
+            }
+        };
+        match self {
+            ForStatement::For(e1, e2, e3, s) => {
+                maybeprint(w, e1)?;
+                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                maybeprint(w, e2)?;
+                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                maybeprint(w, e3)?;
+                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                s.concise_with_leftpad(w, &suc, Spot::Final)
+            }
+            ForStatement::ForVar(v, e1, e2, s) => {
+                pprint_token(w, "var", &suc, Spot::NotFinal)?;
+                v.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                maybeprint(w, e1)?;
+                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                maybeprint(w, e2)?;
+                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                s.concise_with_leftpad(w, &suc, Spot::Final)
+            }
+            ForStatement::ForLex(lex, e1, e2, s) => {
+                lex.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
+                maybeprint(w, e1)?;
+                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                maybeprint(w, e2)?;
+                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                s.concise_with_leftpad(w, &suc, Spot::Final)
+            }
         }
     }
 }
@@ -496,6 +584,76 @@ impl PrettyPrint for ForInOfStatement {
             ForInOfStatement::ForAwaitOf(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
             ForInOfStatement::ForAwaitVarOf(v, e, s) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::ForAwaitLexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, w: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let await_present = matches!(self, ForInOfStatement::ForAwaitOf(_, _, _))
+            || matches!(self, ForInOfStatement::ForAwaitVarOf(_, _, _))
+            || matches!(self, ForInOfStatement::ForAwaitLexOf(_, _, _));
+        let var_present = matches!(self, ForInOfStatement::ForVarIn(_, _, _))
+            || matches!(self, ForInOfStatement::ForVarOf(_, _, _))
+            || matches!(self, ForInOfStatement::ForAwaitVarOf(_, _, _));
+
+        let (first, suc) = prettypad(pad, state);
+        writeln!(w, "{}ForInOfStatement: {}", first, self)?;
+        pprint_token(w, "for", &suc, Spot::NotFinal)?;
+
+        if await_present {
+            pprint_token(w, "await", &suc, Spot::NotFinal)?;
+        }
+
+        pprint_token(w, "(", &suc, Spot::NotFinal)?;
+
+        if var_present {
+            pprint_token(w, "var", &suc, Spot::NotFinal)?;
+        }
+
+        match self {
+            ForInOfStatement::ForIn(lhs, _, _)
+            | ForInOfStatement::ForOf(lhs, _, _)
+            | ForInOfStatement::ForAwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::ForVarIn(v, _, _)
+            | ForInOfStatement::ForVarOf(v, _, _)
+            | ForInOfStatement::ForAwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::ForLexIn(lex, _, _)
+            | ForInOfStatement::ForLexOf(lex, _, _)
+            | ForInOfStatement::ForAwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
+        }?;
+
+        match self {
+            ForInOfStatement::ForIn(_, e, _)
+            | ForInOfStatement::ForLexIn(_, e, _)
+            | ForInOfStatement::ForVarIn(_, e, _) => {
+                pprint_token(w, "in", &suc, Spot::NotFinal)?;
+                e.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
+            }
+            ForInOfStatement::ForVarOf(_, ae, _)
+            | ForInOfStatement::ForOf(_, ae, _)
+            | ForInOfStatement::ForAwaitVarOf(_, ae, _)
+            | ForInOfStatement::ForLexOf(_, ae, _)
+            | ForInOfStatement::ForAwaitOf(_, ae, _)
+            | ForInOfStatement::ForAwaitLexOf(_, ae, _) => {
+                pprint_token(w, "of", &suc, Spot::NotFinal)?;
+                ae.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
+            }
+        }
+
+        pprint_token(w, ")", &suc, Spot::NotFinal)?;
+
+        match self {
+            ForInOfStatement::ForIn(_, _, s)
+            | ForInOfStatement::ForOf(_, _, s)
+            | ForInOfStatement::ForAwaitOf(_, _, s)
+            | ForInOfStatement::ForVarIn(_, _, s)
+            | ForInOfStatement::ForVarOf(_, _, s)
+            | ForInOfStatement::ForAwaitVarOf(_, _, s)
+            | ForInOfStatement::ForLexIn(_, _, s)
+            | ForInOfStatement::ForLexOf(_, _, s)
+            | ForInOfStatement::ForAwaitLexOf(_, _, s) => s.concise_with_leftpad(w, &suc, Spot::Final),
         }
     }
 }
@@ -757,6 +915,17 @@ impl PrettyPrint for ForDeclaration {
         loc.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ForDeclaration: {}", first, self)?;
+        let ForDeclaration::Binding(loc, node) = self;
+        loc.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        node.concise_with_leftpad(writer, &successive, Spot::Final)
+    }
 }
 
 impl ForDeclaration {
@@ -810,6 +979,16 @@ impl PrettyPrint for ForBinding {
         match self {
             ForBinding::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ForBinding::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            ForBinding::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
+            ForBinding::Pattern(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }

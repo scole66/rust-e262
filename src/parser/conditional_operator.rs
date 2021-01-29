@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
 use super::scanner::Scanner;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // ConditionalExpression[In, Yield, Await] :
 //      ShortCircuitExpression[?In, ?Yield, ?Await]
@@ -45,6 +45,23 @@ impl PrettyPrint for ConditionalExpression {
                 condition.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 thenish.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elseish.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            ConditionalExpression::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
+            ConditionalExpression::Conditional(a, b, c) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}ConditionalExpression: {}", first, self)?;
+                a.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "?", &successive, Spot::NotFinal)?;
+                b.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                c.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
