@@ -35,7 +35,7 @@ impl VM {
 
 fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
-    let result = StatementList::parse(&mut parser, Scanner::new(), true, false, false);
+    let result = StatementList::parse(&mut parser, Scanner::new(), false, false, false);
     match result {
         Ok(Some((node, _))) => {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");

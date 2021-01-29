@@ -229,11 +229,7 @@ impl PrettyPrint for IdentifierReference {
     where
         T: Write,
     {
-        let mut work = |tok: &str| {
-            let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}IdentifierReference: {}", first, self)?;
-            pprint_token(writer, tok, &successive, Spot::Final)
-        };
+        let mut work = |tok: &str| pprint_token(writer, tok, pad, state);
         match &self.kind {
             IdentifierReferenceKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
             IdentifierReferenceKind::Await => work("await"),
