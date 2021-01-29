@@ -440,6 +440,80 @@ impl fmt::Display for IdentifierNameToken {
     }
 }
 
+// LabelIdentifier[Yield, Await] :
+//      Identifier
+//      [~Yield]yield
+//      [~Await]await
+#[derive(Debug)]
+pub enum LabelIdentifier {
+    Identifier(Box<Identifier>),
+    Yield,
+    Await,
+}
+
+impl fmt::Display for LabelIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LabelIdentifier::Identifier(node) => node.fmt(f),
+            LabelIdentifier::Yield => write!(f, "yield"),
+            LabelIdentifier::Await => write!(f, "await"),
+        }
+    }
+}
+
+impl PrettyPrint for LabelIdentifier {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}LabelIdentifier: {}", first, self)?;
+        match self {
+            LabelIdentifier::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LabelIdentifier::Yield | LabelIdentifier::Await => Ok(()),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            LabelIdentifier::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
+            LabelIdentifier::Yield => pprint_token(writer, "yield", pad, state),
+            LabelIdentifier::Await => pprint_token(writer, "await", pad, state),
+        }
+    }
+}
+
+impl LabelIdentifier {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_id = Identifier::parse(parser, scanner)?;
+        if let Some((id, after_id)) = pot_id {
+            return Ok(Some((Box::new(LabelIdentifier::Identifier(id)), after_id)));
+        }
+        if !yield_flag || !await_flag {
+            let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+            if !yield_flag
+                && matches!(&tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Yield))
+            {
+                return Ok(Some((Box::new(LabelIdentifier::Yield), after_tok)));
+            }
+            if !await_flag
+                && matches!(&tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Await))
+            {
+                return Ok(Some((Box::new(LabelIdentifier::Await), after_tok)));
+            }
+        }
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
