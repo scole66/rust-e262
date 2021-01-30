@@ -1484,11 +1484,15 @@ impl CallExpression {
     }
 }
 
+// LeftHandSideExpression[Yield, Await] :
+//      NewExpression[?Yield, ?Await]
+//      CallExpression[?Yield, ?Await]
+//      OptionalExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum LeftHandSideExpression {
     NewExpression(Box<NewExpression>),
     CallExpression(Box<CallExpression>),
-    // OptionalExpression(Box<OptionalExpression>),
+    OptionalExpression(Box<OptionalExpression>),
 }
 
 impl fmt::Display for LeftHandSideExpression {
@@ -1496,6 +1500,7 @@ impl fmt::Display for LeftHandSideExpression {
         match &self {
             LeftHandSideExpression::NewExpression(boxed) => write!(f, "{}", boxed),
             LeftHandSideExpression::CallExpression(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::OptionalExpression(boxed) => write!(f, "{}", boxed),
         }
     }
 }
@@ -1512,6 +1517,9 @@ impl PrettyPrint for LeftHandSideExpression {
             LeftHandSideExpression::CallExpression(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+            LeftHandSideExpression::OptionalExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1521,6 +1529,7 @@ impl PrettyPrint for LeftHandSideExpression {
         match self {
             LeftHandSideExpression::NewExpression(node) => node.concise_with_leftpad(writer, pad, state),
             LeftHandSideExpression::CallExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            LeftHandSideExpression::OptionalExpression(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -1529,7 +1538,7 @@ impl IsFunctionDefinition for LeftHandSideExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             LeftHandSideExpression::NewExpression(boxed) => boxed.is_function_definition(),
-            LeftHandSideExpression::CallExpression(_) => false,
+            LeftHandSideExpression::OptionalExpression(_) | LeftHandSideExpression::CallExpression(_) => false,
         }
     }
 }
@@ -1539,6 +1548,7 @@ impl AssignmentTargetType for LeftHandSideExpression {
         match self {
             LeftHandSideExpression::NewExpression(boxed) => boxed.assignment_target_type(),
             LeftHandSideExpression::CallExpression(boxed) => boxed.assignment_target_type(),
+            LeftHandSideExpression::OptionalExpression(_) => ATTKind::Invalid,
         }
     }
 }
@@ -1550,17 +1560,360 @@ impl LeftHandSideExpression {
         yield_arg: bool,
         await_arg: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_opt = OptionalExpression::parse(parser, scanner, yield_arg, await_arg)?;
+        if let Some((opt, after_opt)) = pot_opt {
+            return Ok(Some((Box::new(Self::OptionalExpression(opt)), after_opt)));
+        }
+
         let pot_ce = CallExpression::parse(parser, scanner, yield_arg, await_arg)?;
-        match pot_ce {
-            Some((ce_boxed, scanner)) => Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner))),
-            _ => {
-                let pot_ne = NewExpression::parse(parser, scanner, yield_arg, await_arg)?;
-                match pot_ne {
-                    Some((ne_boxed, scanner)) => Ok(Some((Box::new(Self::NewExpression(ne_boxed)), scanner))),
-                    None => Ok(None),
+        if let Some((ce_boxed, scanner)) = pot_ce {
+            return Ok(Some((Box::new(Self::CallExpression(ce_boxed)), scanner)));
+        }
+
+        let pot_ne = NewExpression::parse(parser, scanner, yield_arg, await_arg)?;
+        if let Some((ne_boxed, scanner)) = pot_ne {
+            return Ok(Some((Box::new(Self::NewExpression(ne_boxed)), scanner)));
+        }
+
+        Ok(None)
+    }
+}
+
+// OptionalExpression[Yield, Await] :
+//      MemberExpression[?Yield, ?Await] OptionalChain[?Yield, ?Await]
+//      CallExpression[?Yield, ?Await] OptionalChain[?Yield, ?Await]
+//      OptionalExpression[?Yield, ?Await] OptionalChain[?Yield, ?Await]
+#[derive(Debug)]
+pub enum OptionalExpression {
+    Member(Box<MemberExpression>, Box<OptionalChain>),
+    Call(Box<CallExpression>, Box<OptionalChain>),
+    Opt(Box<OptionalExpression>, Box<OptionalChain>),
+}
+
+impl fmt::Display for OptionalExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OptionalExpression::Member(left, right) => write!(f, "{} {}", left, right),
+            OptionalExpression::Call(left, right) => write!(f, "{} {}", left, right),
+            OptionalExpression::Opt(left, right) => write!(f, "{} {}", left, right),
+        }
+    }
+}
+
+impl PrettyPrint for OptionalExpression {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}OptionalExpression: {}", first, self)?;
+        match self {
+            OptionalExpression::Member(left, right) => {
+                left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalExpression::Call(left, right) => {
+                left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalExpression::Opt(left, right) => {
+                left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}OptionalExpression: {}", first, self)?;
+        match self {
+            OptionalExpression::Member(left, right) => {
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalExpression::Call(left, right) => {
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalExpression::Opt(left, right) => {
+                left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                right.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl OptionalExpression {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let pot_me = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        let mut current;
+        let mut current_scanner;
+
+        if let Some((me, after_me)) = pot_me {
+            let pot_chain = OptionalChain::parse(parser, after_me, yield_flag, await_flag)?;
+            if let Some((chain, after_chain)) = pot_chain {
+                current = Box::new(OptionalExpression::Member(me, chain));
+                current_scanner = after_chain;
+            } else {
+                return Ok(None);
+            }
+        } else {
+            let pot_ce = CallExpression::parse(parser, scanner, yield_flag, await_flag)?;
+            if let Some((ce, after_ce)) = pot_ce {
+                let pot_chain = OptionalChain::parse(parser, after_ce, yield_flag, await_flag)?;
+                if let Some((chain, after_chain)) = pot_chain {
+                    current = Box::new(OptionalExpression::Call(ce, chain));
+                    current_scanner = after_chain;
+                } else {
+                    return Ok(None);
+                }
+            } else {
+                return Ok(None);
+            }
+        }
+
+        loop {
+            let pot_chain = OptionalChain::parse(parser, current_scanner, yield_flag, await_flag)?;
+            match pot_chain {
+                None => {
+                    break;
+                }
+                Some((chain, after_chain)) => {
+                    current = Box::new(OptionalExpression::Opt(current, chain));
+                    current_scanner = after_chain;
                 }
             }
         }
+        Ok(Some((current, current_scanner)))
+    }
+}
+
+// OptionalChain[Yield, Await] :
+//      ?. Arguments[?Yield, ?Await]
+//      ?. [ Expression[+In, ?Yield, ?Await] ]
+//      ?. IdentifierName
+//      ?. TemplateLiteral[?Yield, ?Await, +Tagged]
+//      OptionalChain[?Yield, ?Await] Arguments[?Yield, ?Await]
+//      OptionalChain[?Yield, ?Await] [ Expression[+In, ?Yield, ?Await] ]
+//      OptionalChain[?Yield, ?Await] . IdentifierName
+//      OptionalChain[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+#[derive(Debug)]
+pub enum OptionalChain {
+    Args(Box<Arguments>),
+    Exp(Box<Expression>),
+    Ident(scanner::IdentifierData),
+    Template(Box<TemplateLiteral>),
+    PlusArgs(Box<OptionalChain>, Box<Arguments>),
+    PlusExp(Box<OptionalChain>, Box<Expression>),
+    PlusIdent(Box<OptionalChain>, scanner::IdentifierData),
+    PlusTemplate(Box<OptionalChain>, Box<TemplateLiteral>),
+}
+
+impl fmt::Display for OptionalChain {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OptionalChain::Args(node) => write!(f, "?. {}", node),
+            OptionalChain::Exp(node) => write!(f, "?. [ {} ]", node),
+            OptionalChain::Ident(node) => write!(f, "?. {}", node),
+            OptionalChain::Template(node) => write!(f, "?. {}", node),
+            OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
+            OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),
+            OptionalChain::PlusIdent(lst, item) => write!(f, "{} . {}", lst, item),
+            OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
+        }
+    }
+}
+
+impl PrettyPrint for OptionalChain {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}OptionalChain: {}", first, self)?;
+        match self {
+            OptionalChain::Args(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::Ident(node) => pprint_token(writer, &format!("{}", node), &successive, Spot::Final),
+            OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::PlusArgs(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusExp(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusIdent(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", item), &successive, Spot::Final)
+            }
+            OptionalChain::PlusTemplate(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}OptionalChain: {}", first, self)?;
+        match self {
+            OptionalChain::Args(node) => {
+                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::Exp(node) => {
+                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", &successive, Spot::Final)
+            }
+            OptionalChain::Ident(node) => {
+                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", node), &successive, Spot::Final)
+            }
+            OptionalChain::Template(node) => {
+                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusArgs(lst, item) => {
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusExp(lst, item) => {
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", &successive, Spot::Final)
+            }
+            OptionalChain::PlusIdent(lst, item) => {
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", item), &successive, Spot::Final)
+            }
+            OptionalChain::PlusTemplate(lst, item) => {
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl OptionalChain {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let mut current;
+        let mut current_scanner;
+        let (opt_tok, after_opt) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+        if opt_tok == scanner::Token::QDot {
+            let pot_args = Arguments::parse(parser, after_opt, yield_flag, await_flag)?;
+            if let Some((args, after_args)) = pot_args {
+                current = Box::new(Self::Args(args));
+                current_scanner = after_args;
+            } else {
+                let pot_temp = TemplateLiteral::parse(parser, after_opt, yield_flag, await_flag, true)?;
+                if let Some((temp, after_temp)) = pot_temp {
+                    current = Box::new(Self::Template(temp));
+                    current_scanner = after_temp;
+                } else {
+                    let (token, after_token) =
+                        scanner::scan_token(&after_opt, parser.source, scanner::ScanGoal::InputElementDiv);
+                    if token == scanner::Token::LeftBracket {
+                        let pot_exp = Expression::parse(parser, after_token, true, yield_flag, await_flag)?;
+                        if let Some((exp, after_exp)) = pot_exp {
+                            let (close, after_close) =
+                                scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
+                            if close == scanner::Token::RightBracket {
+                                current = Box::new(Self::Exp(exp));
+                                current_scanner = after_close;
+                            } else {
+                                return Ok(None);
+                            }
+                        } else {
+                            return Ok(None);
+                        }
+                    } else if let scanner::Token::Identifier(id) = token {
+                        current = Box::new(Self::Ident(id));
+                        current_scanner = after_token;
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            }
+
+            // Done with stage 1. Now add more items to the end, if we find them.
+            loop {
+                let pot_args = Arguments::parse(parser, current_scanner, yield_flag, await_flag)?;
+                if let Some((args, after_args)) = pot_args {
+                    current = Box::new(Self::PlusArgs(current, args));
+                    current_scanner = after_args;
+                    continue;
+                }
+
+                let pot_temp = TemplateLiteral::parse(parser, current_scanner, yield_flag, await_flag, true)?;
+                if let Some((temp, after_temp)) = pot_temp {
+                    current = Box::new(Self::PlusTemplate(current, temp));
+                    current_scanner = after_temp;
+                    continue;
+                }
+
+                let (token, after_tok) =
+                    scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                if token == scanner::Token::LeftBracket {
+                    let pot_exp = Expression::parse(parser, after_tok, true, yield_flag, await_flag)?;
+                    match pot_exp {
+                        None => {
+                            break;
+                        }
+                        Some((exp, after_exp)) => {
+                            let (close, after_close) =
+                                scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
+                            if close == scanner::Token::RightBracket {
+                                current = Box::new(Self::PlusExp(current, exp));
+                                current_scanner = after_close;
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                if token == scanner::Token::Dot {
+                    let (ident, after_ident) =
+                        scanner::scan_token(&after_tok, parser.source, scanner::ScanGoal::InputElementDiv);
+                    match ident {
+                        scanner::Token::Identifier(id) => {
+                            current = Box::new(Self::PlusIdent(current, id));
+                            current_scanner = after_ident;
+                            continue;
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+
+                break;
+            }
+            return Ok(Some((current, current_scanner)));
+        }
+
+        Ok(None)
     }
 }
 

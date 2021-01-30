@@ -140,6 +140,12 @@ pub struct IdentifierData {
     pub column: u32,
 }
 
+impl fmt::Display for IdentifierData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.string_value.fmt(f)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Eof,
