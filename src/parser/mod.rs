@@ -81,6 +81,7 @@ pub mod labelled_statements;
 pub mod left_hand_side_expressions;
 pub mod method_definitions;
 pub mod multiplicative_operators;
+pub mod parameter_lists;
 pub mod primary_expressions;
 pub mod relational_operators;
 pub mod return_statement;
