@@ -8,9 +8,10 @@ use super::async_function_definitions::AsyncFunctionExpression;
 use super::async_generator_function_definitions::AsyncGeneratorExpression;
 use super::class_definitions::ClassExpression;
 use super::comma_operator::Expression;
+use super::declarations_and_variables::BindingPattern;
 use super::function_definitions::FunctionExpression;
 use super::generator_function_definitions::GeneratorExpression;
-use super::identifiers::{IdentifierNameToken, IdentifierReference};
+use super::identifiers::{BindingIdentifier, IdentifierNameToken, IdentifierReference};
 use super::method_definitions::MethodDefinition;
 use super::scanner::Scanner;
 use super::*;
@@ -2101,6 +2102,276 @@ impl ParenthesizedExpression {
             }
             _ => Ok(None),
         }
+    }
+}
+
+// CoverParenthesizedExpressionAndArrowParameterList[Yield, Await] :
+//      ( Expression[+In, ?Yield, ?Await] )
+//      ( Expression[+In, ?Yield, ?Await] , )
+//      ( )
+//      ( ... BindingIdentifier[?Yield, ?Await] )
+//      ( ... BindingPattern[?Yield, ?Await] )
+//      ( Expression[+In, ?Yield, ?Await] , ... BindingIdentifier[?Yield, ?Await] )
+//      ( Expression[+In, ?Yield, ?Await] , ... BindingPattern[?Yield, ?Await] )
+#[derive(Debug)]
+pub enum CoverParenthesizedExpressionAndArrowParameterList {
+    Expression(Box<Expression>),
+    ExpComma(Box<Expression>),
+    Empty,
+    Ident(Box<BindingIdentifier>),
+    Pattern(Box<BindingPattern>),
+    ExpIdent(Box<Expression>, Box<BindingIdentifier>),
+    ExpPattern(Box<Expression>, Box<BindingPattern>),
+}
+
+impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => write!(f, "( {} )", node),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => write!(f, "( {} , )", node),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => write!(f, "( )"),
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => write!(f, "( ... {} )", node),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => write!(f, "( ... {} )", node),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+                write!(f, "( {} , ... {} )", exp, id)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+                write!(f, "( {} , ... {} )", exp, pat)
+            }
+        }
+    }
+}
+
+impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(
+            writer,
+            "{}CoverParenthesizedExpressionAndArrowParameterList: {}",
+            first, self
+        )?;
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => Ok(()),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, next) => {
+                exp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                next.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, next) => {
+                exp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                next.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(
+            writer,
+            "{}CoverParenthesizedExpressionAndArrowParameterList: {}",
+            first, self
+        )?;
+        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+                exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+                exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pat.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+        }
+        pprint_token(writer, ")", &successive, Spot::Final)
+    }
+}
+
+impl CoverParenthesizedExpressionAndArrowParameterList {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+        let (lparen, after_lparen) =
+            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        if lparen == scanner::Token::LeftParen {
+            let pot_exp = Expression::parse(parser, after_lparen, true, yield_flag, await_flag)?;
+            if let Some((exp, after_exp)) = pot_exp {
+                let (rp_or_comma, after_rpc) =
+                    scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
+                match rp_or_comma {
+                    scanner::Token::RightParen => {
+                        return Ok(Some((
+                            Box::new(CoverParenthesizedExpressionAndArrowParameterList::Expression(exp)),
+                            after_rpc,
+                        )));
+                    }
+                    scanner::Token::Comma => {
+                        let (rp_or_dots, after_rpd) =
+                            scanner::scan_token(&after_rpc, parser.source, scanner::ScanGoal::InputElementDiv);
+                        match rp_or_dots {
+                            scanner::Token::RightParen => {
+                                return Ok(Some((
+                                    Box::new(CoverParenthesizedExpressionAndArrowParameterList::ExpComma(exp)),
+                                    after_rpd,
+                                )));
+                            }
+                            scanner::Token::Ellipsis => {
+                                let pot_bi = BindingIdentifier::parse(parser, after_rpd, yield_flag, await_flag)?;
+                                if let Some((bi, after_bi)) = pot_bi {
+                                    let (rparen, after_rp) = scanner::scan_token(
+                                        &after_bi,
+                                        parser.source,
+                                        scanner::ScanGoal::InputElementDiv,
+                                    );
+                                    return Ok(match rparen {
+                                        scanner::Token::RightParen => Some((
+                                            Box::new(CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(
+                                                exp, bi,
+                                            )),
+                                            after_rp,
+                                        )),
+                                        _ => None,
+                                    });
+                                }
+                                let pot_bp = BindingPattern::parse(parser, after_rpd, yield_flag, await_flag)?;
+                                match pot_bp {
+                                    None => {
+                                        return Ok(None);
+                                    }
+                                    Some((bp, after_bp)) => {
+                                        let (rparen, after_rp) = scanner::scan_token(
+                                            &after_bp,
+                                            parser.source,
+                                            scanner::ScanGoal::InputElementDiv,
+                                        );
+                                        match rparen {
+                                            scanner::Token::RightParen => {
+                                                return Ok(Some((
+                                                    Box::new(
+                                                        CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(
+                                                            exp, bp,
+                                                        ),
+                                                    ),
+                                                    after_bp,
+                                                )));
+                                            }
+                                            _ => {
+                                                return Ok(None);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                    _ => {
+                        return Ok(None);
+                    }
+                }
+            } else {
+                // Didn't start with an expression...
+                let (rp_or_dots, after_rpd) =
+                    scanner::scan_token(&after_lparen, parser.source, scanner::ScanGoal::InputElementRegExp);
+                match rp_or_dots {
+                    scanner::Token::RightParen => {
+                        return Ok(Some((
+                            Box::new(CoverParenthesizedExpressionAndArrowParameterList::Empty),
+                            after_rpd,
+                        )));
+                    }
+                    scanner::Token::Ellipsis => {
+                        enum IdOrPat {
+                            Id(Box<BindingIdentifier>),
+                            Pat(Box<BindingPattern>),
+                        }
+                        let production: IdOrPat;
+                        let after: Scanner;
+                        let pot_ident = BindingIdentifier::parse(parser, after_rpd, yield_flag, await_flag)?;
+                        if let Some((i, s)) = pot_ident {
+                            production = IdOrPat::Id(i);
+                            after = s;
+                        } else {
+                            let pot_pat = BindingPattern::parse(parser, after_rpd, yield_flag, await_flag)?;
+                            match pot_pat {
+                                Some((p, s)) => {
+                                    production = IdOrPat::Pat(p);
+                                    after = s;
+                                }
+                                None => {
+                                    return Ok(None);
+                                }
+                            }
+                        }
+                        let (rparen, after_rp) =
+                            scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementDiv);
+                        match rparen {
+                            scanner::Token::RightParen => {
+                                return Ok(Some((
+                                    Box::new(match production {
+                                        IdOrPat::Id(ident) => {
+                                            CoverParenthesizedExpressionAndArrowParameterList::Ident(ident)
+                                        }
+                                        IdOrPat::Pat(pat) => {
+                                            CoverParenthesizedExpressionAndArrowParameterList::Pattern(pat)
+                                        }
+                                    }),
+                                    after_rp,
+                                )));
+                            }
+                            _ => {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                    _ => {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+        Ok(None)
     }
 }
 
