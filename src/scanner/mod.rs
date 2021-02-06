@@ -4569,8 +4569,8 @@ mod tests {
                 line: 1,
                 column: 3,
                 start_idx: 2
-            );
             }
+        );
         assert_eq!(
             token,
             Token::TemplateTail(TemplateData {
