@@ -1,4 +1,4 @@
-use super::scanner::Scanner;
+use super::scanner::{scan_token, IdentifierData, JSString, Keyword, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 use std::fmt;
@@ -11,11 +11,11 @@ use std::io::Write;
 //      IdentifierName but not ReservedWord
 #[derive(Debug)]
 pub enum Identifier {
-    IdentifierName(scanner::IdentifierData),
+    IdentifierName(IdentifierData),
 }
 
 impl StringValue for Identifier {
-    fn string_value(&self) -> scanner::JSString {
+    fn string_value(&self) -> JSString {
         let Identifier::IdentifierName(identifier_name) = self;
         identifier_name.string_value.clone()
     }
@@ -46,47 +46,47 @@ impl fmt::Display for Identifier {
 
 impl Identifier {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::Identifier(id) => match id.keyword_id {
-                Some(scanner::Keyword::Await)
-                | Some(scanner::Keyword::Break)
-                | Some(scanner::Keyword::Case)
-                | Some(scanner::Keyword::Catch)
-                | Some(scanner::Keyword::Class)
-                | Some(scanner::Keyword::Const)
-                | Some(scanner::Keyword::Continue)
-                | Some(scanner::Keyword::Debugger)
-                | Some(scanner::Keyword::Default)
-                | Some(scanner::Keyword::Delete)
-                | Some(scanner::Keyword::Do)
-                | Some(scanner::Keyword::Else)
-                | Some(scanner::Keyword::Enum)
-                | Some(scanner::Keyword::Export)
-                | Some(scanner::Keyword::Extends)
-                | Some(scanner::Keyword::False)
-                | Some(scanner::Keyword::Finally)
-                | Some(scanner::Keyword::For)
-                | Some(scanner::Keyword::Function)
-                | Some(scanner::Keyword::If)
-                | Some(scanner::Keyword::Import)
-                | Some(scanner::Keyword::In)
-                | Some(scanner::Keyword::Instanceof)
-                | Some(scanner::Keyword::New)
-                | Some(scanner::Keyword::Null)
-                | Some(scanner::Keyword::Return)
-                | Some(scanner::Keyword::Super)
-                | Some(scanner::Keyword::Switch)
-                | Some(scanner::Keyword::This)
-                | Some(scanner::Keyword::Throw)
-                | Some(scanner::Keyword::True)
-                | Some(scanner::Keyword::Try)
-                | Some(scanner::Keyword::Typeof)
-                | Some(scanner::Keyword::Var)
-                | Some(scanner::Keyword::Void)
-                | Some(scanner::Keyword::While)
-                | Some(scanner::Keyword::With)
-                | Some(scanner::Keyword::Yield) => Ok(None),
+            Token::Identifier(id) => match id.keyword_id {
+                Some(Keyword::Await)
+                | Some(Keyword::Break)
+                | Some(Keyword::Case)
+                | Some(Keyword::Catch)
+                | Some(Keyword::Class)
+                | Some(Keyword::Const)
+                | Some(Keyword::Continue)
+                | Some(Keyword::Debugger)
+                | Some(Keyword::Default)
+                | Some(Keyword::Delete)
+                | Some(Keyword::Do)
+                | Some(Keyword::Else)
+                | Some(Keyword::Enum)
+                | Some(Keyword::Export)
+                | Some(Keyword::Extends)
+                | Some(Keyword::False)
+                | Some(Keyword::Finally)
+                | Some(Keyword::For)
+                | Some(Keyword::Function)
+                | Some(Keyword::If)
+                | Some(Keyword::Import)
+                | Some(Keyword::In)
+                | Some(Keyword::Instanceof)
+                | Some(Keyword::New)
+                | Some(Keyword::Null)
+                | Some(Keyword::Return)
+                | Some(Keyword::Super)
+                | Some(Keyword::Switch)
+                | Some(Keyword::This)
+                | Some(Keyword::Throw)
+                | Some(Keyword::True)
+                | Some(Keyword::Try)
+                | Some(Keyword::Typeof)
+                | Some(Keyword::Var)
+                | Some(Keyword::Void)
+                | Some(Keyword::While)
+                | Some(Keyword::With)
+                | Some(Keyword::Yield) => Ok(None),
                 _ => {
                     if parser.strict
                         && (id.string_value == "implements"
@@ -180,12 +180,12 @@ pub struct IdentifierReference {
 }
 
 impl StringValue for IdentifierReference {
-    fn string_value(&self) -> scanner::JSString {
+    fn string_value(&self) -> JSString {
         use IdentifierReferenceKind::*;
         match &self.kind {
             Identifier(id) => id.string_value(),
-            Yield => scanner::JSString::from("yield"),
-            Await => scanner::JSString::from("await"),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
         }
     }
 }
@@ -266,27 +266,22 @@ impl IdentifierReference {
                 Ok(Some((boxed, scanner)))
             }
             None => {
-                let (token, scan) =
-                    scanner::scan_token(&initial_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    scanner::Token::Identifier(id) if !arg_await && id.keyword_id == Some(scanner::Keyword::Await) => {
-                        Ok(Some((
-                            Box::new(IdentifierReference {
-                                kind: IdentifierReferenceKind::Await,
-                                strict: parser.strict,
-                            }),
-                            scan,
-                        )))
-                    }
-                    scanner::Token::Identifier(id) if !arg_yield && id.keyword_id == Some(scanner::Keyword::Yield) => {
-                        Ok(Some((
-                            Box::new(IdentifierReference {
-                                kind: IdentifierReferenceKind::Yield,
-                                strict: parser.strict,
-                            }),
-                            scan,
-                        )))
-                    }
+                    Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => Ok(Some((
+                        Box::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Await,
+                            strict: parser.strict,
+                        }),
+                        scan,
+                    ))),
+                    Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => Ok(Some((
+                        Box::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Yield,
+                            strict: parser.strict,
+                        }),
+                        scan,
+                    ))),
                     _ => Ok(None),
                 }
             }
@@ -313,23 +308,23 @@ pub struct BindingIdentifier {
 }
 
 impl StringValue for BindingIdentifier {
-    fn string_value(&self) -> scanner::JSString {
+    fn string_value(&self) -> JSString {
         use BindingIdentifierKind::*;
         match &self.kind {
             Identifier(id) => id.string_value(),
-            Yield => scanner::JSString::from("yield"),
-            Await => scanner::JSString::from("await"),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
         }
     }
 }
 
 impl BoundNames for BindingIdentifier {
-    fn bound_names(&self) -> Vec<scanner::JSString> {
+    fn bound_names(&self) -> Vec<JSString> {
         use BindingIdentifierKind::*;
         match &self.kind {
             Identifier(id) => vec![id.string_value()],
-            Yield => vec![scanner::JSString::from("yield")],
-            Await => vec![scanner::JSString::from("await")],
+            Yield => vec![JSString::from("yield")],
+            Await => vec![JSString::from("await")],
         }
     }
 }
@@ -393,11 +388,10 @@ impl BindingIdentifier {
                 Ok(Some((boxed, scanner)))
             }
             None => {
-                let (token, scan) =
-                    scanner::scan_token(&starting_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (token, scan) = scan_token(&starting_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    scanner::Token::Identifier(id) => match id.keyword_id {
-                        Some(scanner::Keyword::Await) => Ok(Some((
+                    Token::Identifier(id) => match id.keyword_id {
+                        Some(Keyword::Await) => Ok(Some((
                             Box::new(BindingIdentifier {
                                 kind: BindingIdentifierKind::Await,
                                 yield_flag,
@@ -405,7 +399,7 @@ impl BindingIdentifier {
                             }),
                             scan,
                         ))),
-                        Some(scanner::Keyword::Yield) => Ok(Some((
+                        Some(Keyword::Yield) => Ok(Some((
                             Box::new(BindingIdentifier {
                                 kind: BindingIdentifierKind::Yield,
                                 yield_flag,
@@ -424,15 +418,11 @@ impl BindingIdentifier {
 
 #[derive(Debug)]
 pub struct IdentifierNameToken {
-    pub value: scanner::Token,
+    pub value: IdentifierData,
 }
 impl fmt::Display for IdentifierNameToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let scanner::Token::Identifier(id) = &self.value {
-            write!(f, "{}", id.string_value)
-        } else {
-            unreachable!()
-        }
+        self.value.string_value.fmt(f)
     }
 }
 
@@ -494,15 +484,11 @@ impl LabelIdentifier {
             return Ok(Some((Box::new(LabelIdentifier::Identifier(id)), after_id)));
         }
         if !yield_flag || !await_flag {
-            let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if !yield_flag
-                && matches!(&tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Yield))
-            {
+            let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+            if !yield_flag && tok.matches_keyword(Keyword::Yield) {
                 return Ok(Some((Box::new(LabelIdentifier::Yield), after_tok)));
             }
-            if !await_flag
-                && matches!(&tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Await))
-            {
+            if !await_flag && tok.matches_keyword(Keyword::Await) {
                 return Ok(Some((Box::new(LabelIdentifier::Await), after_tok)));
             }
         }

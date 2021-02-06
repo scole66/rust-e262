@@ -1058,7 +1058,7 @@ impl LiteralPropertyName {
         match tok {
             Token::Identifier(id) => Ok(Some((
                 Box::new(LiteralPropertyName::IdentifierName(Box::new(IdentifierNameToken {
-                    value: Token::Identifier(id),
+                    value: id,
                 }))),
                 after_tok,
             ))),

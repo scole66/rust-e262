@@ -269,9 +269,7 @@ fn member_expression_head_recursive(
                     let me = Box::new(MemberExpression {
                         kind: MemberExpressionKind::IdentifierName(MemberExpressionIdentifierName {
                             member_expression: current_me,
-                            identifier_name: Box::new(IdentifierNameToken {
-                                value: Token::Identifier(id),
-                            }),
+                            identifier_name: Box::new(IdentifierNameToken { value: id }),
                         }),
                     });
                     current_me = me;
@@ -467,7 +465,7 @@ impl SuperProperty {
                                     Token::Identifier(id) => Ok(Some((
                                         Box::new(SuperProperty {
                                             kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken {
-                                                value: Token::Identifier(id),
+                                                value: id,
                                             })),
                                         }),
                                         scanner,
@@ -1429,11 +1427,11 @@ impl CallExpression {
                 Token::Punctuator(Punctuator::Dot) => {
                     let (tok, scanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
                     match tok {
-                        Token::Identifier(_) => {
+                        Token::Identifier(id) => {
                             top_box = Box::new(Self {
                                 kind: CallExpressionKind::CallExpressionIdentifierName((
                                     top_box,
-                                    Box::new(IdentifierNameToken { value: tok }),
+                                    Box::new(IdentifierNameToken { value: id }),
                                 )),
                             });
                             top_scanner = scanner;
