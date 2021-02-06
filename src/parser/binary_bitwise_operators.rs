@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::equality_operators::EqualityExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -90,10 +90,9 @@ impl BitwiseANDExpression {
                 let mut current = Box::new(BitwiseANDExpression::EqualityExpression(ee1));
                 let mut current_scanner = after_ee1;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op_token {
-                        scanner::Token::Amp => {
+                        Token::Punctuator(Punctuator::Amp) => {
                             let pot_ee2 = EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_ee2 {
                                 None => {
@@ -201,10 +200,9 @@ impl BitwiseXORExpression {
                 let mut current = Box::new(BitwiseXORExpression::BitwiseANDExpression(band1));
                 let mut current_scanner = after_band1;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op_token {
-                        scanner::Token::Caret => {
+                        Token::Punctuator(Punctuator::Caret) => {
                             let pot_band2 =
                                 BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_band2 {
@@ -313,10 +311,9 @@ impl BitwiseORExpression {
                 let mut current = Box::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
                 let mut current_scanner = after_bxor1;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op_token {
-                        scanner::Token::Pipe => {
+                        Token::Punctuator(Punctuator::Pipe) => {
                             let pot_bxor2 =
                                 BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_bxor2 {

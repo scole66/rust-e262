@@ -5,7 +5,7 @@ use std::io::Write;
 use super::block::StatementList;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::FormalParameters;
-use super::scanner::Scanner;
+use super::scanner::{Scanner, scan_token, ScanGoal, Punctuator, Keyword};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -70,8 +70,8 @@ impl FunctionDeclaration {
         default_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok_func, after_func) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(tok_func, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Function)) {
+            scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_func.matches_keyword(Keyword::Function) {
             let pot_bi = BindingIdentifier::parse(parser, after_func, false, false)?;
             let (bi, after_bi) = match pot_bi {
                 None => (None, after_func),
@@ -81,21 +81,21 @@ impl FunctionDeclaration {
                 return Ok(None);
             }
             let (popen, after_popen) =
-                scanner::scan_token(&after_bi, parser.source, scanner::ScanGoal::InputElementDiv);
-            if popen == scanner::Token::LeftParen {
+                scan_token(&after_bi, parser.source, ScanGoal::InputElementDiv);
+            if popen.matches_punct(Punctuator::LeftParen) {
                 let pot_fp = FormalParameters::parse(parser, after_popen, false, false)?;
                 if let Some((fp, after_fp)) = pot_fp {
                     let (pclose, after_pclose) =
-                        scanner::scan_token(&after_fp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if pclose == scanner::Token::RightParen {
+                        scan_token(&after_fp, parser.source, ScanGoal::InputElementDiv);
+                    if pclose.matches_punct(Punctuator::RightParen) {
                         let (bopen, after_bopen) =
-                            scanner::scan_token(&after_pclose, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if bopen == scanner::Token::LeftBrace {
+                            scan_token(&after_pclose, parser.source, ScanGoal::InputElementDiv);
+                        if bopen.matches_punct(Punctuator::LeftBrace) {
                             let pot_fb = FunctionBody::parse(parser, after_bopen, false, false)?;
                             if let Some((fb, after_fb)) = pot_fb {
                                 let (bclose, after_bclose) =
-                                    scanner::scan_token(&after_fb, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if bclose == scanner::Token::RightBrace {
+                                    scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
+                                if bclose.matches_punct(Punctuator::RightBrace) {
                                     return Ok(Some((
                                         Box::new(FunctionDeclaration {
                                             ident: bi,
@@ -175,29 +175,29 @@ impl IsFunctionDefinition for FunctionExpression {
 impl FunctionExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let (tok_func, after_func) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(tok_func, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Function)) {
+            scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_func.matches_keyword(Keyword::Function) {
             let pot_bi = BindingIdentifier::parse(parser, after_func, false, false)?;
             let (bi, after_bi) = match pot_bi {
                 None => (None, after_func),
                 Some((b, s)) => (Some(b), s),
             };
             let (popen, after_popen) =
-                scanner::scan_token(&after_bi, parser.source, scanner::ScanGoal::InputElementDiv);
-            if popen == scanner::Token::LeftParen {
+                scan_token(&after_bi, parser.source, ScanGoal::InputElementDiv);
+            if popen.matches_punct(Punctuator::LeftParen) {
                 let pot_fp = FormalParameters::parse(parser, after_popen, false, false)?;
                 if let Some((fp, after_fp)) = pot_fp {
                     let (pclose, after_pclose) =
-                        scanner::scan_token(&after_fp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if pclose == scanner::Token::RightParen {
+                        scan_token(&after_fp, parser.source, ScanGoal::InputElementDiv);
+                    if pclose.matches_punct(Punctuator::RightParen) {
                         let (bopen, after_bopen) =
-                            scanner::scan_token(&after_pclose, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if bopen == scanner::Token::LeftBrace {
+                            scan_token(&after_pclose, parser.source, ScanGoal::InputElementDiv);
+                        if bopen.matches_punct(Punctuator::LeftBrace) {
                             let pot_fb = FunctionBody::parse(parser, after_bopen, false, false)?;
                             if let Some((fb, after_fb)) = pot_fb {
                                 let (bclose, after_bclose) =
-                                    scanner::scan_token(&after_fb, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if bclose == scanner::Token::RightBrace {
+                                    scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
+                                if bclose.matches_punct(Punctuator::RightBrace) {
                                     return Ok(Some((
                                         Box::new(FunctionExpression {
                                             ident: bi,

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::declarations_and_variables::{BindingElement, BindingRestElement};
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -139,9 +139,9 @@ impl FormalParameters {
             None => (None, scanner),
             Some((f, s)) => (Some(f), s),
         };
-        let (pot_comma, after_pot) = scanner::scan_token(&after_fpl, parser.source, scanner::ScanGoal::InputElementDiv);
+        let (pot_comma, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
         let (has_comma, after_comma) = match pot_comma {
-            scanner::Token::Comma => (true, after_pot),
+            Token::Punctuator(Punctuator::Comma) => (true, after_pot),
             _ => (false, after_fpl),
         };
         let pot_frp = FunctionRestParameter::parse(parser, after_comma, yield_flag, await_flag)?;
@@ -222,10 +222,9 @@ impl FormalParameterList {
             let mut current = Box::new(FormalParameterList::Item(fp));
             let mut current_scanner = after_fp;
             loop {
-                let (comma, after_comma) =
-                    scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                let (comma, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                 match comma {
-                    scanner::Token::Comma => {
+                    Token::Punctuator(Punctuator::Comma) => {
                         let pot_next = FormalParameter::parse(parser, after_comma, yield_flag, await_flag)?;
                         match pot_next {
                             Some((next, after_next)) => {

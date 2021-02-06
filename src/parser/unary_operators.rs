@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::async_function_definitions::AwaitExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::update_expressions::UpdateExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -120,25 +120,23 @@ impl UnaryExpression {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let mut unary_helper = |f: fn(Box<Self>) -> Self| {
             UnaryExpression::parse(parser, after_token, yield_flag, await_flag)
                 .and_then(|opt| opt.map_or(Ok(None), |(boxed, after)| Ok(Some((Box::new(f(boxed)), after)))))
         };
         match token {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Delete) => {
+            Token::Identifier(id) if id.matches(Keyword::Delete) => {
                 unary_helper(|boxed| UnaryExpression::Delete(boxed))
             }
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Void) => {
-                unary_helper(|boxed| UnaryExpression::Void(boxed))
-            }
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Typeof) => {
+            Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(|boxed| UnaryExpression::Void(boxed)),
+            Token::Identifier(id) if id.matches(Keyword::Typeof) => {
                 unary_helper(|boxed| UnaryExpression::Typeof(boxed))
             }
-            scanner::Token::Plus => unary_helper(|boxed| UnaryExpression::NoOp(boxed)),
-            scanner::Token::Minus => unary_helper(|boxed| UnaryExpression::Negate(boxed)),
-            scanner::Token::Tilde => unary_helper(|boxed| UnaryExpression::Complement(boxed)),
-            scanner::Token::Bang => unary_helper(|boxed| UnaryExpression::Not(boxed)),
+            Token::Punctuator(Punctuator::Plus) => unary_helper(|boxed| UnaryExpression::NoOp(boxed)),
+            Token::Punctuator(Punctuator::Minus) => unary_helper(|boxed| UnaryExpression::Negate(boxed)),
+            Token::Punctuator(Punctuator::Tilde) => unary_helper(|boxed| UnaryExpression::Complement(boxed)),
+            Token::Punctuator(Punctuator::Bang) => unary_helper(|boxed| UnaryExpression::Not(boxed)),
             _ => {
                 let mut production: Option<(Box<Self>, Scanner)> = None;
                 if await_flag {

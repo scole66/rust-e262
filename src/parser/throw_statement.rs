@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -47,17 +47,14 @@ impl ThrowStatement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (throw_tok, after_throw) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(throw_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Throw)) {
-            let (next, after_next) =
-                scanner::scan_token(&after_throw, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (throw_tok, after_throw) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if throw_tok.matches_keyword(Keyword::Throw) {
+            let (next, after_next) = scan_token(&after_throw, parser.source, ScanGoal::InputElementRegExp);
             if after_throw.line == after_next.line {
                 let pot_exp = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
                 if let Some((exp, after_exp)) = pot_exp {
-                    let (semi, after_semi) =
-                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
-                    if semi == scanner::Token::Semicolon {
+                    let (semi, after_semi) = scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
+                    if semi.matches_punct(Punctuator::Semicolon) {
                         return Ok(Some((Box::new(ThrowStatement(exp)), after_semi)));
                     }
                 }

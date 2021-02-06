@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::additive_operators::AdditiveExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -102,14 +102,15 @@ impl ShiftExpression {
                 let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
                 let mut current_scan = after_ae;
                 loop {
-                    let (shift_op, after_op) =
-                        scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (shift_op, after_op) = scan_token(&current_scan, parser.source, ScanGoal::InputElementDiv);
                     match shift_op {
-                        scanner::Token::GtGt | scanner::Token::GtGtGt | scanner::Token::LtLt => {
+                        Token::Punctuator(Punctuator::GtGt)
+                        | Token::Punctuator(Punctuator::GtGtGt)
+                        | Token::Punctuator(Punctuator::LtLt) => {
                             let pot_ae2 = AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)?;
-                            let make_se = if shift_op == scanner::Token::GtGt {
+                            let make_se = if shift_op.matches_punct(Punctuator::GtGt) {
                                 |se, ae| ShiftExpression::SignedRightShift(se, ae)
-                            } else if shift_op == scanner::Token::LtLt {
+                            } else if shift_op.matches_punct(Punctuator::LtLt) {
                                 |se, ae| ShiftExpression::LeftShift(se, ae)
                             } else {
                                 |se, ae| ShiftExpression::UnsignedRightShift(se, ae)

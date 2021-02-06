@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -50,22 +50,19 @@ impl ExpressionStatement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (first_token, after_token) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (first_token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let invalid = match first_token {
-            scanner::Token::LeftBrace => true,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Function) => true,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Class) => true,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Let) => {
-                let (second_token, _) =
-                    scanner::scan_token(&after_token, parser.source, scanner::ScanGoal::InputElementRegExp);
-                matches!(second_token, scanner::Token::LeftBracket)
+            Token::Punctuator(Punctuator::LeftBrace) => true,
+            Token::Identifier(id) if id.matches(Keyword::Function) => true,
+            Token::Identifier(id) if id.matches(Keyword::Class) => true,
+            Token::Identifier(id) if id.matches(Keyword::Let) => {
+                let (second_token, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                second_token.matches_punct(Punctuator::LeftBracket)
             }
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Async) => {
-                let (second_token, _) =
-                    scanner::scan_token(&after_token, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if let scanner::Token::Identifier(id2) = second_token {
-                    id2.keyword_id == Some(scanner::Keyword::Function) && id.line == id2.line
+            Token::Identifier(id) if id.matches(Keyword::Async) => {
+                let (second_token, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                if let Token::Identifier(id2) = second_token {
+                    id2.matches(Keyword::Function) && id.line == id2.line
                 } else {
                     false
                 }
@@ -80,10 +77,9 @@ impl ExpressionStatement {
             match pot_exp {
                 None => Ok(None),
                 Some((exp, after_exp)) => {
-                    let (pot_semi, after_semi) =
-                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
+                    let (pot_semi, after_semi) = scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
                     match pot_semi {
-                        scanner::Token::Semicolon => {
+                        Token::Punctuator(Punctuator::Semicolon) => {
                             Ok(Some((Box::new(ExpressionStatement::Expression(exp)), after_semi)))
                         }
                         _ => Ok(None),

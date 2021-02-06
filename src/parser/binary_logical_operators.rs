@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::binary_bitwise_operators::BitwiseORExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -92,10 +92,9 @@ impl LogicalANDExpression {
                 let mut current = Box::new(LogicalANDExpression::BitwiseORExpression(left));
                 let mut current_scanner = after_left;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op_token {
-                        scanner::Token::AmpAmp => {
+                        Token::Punctuator(Punctuator::AmpAmp) => {
                             let pot_right =
                                 BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_right {
@@ -204,10 +203,9 @@ impl LogicalORExpression {
                 let mut current = Box::new(LogicalORExpression::LogicalANDExpression(left));
                 let mut current_scanner = after_left;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op_token {
-                        scanner::Token::PipePipe => {
+                        Token::Punctuator(Punctuator::PipePipe) => {
                             let pot_right =
                                 LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_right {
@@ -283,10 +281,9 @@ impl CoalesceExpression {
                 let mut current_scanner = after_left;
                 let mut exp_scanner = scanner;
                 loop {
-                    let (op, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match op {
-                        scanner::Token::QQ => {
+                        Token::Punctuator(Punctuator::QQ) => {
                             let pot_right =
                                 BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
                             match pot_right {

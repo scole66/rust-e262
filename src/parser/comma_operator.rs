@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -90,10 +90,9 @@ impl Expression {
                 let mut current = Box::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
                 loop {
-                    let (token, after_token) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (token, after_token) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match token {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_right =
                                 AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)?;
                             match pot_right {

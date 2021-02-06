@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::unary_operators::UnaryExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -20,7 +20,7 @@ pub enum UpdateExpression {
 impl fmt::Display for UpdateExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            UpdateExpression::LeftHandSideExpression(boxed) => write!(f, "{}", boxed),
+            UpdateExpression::LeftHandSideExpression(boxed) => boxed.fmt(f),
             UpdateExpression::PostIncrement(boxed) => write!(f, "{} ++", boxed),
             UpdateExpression::PostDecrement(boxed) => write!(f, "{} --", boxed),
             UpdateExpression::PreIncrement(boxed) => write!(f, "++ {}", boxed),
@@ -106,9 +106,9 @@ impl UpdateExpression {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_token) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
-            scanner::Token::PlusPlus => {
+            Token::Punctuator(Punctuator::PlusPlus) => {
                 // Seen ++ ...
                 let pot_ue = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
                 match pot_ue {
@@ -119,7 +119,7 @@ impl UpdateExpression {
                     None => Ok(None),
                 }
             }
-            scanner::Token::MinusMinus => {
+            Token::Punctuator(Punctuator::MinusMinus) => {
                 // Seen -- ...
                 let pot_ue = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
                 match pot_ue {
@@ -135,7 +135,7 @@ impl UpdateExpression {
                 match pot_lhs {
                     Some((boxed, after_lhs)) => {
                         let (token, after_token) =
-                            scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementRegExp);
+                            scan_token(&after_lhs, parser.source, ScanGoal::InputElementRegExp);
                         if after_token.line != after_lhs.line {
                             Ok(Some((
                                 Box::new(UpdateExpression::LeftHandSideExpression(boxed)),
@@ -143,10 +143,10 @@ impl UpdateExpression {
                             )))
                         } else {
                             match token {
-                                scanner::Token::PlusPlus => {
+                                Token::Punctuator(Punctuator::PlusPlus) => {
                                     Ok(Some((Box::new(UpdateExpression::PostIncrement(boxed)), after_token)))
                                 }
-                                scanner::Token::MinusMinus => {
+                                Token::Punctuator(Punctuator::MinusMinus) => {
                                     Ok(Some((Box::new(UpdateExpression::PostDecrement(boxed)), after_token)))
                                 }
                                 _ => Ok(Some((

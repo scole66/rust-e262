@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::bitwise_shift_operators::ShiftExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -104,13 +104,13 @@ impl AssignmentTargetType for RelationalExpression {
 }
 
 impl RelationalExpression {
-    fn is_relational_token(tok: &scanner::Token, in_flag: bool) -> bool {
-        match tok {
-            scanner::Token::Lt | scanner::Token::Gt | scanner::Token::LtEq | scanner::Token::GtEq => true,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Instanceof) => true,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::In) => in_flag,
-            _ => false,
-        }
+    fn is_relational_token(tok: &Token, in_flag: bool) -> bool {
+        tok.matches_punct(Punctuator::Lt)
+            || tok.matches_punct(Punctuator::Gt)
+            || tok.matches_punct(Punctuator::LtEq)
+            || tok.matches_punct(Punctuator::GtEq)
+            || tok.matches_keyword(Keyword::Instanceof)
+            || (tok.matches_keyword(Keyword::In) && in_flag)
     }
     pub fn parse(
         parser: &mut Parser,
@@ -126,14 +126,13 @@ impl RelationalExpression {
                 let mut current = Box::new(RelationalExpression::ShiftExpression(se));
                 let mut current_scanner = after_se;
                 loop {
-                    let (op, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     let make_re = match &op {
-                        scanner::Token::Lt => |re, se| RelationalExpression::Less(re, se),
-                        scanner::Token::Gt => |re, se| RelationalExpression::Greater(re, se),
-                        scanner::Token::LtEq => |re, se| RelationalExpression::LessEqual(re, se),
-                        scanner::Token::GtEq => |re, se| RelationalExpression::GreaterEqual(re, se),
-                        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Instanceof) => {
+                        Token::Punctuator(Punctuator::Lt) => |re, se| RelationalExpression::Less(re, se),
+                        Token::Punctuator(Punctuator::Gt) => |re, se| RelationalExpression::Greater(re, se),
+                        Token::Punctuator(Punctuator::LtEq) => |re, se| RelationalExpression::LessEqual(re, se),
+                        Token::Punctuator(Punctuator::GtEq) => |re, se| RelationalExpression::GreaterEqual(re, se),
+                        Token::Identifier(id) if id.matches(Keyword::Instanceof) => {
                             |re, se| RelationalExpression::InstanceOf(re, se)
                         }
                         _ => |re, se| RelationalExpression::In(re, se),

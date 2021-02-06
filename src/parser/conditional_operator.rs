@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -97,18 +97,17 @@ impl ConditionalExpression {
         match pot_left {
             None => Ok(None),
             Some((left, after_left)) => {
-                let (op, after_op) =
-                    scanner::scan_token(&after_left, parser.source, scanner::ScanGoal::InputElementDiv);
+                let (op, after_op) = scan_token(&after_left, parser.source, ScanGoal::InputElementDiv);
                 match op {
-                    scanner::Token::Question => {
+                    Token::Punctuator(Punctuator::Question) => {
                         let pot_then = AssignmentExpression::parse(parser, after_op, true, yield_flag, await_flag)?;
                         match pot_then {
                             None => Ok(Some((Box::new(ConditionalExpression::FallThru(left)), after_left))),
                             Some((thenish, after_then)) => {
                                 let (nextop, after_nextop) =
-                                    scanner::scan_token(&after_then, parser.source, scanner::ScanGoal::InputElementDiv);
+                                    scan_token(&after_then, parser.source, ScanGoal::InputElementDiv);
                                 match nextop {
-                                    scanner::Token::Colon => {
+                                    Token::Punctuator(Punctuator::Colon) => {
                                         let pot_else = AssignmentExpression::parse(
                                             parser,
                                             after_nextop,

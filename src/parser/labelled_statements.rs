@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::function_definitions::FunctionDeclaration;
 use super::identifiers::LabelIdentifier;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -58,9 +58,8 @@ impl LabelledStatement {
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_li = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         if let Some((li, after_li)) = pot_li {
-            let (colon, after_colon) =
-                scanner::scan_token(&after_li, parser.source, scanner::ScanGoal::InputElementDiv);
-            if colon == scanner::Token::Colon {
+            let (colon, after_colon) = scan_token(&after_li, parser.source, ScanGoal::InputElementDiv);
+            if colon.matches_punct(Punctuator::Colon) {
                 let pot_item = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
                 if let Some((item, after_item)) = pot_item {
                     return Ok(Some((

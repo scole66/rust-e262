@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -59,24 +59,21 @@ impl ReturnStatement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (ret_tok, after_ret) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(ret_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Return)) {
-            let (next_tok, after_next) =
-                scanner::scan_token(&after_ret, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (ret_tok, after_ret) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if ret_tok.matches_keyword(Keyword::Return) {
+            let (next_tok, after_next) = scan_token(&after_ret, parser.source, ScanGoal::InputElementRegExp);
             // The following check is broken for literals which span more than one line (strings can do this). Need to come up with a better way.
             if after_ret.line == after_next.line {
                 let pot_exp = Expression::parse(parser, after_ret, true, yield_flag, await_flag)?;
                 if let Some((exp, after_exp)) = pot_exp {
-                    let (semi, after_semi) =
-                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if semi == scanner::Token::Semicolon {
+                    let (semi, after_semi) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                    if semi.matches_punct(Punctuator::Semicolon) {
                         return Ok(Some((Box::new(ReturnStatement::Expression(exp)), after_semi)));
                     }
                 }
             }
-            let (semi, after_semi) =
-                scanner::scan_token(&after_ret, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if semi == scanner::Token::Semicolon {
+            let (semi, after_semi) = scan_token(&after_ret, parser.source, ScanGoal::InputElementRegExp);
+            if semi.matches_punct(Punctuator::Semicolon) {
                 return Ok(Some((Box::new(ReturnStatement::Bare), after_semi)));
             }
         }

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::exponentiation_operator::ExponentiationExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
@@ -42,11 +42,11 @@ impl PrettyPrint for MultiplicativeOperator {
 
 impl MultiplicativeOperator {
     fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<MultiplicativeOperator>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
         match tok {
-            scanner::Token::Star => Ok(Some((Box::new(MultiplicativeOperator::Multiply), after_tok))),
-            scanner::Token::Slash => Ok(Some((Box::new(MultiplicativeOperator::Divide), after_tok))),
-            scanner::Token::Percent => Ok(Some((Box::new(MultiplicativeOperator::Modulo), after_tok))),
+            Token::Punctuator(Punctuator::Star) => Ok(Some((Box::new(MultiplicativeOperator::Multiply), after_tok))),
+            Token::Punctuator(Punctuator::Slash) => Ok(Some((Box::new(MultiplicativeOperator::Divide), after_tok))),
+            Token::Punctuator(Punctuator::Percent) => Ok(Some((Box::new(MultiplicativeOperator::Modulo), after_tok))),
             _ => Ok(None),
         }
     }

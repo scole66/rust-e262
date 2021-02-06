@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::unary_operators::UnaryExpression;
 use super::update_expressions::UpdateExpression;
 use super::*;
@@ -86,10 +86,9 @@ impl ExponentiationExpression {
         let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut result = match pot_ue {
             Some((boxed_ue, after_ue)) => {
-                let (token, scanner) =
-                    scanner::scan_token(&after_ue, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (token, scanner) = scan_token(&after_ue, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    scanner::Token::StarStar => {
+                    Token::Punctuator(Punctuator::StarStar) => {
                         let pot_ee = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
                         match pot_ee {
                             Some((boxed_ee, after_ee)) => Some((

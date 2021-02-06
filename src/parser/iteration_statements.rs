@@ -7,7 +7,7 @@ use super::comma_operator::Expression;
 use super::declarations_and_variables::{BindingPattern, LetOrConst, LexicalDeclaration, VariableDeclarationList};
 use super::identifiers::BindingIdentifier;
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -146,28 +146,22 @@ impl DoWhileStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Do)) {
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok.matches_keyword(Keyword::Do) {
             // do Statement while ( Expression ) ;
             let pot_stmt = Statement::parse(parser, after_tok, yield_flag, await_flag, return_flag)?;
             if let Some((stmt, after_stmt)) = pot_stmt {
-                let (tok, after_tok) =
-                    scanner::scan_token(&after_stmt, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if matches!(tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::While)) {
-                    let (tok, after_tok) =
-                        scanner::scan_token(&after_tok, parser.source, scanner::ScanGoal::InputElementRegExp);
-                    if tok == scanner::Token::LeftParen {
+                let (tok, after_tok) = scan_token(&after_stmt, parser.source, ScanGoal::InputElementRegExp);
+                if tok.matches_keyword(Keyword::While) {
+                    let (tok, after_tok) = scan_token(&after_tok, parser.source, ScanGoal::InputElementRegExp);
+                    if tok.matches_punct(Punctuator::LeftParen) {
                         let pot_exp = Expression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                         if let Some((exp, after_exp)) = pot_exp {
-                            let (tok, after_tok) =
-                                scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                            if tok == scanner::Token::RightParen {
-                                let (tok, after_tok) = scanner::scan_token(
-                                    &after_tok,
-                                    parser.source,
-                                    scanner::ScanGoal::InputElementRegExp,
-                                );
-                                if tok == scanner::Token::Semicolon {
+                            let (tok, after_tok) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                            if tok.matches_punct(Punctuator::RightParen) {
+                                let (tok, after_tok) =
+                                    scan_token(&after_tok, parser.source, ScanGoal::InputElementRegExp);
+                                if tok.matches_punct(Punctuator::Semicolon) {
                                     return Ok(Some((Box::new(DoWhileStatement::Do(stmt, exp)), after_tok)));
                                 }
                             }
@@ -229,16 +223,14 @@ impl WhileStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok1, after_tok1) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(tok1, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::While)) {
-            let (tok2, after_tok2) =
-                scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if tok2 == scanner::Token::LeftParen {
+        let (tok1, after_tok1) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok1.matches_keyword(Keyword::While) {
+            let (tok2, after_tok2) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+            if tok2.matches_punct(Punctuator::LeftParen) {
                 let pot_exp = Expression::parse(parser, after_tok2, true, yield_flag, await_flag)?;
                 if let Some((exp, after_exp)) = pot_exp {
-                    let (tok3, after_tok3) =
-                        scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if tok3 == scanner::Token::RightParen {
+                    let (tok3, after_tok3) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+                    if tok3.matches_punct(Punctuator::RightParen) {
                         let pot_stmt = Statement::parse(parser, after_tok3, yield_flag, await_flag, return_flag)?;
                         if let Some((stmt, after_stmt)) = pot_stmt {
                             return Ok(Some((Box::new(WhileStatement::While(exp, stmt)), after_stmt)));
@@ -380,10 +372,6 @@ impl PrettyPrint for ForStatement {
     }
 }
 
-fn keyword_matches(tok: &scanner::Token, kwd: scanner::Keyword) -> bool {
-    matches!(&tok, scanner::Token::Identifier(id) if id.keyword_id == Some(kwd))
-}
-
 impl ForStatement {
     pub fn parse(
         parser: &mut Parser,
@@ -392,43 +380,34 @@ impl ForStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok1, after_tok1) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if keyword_matches(&tok1, scanner::Keyword::For) {
-            let (tok2, after_tok2) =
-                scanner::scan_token(&after_tok1, parser.source, scanner::ScanGoal::InputElementDiv);
-            if tok2 == scanner::Token::LeftParen {
-                let (tok3, after_tok3) =
-                    scanner::scan_token(&after_tok2, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok1, after_tok1) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok1.matches_keyword(Keyword::For) {
+            let (tok2, after_tok2) = scan_token(&after_tok1, parser.source, ScanGoal::InputElementDiv);
+            if tok2.matches_punct(Punctuator::LeftParen) {
+                let (tok3, after_tok3) = scan_token(&after_tok2, parser.source, ScanGoal::InputElementRegExp);
                 // for ( var VariableDeclarationList ; Expression ; Expression ) Statement
-                if keyword_matches(&tok3, scanner::Keyword::Var) {
+                if tok3.matches_keyword(Keyword::Var) {
                     let pot_vdl = VariableDeclarationList::parse(parser, after_tok3, false, yield_flag, await_flag)?;
                     if let Some((vdl, after_vdl)) = pot_vdl {
-                        let (semi1, after_semi1) =
-                            scanner::scan_token(&after_vdl, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if semi1 == scanner::Token::Semicolon {
+                        let (semi1, after_semi1) = scan_token(&after_vdl, parser.source, ScanGoal::InputElementDiv);
+                        if semi1.matches_punct(Punctuator::Semicolon) {
                             let pot_condition = Expression::parse(parser, after_semi1, true, yield_flag, await_flag)?;
                             let (condition, after_condition) = match pot_condition {
                                 None => (None, after_semi1),
                                 Some((c, s)) => (Some(c), s),
                             };
-                            let (semi2, after_semi2) = scanner::scan_token(
-                                &after_condition,
-                                parser.source,
-                                scanner::ScanGoal::InputElementDiv,
-                            );
-                            if semi2 == scanner::Token::Semicolon {
+                            let (semi2, after_semi2) =
+                                scan_token(&after_condition, parser.source, ScanGoal::InputElementDiv);
+                            if semi2.matches_punct(Punctuator::Semicolon) {
                                 let pot_increment =
                                     Expression::parse(parser, after_semi2, true, yield_flag, await_flag)?;
                                 let (increment, after_increment) = match pot_increment {
                                     None => (None, after_semi2),
                                     Some((i, s)) => (Some(i), s),
                                 };
-                                let (closing, after_closing) = scanner::scan_token(
-                                    &after_increment,
-                                    parser.source,
-                                    scanner::ScanGoal::InputElementDiv,
-                                );
-                                if closing == scanner::Token::RightParen {
+                                let (closing, after_closing) =
+                                    scan_token(&after_increment, parser.source, ScanGoal::InputElementDiv);
+                                if closing.matches_punct(Punctuator::RightParen) {
                                     let pot_stmt =
                                         Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                     if let Some((stmt, after_stmt)) = pot_stmt {
@@ -444,7 +423,7 @@ impl ForStatement {
                 }
 
                 // for ( LexicalDeclaration Expression ; Expression ) Statement
-                if keyword_matches(&tok3, scanner::Keyword::Let) | keyword_matches(&tok3, scanner::Keyword::Const) {
+                if tok3.matches_keyword(Keyword::Let) || tok3.matches_keyword(Keyword::Const) {
                     let pot_decl = LexicalDeclaration::parse(parser, after_tok2, false, yield_flag, await_flag)?;
                     if let Some((decl, after_decl)) = pot_decl {
                         let pot_condition = Expression::parse(parser, after_decl, true, yield_flag, await_flag)?;
@@ -453,19 +432,16 @@ impl ForStatement {
                             Some((c, s)) => (Some(c), s),
                         };
                         let (semi2, after_semi2) =
-                            scanner::scan_token(&after_condition, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if semi2 == scanner::Token::Semicolon {
+                            scan_token(&after_condition, parser.source, ScanGoal::InputElementDiv);
+                        if semi2.matches_punct(Punctuator::Semicolon) {
                             let pot_increment = Expression::parse(parser, after_semi2, true, yield_flag, await_flag)?;
                             let (increment, after_increment) = match pot_increment {
                                 None => (None, after_semi2),
                                 Some((i, s)) => (Some(i), s),
                             };
-                            let (closing, after_closing) = scanner::scan_token(
-                                &after_increment,
-                                parser.source,
-                                scanner::ScanGoal::InputElementDiv,
-                            );
-                            if closing == scanner::Token::RightParen {
+                            let (closing, after_closing) =
+                                scan_token(&after_increment, parser.source, ScanGoal::InputElementDiv);
+                            if closing.matches_punct(Punctuator::RightParen) {
                                 let pot_stmt =
                                     Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                 if let Some((stmt, after_stmt)) = pot_stmt {
@@ -480,36 +456,31 @@ impl ForStatement {
                 }
 
                 // for ( Expression ; Expression ; Expression ) Statement
-                let (tok4, after_tok4) =
-                    scanner::scan_token(&after_tok3, parser.source, scanner::ScanGoal::InputElementDiv);
-                if !keyword_matches(&tok3, scanner::Keyword::Let) || tok4 != scanner::Token::LeftBracket {
+                let (tok4, after_tok4) = scan_token(&after_tok3, parser.source, ScanGoal::InputElementDiv);
+                if !tok3.matches_keyword(Keyword::Let) || !tok4.matches_punct(Punctuator::LeftBracket) {
                     let pot_init = Expression::parse(parser, after_tok2, false, yield_flag, await_flag)?;
                     let (init, after_init) = match pot_init {
                         None => (None, after_tok2),
                         Some((i, s)) => (Some(i), s),
                     };
-                    let (semi1, after_semi1) =
-                        scanner::scan_token(&after_init, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if semi1 == scanner::Token::Semicolon {
+                    let (semi1, after_semi1) = scan_token(&after_init, parser.source, ScanGoal::InputElementDiv);
+                    if semi1.matches_punct(Punctuator::Semicolon) {
                         let pot_condition = Expression::parse(parser, after_semi1, true, yield_flag, await_flag)?;
                         let (condition, after_condition) = match pot_condition {
                             None => (None, after_semi1),
                             Some((c, s)) => (Some(c), s),
                         };
                         let (semi2, after_semi2) =
-                            scanner::scan_token(&after_condition, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if semi2 == scanner::Token::Semicolon {
+                            scan_token(&after_condition, parser.source, ScanGoal::InputElementDiv);
+                        if semi2.matches_punct(Punctuator::Semicolon) {
                             let pot_increment = Expression::parse(parser, after_semi2, true, yield_flag, await_flag)?;
                             let (increment, after_increment) = match pot_increment {
                                 None => (None, after_semi2),
                                 Some((i, s)) => (Some(i), s),
                             };
-                            let (closing, after_closing) = scanner::scan_token(
-                                &after_increment,
-                                parser.source,
-                                scanner::ScanGoal::InputElementDiv,
-                            );
-                            if closing == scanner::Token::RightParen {
+                            let (closing, after_closing) =
+                                scan_token(&after_increment, parser.source, ScanGoal::InputElementDiv);
+                            if closing.matches_punct(Punctuator::RightParen) {
                                 let pot_stmt =
                                     Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                 if let Some((stmt, after_stmt)) = pot_stmt {
@@ -666,32 +637,27 @@ impl ForInOfStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (for_token, after_for) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if keyword_matches(&for_token, scanner::Keyword::For) {
-            let (paren_or_await, after_poa) =
-                scanner::scan_token(&after_for, parser.source, scanner::ScanGoal::InputElementDiv);
-            let await_seen = await_flag && keyword_matches(&paren_or_await, scanner::Keyword::Await);
+        let (for_token, after_for) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if for_token.matches_keyword(Keyword::For) {
+            let (paren_or_await, after_poa) = scan_token(&after_for, parser.source, ScanGoal::InputElementDiv);
+            let await_seen = await_flag && paren_or_await.matches_keyword(Keyword::Await);
             let (opening, after_opening) = match await_seen {
-                true => scanner::scan_token(&after_poa, parser.source, scanner::ScanGoal::InputElementDiv),
+                true => scan_token(&after_poa, parser.source, ScanGoal::InputElementDiv),
                 false => (paren_or_await, after_poa),
             };
-            if opening == scanner::Token::LeftParen {
-                let (first, after_first) =
-                    scanner::scan_token(&after_opening, parser.source, scanner::ScanGoal::InputElementRegExp);
-                let (second, after_second) =
-                    scanner::scan_token(&after_opening, parser.source, scanner::ScanGoal::InputElementDiv);
-                if keyword_matches(&first, scanner::Keyword::Var) {
+            if opening.matches_punct(Punctuator::LeftParen) {
+                let (first, after_first) = scan_token(&after_opening, parser.source, ScanGoal::InputElementRegExp);
+                let (second, after_second) = scan_token(&after_opening, parser.source, ScanGoal::InputElementDiv);
+                if first.matches_keyword(Keyword::Var) {
                     let pot_fb = ForBinding::parse(parser, after_first, yield_flag, await_flag)?;
                     if let Some((fb, after_fb)) = pot_fb {
-                        let (tok_in_of, after_inof) =
-                            scanner::scan_token(&after_fb, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if !await_seen && keyword_matches(&tok_in_of, scanner::Keyword::In) {
+                        let (tok_in_of, after_inof) = scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
+                        if !await_seen && tok_in_of.matches_keyword(Keyword::In) {
                             let pot_exp = Expression::parse(parser, after_inof, true, yield_flag, await_flag)?;
                             if let Some((exp, after_exp)) = pot_exp {
                                 let (closing, after_closing) =
-                                    scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if closing == scanner::Token::RightParen {
+                                    scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                                if closing.matches_punct(Punctuator::RightParen) {
                                     let pot_stmt =
                                         Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                     if let Some((stmt, after_stmt)) = pot_stmt {
@@ -702,12 +668,12 @@ impl ForInOfStatement {
                                     }
                                 }
                             }
-                        } else if keyword_matches(&tok_in_of, scanner::Keyword::Of) {
+                        } else if tok_in_of.matches_keyword(Keyword::Of) {
                             let pot_ae = AssignmentExpression::parse(parser, after_inof, true, yield_flag, await_flag)?;
                             if let Some((ae, after_ae)) = pot_ae {
                                 let (closing, after_closing) =
-                                    scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if closing == scanner::Token::RightParen {
+                                    scan_token(&after_ae, parser.source, ScanGoal::InputElementDiv);
+                                if closing.matches_punct(Punctuator::RightParen) {
                                     let pot_stmt =
                                         Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                     if let Some((stmt, after_stmt)) = pot_stmt {
@@ -730,14 +696,13 @@ impl ForInOfStatement {
                 } else {
                     let pot_fd = ForDeclaration::parse(parser, after_opening, yield_flag, await_flag)?;
                     if let Some((fd, after_fd)) = pot_fd {
-                        let (inof, after_inof) =
-                            scanner::scan_token(&after_fd, parser.source, scanner::ScanGoal::InputElementDiv);
-                        if !await_seen && keyword_matches(&inof, scanner::Keyword::In) {
+                        let (inof, after_inof) = scan_token(&after_fd, parser.source, ScanGoal::InputElementDiv);
+                        if !await_seen && inof.matches_keyword(Keyword::In) {
                             let pot_exp = Expression::parse(parser, after_inof, true, yield_flag, await_flag)?;
                             if let Some((exp, after_exp)) = pot_exp {
                                 let (closing, after_closing) =
-                                    scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if closing == scanner::Token::RightParen {
+                                    scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                                if closing.matches_punct(Punctuator::RightParen) {
                                     let pot_stmt =
                                         Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                     if let Some((stmt, after_stmt)) = pot_stmt {
@@ -748,12 +713,12 @@ impl ForInOfStatement {
                                     }
                                 }
                             }
-                        } else if keyword_matches(&inof, scanner::Keyword::Of) {
+                        } else if inof.matches_keyword(Keyword::Of) {
                             let pot_ae = AssignmentExpression::parse(parser, after_inof, true, yield_flag, await_flag)?;
                             if let Some((ae, after_ae)) = pot_ae {
                                 let (closing, after_closing) =
-                                    scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementDiv);
-                                if closing == scanner::Token::RightParen {
+                                    scan_token(&after_ae, parser.source, ScanGoal::InputElementDiv);
+                                if closing.matches_punct(Punctuator::RightParen) {
                                     let pot_stmt =
                                         Statement::parse(parser, after_closing, yield_flag, await_flag, return_flag)?;
                                     if let Some((stmt, after_stmt)) = pot_stmt {
@@ -774,21 +739,17 @@ impl ForInOfStatement {
                         }
                     }
                     if !await_seen
-                        && (!keyword_matches(&first, scanner::Keyword::Let) || second != scanner::Token::LeftBracket)
+                        && (!first.matches_keyword(Keyword::Let) || !second.matches_punct(Punctuator::LeftBracket))
                     {
                         let pot_lhs = LeftHandSideExpression::parse(parser, after_opening, yield_flag, await_flag)?;
                         if let Some((lhs, after_lhs)) = pot_lhs {
-                            let (tok_in, after_in) =
-                                scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementDiv);
-                            if keyword_matches(&tok_in, scanner::Keyword::In) {
+                            let (tok_in, after_in) = scan_token(&after_lhs, parser.source, ScanGoal::InputElementDiv);
+                            if tok_in.matches_keyword(Keyword::In) {
                                 let pot_exp = Expression::parse(parser, after_in, true, yield_flag, await_flag)?;
                                 if let Some((exp, after_exp)) = pot_exp {
-                                    let (closing, after_closing) = scanner::scan_token(
-                                        &after_exp,
-                                        parser.source,
-                                        scanner::ScanGoal::InputElementDiv,
-                                    );
-                                    if closing == scanner::Token::RightParen {
+                                    let (closing, after_closing) =
+                                        scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                                    if closing.matches_punct(Punctuator::RightParen) {
                                         let pot_stmt = Statement::parse(
                                             parser,
                                             after_closing,
@@ -807,21 +768,17 @@ impl ForInOfStatement {
                             }
                         }
                     }
-                    if !keyword_matches(&first, scanner::Keyword::Let) {
+                    if !first.matches_keyword(Keyword::Let) {
                         let pot_lhs = LeftHandSideExpression::parse(parser, after_opening, yield_flag, await_flag)?;
                         if let Some((lhs, after_lhs)) = pot_lhs {
-                            let (tok_of, after_of) =
-                                scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementDiv);
-                            if keyword_matches(&tok_of, scanner::Keyword::Of) {
+                            let (tok_of, after_of) = scan_token(&after_lhs, parser.source, ScanGoal::InputElementDiv);
+                            if tok_of.matches_keyword(Keyword::Of) {
                                 let pot_exp =
                                     AssignmentExpression::parse(parser, after_of, true, yield_flag, await_flag)?;
                                 if let Some((exp, after_exp)) = pot_exp {
-                                    let (closing, after_closing) = scanner::scan_token(
-                                        &after_exp,
-                                        parser.source,
-                                        scanner::ScanGoal::InputElementDiv,
-                                    );
-                                    if closing == scanner::Token::RightParen {
+                                    let (closing, after_closing) =
+                                        scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                                    if closing.matches_punct(Punctuator::RightParen) {
                                         let pot_stmt = Statement::parse(
                                             parser,
                                             after_closing,
@@ -935,10 +892,10 @@ impl ForDeclaration {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let loc = match tok {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Let) => LetOrConst::Let,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Const) => LetOrConst::Const,
+            Token::Identifier(id) if id.matches(Keyword::Let) => LetOrConst::Let,
+            Token::Identifier(id) if id.matches(Keyword::Const) => LetOrConst::Const,
             _ => {
                 return Ok(None);
             }

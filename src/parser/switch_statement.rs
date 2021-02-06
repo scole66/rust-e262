@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::block::StatementList;
 use super::comma_operator::Expression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -57,17 +57,14 @@ impl SwitchStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_switch, after_switch) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(tok_switch, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Switch)) {
-            let (open, after_open) =
-                scanner::scan_token(&after_switch, parser.source, scanner::ScanGoal::InputElementDiv);
-            if open == scanner::Token::LeftParen {
+        let (tok_switch, after_switch) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_switch.matches_keyword(Keyword::Switch) {
+            let (open, after_open) = scan_token(&after_switch, parser.source, ScanGoal::InputElementDiv);
+            if open.matches_punct(Punctuator::LeftParen) {
                 let pot_exp = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
                 if let Some((exp, after_exp)) = pot_exp {
-                    let (close, after_close) =
-                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if close == scanner::Token::RightParen {
+                    let (close, after_close) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                    if close.matches_punct(Punctuator::RightParen) {
                         let pot_block = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if let Some((block, after_block)) = pot_block {
                             return Ok(Some((
@@ -172,8 +169,8 @@ impl CaseBlock {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (open, after_open) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-        if open == scanner::Token::LeftBrace {
+        let (open, after_open) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+        if open.matches_punct(Punctuator::LeftBrace) {
             let pot_pre = CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag)?;
             let (pre, after_pre) = match pot_pre {
                 None => (None, after_open),
@@ -189,9 +186,8 @@ impl CaseBlock {
                 None => (None, after_def),
                 Some((p, s)) => (Some(p), s),
             };
-            let (close, after_close) =
-                scanner::scan_token(&after_post, parser.source, scanner::ScanGoal::InputElementDiv);
-            if close == scanner::Token::RightBrace {
+            let (close, after_close) = scan_token(&after_post, parser.source, ScanGoal::InputElementDiv);
+            if close.matches_punct(Punctuator::RightBrace) {
                 match def {
                     None => {
                         assert!(post.is_none());
@@ -348,13 +344,12 @@ impl CaseClause {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (case_tok, after_case) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-        if matches!(case_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Case)) {
+        let (case_tok, after_case) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+        if case_tok.matches_keyword(Keyword::Case) {
             let pot_exp = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
             if let Some((exp, after_exp)) = pot_exp {
-                let (colon, after_colon) =
-                    scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                if colon == scanner::Token::Colon {
+                let (colon, after_colon) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                if colon.matches_punct(Punctuator::Colon) {
                     let pot_stmt = StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
                     let (stmt, after_stmt) = match pot_stmt {
                         None => (None, after_colon),
@@ -426,11 +421,10 @@ impl DefaultClause {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (def_tok, after_def) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-        if matches!(def_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Default)) {
-            let (colon, after_colon) =
-                scanner::scan_token(&after_def, parser.source, scanner::ScanGoal::InputElementDiv);
-            if colon == scanner::Token::Colon {
+        let (def_tok, after_def) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+        if def_tok.matches_keyword(Keyword::Default) {
+            let (colon, after_colon) = scan_token(&after_def, parser.source, ScanGoal::InputElementDiv);
+            if colon.matches_punct(Punctuator::Colon) {
                 let pot_sl = StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
                 let (sl, after_sl) = match pot_sl {
                     None => (None, after_colon),

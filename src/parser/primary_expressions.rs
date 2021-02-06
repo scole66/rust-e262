@@ -13,7 +13,9 @@ use super::function_definitions::FunctionExpression;
 use super::generator_function_definitions::GeneratorExpression;
 use super::identifiers::{BindingIdentifier, IdentifierNameToken, IdentifierReference};
 use super::method_definitions::MethodDefinition;
-use super::scanner::Scanner;
+use super::scanner::{
+    scan_token, JSString, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, TemplateData, Token,
+};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 use crate::values::number_to_string;
@@ -48,7 +50,7 @@ pub enum PrimaryExpressionKind {
     Generator(Box<GeneratorExpression>),
     AsyncFunction(Box<AsyncFunctionExpression>),
     AsyncGenerator(Box<AsyncGeneratorExpression>),
-    RegularExpression(Box<scanner::RegularExpressionData>),
+    RegularExpression(Box<RegularExpressionData>),
 }
 
 #[derive(Debug)]
@@ -242,7 +244,7 @@ impl ToPrimaryExpressionKind for AsyncGeneratorExpression {
     }
 }
 
-impl ToPrimaryExpressionKind for scanner::RegularExpressionData {
+impl ToPrimaryExpressionKind for RegularExpressionData {
     fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::RegularExpression(node)
     }
@@ -324,22 +326,18 @@ impl ToPrimaryExpressionKind for ThisToken {
 }
 
 fn this_token(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<ThisToken>, Scanner)>, String> {
-    let (tok, scanner) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-    Ok(match tok {
-        scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::This) => {
-            Some((Box::new(ThisToken {}), scanner))
-        }
-        _ => None,
+    let (tok, scanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+    Ok(if tok.matches_keyword(Keyword::This) {
+        Some((Box::new(ThisToken {}), scanner))
+    } else {
+        None
     })
 }
 
-fn regex_token(
-    parser: &mut Parser,
-    scanner: Scanner,
-) -> Result<Option<(Box<scanner::RegularExpressionData>, Scanner)>, String> {
-    let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+fn regex_token(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<RegularExpressionData>, Scanner)>, String> {
+    let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
     match tok {
-        scanner::Token::RegularExpression(rd) => Ok(Some((Box::new(rd), after_tok))),
+        Token::RegularExpression(rd) => Ok(Some((Box::new(rd), after_tok))),
         _ => Ok(None),
     }
 }
@@ -381,9 +379,8 @@ impl Elisions {
         let mut comma_count: usize = 0;
         let mut current_scanner = scanner;
         loop {
-            let (token, after_comma) =
-                scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if token != scanner::Token::Comma {
+            let (token, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
+            if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
                     Ok(None)
                 } else {
@@ -437,9 +434,8 @@ impl SpreadElement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<SpreadElement>, Scanner)>, String> {
-        let (token, after_ellipsis) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if token != scanner::Token::Ellipsis {
+        let (token, after_ellipsis) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if !token.matches_punct(Punctuator::Ellipsis) {
             Ok(None)
         } else {
             let pot_ae = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
@@ -643,10 +639,9 @@ impl ElementList {
         }
 
         loop {
-            let (token, after_tok) =
-                scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+            let (token, after_tok) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
             match token {
-                scanner::Token::Comma => {
+                Token::Punctuator(Punctuator::Comma) => {
                     let (elision, boxed_ae, boxed_se, after) =
                         Self::non_recursive_part(parser, after_tok, yield_flag, await_flag)?;
                     if boxed_ae.is_some() {
@@ -767,8 +762,8 @@ impl ArrayLiteral {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if token != scanner::Token::LeftBracket {
+        let (token, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if !token.matches_punct(Punctuator::LeftBracket) {
             return Ok(None);
         }
         let pot_el = ElementList::parse(parser, after, yield_flag, await_flag)?;
@@ -777,17 +772,15 @@ impl ArrayLiteral {
                 let pot_elision = Elisions::parse(parser, after)?;
                 match pot_elision {
                     None => {
-                        let (closing, end_scan) =
-                            scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementRegExp);
-                        if closing == scanner::Token::RightBracket {
+                        let (closing, end_scan) = scan_token(&after, parser.source, ScanGoal::InputElementRegExp);
+                        if closing.matches_punct(Punctuator::RightBracket) {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(None)), end_scan)));
                         }
                         return Ok(None);
                     }
                     Some((elisions, after_2)) => {
-                        let (closing, end_scan) =
-                            scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
-                        if closing == scanner::Token::RightBracket {
+                        let (closing, end_scan) = scan_token(&after_2, parser.source, ScanGoal::InputElementRegExp);
+                        if closing.matches_punct(Punctuator::RightBracket) {
                             return Ok(Some((Box::new(ArrayLiteral::Empty(Some(elisions))), end_scan)));
                         }
                         return Ok(None);
@@ -796,21 +789,18 @@ impl ArrayLiteral {
             }
             Some((boxed_el, after_el_scan)) => {
                 let (comma_or_bracket, after_cb) =
-                    scanner::scan_token(&after_el_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
+                    scan_token(&after_el_scan, parser.source, ScanGoal::InputElementRegExp);
                 match comma_or_bracket {
-                    scanner::Token::RightBracket => {
+                    Token::Punctuator(Punctuator::RightBracket) => {
                         return Ok(Some((Box::new(ArrayLiteral::ElementList(boxed_el)), after_cb)));
                     }
-                    scanner::Token::Comma => {
+                    Token::Punctuator(Punctuator::Comma) => {
                         let pot_elision = Elisions::parse(parser, after_cb)?;
                         match pot_elision {
                             None => {
-                                let (closing, end_scan) = scanner::scan_token(
-                                    &after_cb,
-                                    parser.source,
-                                    scanner::ScanGoal::InputElementRegExp,
-                                );
-                                if closing == scanner::Token::RightBracket {
+                                let (closing, end_scan) =
+                                    scan_token(&after_cb, parser.source, ScanGoal::InputElementRegExp);
+                                if closing.matches_punct(Punctuator::RightBracket) {
                                     return Ok(Some((
                                         Box::new(ArrayLiteral::ElementListElision(boxed_el, None)),
                                         end_scan,
@@ -820,8 +810,8 @@ impl ArrayLiteral {
                             }
                             Some((elisions, after_2)) => {
                                 let (closing, end_scan) =
-                                    scanner::scan_token(&after_2, parser.source, scanner::ScanGoal::InputElementRegExp);
-                                if closing == scanner::Token::RightBracket {
+                                    scan_token(&after_2, parser.source, ScanGoal::InputElementRegExp);
+                                if closing.matches_punct(Punctuator::RightBracket) {
                                     return Ok(Some((
                                         Box::new(ArrayLiteral::ElementListElision(boxed_el, Some(elisions))),
                                         end_scan,
@@ -884,8 +874,8 @@ impl Initializer {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Initializer>, Scanner)>, String> {
-        let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if token != scanner::Token::Eq {
+        let (token, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if !token.matches_punct(Punctuator::Eq) {
             return Ok(None);
         }
         let pot_ae = AssignmentExpression::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
@@ -1001,17 +991,16 @@ impl ComputedPropertyName {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::LeftBracket => {
+            Token::Punctuator(Punctuator::LeftBracket) => {
                 let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 match pot_ae {
                     None => Ok(None),
                     Some((ae, after_ae)) => {
-                        let (tok2, after_rb) =
-                            scanner::scan_token(&after_ae, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (tok2, after_rb) = scan_token(&after_ae, parser.source, ScanGoal::InputElementRegExp);
                         match tok2 {
-                            scanner::Token::RightBracket => Ok(Some((
+                            Token::Punctuator(Punctuator::RightBracket) => Ok(Some((
                                 Box::new(ComputedPropertyName::AssignmentExpression(ae)),
                                 after_rb,
                             ))),
@@ -1028,7 +1017,7 @@ impl ComputedPropertyName {
 #[derive(Debug)]
 pub enum LiteralPropertyName {
     IdentifierName(Box<IdentifierNameToken>),
-    StringLiteral(scanner::JSString),
+    StringLiteral(JSString),
     NumericLiteral(Numeric),
 }
 
@@ -1065,20 +1054,20 @@ impl PrettyPrint for LiteralPropertyName {
 
 impl LiteralPropertyName {
     fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::Identifier(id) => Ok(Some((
+            Token::Identifier(id) => Ok(Some((
                 Box::new(LiteralPropertyName::IdentifierName(Box::new(IdentifierNameToken {
-                    value: scanner::Token::Identifier(id),
+                    value: Token::Identifier(id),
                 }))),
                 after_tok,
             ))),
-            scanner::Token::String(s) => Ok(Some((Box::new(LiteralPropertyName::StringLiteral(s)), after_tok))),
-            scanner::Token::Number(n) => Ok(Some((
+            Token::String(s) => Ok(Some((Box::new(LiteralPropertyName::StringLiteral(s)), after_tok))),
+            Token::Number(n) => Ok(Some((
                 Box::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))),
                 after_tok,
             ))),
-            scanner::Token::BigInt(b) => Ok(Some((
+            Token::BigInt(b) => Ok(Some((
                 Box::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))),
                 after_tok,
             ))),
@@ -1228,10 +1217,9 @@ impl PropertyDefinition {
         let pot_pn = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
         match pot_pn {
             Some((pn, after_pn)) => {
-                let (tok, after_tok) =
-                    scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (tok, after_tok) = scan_token(&after_pn, parser.source, ScanGoal::InputElementRegExp);
                 match tok {
-                    scanner::Token::Colon => {
+                    Token::Punctuator(Punctuator::Colon) => {
                         let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                         match pot_ae {
                             Some((ae, after_ae)) => Ok(Some((
@@ -1299,9 +1287,9 @@ impl PropertyDefinition {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::Ellipsis => {
+            Token::Punctuator(Punctuator::Ellipsis) => {
                 let pot_ae = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 match pot_ae {
                     Some((ae, after_ae)) => {
@@ -1393,9 +1381,9 @@ impl PropertyDefinitionList {
                 let mut current_scanner = after_pd;
                 loop {
                     let (comma, after_comma) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
                     match comma {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_pd2 = PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag)?;
                             match pot_pd2 {
                                 None => {
@@ -1482,32 +1470,32 @@ impl ObjectLiteral {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (lb, after_brace) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (lb, after_brace) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match lb {
-            scanner::Token::LeftBrace => {
+            Token::Punctuator(Punctuator::LeftBrace) => {
                 let pot_pdl = PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag)?;
                 match pot_pdl {
                     None => {
-                        let (rb, after_brace2) =
-                            scanner::scan_token(&after_brace, parser.source, scanner::ScanGoal::InputElementRegExp);
+                        let (rb, after_brace2) = scan_token(&after_brace, parser.source, ScanGoal::InputElementRegExp);
                         match rb {
-                            scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Empty), after_brace2))),
+                            Token::Punctuator(Punctuator::RightBrace) => {
+                                Ok(Some((Box::new(ObjectLiteral::Empty), after_brace2)))
+                            }
                             _ => Ok(None),
                         }
                     }
                     Some((pdl, after_pdl)) => {
                         let (comma_or_brace, after_punct) =
-                            scanner::scan_token(&after_pdl, parser.source, scanner::ScanGoal::InputElementRegExp);
+                            scan_token(&after_pdl, parser.source, ScanGoal::InputElementRegExp);
                         match comma_or_brace {
-                            scanner::Token::RightBrace => Ok(Some((Box::new(ObjectLiteral::Normal(pdl)), after_punct))),
-                            scanner::Token::Comma => {
-                                let (rb2, after_brace3) = scanner::scan_token(
-                                    &after_punct,
-                                    parser.source,
-                                    scanner::ScanGoal::InputElementRegExp,
-                                );
+                            Token::Punctuator(Punctuator::RightBrace) => {
+                                Ok(Some((Box::new(ObjectLiteral::Normal(pdl)), after_punct)))
+                            }
+                            Token::Punctuator(Punctuator::Comma) => {
+                                let (rb2, after_brace3) =
+                                    scan_token(&after_punct, parser.source, ScanGoal::InputElementRegExp);
                                 match rb2 {
-                                    scanner::Token::RightBrace => {
+                                    Token::Punctuator(Punctuator::RightBrace) => {
                                         Ok(Some((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3)))
                                     }
                                     _ => Ok(None),
@@ -1539,7 +1527,7 @@ pub enum LiteralKind {
     NullLiteral,
     BooleanLiteral(bool),
     NumericLiteral(Numeric),
-    StringLiteral(scanner::JSString),
+    StringLiteral(JSString),
 }
 #[derive(Debug, PartialEq)]
 pub struct Literal {
@@ -1586,25 +1574,25 @@ impl PrettyPrint for Literal {
 
 impl Literal {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Literal>, Scanner)>, String> {
-        let scan_result = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let scan_result = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let (token, newscanner) = scan_result;
         match token {
-            scanner::Token::Identifier(id) => match id.keyword_id {
-                Some(scanner::Keyword::Null) => {
+            Token::Identifier(id) => match id.keyword_id {
+                Some(Keyword::Null) => {
                     let node = Literal {
                         kind: LiteralKind::NullLiteral,
                     };
                     let boxed = Box::new(node);
                     return Ok(Some((boxed, newscanner)));
                 }
-                Some(scanner::Keyword::True) => {
+                Some(Keyword::True) => {
                     let node = Literal {
                         kind: LiteralKind::BooleanLiteral(true),
                     };
                     let boxed = Box::new(node);
                     return Ok(Some((boxed, newscanner)));
                 }
-                Some(scanner::Keyword::False) => {
+                Some(Keyword::False) => {
                     let node = Literal {
                         kind: LiteralKind::BooleanLiteral(false),
                     };
@@ -1613,21 +1601,21 @@ impl Literal {
                 }
                 _ => return Ok(None),
             },
-            scanner::Token::Number(num) => {
+            Token::Number(num) => {
                 let node = Literal {
                     kind: LiteralKind::NumericLiteral(Numeric::Number(num)),
                 };
                 let boxed = Box::new(node);
                 return Ok(Some((boxed, newscanner)));
             }
-            scanner::Token::BigInt(bi) => {
+            Token::BigInt(bi) => {
                 let node = Literal {
                     kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)),
                 };
                 let boxed = Box::new(node);
                 return Ok(Some((boxed, newscanner)));
             }
-            scanner::Token::String(s) => {
+            Token::String(s) => {
                 let node = Literal {
                     kind: LiteralKind::StringLiteral(s),
                 };
@@ -1644,7 +1632,7 @@ impl Literal {
 //      SubstitutionTemplate[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
 pub enum TemplateLiteral {
-    NoSubstitutionTemplate(scanner::TemplateData, bool),
+    NoSubstitutionTemplate(TemplateData, bool),
     SubstitutionTemplate(Box<SubstitutionTemplate>),
 }
 
@@ -1698,13 +1686,13 @@ impl TemplateLiteral {
         await_flag: bool,
         tagged_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_nst) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_nst) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            scanner::Token::NoSubstitutionTemplate(td) => Ok(Some((
+            Token::NoSubstitutionTemplate(td) => Ok(Some((
                 Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)),
                 after_nst,
             ))),
-            scanner::Token::TemplateHead(_) => {
+            Token::TemplateHead(_) => {
                 let pot_st = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
                 match pot_st {
                     Some((boxed, after_scan)) => Ok(Some((
@@ -1723,7 +1711,7 @@ impl TemplateLiteral {
 //      TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
 pub struct SubstitutionTemplate {
-    template_head: scanner::TemplateData,
+    template_head: TemplateData,
     tagged: bool,
     expression: Box<Expression>,
     template_spans: Box<TemplateSpans>,
@@ -1780,9 +1768,9 @@ impl SubstitutionTemplate {
         await_flag: bool,
         tagged_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (head, after_head) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (head, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match head {
-            scanner::Token::TemplateHead(td) => {
+            Token::TemplateHead(td) => {
                 let pot_exp = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
                 match pot_exp {
                     None => Ok(None),
@@ -1813,8 +1801,8 @@ impl SubstitutionTemplate {
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateTail
 #[derive(Debug)]
 pub enum TemplateSpans {
-    Tail(scanner::TemplateData, bool),
-    List(Box<TemplateMiddleList>, scanner::TemplateData, bool),
+    Tail(TemplateData, bool),
+    List(Box<TemplateMiddleList>, TemplateData, bool),
 }
 
 impl fmt::Display for TemplateSpans {
@@ -1875,19 +1863,18 @@ impl TemplateSpans {
         await_flag: bool,
         tagged_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_tmplt) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementTemplateTail);
+        let (token, after_tmplt) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         match token {
-            scanner::Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
-            scanner::Token::TemplateMiddle(_) => {
+            Token::TemplateTail(td) => Ok(Some((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))),
+            Token::TemplateMiddle(_) => {
                 let pot_tml = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
                 match pot_tml {
                     None => Ok(None),
                     Some((boxed_tml, after_tml)) => {
                         let (tail, after_tail) =
-                            scanner::scan_token(&after_tml, parser.source, scanner::ScanGoal::InputElementTemplateTail);
+                            scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
                         match tail {
-                            scanner::Token::TemplateTail(td) => Ok(Some((
+                            Token::TemplateTail(td) => Ok(Some((
                                 Box::new(TemplateSpans::List(boxed_tml, td, tagged_flag)),
                                 after_tail,
                             ))),
@@ -1906,8 +1893,8 @@ impl TemplateSpans {
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum TemplateMiddleList {
-    ListEnd(scanner::TemplateData, Box<Expression>, bool),
-    ListMid(Box<TemplateMiddleList>, scanner::TemplateData, Box<Expression>, bool),
+    ListEnd(TemplateData, Box<Expression>, bool),
+    ListMid(Box<TemplateMiddleList>, TemplateData, Box<Expression>, bool),
 }
 
 impl fmt::Display for TemplateMiddleList {
@@ -1986,13 +1973,9 @@ impl TemplateMiddleList {
         let mut current_node = None;
         let mut current_scanner = scanner;
         loop {
-            let (middle, after_mid) = scanner::scan_token(
-                &current_scanner,
-                parser.source,
-                scanner::ScanGoal::InputElementTemplateTail,
-            );
+            let (middle, after_mid) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementTemplateTail);
             match middle {
-                scanner::Token::TemplateMiddle(td) => {
+                Token::TemplateMiddle(td) => {
                     let pot_exp = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
                     match pot_exp {
                         None => {
@@ -2081,17 +2064,16 @@ impl ParenthesizedExpression {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (left_paren, after_lp) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (left_paren, after_lp) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match left_paren {
-            scanner::Token::LeftParen => {
+            Token::Punctuator(Punctuator::LeftParen) => {
                 let pot_exp = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
                 match pot_exp {
                     Some((exp, after_exp)) => {
                         let (right_paren, after_rp) =
-                            scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementRegExp);
+                            scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
                         match right_paren {
-                            scanner::Token::RightParen => {
+                            Token::Punctuator(Punctuator::RightParen) => {
                                 Ok(Some((Box::new(ParenthesizedExpression::Expression(exp)), after_rp)))
                             }
                             _ => Ok(None),
@@ -2230,40 +2212,34 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (lparen, after_lparen) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if lparen == scanner::Token::LeftParen {
+        let (lparen, after_lparen) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if lparen == Token::Punctuator(Punctuator::LeftParen) {
             let pot_exp = Expression::parse(parser, after_lparen, true, yield_flag, await_flag)?;
             if let Some((exp, after_exp)) = pot_exp {
-                let (rp_or_comma, after_rpc) =
-                    scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
+                let (rp_or_comma, after_rpc) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
                 match rp_or_comma {
-                    scanner::Token::RightParen => {
+                    Token::Punctuator(Punctuator::RightParen) => {
                         return Ok(Some((
                             Box::new(CoverParenthesizedExpressionAndArrowParameterList::Expression(exp)),
                             after_rpc,
                         )));
                     }
-                    scanner::Token::Comma => {
-                        let (rp_or_dots, after_rpd) =
-                            scanner::scan_token(&after_rpc, parser.source, scanner::ScanGoal::InputElementDiv);
+                    Token::Punctuator(Punctuator::Comma) => {
+                        let (rp_or_dots, after_rpd) = scan_token(&after_rpc, parser.source, ScanGoal::InputElementDiv);
                         match rp_or_dots {
-                            scanner::Token::RightParen => {
+                            Token::Punctuator(Punctuator::RightParen) => {
                                 return Ok(Some((
                                     Box::new(CoverParenthesizedExpressionAndArrowParameterList::ExpComma(exp)),
                                     after_rpd,
                                 )));
                             }
-                            scanner::Token::Ellipsis => {
+                            Token::Punctuator(Punctuator::Ellipsis) => {
                                 let pot_bi = BindingIdentifier::parse(parser, after_rpd, yield_flag, await_flag)?;
                                 if let Some((bi, after_bi)) = pot_bi {
-                                    let (rparen, after_rp) = scanner::scan_token(
-                                        &after_bi,
-                                        parser.source,
-                                        scanner::ScanGoal::InputElementDiv,
-                                    );
+                                    let (rparen, after_rp) =
+                                        scan_token(&after_bi, parser.source, ScanGoal::InputElementDiv);
                                     return Ok(match rparen {
-                                        scanner::Token::RightParen => Some((
+                                        Token::Punctuator(Punctuator::RightParen) => Some((
                                             Box::new(CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(
                                                 exp, bi,
                                             )),
@@ -2278,13 +2254,10 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                         return Ok(None);
                                     }
                                     Some((bp, after_bp)) => {
-                                        let (rparen, after_rp) = scanner::scan_token(
-                                            &after_bp,
-                                            parser.source,
-                                            scanner::ScanGoal::InputElementDiv,
-                                        );
+                                        let (rparen, after_rp) =
+                                            scan_token(&after_bp, parser.source, ScanGoal::InputElementDiv);
                                         match rparen {
-                                            scanner::Token::RightParen => {
+                                            Token::Punctuator(Punctuator::RightParen) => {
                                                 return Ok(Some((
                                                     Box::new(
                                                         CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(
@@ -2312,16 +2285,15 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 }
             } else {
                 // Didn't start with an expression...
-                let (rp_or_dots, after_rpd) =
-                    scanner::scan_token(&after_lparen, parser.source, scanner::ScanGoal::InputElementRegExp);
+                let (rp_or_dots, after_rpd) = scan_token(&after_lparen, parser.source, ScanGoal::InputElementRegExp);
                 match rp_or_dots {
-                    scanner::Token::RightParen => {
+                    Token::Punctuator(Punctuator::RightParen) => {
                         return Ok(Some((
                             Box::new(CoverParenthesizedExpressionAndArrowParameterList::Empty),
                             after_rpd,
                         )));
                     }
-                    scanner::Token::Ellipsis => {
+                    Token::Punctuator(Punctuator::Ellipsis) => {
                         enum IdOrPat {
                             Id(Box<BindingIdentifier>),
                             Pat(Box<BindingPattern>),
@@ -2344,10 +2316,9 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                 }
                             }
                         }
-                        let (rparen, after_rp) =
-                            scanner::scan_token(&after, parser.source, scanner::ScanGoal::InputElementDiv);
+                        let (rparen, after_rp) = scan_token(&after, parser.source, ScanGoal::InputElementDiv);
                         match rparen {
-                            scanner::Token::RightParen => {
+                            Token::Punctuator(Punctuator::RightParen) => {
                                 return Ok(Some((
                                     Box::new(match production {
                                         IdOrPat::Id(ident) => {
@@ -3248,6 +3219,7 @@ mod tests {
             false,
         ));
         chk_scan(&scanner, 8);
+        println!("{:?}", tml);
         assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
         pretty_check(
             &*tml,

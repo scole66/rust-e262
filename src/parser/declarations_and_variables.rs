@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::identifiers::BindingIdentifier;
 use super::primary_expressions::{Elisions, Initializer, PropertyName};
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -55,10 +55,10 @@ impl LexicalDeclaration {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let loc = match tok {
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Let) => LetOrConst::Let,
-            scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Const) => LetOrConst::Const,
+            Token::Identifier(id) if id.matches(Keyword::Let) => LetOrConst::Let,
+            Token::Identifier(id) if id.matches(Keyword::Const) => LetOrConst::Const,
             _ => {
                 return Ok(None);
             }
@@ -72,9 +72,11 @@ impl LexicalDeclaration {
             Some(x) => x,
         };
 
-        let (semi, after_semi) = scanner::scan_token(&after_bl, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (semi, after_semi) = scan_token(&after_bl, parser.source, ScanGoal::InputElementRegExp);
         match semi {
-            scanner::Token::Semicolon => Ok(Some((Box::new(LexicalDeclaration::List(loc, bl)), after_semi))),
+            Token::Punctuator(Punctuator::Semicolon) => {
+                Ok(Some((Box::new(LexicalDeclaration::List(loc, bl)), after_semi)))
+            }
             _ => Ok(None),
         }
     }
@@ -181,10 +183,9 @@ impl BindingList {
                 let mut current = Box::new(BindingList::Item(lb));
                 let mut current_scanner = after_lb;
                 loop {
-                    let (tok, after_tok) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (tok, after_tok) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match tok {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_lb2 = LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
                             match pot_lb2 {
                                 None => {
@@ -345,13 +346,12 @@ impl VariableStatement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (var_tok, after_var) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(var_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Var)) {
+        let (var_tok, after_var) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if var_tok.matches_keyword(Keyword::Var) {
             let pot_vdl = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
             if let Some((vdl, after_vdl)) = pot_vdl {
-                let (semi_tok, after_semi) =
-                    scanner::scan_token(&after_vdl, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if semi_tok == scanner::Token::Semicolon {
+                let (semi_tok, after_semi) = scan_token(&after_vdl, parser.source, ScanGoal::InputElementRegExp);
+                if semi_tok.matches_punct(Punctuator::Semicolon) {
                     return Ok(Some((Box::new(VariableStatement::Var(vdl)), after_semi)));
                 }
             }
@@ -428,9 +428,9 @@ impl VariableDeclarationList {
                 let mut current_scanner = after_dcl;
                 loop {
                     let (tok_comma, after_comma) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                        scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match tok_comma {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_next =
                                 VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag)?;
                             match pot_next {
@@ -689,39 +689,34 @@ impl ObjectBindingPattern {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_open, after_open) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if tok_open == scanner::Token::LeftBrace {
-            let (tok_close, after_close) =
-                scanner::scan_token(&after_open, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if tok_close == scanner::Token::RightBrace {
+        let (tok_open, after_open) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_open.matches_punct(Punctuator::LeftBrace) {
+            let (tok_close, after_close) = scan_token(&after_open, parser.source, ScanGoal::InputElementRegExp);
+            if tok_close.matches_punct(Punctuator::RightBrace) {
                 return Ok(Some((Box::new(ObjectBindingPattern::Empty), after_close)));
             }
             let pot_brp = BindingRestProperty::parse(parser, after_open, yield_flag, await_flag)?;
             if let Some((brp, after_brp)) = pot_brp {
-                let (tok_close, after_close) =
-                    scanner::scan_token(&after_brp, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if tok_close == scanner::Token::RightBrace {
+                let (tok_close, after_close) = scan_token(&after_brp, parser.source, ScanGoal::InputElementRegExp);
+                if tok_close.matches_punct(Punctuator::RightBrace) {
                     return Ok(Some((Box::new(ObjectBindingPattern::RestOnly(brp)), after_close)));
                 }
             }
 
             let pot_bpl = BindingPropertyList::parse(parser, after_open, yield_flag, await_flag)?;
             if let Some((bpl, after_bpl)) = pot_bpl {
-                let (tok_after, after_tok) =
-                    scanner::scan_token(&after_bpl, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if tok_after == scanner::Token::RightBrace {
+                let (tok_after, after_tok) = scan_token(&after_bpl, parser.source, ScanGoal::InputElementRegExp);
+                if tok_after.matches_punct(Punctuator::RightBrace) {
                     return Ok(Some((Box::new(ObjectBindingPattern::ListOnly(bpl)), after_tok)));
                 }
-                if tok_after == scanner::Token::Comma {
+                if tok_after.matches_punct(Punctuator::Comma) {
                     let pot_brp = BindingRestProperty::parse(parser, after_tok, yield_flag, await_flag)?;
                     let (brp, after_brp) = match pot_brp {
                         None => (None, after_tok),
                         Some((node, s)) => (Some(node), s),
                     };
-                    let (tok_final, after_final) =
-                        scanner::scan_token(&after_brp, parser.source, scanner::ScanGoal::InputElementRegExp);
-                    if tok_final == scanner::Token::RightBrace {
+                    let (tok_final, after_final) = scan_token(&after_brp, parser.source, ScanGoal::InputElementRegExp);
+                    if tok_final.matches_punct(Punctuator::RightBrace) {
                         return Ok(Some((Box::new(ObjectBindingPattern::ListRest(bpl, brp)), after_final)));
                     }
                 }
@@ -855,17 +850,15 @@ impl ArrayBindingPattern {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_first, after_first) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if tok_first == scanner::Token::LeftBracket {
+        let (tok_first, after_first) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_first.matches_punct(Punctuator::LeftBracket) {
             let pot_bel = BindingElementList::parse(parser, after_first, yield_flag, await_flag)?;
             if let Some((bel, after_bel)) = pot_bel {
-                let (tok_next, after_next) =
-                    scanner::scan_token(&after_bel, parser.source, scanner::ScanGoal::InputElementRegExp);
-                if tok_next == scanner::Token::RightBracket {
+                let (tok_next, after_next) = scan_token(&after_bel, parser.source, ScanGoal::InputElementRegExp);
+                if tok_next.matches_punct(Punctuator::RightBracket) {
                     return Ok(Some((Box::new(ArrayBindingPattern::ListOnly(bel)), after_next)));
                 }
-                if tok_next == scanner::Token::Comma {
+                if tok_next.matches_punct(Punctuator::Comma) {
                     let pot_elisions = Elisions::parse(parser, after_next)?;
                     let (elisions, after_elisions) = match pot_elisions {
                         None => (None, after_next),
@@ -876,9 +869,8 @@ impl ArrayBindingPattern {
                         None => (None, after_elisions),
                         Some((b, s)) => (Some(b), s),
                     };
-                    let (tok_close, after_close) =
-                        scanner::scan_token(&after_bre, parser.source, scanner::ScanGoal::InputElementRegExp);
-                    if tok_close == scanner::Token::RightBracket {
+                    let (tok_close, after_close) = scan_token(&after_bre, parser.source, ScanGoal::InputElementRegExp);
+                    if tok_close.matches_punct(Punctuator::RightBracket) {
                         return Ok(Some((
                             Box::new(ArrayBindingPattern::ListRest(bel, elisions, bre)),
                             after_close,
@@ -897,9 +889,8 @@ impl ArrayBindingPattern {
                 None => (None, after_elisions),
                 Some((b, s)) => (Some(b), s),
             };
-            let (tok_close, after_close) =
-                scanner::scan_token(&after_bre, parser.source, scanner::ScanGoal::InputElementRegExp);
-            if tok_close == scanner::Token::RightBracket {
+            let (tok_close, after_close) = scan_token(&after_bre, parser.source, ScanGoal::InputElementRegExp);
+            if tok_close.matches_punct(Punctuator::RightBracket) {
                 return Ok(Some((
                     Box::new(ArrayBindingPattern::RestOnly(elisions, bre)),
                     after_close,
@@ -954,9 +945,8 @@ impl BindingRestProperty {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_dots, after_dots) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if tok_dots == scanner::Token::Ellipsis {
+        let (tok_dots, after_dots) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok_dots.matches_punct(Punctuator::Ellipsis) {
             let pot_id = BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag)?;
             if let Some((id, after_id)) = pot_id {
                 return Ok(Some((Box::new(BindingRestProperty::Id(id)), after_id)));
@@ -1031,10 +1021,9 @@ impl BindingPropertyList {
                 let mut current = Box::new(BindingPropertyList::Item(bp));
                 let mut current_scan = after_bp;
                 loop {
-                    let (token, after_token) =
-                        scanner::scan_token(&current_scan, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (token, after_token) = scan_token(&current_scan, parser.source, ScanGoal::InputElementDiv);
                     match token {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_bp2 = BindingProperty::parse(parser, after_token, yield_flag, await_flag)?;
                             match pot_bp2 {
                                 None => {
@@ -1122,10 +1111,9 @@ impl BindingElementList {
                 let mut current = Box::new(BindingElementList::Item(elem));
                 let mut current_scanner = after_elem;
                 loop {
-                    let (tok, after_tok) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (tok, after_tok) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     match tok {
-                        scanner::Token::Comma => {
+                        Token::Punctuator(Punctuator::Comma) => {
                             let pot_next = BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag)?;
                             match pot_next {
                                 None => {
@@ -1276,9 +1264,8 @@ impl BindingProperty {
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_pn = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
         if let Some((pn, after_pn)) = pot_pn {
-            let (token, after_token) =
-                scanner::scan_token(&after_pn, parser.source, scanner::ScanGoal::InputElementDiv);
-            if token == scanner::Token::Colon {
+            let (token, after_token) = scan_token(&after_pn, parser.source, ScanGoal::InputElementDiv);
+            if token.matches_punct(Punctuator::Colon) {
                 let pot_be = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
                 if let Some((be, after_be)) = pot_be {
                     return Ok(Some((Box::new(BindingProperty::Property(pn, be)), after_be)));
@@ -1493,8 +1480,8 @@ impl BindingRestElement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if tok == scanner::Token::Ellipsis {
+        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if tok.matches_punct(Punctuator::Ellipsis) {
             let pot_bp = BindingPattern::parse(parser, after_tok, yield_flag, await_flag)?;
             if let Some((bp, after_bp)) = pot_bp {
                 return Ok(Some((Box::new(BindingRestElement::Pattern(bp)), after_bp)));

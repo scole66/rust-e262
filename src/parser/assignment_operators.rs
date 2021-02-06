@@ -2,15 +2,14 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::Scanner;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
-
 use super::arrow_function_definitions::ArrowFunction;
 use super::async_arrow_function_definitions::AsyncArrowFunction;
 use super::conditional_operator::ConditionalExpression;
 use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::*;
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
 // AssignmentExpression[In, Yield, Await] :
 //      ConditionalExpression[?In, ?Yield, ?Await]
@@ -183,65 +182,65 @@ impl AssignmentExpression {
 
         let pot_lhs = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
         if let Some((lhs, after_lhs)) = pot_lhs {
-            let (op, after_op) = scanner::scan_token(&after_lhs, parser.source, scanner::ScanGoal::InputElementDiv);
+            let (op, after_op) = scan_token(&after_lhs, parser.source, ScanGoal::InputElementDiv);
             if matches!(
                 &op,
-                scanner::Token::Eq
-                    | scanner::Token::AmpAmpEq
-                    | scanner::Token::PipePipeEq
-                    | scanner::Token::QQEq
-                    | scanner::Token::StarEq
-                    | scanner::Token::SlashEq
-                    | scanner::Token::PercentEq
-                    | scanner::Token::PlusEq
-                    | scanner::Token::MinusEq
-                    | scanner::Token::LtLtEq
-                    | scanner::Token::GtGtEq
-                    | scanner::Token::GtGtGtEq
-                    | scanner::Token::AmpEq
-                    | scanner::Token::PipeEq
-                    | scanner::Token::StarStarEq
-                    | scanner::Token::CaretEq
+                Token::Punctuator(Punctuator::Eq)
+                    | Token::Punctuator(Punctuator::AmpAmpEq)
+                    | Token::Punctuator(Punctuator::PipePipeEq)
+                    | Token::Punctuator(Punctuator::QQEq)
+                    | Token::Punctuator(Punctuator::StarEq)
+                    | Token::Punctuator(Punctuator::SlashEq)
+                    | Token::Punctuator(Punctuator::PercentEq)
+                    | Token::Punctuator(Punctuator::PlusEq)
+                    | Token::Punctuator(Punctuator::MinusEq)
+                    | Token::Punctuator(Punctuator::LtLtEq)
+                    | Token::Punctuator(Punctuator::GtGtEq)
+                    | Token::Punctuator(Punctuator::GtGtGtEq)
+                    | Token::Punctuator(Punctuator::AmpEq)
+                    | Token::Punctuator(Punctuator::PipeEq)
+                    | Token::Punctuator(Punctuator::StarStarEq)
+                    | Token::Punctuator(Punctuator::CaretEq)
             ) {
                 let make_ae = match &op {
-                    scanner::Token::Eq => |lhs, ae| AssignmentExpression::Assignment(lhs, ae),
-                    scanner::Token::AmpAmpEq => |lhs, ae| AssignmentExpression::LandAssignment(lhs, ae),
-                    scanner::Token::PipePipeEq => |lhs, ae| AssignmentExpression::LorAssignment(lhs, ae),
-                    scanner::Token::QQEq => |lhs, ae| AssignmentExpression::CoalAssignment(lhs, ae),
-                    scanner::Token::StarEq => {
+                    Token::Punctuator(Punctuator::Eq) => |lhs, ae| AssignmentExpression::Assignment(lhs, ae),
+                    Token::Punctuator(Punctuator::AmpAmpEq) => |lhs, ae| AssignmentExpression::LandAssignment(lhs, ae),
+                    Token::Punctuator(Punctuator::PipePipeEq) => |lhs, ae| AssignmentExpression::LorAssignment(lhs, ae),
+                    Token::Punctuator(Punctuator::QQEq) => |lhs, ae| AssignmentExpression::CoalAssignment(lhs, ae),
+                    Token::Punctuator(Punctuator::StarEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Multiply, ae)
                     }
-                    scanner::Token::SlashEq => {
+                    Token::Punctuator(Punctuator::SlashEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Divide, ae)
                     }
-                    scanner::Token::PercentEq => {
+                    Token::Punctuator(Punctuator::PercentEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Modulo, ae)
                     }
-                    scanner::Token::PlusEq => {
+                    Token::Punctuator(Punctuator::PlusEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Add, ae)
                     }
-                    scanner::Token::MinusEq => {
+                    Token::Punctuator(Punctuator::MinusEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Subtract, ae)
                     }
-                    scanner::Token::LtLtEq => {
+                    Token::Punctuator(Punctuator::LtLtEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::LeftShift, ae)
                     }
-                    scanner::Token::GtGtEq => {
+                    Token::Punctuator(Punctuator::GtGtEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::SignedRightShift, ae)
                     }
-                    scanner::Token::GtGtGtEq => {
+                    Token::Punctuator(Punctuator::GtGtGtEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::UnsignedRightShift, ae)
                     }
-                    scanner::Token::AmpEq => {
+                    Token::Punctuator(Punctuator::AmpEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseAnd, ae)
                     }
-                    scanner::Token::PipeEq => {
+                    Token::Punctuator(Punctuator::PipeEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseOr, ae)
                     }
-                    scanner::Token::StarStarEq => {
+                    Token::Punctuator(Punctuator::StarStarEq) => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae)
                     }
-                    scanner::Token::CaretEq | _ => {
+                    Token::Punctuator(Punctuator::CaretEq) | _ => {
                         |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae)
                     }
                 };

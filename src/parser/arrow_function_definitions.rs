@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterList;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -59,9 +59,8 @@ impl ArrowFunction {
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
         let pot_params = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         if let Some((parameters, after_params)) = pot_params {
-            let (arrow, after_arrow) =
-                scanner::scan_token(&after_params, parser.source, scanner::ScanGoal::InputElementDiv);
-            if arrow == scanner::Token::EqGt {
+            let (arrow, after_arrow) = scan_token(&after_params, parser.source, ScanGoal::InputElementDiv);
+            if arrow.matches_punct(Punctuator::EqGt) {
                 let pot_body = ConciseBody::parse(parser, after_arrow, in_flag)?;
                 if let Some((body, after_body)) = pot_body {
                     return Ok(Some((Box::new(ArrowFunction { parameters, body }), after_body)));
@@ -184,13 +183,12 @@ impl PrettyPrint for ConciseBody {
 
 impl ConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (curly, after_curly) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if curly == scanner::Token::LeftBrace {
+        let (curly, after_curly) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if curly.matches_punct(Punctuator::LeftBrace) {
             let pot_fb = FunctionBody::parse(parser, after_curly, in_flag, false)?;
             if let Some((fb, after_fb)) = pot_fb {
-                let (rt_curly, after_rt) =
-                    scanner::scan_token(&after_fb, parser.source, scanner::ScanGoal::InputElementDiv);
-                if rt_curly == scanner::Token::RightBrace {
+                let (rt_curly, after_rt) = scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
+                if rt_curly.matches_punct(Punctuator::RightBrace) {
                     return Ok(Some((Box::new(ConciseBody::Function(fb)), after_rt)));
                 }
             }

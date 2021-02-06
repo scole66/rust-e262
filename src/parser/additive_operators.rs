@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::multiplicative_operators::MultiplicativeExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -100,14 +100,13 @@ impl AdditiveExpression {
                 let mut current = Box::new(AdditiveExpression::MultiplicativeExpression(me));
                 let mut current_scanner = after_me;
                 loop {
-                    let (token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+                    let (token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
                     let kind_fn: fn(Box<AdditiveExpression>, Box<MultiplicativeExpression>) -> AdditiveExpression;
                     match token {
-                        scanner::Token::Plus => {
+                        Token::Punctuator(Punctuator::Plus) => {
                             kind_fn = |ae, me| AdditiveExpression::AdditiveExpressionAdd((ae, me));
                         }
-                        scanner::Token::Minus => {
+                        Token::Punctuator(Punctuator::Minus) => {
                             kind_fn = |ae, me| AdditiveExpression::AdditiveExpressionSubtract((ae, me));
                         }
                         _ => {

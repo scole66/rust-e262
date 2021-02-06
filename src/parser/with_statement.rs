@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -57,17 +57,14 @@ impl WithStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (with_tok, after_with) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(with_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::With)) {
-            let (open, after_open) =
-                scanner::scan_token(&after_with, parser.source, scanner::ScanGoal::InputElementDiv);
-            if open == scanner::Token::LeftParen {
+        let (with_tok, after_with) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if with_tok.matches_keyword(Keyword::With) {
+            let (open, after_open) = scan_token(&after_with, parser.source, ScanGoal::InputElementDiv);
+            if open.matches_punct(Punctuator::LeftParen) {
                 let pot_exp = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
                 if let Some((exp, after_exp)) = pot_exp {
-                    let (close, after_close) =
-                        scanner::scan_token(&after_exp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if close == scanner::Token::RightParen {
+                    let (close, after_close) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
+                    if close.matches_punct(Punctuator::RightParen) {
                         let pot_stmt = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if let Some((stmt, after_stmt)) = pot_stmt {
                             return Ok(Some((

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::identifiers::LabelIdentifier;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -59,24 +59,20 @@ impl BreakStatement {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (break_token, after_break) =
-            scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(break_token, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Break)) {
-            let (next_token, after_next) =
-                scanner::scan_token(&after_break, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (break_token, after_break) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if break_token.matches_keyword(Keyword::Break) {
+            let (next_token, after_next) = scan_token(&after_break, parser.source, ScanGoal::InputElementRegExp);
             if after_next.line == after_break.line {
                 let pot_li = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
                 if let Some((li, after_li)) = pot_li {
-                    let (semi, after_semi) =
-                        scanner::scan_token(&after_li, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if semi == scanner::Token::Semicolon {
+                    let (semi, after_semi) = scan_token(&after_li, parser.source, ScanGoal::InputElementDiv);
+                    if semi.matches_punct(Punctuator::Semicolon) {
                         return Ok(Some((Box::new(BreakStatement::Labelled(li)), after_semi)));
                     }
                 }
             }
-            let (semi, after_semi) =
-                scanner::scan_token(&after_break, parser.source, scanner::ScanGoal::InputElementDiv);
-            if semi == scanner::Token::Semicolon {
+            let (semi, after_semi) = scan_token(&after_break, parser.source, ScanGoal::InputElementDiv);
+            if semi.matches_punct(Punctuator::Semicolon) {
                 return Ok(Some((Box::new(BreakStatement::Bare), after_semi)));
             }
         }

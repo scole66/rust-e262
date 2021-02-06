@@ -5,7 +5,7 @@ use std::io::Write;
 use super::block::Block;
 use super::declarations_and_variables::BindingPattern;
 use super::identifiers::BindingIdentifier;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -87,8 +87,8 @@ impl TryStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (try_tok, after_try) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
-        if matches!(try_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Try)) {
+        let (try_tok, after_try) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        if try_tok.matches_keyword(Keyword::Try) {
             let pot_block = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
             if let Some((block, after_block)) = pot_block {
                 let pot_catch = Catch::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
@@ -168,16 +168,14 @@ impl Catch {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (catch_tok, after_catch) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-        if matches!(catch_tok, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Catch)) {
-            let (open, after_open) =
-                scanner::scan_token(&after_catch, parser.source, scanner::ScanGoal::InputElementDiv);
-            if open == scanner::Token::LeftParen {
+        let (catch_tok, after_catch) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+        if catch_tok.matches_keyword(Keyword::Catch) {
+            let (open, after_open) = scan_token(&after_catch, parser.source, ScanGoal::InputElementDiv);
+            if open.matches_punct(Punctuator::LeftParen) {
                 let pot_cp = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
                 if let Some((cp, after_cp)) = pot_cp {
-                    let (close, after_close) =
-                        scanner::scan_token(&after_cp, parser.source, scanner::ScanGoal::InputElementDiv);
-                    if close == scanner::Token::RightParen {
+                    let (close, after_close) = scan_token(&after_cp, parser.source, ScanGoal::InputElementDiv);
+                    if close.matches_punct(Punctuator::RightParen) {
                         let pot_block = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if let Some((block, after_block)) = pot_block {
                             return Ok(Some((
@@ -243,8 +241,8 @@ impl Finally {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_fin, after_fin) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementDiv);
-        if matches!(tok_fin, scanner::Token::Identifier(id) if id.keyword_id == Some(scanner::Keyword::Finally)) {
+        let (tok_fin, after_fin) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
+        if tok_fin.matches_keyword(Keyword::Finally) {
             let pot_block = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
             if let Some((block, after_block)) = pot_block {
                 return Ok(Some((Box::new(Finally { block }), after_block)));

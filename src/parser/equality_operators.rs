@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::relational_operators::RelationalExpression;
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -108,13 +108,12 @@ impl EqualityExpression {
                 let mut current = Box::new(EqualityExpression::RelationalExpression(re1));
                 let mut current_scanner = after_re1;
                 loop {
-                    let (op_token, after_op) =
-                        scanner::scan_token(&current_scanner, parser.source, scanner::ScanGoal::InputElementDiv);
+                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                     let make_ee = match op_token {
-                        scanner::Token::EqEq => |ee, re| EqualityExpression::Equal(ee, re),
-                        scanner::Token::BangEq => |ee, re| EqualityExpression::NotEqual(ee, re),
-                        scanner::Token::EqEqEq => |ee, re| EqualityExpression::StrictEqual(ee, re),
-                        scanner::Token::BangEqEq => |ee, re| EqualityExpression::NotStrictEqual(ee, re),
+                        Token::Punctuator(Punctuator::EqEq) => |ee, re| EqualityExpression::Equal(ee, re),
+                        Token::Punctuator(Punctuator::BangEq) => |ee, re| EqualityExpression::NotEqual(ee, re),
+                        Token::Punctuator(Punctuator::EqEqEq) => |ee, re| EqualityExpression::StrictEqual(ee, re),
+                        Token::Punctuator(Punctuator::BangEqEq) => |ee, re| EqualityExpression::NotStrictEqual(ee, re),
                         _ => {
                             break;
                         }

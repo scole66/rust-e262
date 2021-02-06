@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::Scanner;
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -113,18 +113,20 @@ impl Block {
         await_flag: bool,
         return_flag: bool,
     ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_tok) = scanner::scan_token(&scanner, parser.source, scanner::ScanGoal::InputElementRegExp);
+        let (token, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
-            scanner::Token::LeftBrace => {
+            Token::Punctuator(Punctuator::LeftBrace) => {
                 let pot_sl = StatementList::parse(parser, after_tok, yield_flag, await_flag, return_flag)?;
                 let (sl, after_sl_scan) = match pot_sl {
                     None => (None, after_tok),
                     Some((node, after)) => (Some(node), after),
                 };
                 let (closing_tok, after_close) =
-                    scanner::scan_token(&after_sl_scan, parser.source, scanner::ScanGoal::InputElementRegExp);
+                    scan_token(&after_sl_scan, parser.source, ScanGoal::InputElementRegExp);
                 match closing_tok {
-                    scanner::Token::RightBrace => Ok(Some((Box::new(Block::Statements(sl)), after_close))),
+                    Token::Punctuator(Punctuator::RightBrace) => {
+                        Ok(Some((Box::new(Block::Statements(sl)), after_close)))
+                    }
                     _ => Ok(None),
                 }
             }
