@@ -296,8 +296,8 @@ impl fmt::Display for Punctuator {
         match self {
             Punctuator::LeftParen => f.write_str("("),
             Punctuator::RightParen => f.write_str(")"),
-            Punctuator::LeftBrace => f.write_str("{{"),
-            Punctuator::RightBrace => f.write_str("}}"),
+            Punctuator::LeftBrace => f.write_str("{"),
+            Punctuator::RightBrace => f.write_str("}"),
             Punctuator::Dot => f.write_str("."),
             Punctuator::Ellipsis => f.write_str("..."),
             Punctuator::Comma => f.write_str(","),
