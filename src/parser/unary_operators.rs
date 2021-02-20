@@ -6,7 +6,7 @@ use super::async_function_definitions::AwaitExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::update_expressions::UpdateExpression;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // UnaryExpression[Yield, Await] :
 //      UpdateExpression[?Yield, ?Await]
@@ -70,23 +70,23 @@ impl PrettyPrint for UnaryExpression {
     where
         T: Write,
     {
-        let mut work = |node: &Box<UnaryExpression>, op| {
+        let mut work = |node: &Box<UnaryExpression>, op, kind| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}UnaryExpression: {}", first, self)
-                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
                 .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {
             UnaryExpression::UpdateExpression(node) => node.concise_with_leftpad(writer, pad, state),
             UnaryExpression::Await(node) => node.concise_with_leftpad(writer, pad, state),
-            UnaryExpression::Delete(node) => work(node, "delete"),
-            UnaryExpression::Void(node) => work(node, "void"),
-            UnaryExpression::Typeof(node) => work(node, "typeof"),
-            UnaryExpression::NoOp(node) => work(node, "+"),
-            UnaryExpression::Negate(node) => work(node, "-"),
-            UnaryExpression::Complement(node) => work(node, "~"),
-            UnaryExpression::Not(node) => work(node, "!"),
+            UnaryExpression::Delete(node) => work(node, "delete", TokenType::Keyword),
+            UnaryExpression::Void(node) => work(node, "void", TokenType::Keyword),
+            UnaryExpression::Typeof(node) => work(node, "typeof", TokenType::Keyword),
+            UnaryExpression::NoOp(node) => work(node, "+", TokenType::Punctuator),
+            UnaryExpression::Negate(node) => work(node, "-", TokenType::Punctuator),
+            UnaryExpression::Complement(node) => work(node, "~", TokenType::Punctuator),
+            UnaryExpression::Not(node) => work(node, "!", TokenType::Punctuator),
         }
     }
 }

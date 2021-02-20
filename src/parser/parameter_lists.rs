@@ -5,7 +5,7 @@ use std::io::Write;
 use super::declarations_and_variables::{BindingElement, BindingRestElement};
 use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // UniqueFormalParameters[Yield, Await] :
 //      FormalParameters[?Yield, ?Await]
@@ -105,12 +105,12 @@ impl PrettyPrint for FormalParameters {
             FormalParameters::ListComma(node) => {
                 let successive = header(writer)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::Final)
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::Final)
             }
             FormalParameters::ListRest(list, node) => {
                 let successive = header(writer)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -188,7 +188,7 @@ impl PrettyPrint for FormalParameterList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}FormalParameterList: {}", first, self)?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

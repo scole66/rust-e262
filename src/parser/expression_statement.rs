@@ -5,7 +5,7 @@ use std::io::Write;
 use super::comma_operator::Expression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ExpressionStatement[Yield, Await] :
 //      [lookahead ∉ { {, function, async [no LineTerminator here] function, class, let [ }] Expression[+In, ?Yield, ?Await] ;
@@ -39,7 +39,7 @@ impl PrettyPrint for ExpressionStatement {
         writeln!(writer, "{}ExpressionStatement: {}", first, self)?;
         let ExpressionStatement::Expression(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

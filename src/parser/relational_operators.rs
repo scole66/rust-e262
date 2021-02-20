@@ -5,7 +5,7 @@ use std::io::Write;
 use super::bitwise_shift_operators::ShiftExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // RelationalExpression[In, Yield, Await] :
 //      ShiftExpression[?Yield, ?Await]
@@ -65,22 +65,22 @@ impl PrettyPrint for RelationalExpression {
     where
         T: Write,
     {
-        let mut work = |re: &Box<RelationalExpression>, se: &Box<ShiftExpression>, op| {
+        let mut work = |re: &Box<RelationalExpression>, se: &Box<ShiftExpression>, op, kind| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}RelationalExpression: {}", first, self)
                 .and_then(|_| re.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
                 .and_then(|_| se.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 
         match self {
             RelationalExpression::ShiftExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            RelationalExpression::Less(re, se) => work(re, se, "<"),
-            RelationalExpression::Greater(re, se) => work(re, se, ">"),
-            RelationalExpression::LessEqual(re, se) => work(re, se, "<="),
-            RelationalExpression::GreaterEqual(re, se) => work(re, se, ">="),
-            RelationalExpression::InstanceOf(re, se) => work(re, se, "instanceof"),
-            RelationalExpression::In(re, se) => work(re, se, "in"),
+            RelationalExpression::Less(re, se) => work(re, se, "<", TokenType::Punctuator),
+            RelationalExpression::Greater(re, se) => work(re, se, ">", TokenType::Punctuator),
+            RelationalExpression::LessEqual(re, se) => work(re, se, "<=", TokenType::Punctuator),
+            RelationalExpression::GreaterEqual(re, se) => work(re, se, ">=", TokenType::Punctuator),
+            RelationalExpression::InstanceOf(re, se) => work(re, se, "instanceof", TokenType::Keyword),
+            RelationalExpression::In(re, se) => work(re, se, "in", TokenType::Keyword),
         }
     }
 }

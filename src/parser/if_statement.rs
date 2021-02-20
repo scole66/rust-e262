@@ -6,7 +6,7 @@ use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // IfStatement[Yield, Await, Return] :
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] else Statement[?Yield, ?Await, ?Return]
@@ -52,10 +52,11 @@ impl PrettyPrint for IfStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}IfStatement: {}", first, self)?;
-        pprint_token(writer, "if", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
-        let condition =
-            |writer: &mut T, exp: &Box<Expression>| exp.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, ")", &successive, Spot::NotFinal));
+        pprint_token(writer, "if", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        let condition = |writer: &mut T, exp: &Box<Expression>| {
+            exp.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal))
+        };
         match self {
             IfStatement::WithoutElse(e, s1) => {
                 condition(writer, e)?;
@@ -64,7 +65,7 @@ impl PrettyPrint for IfStatement {
             IfStatement::WithElse(e, s1, s2) => {
                 condition(writer, e)?;
                 s1.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "else", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "else", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 s2.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

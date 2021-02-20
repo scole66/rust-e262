@@ -5,7 +5,7 @@ use std::io::Write;
 use super::identifiers::LabelIdentifier;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // BreakStatement[Yield, Await] :
 //      break ;
@@ -44,11 +44,11 @@ impl PrettyPrint for BreakStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BreakStatement: {}", first, self)?;
-        pprint_token(writer, "break", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "break", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let BreakStatement::Labelled(node) = self {
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

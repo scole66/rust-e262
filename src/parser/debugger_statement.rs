@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // DebuggerStatement :
 //      debugger ;
@@ -32,8 +32,8 @@ impl PrettyPrint for DebuggerStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}DebuggerStatement: {}", first, self)?;
-        pprint_token(writer, "debugger", &successive, Spot::NotFinal)?;
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, "debugger", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

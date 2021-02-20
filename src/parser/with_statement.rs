@@ -6,7 +6,7 @@ use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // WithStatement[Yield, Await, Return] :
 //      with ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
@@ -39,10 +39,10 @@ impl PrettyPrint for WithStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}WithStatement: {}", first, self)?;
-        pprint_token(writer, "with", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "with", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.statement.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }

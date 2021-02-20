@@ -5,7 +5,7 @@ use std::io::Write;
 use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ThrowStatement[Yield, Await] :
 //      throw [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
@@ -34,9 +34,9 @@ impl PrettyPrint for ThrowStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ThrowStatement: {}", first, self)?;
-        pprint_token(writer, "throw", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "throw", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.0.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

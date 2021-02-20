@@ -7,7 +7,7 @@ use super::identifiers::LabelIdentifier;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // LabelledStatement[Yield, Await, Return] :
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
@@ -41,7 +41,7 @@ impl PrettyPrint for LabelledStatement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LabelledStatement: {}", first, self)?;
         self.identifier.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+        pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.item.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }

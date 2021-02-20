@@ -7,7 +7,7 @@ use super::identifiers::BindingIdentifier;
 use super::parameter_lists::FormalParameters;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // FunctionDeclaration[Yield, Await, Default] :
 //      function BindingIdentifier[?Yield, ?Await] ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
@@ -48,16 +48,16 @@ impl PrettyPrint for FunctionDeclaration {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionDeclaration: {}", first, self)?;
-        pprint_token(writer, "function", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
             id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.params.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.body.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, "}", &successive, Spot::Final)
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -122,16 +122,16 @@ impl PrettyPrint for FunctionExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionExpression: {}", first, self)?;
-        pprint_token(writer, "function", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "function", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(id) = &self.ident {
             id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.params.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.body.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, "}", &successive, Spot::Final)
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

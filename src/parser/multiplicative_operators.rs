@@ -5,7 +5,7 @@ use std::io::Write;
 use super::exponentiation_operator::ExponentiationExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // MultiplicativeOperator : one of
 //      * / %
@@ -38,7 +38,7 @@ impl PrettyPrint for MultiplicativeOperator {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        pprint_token(writer, &format!("{}", self), TokenType::Punctuator, pad, state)
     }
 }
 

@@ -5,7 +5,7 @@ use std::io::Write;
 use super::multiplicative_operators::MultiplicativeExpression;
 use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 #[derive(Debug)]
 pub enum AdditiveExpression {
@@ -52,7 +52,7 @@ impl PrettyPrint for AdditiveExpression {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}AdditiveExpression: {}", first, self)
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
                 .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 

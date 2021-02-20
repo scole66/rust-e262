@@ -5,7 +5,7 @@ use std::io::Write;
 use super::comma_operator::Expression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ReturnStatement[Yield, Await] :
 //      return ;
@@ -44,11 +44,11 @@ impl PrettyPrint for ReturnStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ReturnStatement: {}", first, self)?;
-        pprint_token(writer, "return", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "return", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let ReturnStatement::Expression(exp) = self {
             exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

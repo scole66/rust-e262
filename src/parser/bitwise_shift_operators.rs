@@ -5,7 +5,7 @@ use std::io::Write;
 use super::additive_operators::AdditiveExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ShiftExpression[Yield, Await] :
 //      AdditiveExpression[?Yield, ?Await]
@@ -55,7 +55,7 @@ impl PrettyPrint for ShiftExpression {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}ShiftExpression: {}", first, self)
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
-                .and_then(|_| pprint_token(writer, op, &successive, Spot::NotFinal))
+                .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal))
                 .and_then(|_| right.concise_with_leftpad(writer, &successive, Spot::Final))
         };
 

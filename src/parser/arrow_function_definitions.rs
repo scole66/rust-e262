@@ -8,7 +8,7 @@ use super::identifiers::BindingIdentifier;
 use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterList;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ArrowFunction[In, Yield, Await] :
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
@@ -42,7 +42,7 @@ impl PrettyPrint for ArrowFunction {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFunction: {}", first, self)?;
         self.parameters.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, "=>", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "=>", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.body.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
@@ -149,9 +149,9 @@ impl PrettyPrint for ConciseBody {
             ConciseBody::Function(node) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}ConciseBody: {}", first, self)?;
-                pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "}", &successive, Spot::Final)
+                pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
             }
         }
     }

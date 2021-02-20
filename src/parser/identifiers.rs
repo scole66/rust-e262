@@ -1,6 +1,6 @@
 use super::scanner::{scan_token, IdentifierData, JSString, Keyword, ScanGoal, Scanner, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -34,7 +34,7 @@ impl PrettyPrint for Identifier {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        pprint_token(writer, &format!("{}", self), TokenType::IdentifierName, pad, state)
     }
 }
 
@@ -220,7 +220,7 @@ impl PrettyPrint for IdentifierReference {
     where
         T: Write,
     {
-        let mut work = |tok: &str| pprint_token(writer, tok, pad, state);
+        let mut work = |tok: &str| pprint_token(writer, tok, TokenType::Keyword, pad, state);
         match &self.kind {
             IdentifierReferenceKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
             IdentifierReferenceKind::Await => work("await"),
@@ -333,8 +333,8 @@ impl PrettyPrint for BindingIdentifier {
     {
         match &self.kind {
             BindingIdentifierKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
-            BindingIdentifierKind::Await => pprint_token(writer, "await", pad, state),
-            BindingIdentifierKind::Yield => pprint_token(writer, "yield", pad, state),
+            BindingIdentifierKind::Await => pprint_token(writer, "await", TokenType::Keyword, pad, state),
+            BindingIdentifierKind::Yield => pprint_token(writer, "yield", TokenType::Keyword, pad, state),
         }
     }
 }
@@ -410,8 +410,8 @@ impl PrettyPrint for LabelIdentifier {
     {
         match self {
             LabelIdentifier::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
-            LabelIdentifier::Yield => pprint_token(writer, "yield", pad, state),
-            LabelIdentifier::Await => pprint_token(writer, "await", pad, state),
+            LabelIdentifier::Yield => pprint_token(writer, "yield", TokenType::Keyword, pad, state),
+            LabelIdentifier::Await => pprint_token(writer, "await", TokenType::Keyword, pad, state),
         }
     }
 }
@@ -453,7 +453,7 @@ mod tests {
         let pot_id = Identifier::parse(&mut Parser::new("phil", false, ParseGoal::Script), Scanner::new());
         let (id, _) = pot_id.unwrap();
         pretty_check(&*id, "Identifier: phil", vec![]);
-        concise_check(&*id, "Identifier: phil", vec![]);
+        concise_check(&*id, "IdentifierName: phil", vec![]);
     }
     #[test]
     fn identifier_test_await() {
@@ -862,7 +862,7 @@ mod tests {
         assert_eq!(idref.string_value(), "identifier");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
-        concise_check(&*idref, "Identifier: identifier", vec![]);
+        concise_check(&*idref, "IdentifierName: identifier", vec![]);
     }
     #[test]
     fn identifier_reference_test_yield() {
@@ -872,7 +872,7 @@ mod tests {
         assert_eq!(idref.string_value(), "yield");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: yield", vec![]);
-        concise_check(&*idref, "Token: yield", vec![]);
+        concise_check(&*idref, "Keyword: yield", vec![]);
     }
     #[test]
     fn identifier_reference_test_yield_02() {
@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(idref.string_value(), "await");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: await", vec![]);
-        concise_check(&*idref, "Token: await", vec![]);
+        concise_check(&*idref, "Keyword: await", vec![]);
     }
     #[test]
     fn identifier_reference_test_await_02() {
@@ -974,13 +974,13 @@ mod tests {
     fn binding_identifier_test_pprint() {
         let b1 = bindingid_create("joe", false, false);
         pretty_check(&*b1, "BindingIdentifier: joe", vec!["Identifier: joe"]);
-        concise_check(&*b1, "Identifier: joe", vec![]);
+        concise_check(&*b1, "IdentifierName: joe", vec![]);
         let b2 = bindingid_create("yield", false, false);
         pretty_check(&*b2, "BindingIdentifier: yield", vec![]);
-        concise_check(&*b2, "Token: yield", vec![]);
+        concise_check(&*b2, "Keyword: yield", vec![]);
         let b3 = bindingid_create("await", false, false);
         pretty_check(&*b3, "BindingIdentifier: await", vec![]);
-        concise_check(&*b3, "Token: await", vec![]);
+        concise_check(&*b3, "Keyword: await", vec![]);
     }
     #[test]
     fn binding_identifier_test_debug() {
@@ -1003,7 +1003,7 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
         pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-        concise_check(&*lid, "Identifier: id", vec![]);
+        concise_check(&*lid, "IdentifierName: id", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1012,7 +1012,7 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
         pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-        concise_check(&*lid, "Identifier: id", vec![]);
+        concise_check(&*lid, "IdentifierName: id", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1021,7 +1021,7 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
         pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-        concise_check(&*lid, "Identifier: id", vec![]);
+        concise_check(&*lid, "IdentifierName: id", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1030,7 +1030,7 @@ mod tests {
         chk_scan(&scanner, 2);
         assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
         pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
-        concise_check(&*lid, "Identifier: id", vec![]);
+        concise_check(&*lid, "IdentifierName: id", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1039,7 +1039,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*lid, LabelIdentifier::Yield));
         pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
-        concise_check(&*lid, "Token: yield", vec![]);
+        concise_check(&*lid, "Keyword: yield", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1052,7 +1052,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*lid, LabelIdentifier::Yield));
         pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
-        concise_check(&*lid, "Token: yield", vec![]);
+        concise_check(&*lid, "Keyword: yield", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1065,7 +1065,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*lid, LabelIdentifier::Await));
         pretty_check(&*lid, "LabelIdentifier: await", vec![]);
-        concise_check(&*lid, "Token: await", vec![]);
+        concise_check(&*lid, "Keyword: await", vec![]);
         format!("{:?}", lid);
     }
     #[test]
@@ -1074,7 +1074,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*lid, LabelIdentifier::Await));
         pretty_check(&*lid, "LabelIdentifier: await", vec![]);
-        concise_check(&*lid, "Token: await", vec![]);
+        concise_check(&*lid, "Keyword: await", vec![]);
         format!("{:?}", lid);
     }
     #[test]

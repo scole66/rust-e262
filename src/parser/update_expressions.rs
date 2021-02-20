@@ -6,7 +6,7 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // UpdateExpression[Yield, Await] :
 //      LeftHandSideExpression[?Yield, ?Await]
@@ -58,10 +58,12 @@ impl PrettyPrint for UpdateExpression {
             writeln!(writer, "{}UpdateExpression: {}", first, self).and(Ok(successive))
         };
         let workafter = |writer: &mut T, node: &Box<LeftHandSideExpression>, op: &str| {
-            head(writer).and_then(|successive| node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, op, &successive, Spot::Final)))
+            head(writer)
+                .and_then(|successive| node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final)))
         };
         let workbefore = |writer: &mut T, node: &Box<UnaryExpression>, op: &str| {
-            head(writer).and_then(|successive| pprint_token(writer, op, &successive, Spot::NotFinal).and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final)))
+            head(writer)
+                .and_then(|successive| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal).and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final)))
         };
         match self {
             UpdateExpression::LeftHandSideExpression(node) => node.concise_with_leftpad(writer, pad, state),

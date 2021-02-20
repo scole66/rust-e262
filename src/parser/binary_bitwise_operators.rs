@@ -5,7 +5,7 @@ use std::io::Write;
 use super::equality_operators::EqualityExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // BitwiseANDExpression[In, Yield, Await] :
 //      EqualityExpression[?In, ?Yield, ?Await]
@@ -50,7 +50,7 @@ impl PrettyPrint for BitwiseANDExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
                 be.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "&", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ee.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -170,7 +170,7 @@ impl PrettyPrint for BitwiseXORExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BitwiseXORExpression: {}", first, self)?;
                 bxor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "^", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "^", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 band.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -291,7 +291,7 @@ impl PrettyPrint for BitwiseORExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BitwiseORExpression: {}", first, self)?;
                 bor.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "|", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "|", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 bxor.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

@@ -26,7 +26,7 @@ Then:
 function t() {
   pushd ~/rustplay/rust-e262 > /dev/null
   rm -f res-*.profraw
-  RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test
+  RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test "$@"
   grcov . --binary-path ./target/debug/ -s . -t html --branch --ignore-not-existing --ignore "/*" -o /mnt/c/Users/scole/Documents/rustplay/rust-e262/target/debug/coverage/ --excl-start "#\[cfg\(test\)\]"
   popd > /dev/null
 }

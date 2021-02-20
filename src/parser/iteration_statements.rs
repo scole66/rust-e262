@@ -10,7 +10,7 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // IterationStatement[Yield, Await, Return] :
 //      DoWhileStatement[?Yield, ?Await, ?Return]
@@ -117,14 +117,14 @@ impl PrettyPrint for DoWhileStatement {
     {
         let (first, suc) = prettypad(pad, state);
         writeln!(writer, "{}DoWhileStatement: {}", first, self)?;
-        pprint_token(writer, "do", &suc, Spot::NotFinal)?;
+        pprint_token(writer, "do", TokenType::Keyword, &suc, Spot::NotFinal)?;
         let DoWhileStatement::Do(s, e) = self;
         s.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
-        pprint_token(writer, "while", &suc, Spot::NotFinal)?;
-        pprint_token(writer, "(", &suc, Spot::NotFinal)?;
+        pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
-        pprint_token(writer, ")", &suc, Spot::NotFinal)?;
-        pprint_token(writer, ";", &suc, Spot::Final)
+        pprint_token(writer, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
+        pprint_token(writer, ";", TokenType::Punctuator, &suc, Spot::Final)
     }
 }
 
@@ -173,10 +173,10 @@ impl PrettyPrint for WhileStatement {
         let (first, suc) = prettypad(pad, state);
         writeln!(writer, "{}WhileStatement: {}", first, self)?;
         let WhileStatement::While(e, s) = self;
-        pprint_token(writer, "while", &suc, Spot::NotFinal)?;
-        pprint_token(writer, "(", &suc, Spot::NotFinal)?;
+        pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
-        pprint_token(writer, ")", &suc, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         s.concise_with_leftpad(writer, &suc, Spot::Final)
     }
 }
@@ -265,8 +265,8 @@ impl PrettyPrint for ForStatement {
     {
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForStatement: {}", first, self)?;
-        pprint_token(w, "for", &suc, Spot::NotFinal)?;
-        pprint_token(w, "(", &suc, Spot::NotFinal)?;
+        pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
+        pprint_token(w, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         let maybeprint = |w: &mut T, e: &Option<Box<Expression>>| {
             if let Some(exp) = e {
                 exp.concise_with_leftpad(w, &suc, Spot::NotFinal)
@@ -277,29 +277,29 @@ impl PrettyPrint for ForStatement {
         match self {
             ForStatement::For(e1, e2, e3, s) => {
                 maybeprint(w, e1)?;
-                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 maybeprint(w, e2)?;
-                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 maybeprint(w, e3)?;
-                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                pprint_token(w, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 s.concise_with_leftpad(w, &suc, Spot::Final)
             }
             ForStatement::ForVar(v, e1, e2, s) => {
-                pprint_token(w, "var", &suc, Spot::NotFinal)?;
+                pprint_token(w, "var", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 v.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
-                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 maybeprint(w, e1)?;
-                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 maybeprint(w, e2)?;
-                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                pprint_token(w, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 s.concise_with_leftpad(w, &suc, Spot::Final)
             }
             ForStatement::ForLex(lex, e1, e2, s) => {
                 lex.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
                 maybeprint(w, e1)?;
-                pprint_token(w, ";", &suc, Spot::NotFinal)?;
+                pprint_token(w, ";", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 maybeprint(w, e2)?;
-                pprint_token(w, ")", &suc, Spot::NotFinal)?;
+                pprint_token(w, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
                 s.concise_with_leftpad(w, &suc, Spot::Final)
             }
         }
@@ -445,16 +445,16 @@ impl PrettyPrint for ForInOfStatement {
 
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
-        pprint_token(w, "for", &suc, Spot::NotFinal)?;
+        pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
 
         if await_present {
-            pprint_token(w, "await", &suc, Spot::NotFinal)?;
+            pprint_token(w, "await", TokenType::Keyword, &suc, Spot::NotFinal)?;
         }
 
-        pprint_token(w, "(", &suc, Spot::NotFinal)?;
+        pprint_token(w, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
 
         if var_present {
-            pprint_token(w, "var", &suc, Spot::NotFinal)?;
+            pprint_token(w, "var", TokenType::Keyword, &suc, Spot::NotFinal)?;
         }
 
         match self {
@@ -465,7 +465,7 @@ impl PrettyPrint for ForInOfStatement {
 
         match self {
             ForInOfStatement::ForIn(_, e, _) | ForInOfStatement::ForLexIn(_, e, _) | ForInOfStatement::ForVarIn(_, e, _) => {
-                pprint_token(w, "in", &suc, Spot::NotFinal)?;
+                pprint_token(w, "in", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 e.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
             ForInOfStatement::ForVarOf(_, ae, _)
@@ -474,12 +474,12 @@ impl PrettyPrint for ForInOfStatement {
             | ForInOfStatement::ForLexOf(_, ae, _)
             | ForInOfStatement::ForAwaitOf(_, ae, _)
             | ForInOfStatement::ForAwaitLexOf(_, ae, _) => {
-                pprint_token(w, "of", &suc, Spot::NotFinal)?;
+                pprint_token(w, "of", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 ae.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
         }
 
-        pprint_token(w, ")", &suc, Spot::NotFinal)?;
+        pprint_token(w, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
 
         match self {
             ForInOfStatement::ForIn(_, _, s)

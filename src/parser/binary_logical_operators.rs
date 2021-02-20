@@ -5,7 +5,7 @@ use std::io::Write;
 use super::binary_bitwise_operators::BitwiseORExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // LogicalANDExpression[In, Yield, Await] :
 //      BitwiseORExpression[?In, ?Yield, ?Await]
@@ -50,7 +50,7 @@ impl PrettyPrint for LogicalANDExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}LogicalANDExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "&&", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&&", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -141,7 +141,7 @@ impl PrettyPrint for LogicalORExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}LogicalORExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "||", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "||", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -220,7 +220,7 @@ impl PrettyPrint for CoalesceExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CoalesceExpression: {}", first, self)?;
         self.head.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, "??", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "??", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.tail.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }

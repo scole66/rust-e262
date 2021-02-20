@@ -6,7 +6,7 @@ use super::block::StatementList;
 use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // SwitchStatement[Yield, Await, Return] :
 //      switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
@@ -39,10 +39,10 @@ impl PrettyPrint for SwitchStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SwitchStatement: {}", first, self)?;
-        pprint_token(writer, "switch", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "switch", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.case_block.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
@@ -113,7 +113,7 @@ impl PrettyPrint for CaseBlock {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CaseBlock: {}", first, self)?;
-        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             CaseBlock::NoDefault(None) => Ok(()),
             CaseBlock::NoDefault(Some(node)) => node.concise_with_leftpad(writer, &successive, Spot::NotFinal),
@@ -132,7 +132,7 @@ impl PrettyPrint for CaseBlock {
                 post.concise_with_leftpad(writer, &successive, Spot::NotFinal)
             }
         }?;
-        pprint_token(writer, "}", &successive, Spot::Final)
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -282,14 +282,14 @@ impl PrettyPrint for CaseClause {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CaseClause: {}", first, self)?;
-        pprint_token(writer, "case", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "case", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         match &self.statements {
             Some(s) => {
-                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 s.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            None => pprint_token(writer, ":", &successive, Spot::Final),
+            None => pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::Final),
         }
     }
 }
@@ -340,11 +340,11 @@ impl PrettyPrint for DefaultClause {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}DefaultClause: {}", first, self)?;
-        pprint_token(writer, "default", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "default", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
-            DefaultClause(None) => pprint_token(writer, ":", &successive, Spot::Final),
+            DefaultClause(None) => pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::Final),
             DefaultClause(Some(sl)) => {
-                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 sl.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

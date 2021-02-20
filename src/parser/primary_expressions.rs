@@ -15,7 +15,7 @@ use super::identifiers::{BindingIdentifier, IdentifierNameToken, IdentifierRefer
 use super::method_definitions::MethodDefinition;
 use super::scanner::{scan_token, JSString, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, TemplateData, Token};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use crate::values::number_to_string;
 
 //////// 12.2 Primary Expression
@@ -104,9 +104,8 @@ impl PrettyPrint for PrimaryExpression {
     where
         T: Write,
     {
-        let (first, _) = prettypad(pad, state);
         match &self.kind {
-            PrimaryExpressionKind::This => writeln!(writer, "{}PrimaryExpression: {}", first, self),
+            PrimaryExpressionKind::This => pprint_token(writer, "this", TokenType::Keyword, pad, state),
             PrimaryExpressionKind::IdentifierReference(boxed) => boxed.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::Literal(boxed) => boxed.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
@@ -118,7 +117,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::Generator(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::RegularExpression(_) => writeln!(writer, "{}PrimaryExpression: {}", first, self),
+            PrimaryExpressionKind::RegularExpression(_) => pprint_token(writer, "regular_expression", TokenType::RegularExpression, pad, state),
         }
     }
 }
@@ -234,38 +233,6 @@ impl ToPrimaryExpressionKind for AsyncGeneratorExpression {
     }
 }
 
-// impl ToPrimaryExpressionKind for RegularExpressionData {
-//     fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
-//         PrimaryExpressionKind::RegularExpression(node)
-//     }
-// }
-
-// fn pe_boxer<T>(opt: Option<(Box<T>, Scanner)>) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
-// where
-//     T: ToPrimaryExpressionKind,
-// {
-//     Ok(opt.map(|(node, scanner)| {
-//         (
-//             Box::new(PrimaryExpression {
-//                 kind: T::to_primary_expression_kind(node),
-//             }),
-//             scanner,
-//         )
-//     }))
-// }
-
-// fn or_pe_kind<F, T>(
-//     opt: Option<(Box<PrimaryExpression>, Scanner)>,
-//     parser: &mut Parser,
-//     parse_func: F,
-// ) -> Result<Option<(Box<PrimaryExpression>, Scanner)>, String>
-// where
-//     F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
-//     T: ToPrimaryExpressionKind,
-// {
-//     opt.map_or_else(|| parse_func(parser).and_then(pe_boxer), rewrap)
-// }
-
 impl PrimaryExpression {
     fn parse_this(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
         let after = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
@@ -351,36 +318,6 @@ impl PrimaryExpression {
     }
 }
 
-// #[derive(Debug)]
-// pub struct ThisToken {}
-//
-// impl ToPrimaryExpressionKind for ThisToken {
-//     fn to_primary_expression_kind(_node: Box<Self>) -> PrimaryExpressionKind {
-//         PrimaryExpressionKind::This
-//     }
-// }
-//
-// fn this_token(parser: &mut Parser, scanner: Scanner) -> Result<(Box<ThisToken>, Scanner), ParseError> {
-//     let (tok, scanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-//     if tok.matches_keyword(Keyword::This) {
-//         Ok((Box::new(ThisToken {}), scanner))
-//     } else {
-//         Err(ParseError::new("Expected ‘this’", scanner.line, scanner.column))
-//     }
-// }
-//
-// fn regex_token(parser: &mut Parser, scanner: Scanner) -> Result<(Box<RegularExpressionData>, Scanner), ParseError> {
-//     let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-//     match tok {
-//         Token::RegularExpression(rd) => Ok((Box::new(rd), after_tok)),
-//         _ => Err(ParseError::new(
-//             "Expected regular expression",
-//             scanner.line,
-//             scanner.column,
-//         )),
-//     }
-// }
-
 #[derive(Debug)]
 pub struct Elisions {
     count: usize,
@@ -462,7 +399,7 @@ impl PrettyPrint for SpreadElement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SpreadElement: {}", first, self)?;
-        pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let SpreadElement::AssignmentExpression(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -579,26 +516,26 @@ impl PrettyPrint for ElementList {
             ElementList::ElementListAssignmentExpression((el, None, ae)) => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListAssignmentExpression((el, Some(commas), ae)) => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListSpreadElement((el, None, se)) => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ElementList::ElementListSpreadElement((el, Some(commas), se)) => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -738,31 +675,31 @@ impl PrettyPrint for ArrayLiteral {
         writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
         match self {
             ArrayLiteral::Empty(None) => {
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             ArrayLiteral::Empty(Some(elision)) => {
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elision.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             ArrayLiteral::ElementList(node) => {
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             ArrayLiteral::ElementListElision(node, None) => {
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             ArrayLiteral::ElementListElision(node, Some(elision)) => {
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elision.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
         }
     }
@@ -828,7 +765,7 @@ impl PrettyPrint for Initializer {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Initializer: {}", first, self)?;
-        pprint_token(writer, "=", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let Initializer::AssignmentExpression(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -917,10 +854,10 @@ impl PrettyPrint for ComputedPropertyName {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
-        pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let ComputedPropertyName::AssignmentExpression(ae) = self;
         ae.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, "]", &successive, Spot::Final)
+        pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -1101,13 +1038,13 @@ impl PrettyPrint for PropertyDefinition {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             PropertyDefinition::AssignmentExpression(node) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1206,7 +1143,7 @@ impl PrettyPrint for PropertyDefinitionList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}PropertyDefinitionList: {}", first, self)?;
                 pdl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pd.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1281,7 +1218,7 @@ impl PrettyPrint for ObjectLiteral {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
-        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ObjectLiteral::Empty => {}
             ObjectLiteral::Normal(node) => {
@@ -1289,10 +1226,10 @@ impl PrettyPrint for ObjectLiteral {
             }
             ObjectLiteral::TrailingComma(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
         }
-        pprint_token(writer, "}", &successive, Spot::Final)
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -1385,7 +1322,12 @@ impl PrettyPrint for Literal {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        match &self.kind {
+            LiteralKind::NullLiteral => pprint_token(writer, "null", TokenType::Keyword, pad, state),
+            LiteralKind::BooleanLiteral(_) => pprint_token(writer, &format!("{}", self), TokenType::Keyword, pad, state),
+            LiteralKind::NumericLiteral(num) => pprint_token(writer, &format!("{}", self), TokenType::Numeric, pad, state),
+            LiteralKind::StringLiteral(jsstring) => pprint_token(writer, &format!("{}", self), TokenType::String, pad, state),
+        }
     }
 }
 
@@ -1489,7 +1431,7 @@ pub struct SubstitutionTemplate {
 
 impl fmt::Display for SubstitutionTemplate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "`{}${{ {} {}", format!("{}", self.template_head.trv).replace(char::is_control, "\u{2426}"), self.expression, self.template_spans)
+        write!(f, "`{}${{ {} {}", format!("{}", self.template_head), self.expression, self.template_spans)
     }
 }
 
@@ -1509,7 +1451,7 @@ impl PrettyPrint for SubstitutionTemplate {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
-        pprint_token(writer, &format!("`{}${{", self.template_head.trv).replace(char::is_control, "\u{2426}"), &successive, Spot::NotFinal)?;
+        pprint_token(writer, &format!("`{}${{", self.template_head), TokenType::TemplateHead, &successive, Spot::NotFinal)?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.template_spans.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1566,12 +1508,12 @@ impl PrettyPrint for TemplateSpans {
         T: Write,
     {
         match self {
-            TemplateSpans::Tail(td, _) => pprint_token(writer, &format!("}}{}`", td.trv), pad, Spot::Final),
+            TemplateSpans::Tail(td, _) => pprint_token(writer, &format!("}}{}`", td.trv), TokenType::TemplateTail, pad, Spot::Final),
             TemplateSpans::List(tml, td, _) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}TemplateSpans: {}", first, self)?;
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{}`", td.trv).replace(char::is_control, "\u{2426}"), &successive, Spot::Final)
+                pprint_token(writer, &format!("}}{}`", td), TokenType::TemplateTail, &successive, Spot::Final)
             }
         }
     }
@@ -1644,12 +1586,12 @@ impl PrettyPrint for TemplateMiddleList {
         writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
         match self {
             TemplateMiddleList::ListHead(td, exp, _) => {
-                pprint_token(writer, &format!("}}{}${{", td.trv).replace(char::is_control, "\u{2426}"), &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("}}{}${{", td), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             TemplateMiddleList::ListMid(tml, td, exp, _) => {
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{}${{", td.trv).replace(char::is_control, "\u{2426}"), &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("}}{}${{", td), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1721,10 +1663,10 @@ impl PrettyPrint for ParenthesizedExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let ParenthesizedExpression::Expression(e) = self;
         e.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::Final)
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -1818,38 +1760,38 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
             CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
             CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pat.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
         }
-        pprint_token(writer, ")", &successive, Spot::Final)
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -1933,7 +1875,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{concise_check, pretty_check};
 
     // PRIMARY EXPRESSION
     #[test]
@@ -1946,10 +1888,13 @@ mod tests {
     fn primary_expression_test_pprint() {
         let (pe1, _) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
         pretty_check(&*pe1, "PrimaryExpression: this", vec![]);
+        concise_check(&*pe1, "Keyword: this", vec![]);
         let (pe2, _) = check(PrimaryExpression::parse(&mut newparser("1"), Scanner::new(), false, false));
         pretty_check(&*pe2, "PrimaryExpression: 1", vec!["Literal: 1"]);
+        concise_check(&*pe1, "Keyword: this", vec![]);
         let (pe3, _) = check(PrimaryExpression::parse(&mut newparser("i"), Scanner::new(), false, false));
         pretty_check(&*pe3, "PrimaryExpression: i", vec!["IdentifierReference: i"]);
+        concise_check(&*pe1, "Keyword: this", vec![]);
         let (pe4, _) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
         pretty_check(&*pe4, "PrimaryExpression: [ ]", vec!["ArrayLiteral: [ ]"]);
         let (pe5, _) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));

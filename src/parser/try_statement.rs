@@ -7,7 +7,7 @@ use super::declarations_and_variables::BindingPattern;
 use super::identifiers::BindingIdentifier;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // TryStatement[Yield, Await, Return] :
 //      try Block[?Yield, ?Await, ?Return] Catch[?Yield, ?Await, ?Return]
@@ -60,7 +60,7 @@ impl PrettyPrint for TryStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TryStatement: {}", first, self)?;
-        pprint_token(writer, "try", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "try", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
             TryStatement::Catch(block, catch) => {
                 block.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -150,11 +150,11 @@ impl PrettyPrint for Catch {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Catch: {}", first, self)?;
-        pprint_token(writer, "catch", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "catch", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let Some(cp) = &self.parameter {
-            pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+            pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             cp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-            pprint_token(writer, ")", &successive, Spot::NotFinal)?;
+            pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         }
         self.block.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -207,7 +207,7 @@ impl PrettyPrint for Finally {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Finally: {}", first, self)?;
-        pprint_token(writer, "finally", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "finally", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.block.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }

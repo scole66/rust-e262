@@ -8,7 +8,7 @@ use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
 use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 //////// 12.3 Left-Hand-Side Expressions
 
@@ -105,15 +105,15 @@ impl PrettyPrint for MemberExpression {
             MemberExpressionKind::Expression(me, exp) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             MemberExpressionKind::IdentifierName(me, id) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", id), &successive, Spot::Final)
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", id), TokenType::IdentifierName, &successive, Spot::Final)
             }
             MemberExpressionKind::TemplateLiteral(me, tl) => {
                 let successive = head(pad, state)?;
@@ -122,7 +122,7 @@ impl PrettyPrint for MemberExpression {
             }
             MemberExpressionKind::NewArguments(me, args) => {
                 let successive = head(pad, state)?;
-                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 args.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -350,15 +350,15 @@ impl PrettyPrint for SuperProperty {
         writeln!(writer, "{}SuperProperty: {}", first, self)?;
         match &self.kind {
             SuperPropertyKind::Expression(node) => {
-                pprint_token(writer, "super", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             SuperPropertyKind::IdentifierName(id) => {
-                pprint_token(writer, "super", &successive, Spot::NotFinal)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", id), &successive, Spot::Final)
+                pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", id), TokenType::IdentifierName, &successive, Spot::Final)
             }
         }
     }
@@ -446,14 +446,14 @@ impl PrettyPrint for MetaProperty {
         writeln!(writer, "{}MetaProperty: {}", first, self)?;
         match &self.kind {
             MetaPropertyKind::NewTarget => {
-                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "target", &successive, Spot::Final)
+                pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "target", TokenType::Keyword, &successive, Spot::Final)
             }
             MetaPropertyKind::ImportMeta => {
-                pprint_token(writer, "import", &successive, Spot::NotFinal)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "meta", &successive, Spot::Final)
+                pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "meta", TokenType::Keyword, &successive, Spot::Final)
             }
         }
     }
@@ -524,7 +524,7 @@ impl PrettyPrint for Arguments {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Arguments: {}", first, self)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match &self.kind {
             ArgumentsKind::Empty => {}
             ArgumentsKind::ArgumentList(node) => {
@@ -532,10 +532,10 @@ impl PrettyPrint for Arguments {
             }
             ArgumentsKind::ArgumentListComma(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
         }
-        pprint_token(writer, ")", &successive, Spot::Final)
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -695,20 +695,20 @@ impl PrettyPrint for ArgumentList {
             ArgumentListKind::AssignmentExpression(node) => node.concise_with_leftpad(writer, pad, state),
             ArgumentListKind::DotsAssignmentExpression(node) => {
                 let successive = head(pad, state)?;
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ArgumentListKind::ArgumentListAssignmentExpression(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ArgumentListKind::ArgumentListDotsAssignmentExpression(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -820,7 +820,7 @@ impl PrettyPrint for NewExpression {
             NewExpressionKind::NewExpression(node) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}NewExpression: {}", first, self)?;
-                pprint_token(writer, "new", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -931,7 +931,7 @@ impl PrettyPrint for SuperCall {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SuperCall: {}", first, self)?;
-        pprint_token(writer, "super", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
         self.arguments.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
@@ -972,10 +972,10 @@ impl PrettyPrint for ImportCall {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ImportCall: {}", first, self)?;
-        pprint_token(writer, "import", &successive, Spot::NotFinal)?;
-        pprint_token(writer, "(", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         self.assignment_expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ")", &successive, Spot::Final)
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -1073,14 +1073,14 @@ impl PrettyPrint for CallExpression {
             }
             CallExpressionKind::CallExpressionExpression(ce, right) => {
                 let successive = head(writer, ce)?;
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             CallExpressionKind::CallExpressionIdentifierName(ce, right) => {
                 let successive = head(writer, ce)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", right), &successive, Spot::NotFinal)
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", right), TokenType::IdentifierName, &successive, Spot::NotFinal)
             }
             CallExpressionKind::CallExpressionTemplateLiteral(ce, right) => {
                 let successive = head(writer, ce)?;
@@ -1381,7 +1381,7 @@ impl PrettyPrint for OptionalChain {
         match self {
             OptionalChain::Args(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::Ident(node) => pprint_token(writer, &format!("{}", node), &successive, Spot::Final),
+            OptionalChain::Ident(node) => pprint_token(writer, &format!("{}", node), TokenType::IdentifierName, &successive, Spot::Final),
             OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1393,7 +1393,7 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::PlusIdent(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", item), &successive, Spot::Final)
+                pprint_token(writer, &format!("{}", item), TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1410,21 +1410,21 @@ impl PrettyPrint for OptionalChain {
         writeln!(writer, "{}OptionalChain: {}", first, self)?;
         match self {
             OptionalChain::Args(node) => {
-                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             OptionalChain::Exp(node) => {
-                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             OptionalChain::Ident(node) => {
-                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", node), &successive, Spot::Final)
+                pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", node), TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::Template(node) => {
-                pprint_token(writer, "?.", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             OptionalChain::PlusArgs(lst, item) => {
@@ -1433,14 +1433,14 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::PlusExp(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "]", &successive, Spot::Final)
+                pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
             OptionalChain::PlusIdent(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ".", &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", item), &successive, Spot::Final)
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, &format!("{}", item), TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;

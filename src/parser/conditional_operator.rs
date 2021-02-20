@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ConditionalExpression[In, Yield, Await] :
 //      ShortCircuitExpression[?In, ?Yield, ?Await]
@@ -54,9 +54,9 @@ impl PrettyPrint for ConditionalExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}ConditionalExpression: {}", first, self)?;
                 a.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "?", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "?", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 b.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 c.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

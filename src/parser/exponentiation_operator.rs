@@ -6,7 +6,7 @@ use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::unary_operators::UnaryExpression;
 use super::update_expressions::UpdateExpression;
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 #[derive(Debug)]
 pub enum ExponentiationExpression {
@@ -49,7 +49,7 @@ impl PrettyPrint for ExponentiationExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "**", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "**", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

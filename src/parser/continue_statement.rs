@@ -5,7 +5,7 @@ use std::io::Write;
 use super::identifiers::LabelIdentifier;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ContinueStatement[Yield, Await] :
 //      continue ;
@@ -44,11 +44,11 @@ impl PrettyPrint for ContinueStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ContinueStatement: {}", first, self)?;
-        pprint_token(writer, "continue", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "continue", TokenType::Keyword, &successive, Spot::NotFinal)?;
         if let ContinueStatement::Labelled(node) = self {
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         }
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 

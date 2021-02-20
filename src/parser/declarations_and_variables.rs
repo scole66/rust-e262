@@ -6,7 +6,7 @@ use super::identifiers::BindingIdentifier;
 use super::primary_expressions::{Elisions, Initializer, PropertyName};
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // LexicalDeclaration[In, Yield, Await] :
 //      LetOrConst BindingList[?In, ?Yield, ?Await] ;
@@ -43,7 +43,7 @@ impl PrettyPrint for LexicalDeclaration {
         let LexicalDeclaration::List(loc, bl) = self;
         loc.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         bl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -116,7 +116,7 @@ impl PrettyPrint for LetOrConst {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        pprint_token(writer, &format!("{}", self), TokenType::Keyword, pad, state)
     }
 }
 
@@ -164,7 +164,7 @@ impl PrettyPrint for BindingList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BindingList: {}", first, self)?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -354,10 +354,10 @@ impl PrettyPrint for VariableStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}VariableStatement: {}", first, self)?;
-        pprint_token(writer, "var", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "var", TokenType::Keyword, &successive, Spot::NotFinal)?;
         let VariableStatement::Var(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-        pprint_token(writer, ";", &successive, Spot::Final)
+        pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -414,7 +414,7 @@ impl PrettyPrint for VariableDeclarationList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}VariableDeclarationList: {}", first, self)?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -626,7 +626,7 @@ impl PrettyPrint for ObjectBindingPattern {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectBindingPattern: {}", first, self)?;
-        pprint_token(writer, "{", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ObjectBindingPattern::Empty => {}
             ObjectBindingPattern::RestOnly(node) => {
@@ -637,15 +637,15 @@ impl PrettyPrint for ObjectBindingPattern {
             }
             ObjectBindingPattern::ListRest(lst, Some(rst)) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 rst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             ObjectBindingPattern::ListRest(lst, None) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
         }
-        pprint_token(writer, "}", &successive, Spot::Final)
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -788,7 +788,7 @@ impl PrettyPrint for ArrayBindingPattern {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayBindingPattern: {}", first, self)?;
-        pprint_token(writer, "[", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -806,26 +806,26 @@ impl PrettyPrint for ArrayBindingPattern {
             }
             ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 rst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
             ArrayBindingPattern::ListRest(lst, None, None) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
         }
-        pprint_token(writer, "]", &successive, Spot::Final)
+        pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
@@ -960,7 +960,7 @@ impl PrettyPrint for BindingRestProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BindingRestProperty: {}", first, self)?;
-        pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let BindingRestProperty::Id(node) = self;
         node.concise_with_leftpad(writer, &successive, Spot::Final)
     }
@@ -1027,7 +1027,7 @@ impl PrettyPrint for BindingPropertyList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BindingPropertyList: {}", first, self)?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1100,7 +1100,7 @@ impl PrettyPrint for BindingElementList {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BindingElementList: {}", first, self)?;
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ",", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1240,7 +1240,7 @@ impl PrettyPrint for BindingProperty {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}BindingProperty: {}", first, self)?;
                 name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, ":", &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elem.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1430,7 +1430,7 @@ impl PrettyPrint for BindingRestElement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BindingRestElement: {}", first, self)?;
-        pprint_token(writer, "...", &successive, Spot::NotFinal)?;
+        pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
             BindingRestElement::Identifier(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),
             BindingRestElement::Pattern(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),

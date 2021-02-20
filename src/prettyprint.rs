@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
@@ -25,12 +26,43 @@ pub fn prettypad(pad: &str, state: Spot) -> (String, String) {
     (first, successive)
 }
 
-pub fn pprint_token<T>(writer: &mut T, tokstr: &str, pad: &str, state: Spot) -> IoResult<()>
+#[derive(Debug, Copy, Clone)]
+pub enum TokenType {
+    Keyword,
+    Punctuator,
+    IdentifierName,
+    RegularExpression,
+    Numeric,
+    String,
+    NoSubTemplate,
+    TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
+}
+
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TokenType::Keyword => f.write_str("Keyword"),
+            TokenType::Punctuator => f.write_str("Punctuator"),
+            TokenType::IdentifierName => f.write_str("IdentifierName"),
+            TokenType::RegularExpression => f.write_str("RegularExpression"),
+            TokenType::Numeric => f.write_str("Numeric"),
+            TokenType::String => f.write_str("String"),
+            TokenType::NoSubTemplate => f.write_str("NoSubTemplate"),
+            TokenType::TemplateHead => f.write_str("TemplateHead"),
+            TokenType::TemplateMiddle => f.write_str("TemplateMiddle"),
+            TokenType::TemplateTail => f.write_str("TemplateTail"),
+        }
+    }
+}
+
+pub fn pprint_token<T>(writer: &mut T, tokstr: &str, kind: TokenType, pad: &str, state: Spot) -> IoResult<()>
 where
     T: Write,
 {
     let (first, _) = prettypad(pad, state);
-    writeln!(writer, "{}Token: {}", first, tokstr)
+    writeln!(writer, "{}{}: {}", first, kind, tokstr)
 }
 
 pub trait PrettyPrint {

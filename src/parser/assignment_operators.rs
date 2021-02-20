@@ -9,7 +9,7 @@ use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // AssignmentExpression[In, Yield, Await] :
 //      ConditionalExpression[?In, ?Yield, ?Await]
@@ -89,7 +89,7 @@ impl PrettyPrint for AssignmentExpression {
             AssignmentExpression::Assignment(left, right) => {
                 writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "=", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::OpAssignment(left, op, right) => {
@@ -101,19 +101,19 @@ impl PrettyPrint for AssignmentExpression {
             AssignmentExpression::LandAssignment(left, right) => {
                 writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "&&=", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "&&=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::LorAssignment(left, right) => {
                 writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "||=", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "||=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             AssignmentExpression::CoalAssignment(left, right) => {
                 writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "??=", &successive, Spot::NotFinal)?;
+                pprint_token(writer, "??=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

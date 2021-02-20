@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{prettypad, PrettyPrint, Spot, pprint_token, TokenType};
 
 // EmptyStatement :
 //      ;
@@ -30,7 +30,7 @@ impl PrettyPrint for EmptyStatement {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        pprint_token(writer, ";", TokenType::Punctuator, pad, state)
     }
 }
 
