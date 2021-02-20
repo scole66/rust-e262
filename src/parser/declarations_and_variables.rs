@@ -116,7 +116,7 @@ impl PrettyPrint for LetOrConst {
     where
         T: Write,
     {
-        pprint_token(writer, &format!("{}", self), TokenType::Keyword, pad, state)
+        pprint_token(writer, self, TokenType::Keyword, pad, state)
     }
 }
 

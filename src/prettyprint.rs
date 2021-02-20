@@ -57,9 +57,10 @@ impl fmt::Display for TokenType {
     }
 }
 
-pub fn pprint_token<T>(writer: &mut T, tokstr: &str, kind: TokenType, pad: &str, state: Spot) -> IoResult<()>
+pub fn pprint_token<T, U>(writer: &mut T, tokstr: U, kind: TokenType, pad: &str, state: Spot) -> IoResult<()>
 where
     T: Write,
+    U: fmt::Display,
 {
     let (first, _) = prettypad(pad, state);
     writeln!(writer, "{}{}: {}", first, kind, tokstr)

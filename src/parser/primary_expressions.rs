@@ -1324,9 +1324,9 @@ impl PrettyPrint for Literal {
     {
         match &self.kind {
             LiteralKind::NullLiteral => pprint_token(writer, "null", TokenType::Keyword, pad, state),
-            LiteralKind::BooleanLiteral(_) => pprint_token(writer, &format!("{}", self), TokenType::Keyword, pad, state),
-            LiteralKind::NumericLiteral(num) => pprint_token(writer, &format!("{}", self), TokenType::Numeric, pad, state),
-            LiteralKind::StringLiteral(jsstring) => pprint_token(writer, &format!("{}", self), TokenType::String, pad, state),
+            LiteralKind::BooleanLiteral(_) => pprint_token(writer, self, TokenType::Keyword, pad, state),
+            LiteralKind::NumericLiteral(num) => pprint_token(writer, self, TokenType::Numeric, pad, state),
+            LiteralKind::StringLiteral(jsstring) => pprint_token(writer, self, TokenType::String, pad, state),
         }
     }
 }
@@ -1358,13 +1358,7 @@ pub enum TemplateLiteral {
 impl fmt::Display for TemplateLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(td, _) => match &td.tv {
-                None => write!(f, "`{}` (TV undefined)", td.trv),
-                Some(s) => {
-                    let printable = format!("{}", s).replace(char::is_control, "\u{2426}");
-                    write!(f, "`{}` ({})", td.trv, printable)
-                }
-            },
+            TemplateLiteral::NoSubstitutionTemplate(td, _) => write!(f, "`{}`", td),
             TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{}", boxed),
         }
     }
@@ -1388,10 +1382,7 @@ impl PrettyPrint for TemplateLiteral {
         T: Write,
     {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(_, _) => {
-                let (first, _) = prettypad(pad, state);
-                writeln!(writer, "{}TemplateLiteral: {}", first, self)
-            }
+            TemplateLiteral::NoSubstitutionTemplate(..) => pprint_token(writer, self, TokenType::NoSubTemplate, pad, state),
             TemplateLiteral::SubstitutionTemplate(st) => st.concise_with_leftpad(writer, pad, state),
         }
     }
@@ -1902,7 +1893,7 @@ mod tests {
         let (pe6, _) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
         pretty_check(&*pe6, "PrimaryExpression: ( a )", vec!["ParenthesizedExpression: ( a )"]);
         let (pe7, _) = check(PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false));
-        pretty_check(&*pe7, "PrimaryExpression: `rust` (rust)", vec!["TemplateLiteral: `rust` (rust)"]);
+        pretty_check(&*pe7, "PrimaryExpression: `rust`", vec!["TemplateLiteral: `rust`"]);
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -2522,7 +2513,7 @@ mod tests {
         if let TemplateLiteral::NoSubstitutionTemplate(_, tagged) = &*tl {
             assert_eq!(*tagged, false);
         }
-        pretty_check(&*tl, "TemplateLiteral: `rust` (rust)", vec![]);
+        pretty_check(&*tl, "TemplateLiteral: `rust`", vec![]);
         format!("{:?}", tl);
     }
     #[test]

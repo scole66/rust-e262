@@ -38,7 +38,7 @@ impl PrettyPrint for MultiplicativeOperator {
     where
         T: Write,
     {
-        pprint_token(writer, &format!("{}", self), TokenType::Punctuator, pad, state)
+        pprint_token(writer, self, TokenType::Punctuator, pad, state)
     }
 }
 

@@ -34,7 +34,7 @@ impl PrettyPrint for Identifier {
     where
         T: Write,
     {
-        pprint_token(writer, &format!("{}", self), TokenType::IdentifierName, pad, state)
+        pprint_token(writer, self, TokenType::IdentifierName, pad, state)
     }
 }
 

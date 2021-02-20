@@ -113,7 +113,7 @@ impl PrettyPrint for MemberExpression {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", id), TokenType::IdentifierName, &successive, Spot::Final)
+                pprint_token(writer, id, TokenType::IdentifierName, &successive, Spot::Final)
             }
             MemberExpressionKind::TemplateLiteral(me, tl) => {
                 let successive = head(pad, state)?;
@@ -358,7 +358,7 @@ impl PrettyPrint for SuperProperty {
             SuperPropertyKind::IdentifierName(id) => {
                 pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", id), TokenType::IdentifierName, &successive, Spot::Final)
+                pprint_token(writer, id, TokenType::IdentifierName, &successive, Spot::Final)
             }
         }
     }
@@ -1080,7 +1080,7 @@ impl PrettyPrint for CallExpression {
             CallExpressionKind::CallExpressionIdentifierName(ce, right) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", right), TokenType::IdentifierName, &successive, Spot::NotFinal)
+                pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::NotFinal)
             }
             CallExpressionKind::CallExpressionTemplateLiteral(ce, right) => {
                 let successive = head(writer, ce)?;
@@ -1381,7 +1381,7 @@ impl PrettyPrint for OptionalChain {
         match self {
             OptionalChain::Args(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::Ident(node) => pprint_token(writer, &format!("{}", node), TokenType::IdentifierName, &successive, Spot::Final),
+            OptionalChain::Ident(node) => pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final),
             OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1393,7 +1393,7 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::PlusIdent(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", item), TokenType::IdentifierName, &successive, Spot::Final)
+                pprint_token(writer, item, TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1421,7 +1421,7 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::Ident(node) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", node), TokenType::IdentifierName, &successive, Spot::Final)
+                pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::Template(node) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -1440,7 +1440,7 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::PlusIdent(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("{}", item), TokenType::IdentifierName, &successive, Spot::Final)
+                pprint_token(writer, item, TokenType::IdentifierName, &successive, Spot::Final)
             }
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
