@@ -24,7 +24,7 @@ impl PrettyPrint for ClassDeclaration {
         writeln!(writer, "{}ClassDeclaration: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -33,14 +33,8 @@ impl PrettyPrint for ClassDeclaration {
 }
 
 impl ClassDeclaration {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-        _default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("ClassDeclaration unimplemented", scanner.line, scanner.column))
     }
 }
 
@@ -62,7 +56,7 @@ impl PrettyPrint for ClassExpression {
         writeln!(writer, "{}ClassExpression: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -77,13 +71,8 @@ impl IsFunctionDefinition for ClassExpression {
 }
 
 impl ClassExpression {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("ClassExpression Unimplemented", scanner.line, scanner.column))
     }
 }
 //#[cfg(test)]

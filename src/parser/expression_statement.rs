@@ -44,12 +44,7 @@ impl PrettyPrint for ExpressionStatement {
 }
 
 impl ExpressionStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let (first_token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let invalid = match first_token {
             Token::Punctuator(Punctuator::LeftBrace) => true,
@@ -71,21 +66,11 @@ impl ExpressionStatement {
         };
 
         if invalid {
-            Ok(None)
+            Err(ParseError::new("ExpressionStatement expected", scanner.line, scanner.column))
         } else {
-            let pot_exp = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
-            match pot_exp {
-                None => Ok(None),
-                Some((exp, after_exp)) => {
-                    let (pot_semi, after_semi) = scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
-                    match pot_semi {
-                        Token::Punctuator(Punctuator::Semicolon) => {
-                            Ok(Some((Box::new(ExpressionStatement::Expression(exp)), after_semi)))
-                        }
-                        _ => Ok(None),
-                    }
-                }
-            }
+            let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
+            let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+            Ok((Box::new(ExpressionStatement::Expression(exp)), after_semi))
         }
     }
 }

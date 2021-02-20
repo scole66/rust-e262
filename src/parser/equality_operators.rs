@@ -43,10 +43,7 @@ impl PrettyPrint for EqualityExpression {
         writeln!(writer, "{}EqualityExpression: {}", first, self)?;
         match &self {
             EqualityExpression::RelationalExpression(re) => re.pprint_with_leftpad(writer, &successive, Spot::Final),
-            EqualityExpression::Equal(ee, re)
-            | EqualityExpression::NotEqual(ee, re)
-            | EqualityExpression::StrictEqual(ee, re)
-            | EqualityExpression::NotStrictEqual(ee, re) => {
+            EqualityExpression::Equal(ee, re) | EqualityExpression::NotEqual(ee, re) | EqualityExpression::StrictEqual(ee, re) | EqualityExpression::NotStrictEqual(ee, re) => {
                 ee.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 re.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -94,63 +91,46 @@ impl AssignmentTargetType for EqualityExpression {
 }
 
 impl EqualityExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        in_flag: bool,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_re1 = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        match pot_re1 {
-            None => Ok(None),
-            Some((re1, after_re1)) => {
-                let mut current = Box::new(EqualityExpression::RelationalExpression(re1));
-                let mut current_scanner = after_re1;
-                loop {
-                    let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-                    let make_ee = match op_token {
-                        Token::Punctuator(Punctuator::EqEq) => |ee, re| EqualityExpression::Equal(ee, re),
-                        Token::Punctuator(Punctuator::BangEq) => |ee, re| EqualityExpression::NotEqual(ee, re),
-                        Token::Punctuator(Punctuator::EqEqEq) => |ee, re| EqualityExpression::StrictEqual(ee, re),
-                        Token::Punctuator(Punctuator::BangEqEq) => |ee, re| EqualityExpression::NotStrictEqual(ee, re),
-                        _ => {
-                            break;
-                        }
-                    };
-                    let pot_re2 = RelationalExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
-                    match pot_re2 {
-                        None => {
-                            break;
-                        }
-                        Some((re2, after_re2)) => {
-                            current = Box::new(make_ee(current, re2));
-                            current_scanner = after_re2;
-                        }
-                    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
+        let mut current = Box::new(EqualityExpression::RelationalExpression(re1));
+        let mut current_scanner = after_re1;
+        loop {
+            let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+            let make_ee = match op_token {
+                Token::Punctuator(Punctuator::EqEq) => |ee, re| EqualityExpression::Equal(ee, re),
+                Token::Punctuator(Punctuator::BangEq) => |ee, re| EqualityExpression::NotEqual(ee, re),
+                Token::Punctuator(Punctuator::EqEqEq) => |ee, re| EqualityExpression::StrictEqual(ee, re),
+                Token::Punctuator(Punctuator::BangEqEq) => |ee, re| EqualityExpression::NotStrictEqual(ee, re),
+                _ => {
+                    break;
                 }
-                Ok(Some((current, current_scanner)))
+            };
+            let pot_re2 = RelationalExpression::parse(parser, after_op, in_flag, yield_flag, await_flag);
+            match pot_re2 {
+                Err(_) => {
+                    break;
+                }
+                Ok((re2, after_re2)) => {
+                    current = Box::new(make_ee(current, re2));
+                    current_scanner = after_re2;
+                }
             }
         }
+        Ok((current, current_scanner))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
     use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
 
     // EQUALITY EXPRESSION
     #[test]
     fn equality_expression_test_01() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
         pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
@@ -160,110 +140,51 @@ mod tests {
     }
     #[test]
     fn equality_expression_test_02() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a==b"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::Equal(_, _)));
-        pretty_check(
-            &*se,
-            "EqualityExpression: a == b",
-            vec!["EqualityExpression: a", "RelationalExpression: b"],
-        );
+        pretty_check(&*se, "EqualityExpression: a == b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn equality_expression_test_03() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a!=b"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a!=b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*se, EqualityExpression::NotEqual(_, _)));
-        pretty_check(
-            &*se,
-            "EqualityExpression: a != b",
-            vec!["EqualityExpression: a", "RelationalExpression: b"],
-        );
+        pretty_check(&*se, "EqualityExpression: a != b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn equality_expression_test_04() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a===b"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a===b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::StrictEqual(_, _)));
-        pretty_check(
-            &*se,
-            "EqualityExpression: a === b",
-            vec!["EqualityExpression: a", "RelationalExpression: b"],
-        );
+        pretty_check(&*se, "EqualityExpression: a === b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn equality_expression_test_05() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a!==b"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a!==b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, EqualityExpression::NotStrictEqual(_, _)));
-        pretty_check(
-            &*se,
-            "EqualityExpression: a !== b",
-            vec!["EqualityExpression: a", "RelationalExpression: b"],
-        );
+        pretty_check(&*se, "EqualityExpression: a !== b", vec!["EqualityExpression: a", "RelationalExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn equality_expression_test_06() {
-        check_none(EqualityExpression::parse(
-            &mut newparser(""),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
-    }
-    #[test]
-    fn equality_expression_test_07() {
-        assert!(EqualityExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), true, false, false).is_err());
-        assert!(
-            EqualityExpression::parse(&mut newparser("a == \\u0066or"), Scanner::new(), true, false, false).is_err()
-        );
+        check_err(EqualityExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
     }
     #[test]
     fn equality_expression_test_08() {
-        let (se, scanner) = check(EqualityExpression::parse(
-            &mut newparser("a != @"),
-            Scanner::new(),
-            true,
-            false,
-            false,
-        ));
+        let (se, scanner) = check(EqualityExpression::parse(&mut newparser("a != @"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, EqualityExpression::RelationalExpression(_)));
         pretty_check(&*se, "EqualityExpression: a", vec!["RelationalExpression: a"]);
@@ -273,9 +194,7 @@ mod tests {
     }
     #[test]
     fn equality_expression_test_prettyerrors() {
-        let (item, _) = EqualityExpression::parse(&mut newparser("3!=4"), Scanner::new(), true, false, false)
-            .unwrap()
-            .unwrap();
+        let (item, _) = EqualityExpression::parse(&mut newparser("3!=4"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(*item);
     }
 }

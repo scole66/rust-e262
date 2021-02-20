@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterList;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -31,8 +31,7 @@ impl PrettyPrint for ArrowFunction {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFunction: {}", first, self)?;
-        self.parameters
-            .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.parameters.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.body.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -42,32 +41,18 @@ impl PrettyPrint for ArrowFunction {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrowFunction: {}", first, self)?;
-        self.parameters
-            .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.parameters.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "=>", &successive, Spot::NotFinal)?;
         self.body.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl ArrowFunction {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        in_flag: bool,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_params = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((parameters, after_params)) = pot_params {
-            let (arrow, after_arrow) = scan_token(&after_params, parser.source, ScanGoal::InputElementDiv);
-            if arrow.matches_punct(Punctuator::EqGt) {
-                let pot_body = ConciseBody::parse(parser, after_arrow, in_flag)?;
-                if let Some((body, after_body)) = pot_body {
-                    return Ok(Some((Box::new(ArrowFunction { parameters, body }), after_body)));
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
+        let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
+        let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
+        Ok((Box::new(ArrowFunction { parameters, body }), after_body))
     }
 }
 
@@ -114,22 +99,13 @@ impl PrettyPrint for ArrowParameters {
 }
 
 impl ArrowParameters {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_bi = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((bi, after_bi)) = pot_bi {
-            return Ok(Some((Box::new(ArrowParameters::Identifier(bi)), after_bi)));
-        }
-        let pot_formals =
-            CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((formals, after_formals)) = pot_formals {
-            return Ok(Some((Box::new(ArrowParameters::Formals(formals)), after_formals)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
+            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).and_then(|(bi, after_bi)| Ok((Box::new(ArrowParameters::Identifier(bi)), after_bi))))
+            .otherwise(|| {
+                CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)
+                    .and_then(|(formals, after_formals)| Ok((Box::new(ArrowParameters::Formals(formals)), after_formals)))
+            })
     }
 }
 
@@ -182,23 +158,30 @@ impl PrettyPrint for ConciseBody {
 }
 
 impl ConciseBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (curly, after_curly) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if curly.matches_punct(Punctuator::LeftBrace) {
-            let pot_fb = FunctionBody::parse(parser, after_curly, in_flag, false)?;
-            if let Some((fb, after_fb)) = pot_fb {
-                let (rt_curly, after_rt) = scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
-                if rt_curly.matches_punct(Punctuator::RightBrace) {
-                    return Ok(Some((Box::new(ConciseBody::Function(fb)), after_rt)));
-                }
-            }
-        } else {
-            let pot_exp = ExpressionBody::parse(parser, scanner, in_flag, false)?;
-            if let Some((exp, after_exp)) = pot_exp {
-                return Ok(Some((Box::new(ConciseBody::Expression(exp)), after_exp)));
-            }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        match scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace) {
+            Ok(after_curly) => FunctionBody::parse(parser, after_curly, in_flag, false).and_then(|(fb, after_fb)| {
+                scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace).and_then(|after_rt| Ok((Box::new(ConciseBody::Function(fb)), after_rt)))
+            }),
+            Err(_) => ExpressionBody::parse(parser, scanner, in_flag, false).and_then(|(exp, after_exp)| Ok((Box::new(ConciseBody::Expression(exp)), after_exp))),
         }
-        Ok(None)
+
+        // let (curly, after_curly) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        // if curly.matches_punct(Punctuator::LeftBrace) {
+        //     let pot_fb = FunctionBody::parse(parser, after_curly, in_flag, false)?;
+        //     if let Some((fb, after_fb)) = pot_fb {
+        //         let (rt_curly, after_rt) = scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
+        //         if rt_curly.matches_punct(Punctuator::RightBrace) {
+        //             return Ok(Some((Box::new(ConciseBody::Function(fb)), after_rt)));
+        //         }
+        //     }
+        // } else {
+        //     let pot_exp = ExpressionBody::parse(parser, scanner, in_flag, false)?;
+        //     if let Some((exp, after_exp)) = pot_exp {
+        //         return Ok(Some((Box::new(ConciseBody::Expression(exp)), after_exp)));
+        //     }
+        // }
+        // Ok(None)
     }
 }
 
@@ -234,17 +217,9 @@ impl PrettyPrint for ExpressionBody {
 }
 
 impl ExpressionBody {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        in_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_ae = AssignmentExpression::parse(parser, scanner, in_flag, false, await_flag)?;
-        if let Some((ae, after_ae)) = pot_ae {
-            return Ok(Some((Box::new(ExpressionBody { expression: ae }), after_ae)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, false, await_flag)?;
+        Ok((Box::new(ExpressionBody { expression: ae }), after_ae))
     }
 }
 

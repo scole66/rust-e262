@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -41,26 +41,12 @@ impl PrettyPrint for ThrowStatement {
 }
 
 impl ThrowStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (throw_tok, after_throw) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if throw_tok.matches_keyword(Keyword::Throw) {
-            let (next, after_next) = scan_token(&after_throw, parser.source, ScanGoal::InputElementRegExp);
-            if after_throw.line == after_next.line {
-                let pot_exp = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
-                if let Some((exp, after_exp)) = pot_exp {
-                    let (semi, after_semi) = scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
-                    if semi.matches_punct(Punctuator::Semicolon) {
-                        return Ok(Some((Box::new(ThrowStatement(exp)), after_semi)));
-                    }
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_throw = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
+        no_line_terminator(after_throw, parser.source)?;
+        let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
+        let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        Ok((Box::new(ThrowStatement(exp)), after_semi))
     }
 }
 

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -54,10 +54,8 @@ impl PrettyPrint for IfStatement {
         writeln!(writer, "{}IfStatement: {}", first, self)?;
         pprint_token(writer, "if", &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", &successive, Spot::NotFinal)?;
-        let condition = |writer: &mut T, exp: &Box<Expression>| {
-            exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)
-                .and_then(|_| pprint_token(writer, ")", &successive, Spot::NotFinal))
-        };
+        let condition =
+            |writer: &mut T, exp: &Box<Expression>| exp.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, ")", &successive, Spot::NotFinal));
         match self {
             IfStatement::WithoutElse(e, s1) => {
                 condition(writer, e)?;
@@ -74,40 +72,19 @@ impl PrettyPrint for IfStatement {
 }
 
 impl IfStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (lead_token, after_lead) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if lead_token.matches_keyword(Keyword::If) {
-            let (open, after_open) = scan_token(&after_lead, parser.source, ScanGoal::InputElementDiv);
-            if open.matches_punct(Punctuator::LeftParen) {
-                let pot_exp = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-                if let Some((exp, after_exp)) = pot_exp {
-                    let (close, after_close) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
-                    if close.matches_punct(Punctuator::RightParen) {
-                        let pot_stmt1 = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                        if let Some((stmt1, after_stmt1)) = pot_stmt1 {
-                            let (else_tok, after_else) =
-                                scan_token(&after_stmt1, parser.source, ScanGoal::InputElementRegExp);
-                            if else_tok.matches_keyword(Keyword::Else) {
-                                let pot_stmt2 =
-                                    Statement::parse(parser, after_else, yield_flag, await_flag, return_flag)?;
-                                if let Some((stmt2, after_stmt2)) = pot_stmt2 {
-                                    return Ok(Some((Box::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2)));
-                                }
-                            } else {
-                                return Ok(Some((Box::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)));
-                            }
-                        }
-                    }
-                }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_lead = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
+        let after_open = scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
+        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (stmt1, after_stmt1) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+        match scan_for_keyword(after_stmt1, parser.source, ScanGoal::InputElementRegExp, Keyword::Else) {
+            Err(_) => Ok((Box::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)),
+            Ok(after_else) => {
+                let (stmt2, after_stmt2) = Statement::parse(parser, after_else, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2))
             }
         }
-        Ok(None)
     }
 }
 

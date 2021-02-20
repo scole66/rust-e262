@@ -25,7 +25,7 @@ impl PrettyPrint for AsyncFunctionDeclaration {
         writeln!(writer, "{}AsyncFunctionDeclaration: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -34,14 +34,8 @@ impl PrettyPrint for AsyncFunctionDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-        _default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AsyncFunctionDeclaration unimplemented", scanner.line, scanner.column))
     }
 }
 
@@ -63,7 +57,7 @@ impl PrettyPrint for AsyncFunctionExpression {
         writeln!(writer, "{}AsyncFunctionExpression: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -78,8 +72,8 @@ impl IsFunctionDefinition for AsyncFunctionExpression {
 }
 
 impl AsyncFunctionExpression {
-    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AsyncFunctionExpression unimplemented", scanner.line, scanner.column))
     }
 }
 
@@ -106,7 +100,7 @@ impl PrettyPrint for AwaitExpression {
         boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -115,12 +109,8 @@ impl PrettyPrint for AwaitExpression {
 }
 
 impl AwaitExpression {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AwaitExpression unimplemented", scanner.line, scanner.column))
     }
 }
 

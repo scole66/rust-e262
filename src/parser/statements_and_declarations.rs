@@ -128,84 +128,64 @@ impl PrettyPrint for Statement {
 }
 
 impl Statement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_block = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((block, after_block)) = pot_block {
-            return Ok(Some((Box::new(Statement::Block(block)), after_block)));
-        }
-
-        let pot_var = VariableStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((var, after_var)) = pot_var {
-            return Ok(Some((Box::new(Statement::Variable(var)), after_var)));
-        }
-
-        let pot_empty = EmptyStatement::parse(parser, scanner)?;
-        if let Some((empty, after_empty)) = pot_empty {
-            return Ok(Some((Box::new(Statement::Empty(empty)), after_empty)));
-        }
-
-        let pot_exp = ExpressionStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((exp, after_exp)) = pot_exp {
-            return Ok(Some((Box::new(Statement::Expression(exp)), after_exp)));
-        }
-
-        let pot_if = IfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((if_node, after_if)) = pot_if {
-            return Ok(Some((Box::new(Statement::If(if_node)), after_if)));
-        }
-
-        let pot_bable = BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((bable_node, after_bable)) = pot_bable {
-            return Ok(Some((Box::new(Statement::Breakable(bable_node)), after_bable)));
-        }
-
-        let pot_cont = ContinueStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((cont_node, after_cont)) = pot_cont {
-            return Ok(Some((Box::new(Statement::Continue(cont_node)), after_cont)));
-        }
-
-        let pot_break = BreakStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((break_node, after_break)) = pot_break {
-            return Ok(Some((Box::new(Statement::Break(break_node)), after_break)));
-        }
-
-        let pot_return = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((return_node, after_return)) = pot_return {
-            return Ok(Some((Box::new(Statement::Return(return_node)), after_return)));
-        }
-
-        let pot_with = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((with_node, after_with)) = pot_with {
-            return Ok(Some((Box::new(Statement::With(with_node)), after_with)));
-        }
-
-        let pot_lbl = LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((lbl_node, after_lbl)) = pot_lbl {
-            return Ok(Some((Box::new(Statement::Labelled(lbl_node)), after_lbl)));
-        }
-
-        let pot_throw = ThrowStatement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((throw_node, after_throw)) = pot_throw {
-            return Ok(Some((Box::new(Statement::Throw(throw_node)), after_throw)));
-        }
-
-        let pot_try = TryStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((try_node, after_try)) = pot_try {
-            return Ok(Some((Box::new(Statement::Try(try_node)), after_try)));
-        }
-
-        let pot_dbg = DebuggerStatement::parse(parser, scanner)?;
-        if let Some((dbg_node, after_dbg)) = pot_dbg {
-            return Ok(Some((Box::new(Statement::Debugger(dbg_node)), after_dbg)));
-        }
-
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("Statement expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (block, after_block) = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::Block(block)), after_block))
+            })
+            .otherwise(|| {
+                let (var, after_var) = VariableStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Variable(var)), after_var))
+            })
+            .otherwise(|| {
+                let (empty, after_empty) = EmptyStatement::parse(parser, scanner)?;
+                Ok((Box::new(Statement::Empty(empty)), after_empty))
+            })
+            .otherwise(|| {
+                let (exp, after_exp) = ExpressionStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Expression(exp)), after_exp))
+            })
+            .otherwise(|| {
+                let (if_node, after_if) = IfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::If(if_node)), after_if))
+            })
+            .otherwise(|| {
+                let (bable_node, after_bable) = BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::Breakable(bable_node)), after_bable))
+            })
+            .otherwise(|| {
+                let (cont_node, after_cont) = ContinueStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Continue(cont_node)), after_cont))
+            })
+            .otherwise(|| {
+                let (break_node, after_break) = BreakStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Break(break_node)), after_break))
+            })
+            .otherwise(|| {
+                let (return_node, after_return) = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Return(return_node)), after_return))
+            })
+            .otherwise(|| {
+                let (with_node, after_with) = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::With(with_node)), after_with))
+            })
+            .otherwise(|| {
+                let (lbl_node, after_lbl) = LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::Labelled(lbl_node)), after_lbl))
+            })
+            .otherwise(|| {
+                let (throw_node, after_throw) = ThrowStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(Statement::Throw(throw_node)), after_throw))
+            })
+            .otherwise(|| {
+                let (try_node, after_try) = TryStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Statement::Try(try_node)), after_try))
+            })
+            .otherwise(|| {
+                let (dbg_node, after_dbg) = DebuggerStatement::parse(parser, scanner)?;
+                Ok((Box::new(Statement::Debugger(dbg_node)), after_dbg))
+            })
     }
 }
 
@@ -257,26 +237,20 @@ impl PrettyPrint for Declaration {
 }
 
 impl Declaration {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_hoist = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
-        if let Some((hoist, after_hoist)) = pot_hoist {
-            return Ok(Some((Box::new(Declaration::Hoistable(hoist)), after_hoist)));
-        }
-        let pot_cls = ClassDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
-        if let Some((cls, after_cls)) = pot_cls {
-            return Ok(Some((Box::new(Declaration::Class(cls)), after_cls)));
-        }
-        let pot_lex = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
-        if let Some((lex, after_lex)) = pot_lex {
-            return Ok(Some((Box::new(Declaration::Lexical(lex)), after_lex)));
-        }
-
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("Declaration expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (hoist, after_hoist) = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
+                Ok((Box::new(Declaration::Hoistable(hoist)), after_hoist))
+            })
+            .otherwise(|| {
+                let (cls, after_cls) = ClassDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
+                Ok((Box::new(Declaration::Class(cls)), after_cls))
+            })
+            .otherwise(|| {
+                let (lex, after_lex) = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
+                Ok((Box::new(Declaration::Lexical(lex)), after_lex))
+            })
     }
 }
 
@@ -333,30 +307,24 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_func = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-        if let Some((func, after_func)) = pot_func {
-            return Ok(Some((Box::new(HoistableDeclaration::Function(func)), after_func)));
-        }
-        let pot_gen = GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-        if let Some((gen, after_gen)) = pot_gen {
-            return Ok(Some((Box::new(HoistableDeclaration::Generator(gen)), after_gen)));
-        }
-        let pot_afun = AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-        if let Some((afun, after_afun)) = pot_afun {
-            return Ok(Some((Box::new(HoistableDeclaration::AsyncFunction(afun)), after_afun)));
-        }
-        let pot_agen = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-        if let Some((agen, after_agen)) = pot_agen {
-            return Ok(Some((Box::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("HoistableDeclaration expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                Ok((Box::new(HoistableDeclaration::Function(func)), after_func))
+            })
+            .otherwise(|| {
+                let (gen, after_gen) = GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                Ok((Box::new(HoistableDeclaration::Generator(gen)), after_gen))
+            })
+            .otherwise(|| {
+                let (afun, after_afun) = AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                Ok((Box::new(HoistableDeclaration::AsyncFunction(afun)), after_afun))
+            })
+            .otherwise(|| {
+                let (agen, after_agen) = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                Ok((Box::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
+            })
     }
 }
 
@@ -403,24 +371,16 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_iter = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((iter, after_iter)) = pot_iter {
-            return Ok(Some((Box::new(BreakableStatement::Iteration(iter)), after_iter)));
-        }
-
-        let pot_switch = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((switch, after_switch)) = pot_switch {
-            return Ok(Some((Box::new(BreakableStatement::Switch(switch)), after_switch)));
-        }
-
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("BreakableStatement expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(BreakableStatement::Iteration(iter)), after_iter))
+            })
+            .otherwise(|| {
+                let (switch, after_switch) = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(BreakableStatement::Switch(switch)), after_switch))
+            })
     }
 }
 

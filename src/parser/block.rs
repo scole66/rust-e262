@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
@@ -42,18 +42,13 @@ impl PrettyPrint for BlockStatement {
 }
 
 impl BlockStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_block = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((block, after_block)) = pot_block {
-            return Ok(Some((Box::new(BlockStatement::Block(block)), after_block)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Block::parse(parser, scanner, yield_flag, await_flag, return_flag).and_then(|(block, after_block)| Ok((Box::new(BlockStatement::Block(block)), after_block)))
+        //let pot_block = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+        //if let Some((block, after_block)) = pot_block {
+        //    return Ok(Some((Box::new(BlockStatement::Block(block)), after_block)));
+        //}
+        //Ok(None)
     }
 }
 
@@ -106,32 +101,33 @@ impl PrettyPrint for Block {
 }
 
 impl Block {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (token, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        match token {
-            Token::Punctuator(Punctuator::LeftBrace) => {
-                let pot_sl = StatementList::parse(parser, after_tok, yield_flag, await_flag, return_flag)?;
-                let (sl, after_sl_scan) = match pot_sl {
-                    None => (None, after_tok),
-                    Some((node, after)) => (Some(node), after),
-                };
-                let (closing_tok, after_close) =
-                    scan_token(&after_sl_scan, parser.source, ScanGoal::InputElementRegExp);
-                match closing_tok {
-                    Token::Punctuator(Punctuator::RightBrace) => {
-                        Ok(Some((Box::new(Block::Statements(sl)), after_close)))
-                    }
-                    _ => Ok(None),
-                }
-            }
-            _ => Ok(None),
-        }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_tok| {
+            let (err, sl, after_sl_scan) = match StatementList::parse(parser, after_tok, yield_flag, await_flag, return_flag) {
+                Err(err) => (err, None, after_tok),
+                Ok((node, after)) => (ParseError::new("", 1, 1), Some(node), after),
+            };
+            scan_for_punct(after_sl_scan, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
+                .and_then(|after_close| Ok((Box::new(Block::Statements(sl)), after_close)))
+                .otherwise(|| Err(err))
+        })
+
+        // let (token, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        // match token {
+        //     Token::Punctuator(Punctuator::LeftBrace) => {
+        //         let pot_sl = StatementList::parse(parser, after_tok, yield_flag, await_flag, return_flag)?;
+        //         let (sl, after_sl_scan) = match pot_sl {
+        //             None => (None, after_tok),
+        //             Some((node, after)) => (Some(node), after),
+        //         };
+        //         let (closing_tok, after_close) = scan_token(&after_sl_scan, parser.source, ScanGoal::InputElementRegExp);
+        //         match closing_tok {
+        //             Token::Punctuator(Punctuator::RightBrace) => Ok(Some((Box::new(Block::Statements(sl)), after_close))),
+        //             _ => Ok(None),
+        //         }
+        //     }
+        //     _ => Ok(None),
+        // }
     }
 }
 
@@ -185,35 +181,45 @@ impl PrettyPrint for StatementList {
 }
 
 impl StatementList {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_item = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        match pot_item {
-            None => Ok(None),
-            Some((item, after_item)) => {
-                let mut current = Box::new(StatementList::Item(item));
-                let mut current_scanner = after_item;
-                loop {
-                    let next_item =
-                        StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag)?;
-                    match next_item {
-                        None => {
-                            break;
-                        }
-                        Some((next, after_next)) => {
-                            current = Box::new(StatementList::List(current, next));
-                            current_scanner = after_next;
-                        }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag).and_then(|(item, after_item)| {
+            let mut current = Box::new(StatementList::Item(item));
+            let mut current_scanner = after_item;
+            loop {
+                match StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+                    Err(_) => {
+                        break;
+                    }
+                    Ok((next, after_next)) => {
+                        current = Box::new(StatementList::List(current, next));
+                        current_scanner = after_next;
                     }
                 }
-                Ok(Some((current, current_scanner)))
             }
-        }
+            Ok((current, current_scanner))
+        })
+
+        //let pot_item = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+        //match pot_item {
+        //    None => Ok(None),
+        //    Some((item, after_item)) => {
+        //        let mut current = Box::new(StatementList::Item(item));
+        //        let mut current_scanner = after_item;
+        //        loop {
+        //            let next_item = StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag)?;
+        //            match next_item {
+        //                None => {
+        //                    break;
+        //                }
+        //                Some((next, after_next)) => {
+        //                    current = Box::new(StatementList::List(current, next));
+        //                    current_scanner = after_next;
+        //                }
+        //            }
+        //        }
+        //        Ok(Some((current, current_scanner)))
+        //    }
+        //}
     }
 }
 
@@ -259,27 +265,24 @@ impl PrettyPrint for StatementListItem {
 }
 
 impl StatementListItem {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_statement = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((statement, after_statement)) = pot_statement {
-            return Ok(Some((
-                Box::new(StatementListItem::Statement(statement)),
-                after_statement,
-            )));
-        }
-
-        let pot_decl = Declaration::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((decl, after_decl)) = pot_decl {
-            return Ok(Some((Box::new(StatementListItem::Declaration(decl)), after_decl)));
-        }
-
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("Declaration or Statement expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)
+                    .and_then(|(statement, after_statement)| Ok((Box::new(StatementListItem::Statement(statement)), after_statement)))
+            })
+            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).and_then(|(decl, after_decl)| Ok((Box::new(StatementListItem::Declaration(decl)), after_decl))))
+        //let pot_statement = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+        //if let Some((statement, after_statement)) = pot_statement {
+        //    return Ok(Some((Box::new(StatementListItem::Statement(statement)), after_statement)));
+        //}
+        //
+        //let pot_decl = Declaration::parse(parser, scanner, yield_flag, await_flag)?;
+        //if let Some((decl, after_decl)) = pot_decl {
+        //    return Ok(Some((Box::new(StatementListItem::Declaration(decl)), after_decl)));
+        //}
+        //
+        //Ok(None)
     }
 }
 

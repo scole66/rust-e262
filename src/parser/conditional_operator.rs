@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -14,11 +14,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 #[derive(Debug)]
 pub enum ConditionalExpression {
     FallThru(Box<ShortCircuitExpression>),
-    Conditional(
-        Box<ShortCircuitExpression>,
-        Box<AssignmentExpression>,
-        Box<AssignmentExpression>,
-    ),
+    Conditional(Box<ShortCircuitExpression>, Box<AssignmentExpression>, Box<AssignmentExpression>),
 }
 
 impl fmt::Display for ConditionalExpression {
@@ -86,53 +82,17 @@ impl AssignmentTargetType for ConditionalExpression {
 }
 
 impl ConditionalExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        in_flag: bool,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_left = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        match pot_left {
-            None => Ok(None),
-            Some((left, after_left)) => {
-                let (op, after_op) = scan_token(&after_left, parser.source, ScanGoal::InputElementDiv);
-                match op {
-                    Token::Punctuator(Punctuator::Question) => {
-                        let pot_then = AssignmentExpression::parse(parser, after_op, true, yield_flag, await_flag)?;
-                        match pot_then {
-                            None => Ok(Some((Box::new(ConditionalExpression::FallThru(left)), after_left))),
-                            Some((thenish, after_then)) => {
-                                let (nextop, after_nextop) =
-                                    scan_token(&after_then, parser.source, ScanGoal::InputElementDiv);
-                                match nextop {
-                                    Token::Punctuator(Punctuator::Colon) => {
-                                        let pot_else = AssignmentExpression::parse(
-                                            parser,
-                                            after_nextop,
-                                            in_flag,
-                                            yield_flag,
-                                            await_flag,
-                                        )?;
-                                        match pot_else {
-                                            None => {
-                                                Ok(Some((Box::new(ConditionalExpression::FallThru(left)), after_left)))
-                                            }
-                                            Some((elseish, after_else)) => Ok(Some((
-                                                Box::new(ConditionalExpression::Conditional(left, thenish, elseish)),
-                                                after_else,
-                                            ))),
-                                        }
-                                    }
-                                    _ => Ok(Some((Box::new(ConditionalExpression::FallThru(left)), after_left))),
-                                }
-                            }
-                        }
-                    }
-                    _ => Ok(Some((Box::new(ConditionalExpression::FallThru(left)), after_left))),
-                }
-            }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
+        match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
+            .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
+            .and_then(|(ae1, after_ae1)| {
+                scan_for_punct(after_ae1, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)
+                    .and_then(|after_colon| AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag))
+                    .map(|(ae2, after_ae2)| (ae1, ae2, after_ae2))
+            }) {
+            Ok((thenish, elseish, after)) => Ok((Box::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
+            Err(_) => Ok((Box::new(ConditionalExpression::FallThru(left)), after_left)),
         }
     }
 }

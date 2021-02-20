@@ -8,6 +8,16 @@ use super::update_expressions::UpdateExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
+// UnaryExpression[Yield, Await] :
+//      UpdateExpression[?Yield, ?Await]
+//      delete UnaryExpression[?Yield, ?Await]
+//      void UnaryExpression[?Yield, ?Await]
+//      typeof UnaryExpression[?Yield, ?Await]
+//      + UnaryExpression[?Yield, ?Await]
+//      - UnaryExpression[?Yield, ?Await]
+//      ~ UnaryExpression[?Yield, ?Await]
+//      ! UnaryExpression[?Yield, ?Await]
+//      [+Await]AwaitExpression[?Yield]
 #[derive(Debug)]
 pub enum UnaryExpression {
     UpdateExpression(Box<UpdateExpression>),
@@ -114,156 +124,89 @@ impl AssignmentTargetType for UnaryExpression {
 }
 
 impl UnaryExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        let mut unary_helper = |f: fn(Box<Self>) -> Self| {
-            UnaryExpression::parse(parser, after_token, yield_flag, await_flag)
-                .and_then(|opt| opt.map_or(Ok(None), |(boxed, after)| Ok(Some((Box::new(f(boxed)), after)))))
-        };
+        let mut unary_helper = |f: fn(Box<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Box::new(f(boxed)), after));
         match token {
-            Token::Identifier(id) if id.matches(Keyword::Delete) => {
-                unary_helper(|boxed| UnaryExpression::Delete(boxed))
-            }
+            Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(|boxed| UnaryExpression::Delete(boxed)),
             Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(|boxed| UnaryExpression::Void(boxed)),
-            Token::Identifier(id) if id.matches(Keyword::Typeof) => {
-                unary_helper(|boxed| UnaryExpression::Typeof(boxed))
-            }
+            Token::Identifier(id) if id.matches(Keyword::Typeof) => unary_helper(|boxed| UnaryExpression::Typeof(boxed)),
             Token::Punctuator(Punctuator::Plus) => unary_helper(|boxed| UnaryExpression::NoOp(boxed)),
             Token::Punctuator(Punctuator::Minus) => unary_helper(|boxed| UnaryExpression::Negate(boxed)),
             Token::Punctuator(Punctuator::Tilde) => unary_helper(|boxed| UnaryExpression::Complement(boxed)),
             Token::Punctuator(Punctuator::Bang) => unary_helper(|boxed| UnaryExpression::Not(boxed)),
-            _ => {
-                let mut production: Option<(Box<Self>, Scanner)> = None;
-                if await_flag {
-                    let pot_ae = AwaitExpression::parse(parser, scanner, yield_flag)?;
-                    match pot_ae {
-                        Some((boxed, scanner)) => {
-                            production = Some((Box::new(UnaryExpression::Await(boxed)), scanner));
-                        }
-                        None => {}
+            _ => Err(ParseError::new("UnaryExpression expected", scanner.line, scanner.column))
+                .otherwise(|| {
+                    if await_flag {
+                        AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Box::new(UnaryExpression::Await(ae)), after))
+                    } else {
+                        Err(ParseError::new(String::new(), scanner.line, scanner.column))
                     }
-                }
-                if production.is_none() {
-                    production = {
-                        let pot_ue = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
-                        match pot_ue {
-                            Some((boxed, scanner)) => {
-                                Some((Box::new(UnaryExpression::UpdateExpression(boxed)), scanner))
-                            }
-                            None => None,
-                        }
-                    };
-                }
-                Ok(production)
-            }
+                })
+                .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Box::new(UnaryExpression::UpdateExpression(ue)), after))),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
     use crate::prettyprint::testhelp::pretty_check;
 
     // UNARY EXPRESSION
     #[test]
     fn unary_expression_test_update_expression() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("900"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("900"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
         pretty_check(&*ue, "UnaryExpression: 900", vec!["UpdateExpression: 900"]);
     }
     #[test]
     fn unary_expression_test_delete() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("delete bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Delete(_)));
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_void() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("void bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
         assert!(matches!(*ue, UnaryExpression::Void(_)));
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_typeof() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("typeof bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Typeof(_)));
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_numberify() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("+bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::NoOp(_)));
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_negate() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("-bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Negate(_)));
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_complement() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("~bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Complement(_)));
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
     }
     #[test]
     fn unary_expression_test_not() {
-        let (ue, scanner) = check(UnaryExpression::parse(
-            &mut newparser("!bob"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Not(_)));
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
@@ -275,60 +218,20 @@ mod tests {
         //assert!(matches!(*ue, UnaryExpression::Await(_)));
 
         // Use the prior lines when AwaitExpression gets implemented.
-        check_none(UnaryExpression::parse(
-            &mut newparser("await bob"),
-            Scanner::new(),
-            false,
-            true,
-        ));
+        check_err(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true), "UnaryExpression expected", 1, 1);
     }
     #[test]
     fn unary_expression_test_nomatch() {
-        check_none(UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_err(UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false), "UnaryExpression expected", 1, 1);
     }
     #[test]
     fn unary_expression_test_incomplete() {
-        check_none(UnaryExpression::parse(
-            &mut newparser("delete"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("void"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("typeof"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("+"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("-"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("~"),
-            Scanner::new(),
-            false,
-            false,
-        ));
-        check_none(UnaryExpression::parse(
-            &mut newparser("!"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        check_err(UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
+        check_err(UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false), "UnaryExpression expected", 1, 5);
+        check_err(UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
+        check_err(UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
+        check_err(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
+        check_err(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
+        check_err(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
     }
 }

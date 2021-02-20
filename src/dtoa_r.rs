@@ -23,9 +23,5 @@ pub fn dtoa(value: f64) -> DtoAResult {
         dtoa_rust(value as c_double, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
     }
 
-    DtoAResult {
-        chars: String::from_utf8(digits.to_vec()).unwrap(),
-        decpt: decpt as i32,
-        sign: sign as i8,
-    }
+    DtoAResult { chars: String::from_utf8(digits.to_vec()).unwrap(), decpt: decpt as i32, sign: sign as i8 }
 }

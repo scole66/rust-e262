@@ -124,12 +124,7 @@ pub mod testhelp {
         T: Write,
     {
         fn new(writer: T, errat: usize) -> Self {
-            MockWriter {
-                writer,
-                count: 0,
-                target: errat,
-                error_generated: false,
-            }
+            MockWriter { writer, count: 0, target: errat, error_generated: false }
         }
     }
     pub fn pretty_error_validate<T>(item: T)

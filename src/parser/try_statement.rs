@@ -5,7 +5,7 @@ use std::io::Write;
 use super::block::Block;
 use super::declarations_and_variables::BindingPattern;
 use super::identifiers::BindingIdentifier;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -80,36 +80,36 @@ impl PrettyPrint for TryStatement {
 }
 
 impl TryStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (try_tok, after_try) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if try_tok.matches_keyword(Keyword::Try) {
-            let pot_block = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
-            if let Some((block, after_block)) = pot_block {
-                let pot_catch = Catch::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
-                let (catch, after_catch) = match pot_catch {
-                    None => (None, after_block),
-                    Some((c, s)) => (Some(c), s),
-                };
-                let pot_finally = Finally::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
-                let (finally, after_finally) = match pot_finally {
-                    None => (None, after_catch),
-                    Some((f, s)) => (Some(f), s),
-                };
-                return match (catch, finally) {
-                    (None, None) => Ok(None),
-                    (Some(c), None) => Ok(Some((Box::new(TryStatement::Catch(block, c)), after_finally))),
-                    (None, Some(f)) => Ok(Some((Box::new(TryStatement::Finally(block, f)), after_finally))),
-                    (Some(c), Some(f)) => Ok(Some((Box::new(TryStatement::Full(block, c, f)), after_finally))),
-                };
-            }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_try = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
+        enum CaseKind {
+            Catch(Box<Catch>),
+            Finally(Box<Finally>),
+            Full(Box<Catch>, Box<Finally>),
         }
-        Ok(None)
+        Err(ParseError::new("Catch or Finally block expected", after_block.line, after_block.column))
+            .otherwise(|| {
+                let (fin, after_fin) = Finally::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
+                Ok((CaseKind::Finally(fin), after_fin))
+            })
+            .otherwise(|| {
+                let (catch, after_catch) = Catch::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
+                match Finally::parse(parser, after_catch, yield_flag, await_flag, return_flag) {
+                    Err(_) => Ok((CaseKind::Catch(catch), after_catch)),
+                    Ok((fin, after_fin)) => Ok((CaseKind::Full(catch, fin), after_fin)),
+                }
+            })
+            .map(|(kind, scan)| {
+                (
+                    Box::new(match kind {
+                        CaseKind::Catch(c) => TryStatement::Catch(block, c),
+                        CaseKind::Finally(f) => TryStatement::Finally(block, f),
+                        CaseKind::Full(c, f) => TryStatement::Full(block, c, f),
+                    }),
+                    scan,
+                )
+            })
     }
 }
 
@@ -161,41 +161,20 @@ impl PrettyPrint for Catch {
 }
 
 impl Catch {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (catch_tok, after_catch) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
-        if catch_tok.matches_keyword(Keyword::Catch) {
-            let (open, after_open) = scan_token(&after_catch, parser.source, ScanGoal::InputElementDiv);
-            if open.matches_punct(Punctuator::LeftParen) {
-                let pot_cp = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
-                if let Some((cp, after_cp)) = pot_cp {
-                    let (close, after_close) = scan_token(&after_cp, parser.source, ScanGoal::InputElementDiv);
-                    if close.matches_punct(Punctuator::RightParen) {
-                        let pot_block = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                        if let Some((block, after_block)) = pot_block {
-                            return Ok(Some((
-                                Box::new(Catch {
-                                    parameter: Some(cp),
-                                    block,
-                                }),
-                                after_block,
-                            )));
-                        }
-                    }
-                }
-            } else {
-                let pot_block = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
-                if let Some((block, after_block)) = pot_block {
-                    return Ok(Some((Box::new(Catch { parameter: None, block }), after_block)));
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
+        Err(ParseError::new("( or { expected", after_catch.line, after_catch.column))
+            .otherwise(|| {
+                let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Catch { parameter: None, block }), after_block))
+            })
+            .otherwise(|| {
+                let after_open = scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
+                let after_close = scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                Ok((Box::new(Catch { parameter: Some(cp), block }), after_block))
+            })
     }
 }
 
@@ -234,21 +213,10 @@ impl PrettyPrint for Finally {
 }
 
 impl Finally {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_fin, after_fin) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
-        if tok_fin.matches_keyword(Keyword::Finally) {
-            let pot_block = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
-            if let Some((block, after_block)) = pot_block {
-                return Ok(Some((Box::new(Finally { block }), after_block)));
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_fin = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
+        let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
+        Ok((Box::new(Finally { block }), after_block))
     }
 }
 
@@ -295,21 +263,16 @@ impl PrettyPrint for CatchParameter {
 }
 
 impl CatchParameter {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_bi = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((bi, after_bi)) = pot_bi {
-            return Ok(Some((Box::new(CatchParameter::Ident(bi)), after_bi)));
-        }
-        let pot_bp = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((bp, after_bp)) = pot_bp {
-            return Ok(Some((Box::new(CatchParameter::Pattern(bp)), after_bp)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("CatchParameter expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(CatchParameter::Ident(bi)), after_bi))
+            })
+            .otherwise(|| {
+                let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
+                Ok((Box::new(CatchParameter::Pattern(bp)), after_bp))
+            })
     }
 }
 

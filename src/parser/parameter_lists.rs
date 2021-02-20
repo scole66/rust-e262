@@ -39,17 +39,9 @@ impl PrettyPrint for UniqueFormalParameters {
 }
 
 impl UniqueFormalParameters {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_fp = FormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((fp, after_fp)) = pot_fp {
-            return Ok(Some((Box::new(UniqueFormalParameters { formals: fp }), after_fp)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (fp, after_fp) = FormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Box::new(UniqueFormalParameters { formals: fp }), after_fp))
     }
 }
 
@@ -90,9 +82,7 @@ impl PrettyPrint for FormalParameters {
         match self {
             FormalParameters::Empty => Ok(()),
             FormalParameters::Rest(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            FormalParameters::List(node) | FormalParameters::ListComma(node) => {
-                node.pprint_with_leftpad(writer, &successive, Spot::Final)
-            }
+            FormalParameters::List(node) | FormalParameters::ListComma(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             FormalParameters::ListRest(list, rest) => {
                 list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rest.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -128,33 +118,28 @@ impl PrettyPrint for FormalParameters {
 }
 
 impl FormalParameters {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_fpl = FormalParameterList::parse(parser, scanner, yield_flag, await_flag)?;
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let pot_fpl = FormalParameterList::parse(parser, scanner, yield_flag, await_flag);
         let (fpl, after_fpl) = match pot_fpl {
-            None => (None, scanner),
-            Some((f, s)) => (Some(f), s),
+            Err(_) => (None, scanner),
+            Ok((f, s)) => (Some(f), s),
         };
         let (pot_comma, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
         let (has_comma, after_comma) = match pot_comma {
             Token::Punctuator(Punctuator::Comma) => (true, after_pot),
             _ => (false, after_fpl),
         };
-        let pot_frp = FunctionRestParameter::parse(parser, after_comma, yield_flag, await_flag)?;
+        let pot_frp = FunctionRestParameter::parse(parser, after_comma, yield_flag, await_flag);
         let (frp, after_frp) = match pot_frp {
-            None => (None, after_comma),
-            Some((f, s)) => (Some(f), s),
+            Err(_) => (None, after_comma),
+            Ok((f, s)) => (Some(f), s),
         };
         match (fpl, has_comma, frp) {
-            (Some(pl), true, Some(rp)) => Ok(Some((Box::new(FormalParameters::ListRest(pl, rp)), after_frp))),
-            (Some(pl), true, None) => Ok(Some((Box::new(FormalParameters::ListComma(pl)), after_comma))),
-            (Some(pl), false, _) => Ok(Some((Box::new(FormalParameters::List(pl)), after_fpl))),
-            (None, false, Some(rp)) => Ok(Some((Box::new(FormalParameters::Rest(rp)), after_frp))),
-            (None, false, None) | (None, true, _) => Ok(Some((Box::new(FormalParameters::Empty), scanner))),
+            (Some(pl), true, Some(rp)) => Ok((Box::new(FormalParameters::ListRest(pl, rp)), after_frp)),
+            (Some(pl), true, None) => Ok((Box::new(FormalParameters::ListComma(pl)), after_comma)),
+            (Some(pl), false, _) => Ok((Box::new(FormalParameters::List(pl)), after_fpl)),
+            (None, false, Some(rp)) => Ok((Box::new(FormalParameters::Rest(rp)), after_frp)),
+            (None, false, None) | (None, true, _) => Ok((Box::new(FormalParameters::Empty), scanner)),
         }
     }
 }
@@ -211,39 +196,24 @@ impl PrettyPrint for FormalParameterList {
 }
 
 impl FormalParameterList {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_fp = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((fp, after_fp)) = pot_fp {
-            let mut current = Box::new(FormalParameterList::Item(fp));
-            let mut current_scanner = after_fp;
-            loop {
-                let (comma, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-                match comma {
-                    Token::Punctuator(Punctuator::Comma) => {
-                        let pot_next = FormalParameter::parse(parser, after_comma, yield_flag, await_flag)?;
-                        match pot_next {
-                            Some((next, after_next)) => {
-                                current = Box::new(FormalParameterList::List(current, next));
-                                current_scanner = after_next;
-                            }
-                            None => {
-                                break;
-                            }
-                        }
-                    }
-                    _ => {
-                        break;
-                    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (fp, after_fp) = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
+        let mut current = Box::new(FormalParameterList::Item(fp));
+        let mut current_scanner = after_fp;
+        loop {
+            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
+            {
+                Ok((next, after_next)) => {
+                    current = Box::new(FormalParameterList::List(current, next));
+                    current_scanner = after_next;
+                }
+                Err(_) => {
+                    break;
                 }
             }
-            return Ok(Some((current, current_scanner)));
         }
-        Ok(None)
+        Ok((current, current_scanner))
     }
 }
 
@@ -279,17 +249,9 @@ impl PrettyPrint for FunctionRestParameter {
 }
 
 impl FunctionRestParameter {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_bre = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((bre, after_bre)) = pot_bre {
-            return Ok(Some((Box::new(FunctionRestParameter { element: bre }), after_bre)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (bre, after_bre) = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Box::new(FunctionRestParameter { element: bre }), after_bre))
     }
 }
 
@@ -325,17 +287,9 @@ impl PrettyPrint for FormalParameter {
 }
 
 impl FormalParameter {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_be = BindingElement::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((be, after_be)) = pot_be {
-            return Ok(Some((Box::new(FormalParameter { element: be }), after_be)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (be, after_be) = BindingElement::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Box::new(FormalParameter { element: be }), after_be))
     }
 }
 

@@ -24,7 +24,7 @@ impl PrettyPrint for GeneratorDeclaration {
         writeln!(writer, "{}GeneratorDeclaration: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -33,14 +33,8 @@ impl PrettyPrint for GeneratorDeclaration {
 }
 
 impl GeneratorDeclaration {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-        _default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("GeneratorDeclaration unimplemenented", scanner.line, scanner.column))
     }
 }
 
@@ -62,7 +56,7 @@ impl PrettyPrint for GeneratorExpression {
         writeln!(writer, "{}GeneratorExpression: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -77,8 +71,8 @@ impl IsFunctionDefinition for GeneratorExpression {
 }
 
 impl GeneratorExpression {
-    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("GeneratorExpression unimplemented", scanner.line, scanner.column))
     }
 }
 
@@ -100,7 +94,7 @@ impl PrettyPrint for YieldExpression {
         writeln!(writer, "{}YieldExpression: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -109,13 +103,8 @@ impl PrettyPrint for YieldExpression {
 }
 
 impl YieldExpression {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _in_flag: bool,
-        _await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _in_flag: bool, _await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("YieldExpression unimplemented", scanner.line, scanner.column))
     }
 }
 

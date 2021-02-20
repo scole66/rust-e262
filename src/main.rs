@@ -1,4 +1,5 @@
 #![allow(dead_code, unused_variables)]
+#![feature(cmp_min_max_by)]
 
 use std::env;
 use std::io::{self, Write};
@@ -37,12 +38,11 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
     let result = StatementList::parse(&mut parser, Scanner::new(), false, false, false);
     match result {
-        Ok(Some((node, _))) => {
+        Ok((node, _)) => {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
-        Ok(None) => Ok(0),
-        Err(msg) => Err(msg),
+        Err(err) => Err(format!("{}:{}: {}", err.line, err.column, err.msg)),
     }
 }
 

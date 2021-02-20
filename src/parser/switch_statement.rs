@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::block::StatementList;
 use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -29,8 +29,7 @@ impl PrettyPrint for SwitchStatement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SwitchStatement: {}", first, self)?;
-        self.expression
-            .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.case_block.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -42,44 +41,20 @@ impl PrettyPrint for SwitchStatement {
         writeln!(writer, "{}SwitchStatement: {}", first, self)?;
         pprint_token(writer, "switch", &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", &successive, Spot::NotFinal)?;
-        self.expression
-            .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ")", &successive, Spot::NotFinal)?;
         self.case_block.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl SwitchStatement {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_switch, after_switch) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if tok_switch.matches_keyword(Keyword::Switch) {
-            let (open, after_open) = scan_token(&after_switch, parser.source, ScanGoal::InputElementDiv);
-            if open.matches_punct(Punctuator::LeftParen) {
-                let pot_exp = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-                if let Some((exp, after_exp)) = pot_exp {
-                    let (close, after_close) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
-                    if close.matches_punct(Punctuator::RightParen) {
-                        let pot_block = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                        if let Some((block, after_block)) = pot_block {
-                            return Ok(Some((
-                                Box::new(SwitchStatement {
-                                    expression: exp,
-                                    case_block: block,
-                                }),
-                                after_block,
-                            )));
-                        }
-                    }
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_switch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
+        let after_open = scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
+        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+        Ok((Box::new(SwitchStatement { expression: exp, case_block: cb }), after_cases))
     }
 }
 
@@ -162,44 +137,39 @@ impl PrettyPrint for CaseBlock {
 }
 
 impl CaseBlock {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (open, after_open) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
-        if open.matches_punct(Punctuator::LeftBrace) {
-            let pot_pre = CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag)?;
-            let (pre, after_pre) = match pot_pre {
-                None => (None, after_open),
-                Some((p, s)) => (Some(p), s),
-            };
-            let pot_def = DefaultClause::parse(parser, after_pre, yield_flag, await_flag, return_flag)?;
-            let (def, after_def) = match pot_def {
-                None => (None, after_pre),
-                Some((d, s)) => (Some(d), s),
-            };
-            let pot_post = CaseClauses::parse(parser, after_def, yield_flag, await_flag, return_flag)?;
-            let (post, after_post) = match pot_post {
-                None => (None, after_def),
-                Some((p, s)) => (Some(p), s),
-            };
-            let (close, after_close) = scan_token(&after_post, parser.source, ScanGoal::InputElementDiv);
-            if close.matches_punct(Punctuator::RightBrace) {
-                match def {
-                    None => {
-                        assert!(post.is_none());
-                        return Ok(Some((Box::new(CaseBlock::NoDefault(pre)), after_close)));
-                    }
-                    Some(dc) => {
-                        return Ok(Some((Box::new(CaseBlock::HasDefault(pre, dc, post)), after_close)));
-                    }
-                }
-            }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (pre, after_pre) = match CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag) {
+            Ok((node, scan)) => (Some(node), scan),
+            Err(_) => (None, after_open),
+        };
+        enum Post {
+            Empty,
+            Stuff(Box<DefaultClause>, Option<Box<CaseClauses>>),
         }
-        Ok(None)
+        Err(ParseError::new("CaseBlock confused", after_pre.line, after_pre.column))
+            .otherwise(|| {
+                let after_close = scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Post::Empty, after_close))
+            })
+            .otherwise(|| {
+                let (def, after_def) = DefaultClause::parse(parser, after_pre, yield_flag, await_flag, return_flag)?;
+                let (post, after_post) = match CaseClauses::parse(parser, after_def, yield_flag, await_flag, return_flag) {
+                    Ok((node, scan)) => (Some(node), scan),
+                    Err(_) => (None, after_def),
+                };
+                let after_close = scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Post::Stuff(def, post), after_close))
+            })
+            .map(|(post, scan)| {
+                (
+                    Box::new(match post {
+                        Post::Empty => CaseBlock::NoDefault(pre),
+                        Post::Stuff(def, after) => CaseBlock::HasDefault(pre, def, after),
+                    }),
+                    scan,
+                )
+            })
     }
 }
 
@@ -254,32 +224,22 @@ impl PrettyPrint for CaseClauses {
 }
 
 impl CaseClauses {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_item = CaseClause::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        if let Some((item, after_item)) = pot_item {
-            let mut current = Box::new(CaseClauses::Item(item));
-            let mut current_scanner = after_item;
-            loop {
-                let pot_next = CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag)?;
-                match pot_next {
-                    Some((next, after_next)) => {
-                        current = Box::new(CaseClauses::List(current, next));
-                        current_scanner = after_next;
-                    }
-                    None => {
-                        break;
-                    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (item, after_item) = CaseClause::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+        let mut current = Box::new(CaseClauses::Item(item));
+        let mut current_scanner = after_item;
+        loop {
+            match CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+                Ok((next, after_next)) => {
+                    current = Box::new(CaseClauses::List(current, next));
+                    current_scanner = after_next;
+                }
+                Err(_) => {
+                    break;
                 }
             }
-            return Ok(Some((current, current_scanner)));
         }
-        Ok(None)
+        Ok((current, current_scanner))
     }
 }
 
@@ -310,8 +270,7 @@ impl PrettyPrint for CaseClause {
         match &self.statements {
             None => self.expression.pprint_with_leftpad(writer, &successive, Spot::Final),
             Some(s) => {
-                self.expression
-                    .pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                self.expression.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 s.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -324,8 +283,7 @@ impl PrettyPrint for CaseClause {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CaseClause: {}", first, self)?;
         pprint_token(writer, "case", &successive, Spot::NotFinal)?;
-        self.expression
-            .concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         match &self.statements {
             Some(s) => {
                 pprint_token(writer, ":", &successive, Spot::NotFinal)?;
@@ -337,35 +295,15 @@ impl PrettyPrint for CaseClause {
 }
 
 impl CaseClause {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (case_tok, after_case) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
-        if case_tok.matches_keyword(Keyword::Case) {
-            let pot_exp = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
-            if let Some((exp, after_exp)) = pot_exp {
-                let (colon, after_colon) = scan_token(&after_exp, parser.source, ScanGoal::InputElementDiv);
-                if colon.matches_punct(Punctuator::Colon) {
-                    let pot_stmt = StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
-                    let (stmt, after_stmt) = match pot_stmt {
-                        None => (None, after_colon),
-                        Some((stmt, s)) => (Some(stmt), s),
-                    };
-                    return Ok(Some((
-                        Box::new(CaseClause {
-                            expression: exp,
-                            statements: stmt,
-                        }),
-                        after_stmt,
-                    )));
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_case = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
+        let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
+        let after_colon = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (stmt, after_stmt) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
+            Err(_) => (None, after_colon),
+            Ok((stmt, s)) => (Some(stmt), s),
+        };
+        Ok((Box::new(CaseClause { expression: exp, statements: stmt }), after_stmt))
     }
 }
 
@@ -414,26 +352,14 @@ impl PrettyPrint for DefaultClause {
 }
 
 impl DefaultClause {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        return_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (def_tok, after_def) = scan_token(&scanner, parser.source, ScanGoal::InputElementDiv);
-        if def_tok.matches_keyword(Keyword::Default) {
-            let (colon, after_colon) = scan_token(&after_def, parser.source, ScanGoal::InputElementDiv);
-            if colon.matches_punct(Punctuator::Colon) {
-                let pot_sl = StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
-                let (sl, after_sl) = match pot_sl {
-                    None => (None, after_colon),
-                    Some((lst, scan)) => (Some(lst), scan),
-                };
-                return Ok(Some((Box::new(DefaultClause(sl)), after_sl)));
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_def = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
+        let after_colon = scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
+            Err(_) => (None, after_colon),
+            Ok((lst, scan)) => (Some(lst), scan),
+        };
+        Ok((Box::new(DefaultClause(sl)), after_sl))
     }
 }
 

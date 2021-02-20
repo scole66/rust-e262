@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -76,43 +76,57 @@ impl AssignmentTargetType for Expression {
 }
 
 impl Expression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        in_flag: bool,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_left = AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        match pot_left {
-            None => Ok(None),
-            Some((left, after_left)) => {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("Expression expected", scanner.line, scanner.column)).otherwise(|| {
+            AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(left, after_left)| {
                 let mut current = Box::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
                 loop {
-                    let (token, after_token) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-                    match token {
-                        Token::Punctuator(Punctuator::Comma) => {
-                            let pot_right =
-                                AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)?;
-                            match pot_right {
-                                None => {
-                                    break;
-                                }
-                                Some((right, after_right)) => {
-                                    current = Box::new(Expression::Comma(current, right));
-                                    current_scanner = after_right;
-                                }
-                            }
-                        }
-                        _ => {
+                    match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                        .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
+                    {
+                        Err(_) => {
                             break;
+                        }
+                        Ok((right, after_right)) => {
+                            current = Box::new(Expression::Comma(current, right));
+                            current_scanner = after_right;
                         }
                     }
                 }
-                Ok(Some((current, current_scanner)))
-            }
-        }
+                Ok((current, current_scanner))
+            })
+        })
+
+        //let pot_left = AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
+        //match pot_left {
+        //    None => Ok(None),
+        //    Some((left, after_left)) => {
+        //        let mut current = Box::new(Expression::FallThru(left));
+        //        let mut current_scanner = after_left;
+        //        loop {
+        //            let (token, after_token) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+        //            match token {
+        //                Token::Punctuator(Punctuator::Comma) => {
+        //                    let pot_right = AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)?;
+        //                    match pot_right {
+        //                        None => {
+        //                            break;
+        //                        }
+        //                        Some((right, after_right)) => {
+        //                            current = Box::new(Expression::Comma(current, right));
+        //                            current_scanner = after_right;
+        //                        }
+        //                    }
+        //                }
+        //                _ => {
+        //                    break;
+        //                }
+        //            }
+        //        }
+        //        Ok(Some((current, current_scanner)))
+        //    }
+        //}
     }
 }
 

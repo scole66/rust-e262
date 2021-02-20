@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
@@ -35,12 +35,9 @@ impl PrettyPrint for EmptyStatement {
 }
 
 impl EmptyStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        match tok {
-            Token::Punctuator(Punctuator::Semicolon) => Ok(Some((Box::new(EmptyStatement), after))),
-            _ => Ok(None),
-        }
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_semi = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        Ok((Box::new(EmptyStatement), after_semi))
     }
 }
 

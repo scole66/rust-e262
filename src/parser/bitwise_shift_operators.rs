@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::additive_operators::AdditiveExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -40,9 +40,7 @@ impl PrettyPrint for ShiftExpression {
         writeln!(writer, "{}ShiftExpression: {}", first, self)?;
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ShiftExpression::LeftShift(se, ae)
-            | ShiftExpression::SignedRightShift(se, ae)
-            | ShiftExpression::UnsignedRightShift(se, ae) => {
+            ShiftExpression::LeftShift(se, ae) | ShiftExpression::SignedRightShift(se, ae) | ShiftExpression::UnsignedRightShift(se, ae) => {
                 se.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -89,68 +87,82 @@ impl AssignmentTargetType for ShiftExpression {
 }
 
 impl ShiftExpression {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_ae = AdditiveExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        match pot_ae {
-            None => Ok(None),
-            Some((ae, after_ae)) => {
-                let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
-                let mut current_scan = after_ae;
-                loop {
-                    let (shift_op, after_op) = scan_token(&current_scan, parser.source, ScanGoal::InputElementDiv);
-                    match shift_op {
-                        Token::Punctuator(Punctuator::GtGt)
-                        | Token::Punctuator(Punctuator::GtGtGt)
-                        | Token::Punctuator(Punctuator::LtLt) => {
-                            let pot_ae2 = AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)?;
-                            let make_se = if shift_op.matches_punct(Punctuator::GtGt) {
-                                |se, ae| ShiftExpression::SignedRightShift(se, ae)
-                            } else if shift_op.matches_punct(Punctuator::LtLt) {
-                                |se, ae| ShiftExpression::LeftShift(se, ae)
-                            } else {
-                                |se, ae| ShiftExpression::UnsignedRightShift(se, ae)
-                            };
-                            match pot_ae2 {
-                                None => {
-                                    break;
-                                }
-                                Some((ae2, after_ae2)) => {
-                                    current = Box::new(make_se(current, ae2));
-                                    current_scan = after_ae2;
-                                }
-                            }
-                        }
-                        _ => {
-                            break;
-                        }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(ae, after_ae)| {
+            let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
+            let mut current_scan = after_ae;
+            loop {
+                match scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt]).and_then(
+                    |(shift_op, after_op)| {
+                        let make_se = match shift_op {
+                            Punctuator::GtGt => |se, ae| ShiftExpression::SignedRightShift(se, ae),
+                            Punctuator::LtLt => |se, ae| ShiftExpression::LeftShift(se, ae),
+                            Punctuator::GtGtGt | _ => |se, ae| ShiftExpression::UnsignedRightShift(se, ae),
+                        };
+                        AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).and_then(|(ae2, after_ae2)| Ok((make_se, ae2, after_ae2)))
+                    },
+                ) {
+                    Ok((make_se, ae2, after_ae2)) => {
+                        current = Box::new(make_se(current, ae2));
+                        current_scan = after_ae2;
+                    }
+                    Err(_) => {
+                        break;
                     }
                 }
-                Ok(Some((current, current_scan)))
             }
-        }
+            Ok((current, current_scan))
+        })
+
+        // let pot_ae = AdditiveExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        // match pot_ae {
+        //     None => Ok(None),
+        //     Some((ae, after_ae)) => {
+        //         let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
+        //         let mut current_scan = after_ae;
+        //         loop {
+        //             let (shift_op, after_op) = scan_token(&current_scan, parser.source, ScanGoal::InputElementDiv);
+        //             match shift_op {
+        //                 Token::Punctuator(Punctuator::GtGt) | Token::Punctuator(Punctuator::GtGtGt) | Token::Punctuator(Punctuator::LtLt) => {
+        //                     let pot_ae2 = AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)?;
+        //                     let make_se = if shift_op.matches_punct(Punctuator::GtGt) {
+        //                         |se, ae| ShiftExpression::SignedRightShift(se, ae)
+        //                     } else if shift_op.matches_punct(Punctuator::LtLt) {
+        //                         |se, ae| ShiftExpression::LeftShift(se, ae)
+        //                     } else {
+        //                         |se, ae| ShiftExpression::UnsignedRightShift(se, ae)
+        //                     };
+        //                     match pot_ae2 {
+        //                         None => {
+        //                             break;
+        //                         }
+        //                         Some((ae2, after_ae2)) => {
+        //                             current = Box::new(make_se(current, ae2));
+        //                             current_scan = after_ae2;
+        //                         }
+        //                     }
+        //                 }
+        //                 _ => {
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //         Ok(Some((current, current_scan)))
+        //     }
+        // }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::{check, check_none, chk_scan, newparser};
+    use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
     use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
 
     // SHIFT EXPRESSION
     #[test]
     fn shift_expression_test_01() {
-        let (se, scanner) = check(ShiftExpression::parse(
-            &mut newparser("a"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
         pretty_check(&*se, "ShiftExpression: a", vec!["AdditiveExpression: a"]);
@@ -160,88 +172,49 @@ mod tests {
     }
     #[test]
     fn shift_expression_test_02() {
-        let (se, scanner) = check(ShiftExpression::parse(
-            &mut newparser("a << b"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a << b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ShiftExpression::LeftShift(_, _)));
-        pretty_check(
-            &*se,
-            "ShiftExpression: a << b",
-            vec!["ShiftExpression: a", "AdditiveExpression: b"],
-        );
+        pretty_check(&*se, "ShiftExpression: a << b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn shift_expression_test_03() {
-        let (se, scanner) = check(ShiftExpression::parse(
-            &mut newparser("a >> b"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >> b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ShiftExpression::SignedRightShift(_, _)));
-        pretty_check(
-            &*se,
-            "ShiftExpression: a >> b",
-            vec!["ShiftExpression: a", "AdditiveExpression: b"],
-        );
+        pretty_check(&*se, "ShiftExpression: a >> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn shift_expression_test_04() {
-        let (se, scanner) = check(ShiftExpression::parse(
-            &mut newparser("a >>> b"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> b"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(&*se, ShiftExpression::UnsignedRightShift(_, _)));
-        pretty_check(
-            &*se,
-            "ShiftExpression: a >>> b",
-            vec!["ShiftExpression: a", "AdditiveExpression: b"],
-        );
+        pretty_check(&*se, "ShiftExpression: a >>> b", vec!["ShiftExpression: a", "AdditiveExpression: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn shift_expression_test_05() {
-        check_none(ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false));
+        check_err(ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
     }
     #[test]
     fn shift_expression_test_06() {
-        let (se, scanner) = check(ShiftExpression::parse(
-            &mut newparser("a >>> @"),
-            Scanner::new(),
-            false,
-            false,
-        ));
+        let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> @"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
-    fn shift_expression_test_07() {
-        assert!(ShiftExpression::parse(&mut newparser("\\u0066or"), Scanner::new(), false, false).is_err());
-        assert!(ShiftExpression::parse(&mut newparser("a >> \\u0066or"), Scanner::new(), false, false).is_err());
-    }
-    #[test]
     fn shift_expression_test_prettyerrors() {
-        let (item, _) = ShiftExpression::parse(&mut newparser("3>>4"), Scanner::new(), false, false)
-            .unwrap()
-            .unwrap();
+        let (item, _) = ShiftExpression::parse(&mut newparser("3>>4"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
     }
 }

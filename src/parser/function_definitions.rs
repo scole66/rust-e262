@@ -5,7 +5,7 @@ use std::io::Write;
 use super::block::StatementList;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::FormalParameters;
-use super::scanner::{Scanner, scan_token, ScanGoal, Punctuator, Keyword};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -62,56 +62,25 @@ impl PrettyPrint for FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-        default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_func, after_func) =
-            scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if tok_func.matches_keyword(Keyword::Function) {
-            let pot_bi = BindingIdentifier::parse(parser, after_func, false, false)?;
-            let (bi, after_bi) = match pot_bi {
-                None => (None, after_func),
-                Some((b, s)) => (Some(b), s),
-            };
-            if !default_flag && bi.is_none() {
-                return Ok(None);
-            }
-            let (popen, after_popen) =
-                scan_token(&after_bi, parser.source, ScanGoal::InputElementDiv);
-            if popen.matches_punct(Punctuator::LeftParen) {
-                let pot_fp = FormalParameters::parse(parser, after_popen, false, false)?;
-                if let Some((fp, after_fp)) = pot_fp {
-                    let (pclose, after_pclose) =
-                        scan_token(&after_fp, parser.source, ScanGoal::InputElementDiv);
-                    if pclose.matches_punct(Punctuator::RightParen) {
-                        let (bopen, after_bopen) =
-                            scan_token(&after_pclose, parser.source, ScanGoal::InputElementDiv);
-                        if bopen.matches_punct(Punctuator::LeftBrace) {
-                            let pot_fb = FunctionBody::parse(parser, after_bopen, false, false)?;
-                            if let Some((fb, after_fb)) = pot_fb {
-                                let (bclose, after_bclose) =
-                                    scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
-                                if bclose.matches_punct(Punctuator::RightBrace) {
-                                    return Ok(Some((
-                                        Box::new(FunctionDeclaration {
-                                            ident: bi,
-                                            params: fp,
-                                            body: fb,
-                                        }),
-                                        after_bclose,
-                                    )));
-                                }
-                            }
-                        }
-                    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
+            Ok((node, scan)) => Ok((Some(node), scan)),
+            Err(e) => {
+                if default_flag {
+                    Ok((None, after_func))
+                } else {
+                    Err(e)
                 }
             }
-        }
-        Ok(None)
+        }?;
+        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false)?;
+        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false)?;
+        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Box::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
     }
 }
 
@@ -173,47 +142,19 @@ impl IsFunctionDefinition for FunctionExpression {
 }
 
 impl FunctionExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_func, after_func) =
-            scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if tok_func.matches_keyword(Keyword::Function) {
-            let pot_bi = BindingIdentifier::parse(parser, after_func, false, false)?;
-            let (bi, after_bi) = match pot_bi {
-                None => (None, after_func),
-                Some((b, s)) => (Some(b), s),
-            };
-            let (popen, after_popen) =
-                scan_token(&after_bi, parser.source, ScanGoal::InputElementDiv);
-            if popen.matches_punct(Punctuator::LeftParen) {
-                let pot_fp = FormalParameters::parse(parser, after_popen, false, false)?;
-                if let Some((fp, after_fp)) = pot_fp {
-                    let (pclose, after_pclose) =
-                        scan_token(&after_fp, parser.source, ScanGoal::InputElementDiv);
-                    if pclose.matches_punct(Punctuator::RightParen) {
-                        let (bopen, after_bopen) =
-                            scan_token(&after_pclose, parser.source, ScanGoal::InputElementDiv);
-                        if bopen.matches_punct(Punctuator::LeftBrace) {
-                            let pot_fb = FunctionBody::parse(parser, after_bopen, false, false)?;
-                            if let Some((fb, after_fb)) = pot_fb {
-                                let (bclose, after_bclose) =
-                                    scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
-                                if bclose.matches_punct(Punctuator::RightBrace) {
-                                    return Ok(Some((
-                                        Box::new(FunctionExpression {
-                                            ident: bi,
-                                            params: fp,
-                                            body: fb,
-                                        }),
-                                        after_bclose,
-                                    )));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, false, false) {
+            Ok((node, scan)) => (Some(node), scan),
+            Err(_) => (None, after_func),
+        };
+        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false)?;
+        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false)?;
+        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Box::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
     }
 }
 
@@ -249,17 +190,9 @@ impl PrettyPrint for FunctionBody {
 }
 
 impl FunctionBody {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_fsl = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag)?;
-        if let Some((fsl, after_fsl)) = pot_fsl {
-            return Ok(Some((Box::new(FunctionBody { statements: fsl }), after_fsl)));
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (fsl, after_fsl) = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Box::new(FunctionBody { statements: fsl }), after_fsl))
     }
 }
 
@@ -304,21 +237,12 @@ impl PrettyPrint for FunctionStatementList {
 }
 
 impl FunctionStatementList {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_stmts = StatementList::parse(parser, scanner, yield_flag, await_flag, true)?;
-        let (stmts, after_stmts) = match pot_stmts {
-            None => (None, scanner),
-            Some((st, s)) => (Some(st), s),
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
+            Err(_) => (None, scanner),
+            Ok((st, s)) => (Some(st), s),
         };
-        Ok(Some((
-            Box::new(FunctionStatementList { statements: stmts }),
-            after_stmts,
-        )))
+        Ok((Box::new(FunctionStatementList { statements: stmts }), after_stmts))
     }
 }
 

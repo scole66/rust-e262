@@ -24,7 +24,7 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
         writeln!(writer, "{}AsyncGeneratorDeclaration: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -39,14 +39,8 @@ impl IsFunctionDefinition for AsyncGeneratorDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    pub fn parse(
-        _parser: &mut Parser,
-        _scanner: Scanner,
-        _yield_flag: bool,
-        _await_flag: bool,
-        _default_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AsyncGeneratorDeclaration unimplemented", scanner.line, scanner.column))
     }
 }
 
@@ -68,7 +62,7 @@ impl PrettyPrint for AsyncGeneratorExpression {
         writeln!(writer, "{}AsyncGeneratorExpression: {}", first, self)
     }
 
-    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
     where
         T: Write,
     {
@@ -83,8 +77,8 @@ impl IsFunctionDefinition for AsyncGeneratorExpression {
 }
 
 impl AsyncGeneratorExpression {
-    pub fn parse(_parser: &mut Parser, _scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        Ok(None)
+    pub fn parse(_parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AsyncGeneratorExpression Unimplemented", scanner.line, scanner.column))
     }
 }
 

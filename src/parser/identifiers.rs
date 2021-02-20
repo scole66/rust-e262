@@ -45,7 +45,7 @@ impl fmt::Display for Identifier {
 }
 
 impl Identifier {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
         let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Identifier(id) => match id.keyword_id {
@@ -86,7 +86,7 @@ impl Identifier {
                 | Some(Keyword::Void)
                 | Some(Keyword::While)
                 | Some(Keyword::With)
-                | Some(Keyword::Yield) => Ok(None),
+                | Some(Keyword::Yield) => Err(ParseError::new(format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value), scanner.line, scanner.column)),
                 _ => {
                     if parser.strict
                         && (id.string_value == "implements"
@@ -99,15 +99,9 @@ impl Identifier {
                             || id.string_value == "static"
                             || id.string_value == "yield")
                     {
-                        Err(format!(
-                            "{}:{}: ‘{}’ not allowed as an identifier in strict mode",
-                            id.line, id.column, id.string_value
-                        ))
+                        Err(ParseError::new(format!("‘{}’ not allowed as an identifier in strict mode", id.string_value), id.line, id.column))
                     } else if parser.goal == ParseGoal::Module && id.string_value == "await" {
-                        Err(format!(
-                            "{}:{}: ‘await’ not allowed as an identifier in modules",
-                            id.line, id.column
-                        ))
+                        Err(ParseError::new("‘await’ not allowed as an identifier in modules", id.line, id.column))
                     } else if id.string_value == "break"
                         || id.string_value == "case"
                         || id.string_value == "catch"
@@ -145,18 +139,15 @@ impl Identifier {
                         || id.string_value == "while"
                         || id.string_value == "with"
                     {
-                        Err(format!(
-                            "{}:{}: ‘{}’ is a reserved word and may not be used as an identifier",
-                            id.line, id.column, id.string_value
-                        ))
+                        Err(ParseError::new(format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value), id.line, id.column))
                     } else {
                         let node = Identifier::IdentifierName(id);
                         let boxed = Box::new(node);
-                        Ok(Some((boxed, after_tok)))
+                        Ok((boxed, after_tok))
                     }
                 }
             },
-            _ => Ok(None),
+            _ => Err(ParseError::new("Not an identifier", scanner.line, scanner.column)),
         }
     }
 }
@@ -249,40 +240,24 @@ impl fmt::Display for IdentifierReference {
 }
 
 impl IdentifierReference {
-    pub fn parse(
-        parser: &mut Parser,
-        initial_scanner: Scanner,
-        arg_yield: bool,
-        arg_await: bool,
-    ) -> Result<Option<(Box<IdentifierReference>, Scanner)>, String> {
-        let production = Identifier::parse(parser, initial_scanner)?;
+    pub fn parse(parser: &mut Parser, initial_scanner: Scanner, arg_yield: bool, arg_await: bool) -> Result<(Box<IdentifierReference>, Scanner), ParseError> {
+        let production = Identifier::parse(parser, initial_scanner);
         match production {
-            Some((ident, scanner)) => {
-                let node = IdentifierReference {
-                    kind: IdentifierReferenceKind::Identifier(ident),
-                    strict: parser.strict,
-                };
+            Ok((ident, scanner)) => {
+                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), strict: parser.strict };
                 let boxed = Box::new(node);
-                Ok(Some((boxed, scanner)))
+                Ok((boxed, scanner))
             }
-            None => {
+            Err(pe) => {
                 let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => Ok(Some((
-                        Box::new(IdentifierReference {
-                            kind: IdentifierReferenceKind::Await,
-                            strict: parser.strict,
-                        }),
-                        scan,
-                    ))),
-                    Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => Ok(Some((
-                        Box::new(IdentifierReference {
-                            kind: IdentifierReferenceKind::Yield,
-                            strict: parser.strict,
-                        }),
-                        scan,
-                    ))),
-                    _ => Ok(None),
+                    Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => {
+                        Ok((Box::new(IdentifierReference { kind: IdentifierReferenceKind::Await, strict: parser.strict }), scan))
+                    }
+                    Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => {
+                        Ok((Box::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: parser.strict }), scan))
+                    }
+                    _ => Err(pe),
                 }
             }
         }
@@ -370,46 +345,20 @@ impl PrettyPrint for BindingIdentifier {
 }
 
 impl BindingIdentifier {
-    pub fn parse(
-        parser: &mut Parser,
-        starting_scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let production = Identifier::parse(parser, starting_scanner)?;
+    pub fn parse(parser: &mut Parser, starting_scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let production = Identifier::parse(parser, starting_scanner);
         match production {
-            Some((ident, scanner)) => {
-                let node = BindingIdentifier {
-                    kind: BindingIdentifierKind::Identifier(ident),
-                    yield_flag,
-                    await_flag,
-                };
+            Ok((ident, scanner)) => {
+                let node = BindingIdentifier { kind: BindingIdentifierKind::Identifier(ident), yield_flag, await_flag };
                 let boxed = Box::new(node);
-                Ok(Some((boxed, scanner)))
+                Ok((boxed, scanner))
             }
-            None => {
+            Err(pe) => {
                 let (token, scan) = scan_token(&starting_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    Token::Identifier(id) => match id.keyword_id {
-                        Some(Keyword::Await) => Ok(Some((
-                            Box::new(BindingIdentifier {
-                                kind: BindingIdentifierKind::Await,
-                                yield_flag,
-                                await_flag,
-                            }),
-                            scan,
-                        ))),
-                        Some(Keyword::Yield) => Ok(Some((
-                            Box::new(BindingIdentifier {
-                                kind: BindingIdentifierKind::Yield,
-                                yield_flag,
-                                await_flag,
-                            }),
-                            scan,
-                        ))),
-                        _ => Ok(None),
-                    },
-                    _ => Ok(None),
+                    Token::Identifier(id) if id.matches(Keyword::Await) => Ok((Box::new(BindingIdentifier { kind: BindingIdentifierKind::Await, yield_flag, await_flag }), scan)),
+                    Token::Identifier(id) if id.matches(Keyword::Yield) => Ok((Box::new(BindingIdentifier { kind: BindingIdentifierKind::Yield, yield_flag, await_flag }), scan)),
+                    _ => Err(pe),
                 }
             }
         }
@@ -473,45 +422,41 @@ impl PrettyPrint for LabelIdentifier {
 }
 
 impl LabelIdentifier {
-    pub fn parse(
-        parser: &mut Parser,
-        scanner: Scanner,
-        yield_flag: bool,
-        await_flag: bool,
-    ) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let pot_id = Identifier::parse(parser, scanner)?;
-        if let Some((id, after_id)) = pot_id {
-            return Ok(Some((Box::new(LabelIdentifier::Identifier(id)), after_id)));
-        }
-        if !yield_flag || !await_flag {
-            let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-            if !yield_flag && tok.matches_keyword(Keyword::Yield) {
-                return Ok(Some((Box::new(LabelIdentifier::Yield), after_tok)));
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let pot_id = Identifier::parse(parser, scanner);
+        match pot_id {
+            Ok((id, after_id)) => Ok((Box::new(LabelIdentifier::Identifier(id)), after_id)),
+            Err(pe) => {
+                if !yield_flag || !await_flag {
+                    let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+                    if !yield_flag && tok.matches_keyword(Keyword::Yield) {
+                        Ok((Box::new(LabelIdentifier::Yield), after_tok))
+                    } else if !await_flag && tok.matches_keyword(Keyword::Await) {
+                        Ok((Box::new(LabelIdentifier::Await), after_tok))
+                    } else {
+                        Err(pe)
+                    }
+                } else {
+                    Err(pe)
+                }
             }
-            if !await_flag && tok.matches_keyword(Keyword::Await) {
-                return Ok(Some((Box::new(LabelIdentifier::Await), after_tok)));
-            }
         }
-        Ok(None)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::testhelp::check_parse_error;
     use super::*;
     use crate::prettyprint::testhelp::pretty_check;
     fn id_kwd_test(kwd: &str) {
-        let result = Identifier::parse(
-            &mut super::Parser::new(kwd, false, super::ParseGoal::Script),
-            Scanner::new(),
-        );
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        let result = Identifier::parse(&mut super::Parser::new(kwd, false, super::ParseGoal::Script), Scanner::new());
+        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
     }
     #[test]
     fn identifier_test_pprint() {
         let pot_id = Identifier::parse(&mut Parser::new("phil", false, ParseGoal::Script), Scanner::new());
-        let (id, _) = pot_id.unwrap().unwrap();
+        let (id, _) = pot_id.unwrap();
         pretty_check(&*id, "Identifier: phil", vec![]);
     }
     #[test]
@@ -668,23 +613,12 @@ mod tests {
     }
     #[test]
     fn identifier_test_err() {
-        let result = Identifier::parse(
-            &mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script),
-            Scanner::new(),
-        );
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        let result = Identifier::parse(&mut super::Parser::new("iden\\u{20}tifier", false, super::ParseGoal::Script), Scanner::new());
+        check_parse_error(result, "Not an identifier");
     }
     fn identifier_test_strict(kwd: &str) {
-        let result = Identifier::parse(
-            &mut super::Parser::new(kwd, true, super::ParseGoal::Script),
-            Scanner::new(),
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            format!("1:1: ‘{}’ not allowed as an identifier in strict mode", kwd)
-        );
+        let result = Identifier::parse(&mut super::Parser::new(kwd, true, super::ParseGoal::Script), Scanner::new());
+        check_parse_error(result, format!("‘{}’ not allowed as an identifier in strict mode", kwd));
     }
     #[test]
     fn identifier_test_strict_implements() {
@@ -720,34 +654,20 @@ mod tests {
     }
     #[test]
     fn identifier_test_await_module() {
-        let result = Identifier::parse(
-            &mut Parser::new("aw\\u0061it", false, ParseGoal::Module),
-            Scanner::new(),
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "1:1: ‘await’ not allowed as an identifier in modules"
-        );
+        let result = Identifier::parse(&mut Parser::new("aw\\u0061it", false, ParseGoal::Module), Scanner::new());
+        check_parse_error(result, "‘await’ not allowed as an identifier in modules");
     }
     #[test]
     fn identifier_test_nothing() {
         let result = Identifier::parse(&mut Parser::new(".", false, ParseGoal::Script), Scanner::new());
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        assert!(result.is_err());
+        check_parse_error(result, "Not an identifier");
     }
     fn identifier_test_keyword(kwd: &str) {
         let firstch = kwd.chars().next().unwrap();
         let id_src = format!("\\u{{{:x}}}{}", firstch as u32, &kwd[firstch.len_utf8()..]);
-        let result = Identifier::parse(
-            &mut super::Parser::new(&id_src, false, super::ParseGoal::Script),
-            Scanner::new(),
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            format!("1:1: ‘{}’ is a reserved word and may not be used as an identifier", kwd)
-        );
+        let result = Identifier::parse(&mut super::Parser::new(&id_src, false, super::ParseGoal::Script), Scanner::new());
+        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
     }
     #[test]
     fn identifier_test_keyword_break() {
@@ -895,22 +815,10 @@ mod tests {
     }
     #[test]
     fn identifier_test_successful_bob() {
-        let result = Identifier::parse(
-            &mut super::Parser::new("bob", true, super::ParseGoal::Script),
-            Scanner::new(),
-        );
+        let result = Identifier::parse(&mut super::Parser::new("bob", true, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
-        let optional_id = result.unwrap();
-        assert!(optional_id.is_some());
-        let (identifier, scanner) = optional_id.unwrap();
-        assert_eq!(
-            scanner,
-            super::Scanner {
-                line: 1,
-                column: 4,
-                start_idx: 3
-            }
-        );
+        let (identifier, scanner) = result.unwrap();
+        assert_eq!(scanner, super::Scanner { line: 1, column: 4, start_idx: 3 });
         let Identifier::IdentifierName(data) = *identifier;
         assert_eq!(data.string_value, "bob");
         assert_eq!(data.keyword_id, None);
@@ -920,22 +828,10 @@ mod tests {
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let result = Identifier::parse(
-            &mut super::Parser::new(text, true, super::ParseGoal::Script),
-            Scanner::new(),
-        );
+        let result = Identifier::parse(&mut super::Parser::new(text, true, super::ParseGoal::Script), Scanner::new());
         assert!(result.is_ok());
-        let optional_id = result.unwrap();
-        assert!(optional_id.is_some());
-        let (identifier, scanner) = optional_id.unwrap();
-        assert_eq!(
-            scanner,
-            super::Scanner {
-                line: 1,
-                column: 14,
-                start_idx: 39
-            }
-        );
+        let (identifier, scanner) = result.unwrap();
+        assert_eq!(scanner, super::Scanner { line: 1, column: 14, start_idx: 39 });
         let Identifier::IdentifierName(data) = *identifier;
         assert_eq!(data.string_value, "手がける黒田征太郎さんです");
         assert_eq!(data.keyword_id, None);
@@ -945,38 +841,15 @@ mod tests {
 
     #[test]
     fn identifier_reference_test_debug() {
-        assert_eq!(
-            format!(
-                "{:?}",
-                IdentifierReference {
-                    kind: IdentifierReferenceKind::Yield,
-                    strict: false
-                }
-            ),
-            "IdentifierReference { kind: Yield, strict: false }"
-        );
+        assert_eq!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: false }), "IdentifierReference { kind: Yield, strict: false }");
     }
     fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
         let yield_syntax = false;
         let await_syntax = false;
-        let result = IdentifierReference::parse(
-            &mut Parser::new(text, strict, ParseGoal::Script),
-            Scanner::new(),
-            yield_syntax,
-            await_syntax,
-        );
+        let result = IdentifierReference::parse(&mut Parser::new(text, strict, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
         assert!(result.is_ok());
-        let optional_idref = result.unwrap();
-        assert!(optional_idref.is_some());
-        let (idref, scanner) = optional_idref.unwrap();
-        assert_eq!(
-            scanner,
-            Scanner {
-                line: 1,
-                column: text.len() as u32 + 1,
-                start_idx: text.len()
-            }
-        );
+        let (idref, scanner) = result.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
         idref
     }
 
@@ -992,11 +865,7 @@ mod tests {
 
         assert_eq!(idref.string_value(), "identifier");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
-        pretty_check(
-            &*idref,
-            "IdentifierReference: identifier",
-            vec!["Identifier: identifier"],
-        );
+        pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
     }
     #[test]
     fn identifier_reference_test_yield() {
@@ -1009,14 +878,8 @@ mod tests {
     }
     #[test]
     fn identifier_reference_test_yield_02() {
-        let idref = IdentifierReference::parse(
-            &mut Parser::new("yield", false, ParseGoal::Script),
-            Scanner::new(),
-            true,
-            true,
-        );
-        assert!(idref.is_ok());
-        assert!(idref.unwrap().is_none());
+        let idref = IdentifierReference::parse(&mut Parser::new("yield", false, ParseGoal::Script), Scanner::new(), true, true);
+        check_parse_error(idref, "‘yield’ is a reserved word and may not be used as an identifier");
     }
     #[test]
     fn identifier_reference_test_await() {
@@ -1029,36 +892,18 @@ mod tests {
     }
     #[test]
     fn identifier_reference_test_await_02() {
-        let idref = IdentifierReference::parse(
-            &mut Parser::new("await", false, ParseGoal::Script),
-            Scanner::new(),
-            true,
-            true,
-        );
-        assert!(idref.is_ok());
-        assert!(idref.unwrap().is_none());
+        let idref = IdentifierReference::parse(&mut Parser::new("await", false, ParseGoal::Script), Scanner::new(), true, true);
+        check_parse_error(idref, "‘await’ is a reserved word and may not be used as an identifier");
     }
     #[test]
     fn identifier_reference_test_kwd() {
-        let idref = IdentifierReference::parse(
-            &mut Parser::new("new", false, ParseGoal::Script),
-            Scanner::new(),
-            true,
-            true,
-        );
-        assert!(idref.is_ok());
-        assert!(idref.unwrap().is_none());
+        let idref = IdentifierReference::parse(&mut Parser::new("new", false, ParseGoal::Script), Scanner::new(), true, true);
+        check_parse_error(idref, "‘new’ is a reserved word and may not be used as an identifier");
     }
     #[test]
     fn identifier_reference_test_punct() {
-        let idref = IdentifierReference::parse(
-            &mut Parser::new("**", false, ParseGoal::Script),
-            Scanner::new(),
-            true,
-            true,
-        );
-        assert!(idref.is_ok());
-        assert!(idref.unwrap().is_none());
+        let idref = IdentifierReference::parse(&mut Parser::new("**", false, ParseGoal::Script), Scanner::new(), true, true);
+        check_parse_error(idref, "Not an identifier");
     }
     #[test]
     fn identifier_reference_test_att_strict() {
@@ -1095,24 +940,10 @@ mod tests {
         let yield_syntax = y;
         let await_syntax = a;
         let strict = false;
-        let result = BindingIdentifier::parse(
-            &mut Parser::new(text, strict, ParseGoal::Script),
-            Scanner::new(),
-            yield_syntax,
-            await_syntax,
-        );
+        let result = BindingIdentifier::parse(&mut Parser::new(text, strict, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
         assert!(result.is_ok());
-        let optional_bid = result.unwrap();
-        assert!(optional_bid.is_some());
-        let (bid, scanner) = optional_bid.unwrap();
-        assert_eq!(
-            scanner,
-            Scanner {
-                line: 1,
-                column: text.len() as u32 + 1,
-                start_idx: text.len()
-            }
-        );
+        let (bid, scanner) = result.unwrap();
+        assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
         bid
     }
 
@@ -1157,11 +988,9 @@ mod tests {
     fn binding_identifier_test_non_matches() {
         let mut p1 = Parser::new("function", false, ParseGoal::Script);
         let r1 = BindingIdentifier::parse(&mut p1, Scanner::new(), false, false);
-        assert!(r1.is_ok());
-        assert!(r1.unwrap().is_none());
+        check_parse_error(r1, "‘function’ is a reserved word and may not be used as an identifier");
         let mut p2 = Parser::new("**", false, ParseGoal::Script);
         let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
-        assert!(r2.is_ok());
-        assert!(r2.unwrap().is_none());
+        check_parse_error(r2, "Not an identifier");
     }
 }

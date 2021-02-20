@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot};
 
@@ -38,15 +38,10 @@ impl PrettyPrint for DebuggerStatement {
 }
 
 impl DebuggerStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<Option<(Box<Self>, Scanner)>, String> {
-        let (tok_deb, after_deb) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        if tok_deb.matches_keyword(Keyword::Debugger) {
-            let (semi, after_semi) = scan_token(&after_deb, parser.source, ScanGoal::InputElementDiv);
-            if semi.matches_punct(Punctuator::Semicolon) {
-                return Ok(Some((Box::new(DebuggerStatement), after_semi)));
-            }
-        }
-        Ok(None)
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_deb = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
+        let after_semi = scan_for_punct(after_deb, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+        Ok((Box::new(DebuggerStatement), after_semi))
     }
 }
 
