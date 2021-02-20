@@ -256,9 +256,6 @@ pub mod testhelp {
     {
         assert!(res.is_err());
         let err = res.unwrap_err();
-        //assert_eq!(err.msg, msg);
-        //assert_eq!(err.line, line);
-        //assert_eq!(err.column, column);
         assert_eq!((err.msg, err.line, err.column), (String::from(msg), line, column));
     }
     pub fn chk_scan(scanner: &Scanner, count: u32) {

@@ -331,15 +331,10 @@ impl PrettyPrint for BindingIdentifier {
     where
         T: Write,
     {
-        let mut work = |tok: &str| {
-            let (first, successive) = prettypad(pad, state);
-            writeln!(writer, "{}BindingIdentifier: {}", first, self)?;
-            pprint_token(writer, tok, &successive, Spot::Final)
-        };
         match &self.kind {
             BindingIdentifierKind::Identifier(node) => node.concise_with_leftpad(writer, pad, state),
-            BindingIdentifierKind::Await => work("await"),
-            BindingIdentifierKind::Yield => work("yield"),
+            BindingIdentifierKind::Await => pprint_token(writer, "await", pad, state),
+            BindingIdentifierKind::Yield => pprint_token(writer, "yield", pad, state),
         }
     }
 }
@@ -446,9 +441,9 @@ impl LabelIdentifier {
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::check_parse_error;
+    use super::testhelp::{check_parse_error, check, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{concise_check, pretty_check};
     fn id_kwd_test(kwd: &str) {
         let result = Identifier::parse(&mut super::Parser::new(kwd, false, super::ParseGoal::Script), Scanner::new());
         check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
@@ -458,6 +453,7 @@ mod tests {
         let pot_id = Identifier::parse(&mut Parser::new("phil", false, ParseGoal::Script), Scanner::new());
         let (id, _) = pot_id.unwrap();
         pretty_check(&*id, "Identifier: phil", vec![]);
+        concise_check(&*id, "Identifier: phil", vec![]);
     }
     #[test]
     fn identifier_test_await() {
@@ -866,6 +862,7 @@ mod tests {
         assert_eq!(idref.string_value(), "identifier");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
+        concise_check(&*idref, "Identifier: identifier", vec![]);
     }
     #[test]
     fn identifier_reference_test_yield() {
@@ -875,6 +872,7 @@ mod tests {
         assert_eq!(idref.string_value(), "yield");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: yield", vec![]);
+        concise_check(&*idref, "Token: yield", vec![]);
     }
     #[test]
     fn identifier_reference_test_yield_02() {
@@ -889,6 +887,7 @@ mod tests {
         assert_eq!(idref.string_value(), "await");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: await", vec![]);
+        concise_check(&*idref, "Token: await", vec![]);
     }
     #[test]
     fn identifier_reference_test_await_02() {
@@ -975,10 +974,13 @@ mod tests {
     fn binding_identifier_test_pprint() {
         let b1 = bindingid_create("joe", false, false);
         pretty_check(&*b1, "BindingIdentifier: joe", vec!["Identifier: joe"]);
+        concise_check(&*b1, "Identifier: joe", vec![]);
         let b2 = bindingid_create("yield", false, false);
         pretty_check(&*b2, "BindingIdentifier: yield", vec![]);
+        concise_check(&*b2, "Token: yield", vec![]);
         let b3 = bindingid_create("await", false, false);
         pretty_check(&*b3, "BindingIdentifier: await", vec![]);
+        concise_check(&*b3, "Token: await", vec![]);
     }
     #[test]
     fn binding_identifier_test_debug() {
@@ -992,5 +994,95 @@ mod tests {
         let mut p2 = Parser::new("**", false, ParseGoal::Script);
         let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
         check_parse_error(r2, "Not an identifier");
+    }
+
+    // LABEL IDENTIFIER
+    #[test]
+    fn label_identifier_test_normal_noyield_noawait() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("id"), Scanner::new(), false, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
+        pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
+        concise_check(&*lid, "Identifier: id", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_normal_yield_noawait() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("id"), Scanner::new(), true, false));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
+        pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
+        concise_check(&*lid, "Identifier: id", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_normal_noyield_await() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("id"), Scanner::new(), false, true));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
+        pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
+        concise_check(&*lid, "Identifier: id", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_normal_yield_await() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("id"), Scanner::new(), true, true));
+        chk_scan(&scanner, 2);
+        assert!(matches!(&*lid, LabelIdentifier::Identifier(_)));
+        pretty_check(&*lid, "LabelIdentifier: id", vec!["Identifier: id"]);
+        concise_check(&*lid, "Identifier: id", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_yield_noyield_noawait() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*lid, LabelIdentifier::Yield));
+        pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
+        concise_check(&*lid, "Token: yield", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_yield_yield_noawait() {
+        check_parse_error(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, false), "‘yield’ is a reserved word and may not be used as an identifier");
+    }
+    #[test]
+    fn label_identifier_test_yield_noyield_await() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, true));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*lid, LabelIdentifier::Yield));
+        pretty_check(&*lid, "LabelIdentifier: yield", vec![]);
+        concise_check(&*lid, "Token: yield", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_yield_yield_await() {
+        check_parse_error(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, true), "‘yield’ is a reserved word and may not be used as an identifier");
+    }
+    #[test]
+    fn label_identifier_test_await_noyield_noawait() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*lid, LabelIdentifier::Await));
+        pretty_check(&*lid, "LabelIdentifier: await", vec![]);
+        concise_check(&*lid, "Token: await", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_await_yield_noawait() {
+        let (lid, scanner) = check(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*lid, LabelIdentifier::Await));
+        pretty_check(&*lid, "LabelIdentifier: await", vec![]);
+        concise_check(&*lid, "Token: await", vec![]);
+        format!("{:?}", lid);
+    }
+    #[test]
+    fn label_identifier_test_await_noyield_await() {
+        check_parse_error(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, true), "‘await’ is a reserved word and may not be used as an identifier");
+    }
+    #[test]
+    fn label_identifier_test_await_yield_await() {
+        check_parse_error(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, true), "‘await’ is a reserved word and may not be used as an identifier");
     }
 }

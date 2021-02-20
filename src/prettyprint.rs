@@ -59,15 +59,9 @@ pub trait PrettyPrint {
 pub mod testhelp {
     use super::*;
     use std::str;
-    pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
-    where
-        T: PrettyPrint,
-    {
-        let mut msg = Vec::new();
-        item.pprint(&mut msg).unwrap();
-        let whole_message = str::from_utf8(&msg).unwrap();
 
-        let mut line_iter = whole_message.split("\n");
+    fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
+        let mut line_iter = msg.split("\n");
         let first = line_iter.next().unwrap();
         assert_eq!(first, selfstring);
 
@@ -91,6 +85,26 @@ pub mod testhelp {
             }
         }
         assert!(expected_iter.next().is_none());
+    }
+
+    pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+    where
+        T: PrettyPrint,
+    {
+        let mut msg = Vec::new();
+        item.pprint(&mut msg).unwrap();
+        let whole_message = str::from_utf8(&msg).unwrap();
+        testhelp::check_message(&whole_message, selfstring, childstrings);
+    }
+
+    pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: Vec<&str>)
+    where
+        T: PrettyPrint,
+    {
+        let mut msg = Vec::new();
+        item.pprint_concise(&mut msg).unwrap();
+        let whole_message = str::from_utf8(&msg).unwrap();
+        testhelp::check_message(&whole_message, selfstring, childstrings);
     }
 
     struct MockWriter<T>
