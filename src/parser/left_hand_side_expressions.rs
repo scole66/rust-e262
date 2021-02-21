@@ -180,12 +180,6 @@ impl ToMemberExpressionKind for MetaProperty {
     }
 }
 
-// impl ToMemberExpressionKind for NewMemberExpressionArguments {
-//     fn to_member_expression_kind(node: Box<Self>) -> MemberExpressionKind {
-//         MemberExpressionKind::NewArguments(*node)
-//     }
-// }
-
 fn me_boxer<T>(pair: (Box<T>, Scanner)) -> Result<(Box<MemberExpression>, Scanner), ParseError>
 where
     T: ToMemberExpressionKind,
@@ -193,14 +187,6 @@ where
     let (node, scanner) = pair;
     Ok((Box::new(MemberExpression { kind: T::to_member_expression_kind(node) }), scanner))
 }
-
-//fn or_me_kind<F, T>(opt: Option<(Box<MemberExpression>, Scanner)>, parser: &mut Parser, parse_func: F) -> Result<Option<(Box<MemberExpression>, Scanner)>, String>
-//where
-//    F: FnOnce(&mut Parser) -> Result<Option<(Box<T>, Scanner)>, String>,
-//    T: ToMemberExpressionKind,
-//{
-//    opt.map_or_else(|| parse_func(parser).and_then(me_boxer), rewrap)
-//}
 
 fn member_expression_head_recursive(
     parser: &mut Parser,
@@ -237,50 +223,6 @@ fn member_expression_head_recursive(
                 after_scan = after_production;
             }
         }
-        //let (tok, after) = scan_token(&after_scan, parser.source, ScanGoal::InputElementRegExp);
-        //match tok {
-        //    Token::Punctuator(Punctuator::Dot) => {
-        //        let token_after_dot = scan_token(&after, parser.source, ScanGoal::InputElementRegExp);
-        //        if let (Token::Identifier(id), after_id) = token_after_dot {
-        //            let me = Box::new(MemberExpression {
-        //                kind: MemberExpressionKind::IdentifierName(MemberExpressionIdentifierName {
-        //                    member_expression: current_me,
-        //                    identifier_name: Box::new(IdentifierNameToken { value: id }),
-        //                }),
-        //            });
-        //            current_me = me;
-        //            after_scan = after_id;
-        //        } else {
-        //            return Err(format!("Expected IdentifierName after ‘.’."));
-        //        }
-        //    }
-        //    Token::Punctuator(Punctuator::LeftBracket) => {
-        //        let potential_expression = Expression::parse(parser, after, true, yield_flag, await_flag)?;
-        //        match potential_expression {
-        //            None => {
-        //                return Err(format!("Expect Expression after ‘[’."));
-        //            }
-        //            Some((expression, after_exp)) => {
-        //                let after_exp = scan_token(&after_exp, parser.source, ScanGoal::InputElementRegExp);
-        //                match after_exp {
-        //                    (Token::Punctuator(Punctuator::RightBracket), scanner) => {
-        //                        let me = Box::new(MemberExpression {
-        //                            kind: MemberExpressionKind::Expression(MemberExpressionExpression { member_expression: current_me, expression: expression }),
-        //                        });
-        //                        current_me = me;
-        //                        after_scan = scanner;
-        //                    }
-        //                    _ => {
-        //                        return Err(format!("Expect ‘]’ after expression."));
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //    _ => {
-        //        break;
-        //    }
-        //}
     }
     Ok((current_me, after_scan))
 }
@@ -379,28 +321,6 @@ impl SuperProperty {
                 Ok((Box::new(SuperProperty { kind: SuperPropertyKind::IdentifierName(id) }), after_id))
             }
         }
-
-        //Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //    Token::Identifier(id) if id.matches(Keyword::Super) => Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //        Token::Punctuator(Punctuator::LeftBracket) => Expression::parse(parser, scanner, true, yield_flag, await_flag).and_then(|opt| {
-        //            opt.map_or_else(
-        //                || Err(String::from("‘super[’ must be followed by an Expression")),
-        //                |(exp_boxed, scanner)| {
-        //                    Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //                        Token::Punctuator(Punctuator::RightBracket) => Ok(Some((Box::new(SuperProperty { kind: SuperPropertyKind::Expression(exp_boxed) }), scanner))),
-        //                        _ => Err(String::from("‘super[ Expression’ must be closed by a ‘]’.")),
-        //                    })
-        //                },
-        //            )
-        //        }),
-        //        Token::Punctuator(Punctuator::Dot) => Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //            Token::Identifier(id) => Ok(Some((Box::new(SuperProperty { kind: SuperPropertyKind::IdentifierName(Box::new(IdentifierNameToken { value: id })) }), scanner))),
-        //            _ => Err(String::from("‘super.’ must be followed by an IdentifierName")),
-        //        }),
-        //        _ => Ok(None),
-        //    }),
-        //    _ => Ok(None),
-        //})
     }
 }
 
@@ -555,30 +475,6 @@ impl Arguments {
                     }
                 }
             })
-
-        //Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //    Token::Punctuator(Punctuator::LeftParen) => ArgumentList::parse(parser, scanner, yield_flag, await_flag).and_then(|opt| {
-        //        opt.map_or_else(
-        //            || {
-        //                Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //                    Token::Punctuator(Punctuator::RightParen) => Ok(Some((Box::new(Arguments { kind: ArgumentsKind::Empty }), scanner))),
-        //                    _ => Ok(None),
-        //                })
-        //            },
-        //            |(arglist_boxed, scanner)| {
-        //                Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //                    Token::Punctuator(Punctuator::Comma) => Ok(scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp)).and_then(|(token, scanner)| match token {
-        //                        Token::Punctuator(Punctuator::RightParen) => Ok(Some((Box::new(Arguments { kind: ArgumentsKind::ArgumentListComma(arglist_boxed) }), scanner))),
-        //                        _ => Ok(None),
-        //                    }),
-        //                    Token::Punctuator(Punctuator::RightParen) => Ok(Some((Box::new(Arguments { kind: ArgumentsKind::ArgumentList(arglist_boxed) }), scanner))),
-        //                    _ => Ok(None),
-        //                })
-        //            },
-        //        )
-        //    }),
-        //    _ => Ok(None),
-        //})
     }
 }
 
@@ -747,32 +643,6 @@ impl ArgumentList {
                 }
                 Ok((top_box, top_scanner))
             })
-
-        //let mut k = ArgumentListKind::parse_assignment_expression(parser, scanner, yield_flag, await_flag);
-        //if k.is_none() {
-        //    k = ArgumentListKind::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag)?;
-        //    if k.is_none() {
-        //        return Ok(None);
-        //    }
-        //}
-        //let (kind, mut top_scanner) = k.unwrap();
-        //let mut top_box = Box::new(Self { kind });
-        //loop {
-        //    let pot_alae = ArgumentListKind::parse_al_ae(parser, top_scanner, yield_flag, await_flag)?;
-        //    if let Some((boxed_ae, scanner)) = pot_alae {
-        //        top_box = Self::alae_boxer(top_box, boxed_ae);
-        //        top_scanner = scanner;
-        //    } else {
-        //        let pot_al_dots_ae = ArgumentListKind::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag)?;
-        //        if let Some((boxed_ae, scanner)) = pot_al_dots_ae {
-        //            top_box = Self::aldotsae_boxer(top_box, boxed_ae);
-        //            top_scanner = scanner;
-        //        } else {
-        //            break;
-        //        }
-        //    }
-        //}
-        //Ok(Some((top_box, top_scanner)))
     }
 }
 

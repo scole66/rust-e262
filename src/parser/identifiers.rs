@@ -360,16 +360,6 @@ impl BindingIdentifier {
     }
 }
 
-#[derive(Debug)]
-pub struct IdentifierNameToken {
-    pub value: IdentifierData,
-}
-impl fmt::Display for IdentifierNameToken {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.value.string_value.fmt(f)
-    }
-}
-
 // LabelIdentifier[Yield, Await] :
 //      Identifier
 //      [~Yield]yield
