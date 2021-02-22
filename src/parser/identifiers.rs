@@ -431,9 +431,9 @@ impl LabelIdentifier {
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::{check_parse_error, check, chk_scan, newparser};
+    use super::testhelp::{check, check_parse_error, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::{concise_check, pretty_check};
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
     fn id_kwd_test(kwd: &str) {
         let result = Identifier::parse(&mut super::Parser::new(kwd, false, super::ParseGoal::Script), Scanner::new());
         check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
@@ -646,7 +646,6 @@ mod tests {
     #[test]
     fn identifier_test_nothing() {
         let result = Identifier::parse(&mut Parser::new(".", false, ParseGoal::Script), Scanner::new());
-        assert!(result.is_err());
         check_parse_error(result, "Not an identifier");
     }
     fn identifier_test_keyword(kwd: &str) {
@@ -814,9 +813,7 @@ mod tests {
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let result = Identifier::parse(&mut super::Parser::new(text, true, super::ParseGoal::Script), Scanner::new());
-        assert!(result.is_ok());
-        let (identifier, scanner) = result.unwrap();
+        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, super::ParseGoal::Script), Scanner::new()));
         assert_eq!(scanner, super::Scanner { line: 1, column: 14, start_idx: 39 });
         let Identifier::IdentifierName(data) = *identifier;
         assert_eq!(data.string_value, "手がける黒田征太郎さんです");
@@ -842,13 +839,8 @@ mod tests {
     #[test]
     fn identifier_reference_test_simple_success() {
         let idref = idref_create("identifier", false);
-        assert_eq!(idref.strict, false);
-        use IdentifierReferenceKind::*;
-        match &idref.kind {
-            Yield | Await => assert!(false, "Wrong IdentifierReference Kind (expected Identifier)"),
-            Identifier(_) => (),
-        }
-
+        assert!(!idref.strict);
+        assert!(matches!(idref.kind, IdentifierReferenceKind::Identifier(..)));
         assert_eq!(idref.string_value(), "identifier");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
         pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
@@ -924,6 +916,37 @@ mod tests {
         assert_eq!(idref.string_value(), "arguments");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     }
+    #[test]
+    fn identifier_reference_prettycheck_1() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn identifier_reference_prettycheck_2() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn identifier_reference_prettycheck_3() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn identifier_reference_concisecheck_1() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn identifier_reference_concisecheck_2() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn identifier_reference_concisecheck_3() {
+        let (item, _) = IdentifierReference::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+
 
     fn bindingid_create(text: &str, y: bool, a: bool) -> Box<BindingIdentifier> {
         let yield_syntax = y;
@@ -984,6 +1007,36 @@ mod tests {
         let mut p2 = Parser::new("**", false, ParseGoal::Script);
         let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
         check_parse_error(r2, "Not an identifier");
+    }
+    #[test]
+    fn binding_identifier_prettycheck_1() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn binding_identifier_prettycheck_2() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn binding_identifier_prettycheck_3() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn binding_identifier_concisecheck_1() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn binding_identifier_concisecheck_2() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn binding_identifier_concisecheck_3() {
+        let (item, _) = BindingIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
     }
 
     // LABEL IDENTIFIER
@@ -1074,5 +1127,35 @@ mod tests {
     #[test]
     fn label_identifier_test_await_yield_await() {
         check_parse_error(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, true), "‘await’ is a reserved word and may not be used as an identifier");
+    }
+    #[test]
+    fn label_identifier_prettycheck_1() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn label_identifier_prettycheck_2() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn label_identifier_prettycheck_3() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn label_identifier_concisecheck_1() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn label_identifier_concisecheck_2() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn label_identifier_concisecheck_3() {
+        let (item, _) = LabelIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
     }
 }

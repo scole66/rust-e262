@@ -148,7 +148,7 @@ impl RelationalExpression {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 
     // RELATIONAL EXPRESSION
     #[test]
@@ -157,6 +157,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
@@ -167,6 +168,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, RelationalExpression::Less(_, _)));
         pretty_check(&*se, "RelationalExpression: a < b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a < b", vec!["IdentifierName: a", "Punctuator: <", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -177,6 +179,7 @@ mod tests {
         chk_scan(&scanner, 5);
         assert!(matches!(&*se, RelationalExpression::Greater(_, _)));
         pretty_check(&*se, "RelationalExpression: a > b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a > b", vec!["IdentifierName: a", "Punctuator: >", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -187,6 +190,7 @@ mod tests {
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::LessEqual(_, _)));
         pretty_check(&*se, "RelationalExpression: a <= b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a <= b", vec!["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -197,6 +201,7 @@ mod tests {
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::GreaterEqual(_, _)));
         pretty_check(&*se, "RelationalExpression: a >= b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a >= b", vec!["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -207,6 +212,7 @@ mod tests {
         chk_scan(&scanner, 14);
         assert!(matches!(&*se, RelationalExpression::InstanceOf(_, _)));
         pretty_check(&*se, "RelationalExpression: a instanceof b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a instanceof b", vec!["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -217,6 +223,7 @@ mod tests {
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, RelationalExpression::In(_, _)));
         pretty_check(&*se, "RelationalExpression: a in b", vec!["RelationalExpression: a", "ShiftExpression: b"]);
+        concise_check(&*se, "RelationalExpression: a in b", vec!["IdentifierName: a", "Keyword: in", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -227,6 +234,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
@@ -237,6 +245,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", vec!["ShiftExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
@@ -244,5 +253,65 @@ mod tests {
     #[test]
     fn relational_expression_test_10() {
         check_err(RelationalExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_1() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3>4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_2() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3<4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_3() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3>=4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_4() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3<=4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_5() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3 instanceof 4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_prettycheck_6() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3 in 4"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_1() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3>4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_2() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3<4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_3() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3>=4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_4() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3<=4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_5() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3 instanceof 4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn relational_expression_test_concisecheck_6() {
+        let (item, _) = RelationalExpression::parse(&mut newparser("3 in 4"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
     }
 }

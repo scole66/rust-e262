@@ -5,7 +5,7 @@ use std::io::Write;
 use super::scanner::Scanner;
 use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 #[derive(Debug)]
 pub enum AsyncFunctionDeclaration {}
@@ -77,6 +77,8 @@ impl AsyncFunctionExpression {
     }
 }
 
+// AwaitExpression[Yield] :
+//      await UnaryExpression[?Yield, +Await]
 #[derive(Debug)]
 pub enum AwaitExpression {
     Await(Box<UnaryExpression>),
@@ -100,17 +102,23 @@ impl PrettyPrint for AwaitExpression {
         boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
-    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        todo!()
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AwaitExpression: {}", first, self)?;
+        pprint_token(writer, "await", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        let AwaitExpression::Await(ue) = self;
+        ue.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl AwaitExpression {
-    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        Err(ParseError::new("AwaitExpression unimplemented", scanner.line, scanner.column))
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_await = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Await)?;
+        let (ue, after_ue) = UnaryExpression::parse(parser, after_await, yield_flag, true)?;
+        Ok((Box::new(AwaitExpression::Await(ue)), after_ue))
     }
 }
 

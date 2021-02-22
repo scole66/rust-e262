@@ -152,7 +152,7 @@ impl UnaryExpression {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 
     // UNARY EXPRESSION
     #[test]
@@ -161,6 +161,10 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
         pretty_check(&*ue, "UnaryExpression: 900", vec!["UpdateExpression: 900"]);
+        concise_check(&*ue, "Numeric: 900", vec![]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_delete() {
@@ -168,6 +172,10 @@ mod tests {
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Delete(_)));
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: delete bob", vec!["Keyword: delete", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_void() {
@@ -175,6 +183,10 @@ mod tests {
         chk_scan(&scanner, 8);
         assert!(matches!(*ue, UnaryExpression::Void(_)));
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: void bob", vec!["Keyword: void", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_typeof() {
@@ -182,6 +194,10 @@ mod tests {
         chk_scan(&scanner, 10);
         assert!(matches!(*ue, UnaryExpression::Typeof(_)));
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: typeof bob", vec!["Keyword: typeof", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_numberify() {
@@ -189,6 +205,10 @@ mod tests {
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::NoOp(_)));
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: + bob", vec!["Punctuator: +", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_negate() {
@@ -196,6 +216,10 @@ mod tests {
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Negate(_)));
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: - bob", vec!["Punctuator: -", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_complement() {
@@ -203,6 +227,10 @@ mod tests {
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Complement(_)));
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: ~ bob", vec!["Punctuator: ~", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_not() {
@@ -210,15 +238,21 @@ mod tests {
         chk_scan(&scanner, 4);
         assert!(matches!(*ue, UnaryExpression::Not(_)));
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
+        concise_check(&*ue, "UnaryExpression: ! bob", vec!["Punctuator: !", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_await() {
-        //let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true));
-        //chk_scan(&scanner, 9);
-        //assert!(matches!(*ue, UnaryExpression::Await(_)));
-
-        // Use the prior lines when AwaitExpression gets implemented.
-        check_err(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true), "UnaryExpression expected", 1, 1);
+        let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("await bob"), Scanner::new(), false, true));
+        chk_scan(&scanner, 9);
+        assert!(matches!(*ue, UnaryExpression::Await(_)));
+        pretty_check(&*ue, "UnaryExpression: await bob", vec!["AwaitExpression: await bob"]);
+        concise_check(&*ue, "AwaitExpression: await bob", vec!["Keyword: await", "IdentifierName: bob"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+        format!("{:?}", ue);
     }
     #[test]
     fn unary_expression_test_nomatch() {
@@ -233,5 +267,87 @@ mod tests {
         check_err(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
         check_err(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
         check_err(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
+        check_err(UnaryExpression::parse(&mut newparser("await"), Scanner::new(), false, true), "UnaryExpression expected", 1, 6);
+    }
+
+    #[test]
+    fn unary_expression_test_prettyerrors_1() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("delete a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_2() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("void a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_3() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("typeof a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_4() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("+ a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_5() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("- a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_6() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("~ a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_7() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("! a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_prettyerrors_8() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("await a"), Scanner::new(), false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_1() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("delete a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_2() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("void a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_3() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("typeof a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_4() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("+ a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_5() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("- a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_6() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("~ a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_7() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("! a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn unary_expression_test_conciseerrors_8() {
+        let (item, _) = UnaryExpression::parse(&mut newparser("await a"), Scanner::new(), false, true).unwrap();
+        concise_error_validate(*item);
     }
 }
