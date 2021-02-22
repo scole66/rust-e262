@@ -56,7 +56,9 @@ function z() {
 }
 
 # show the routines with uncovered regions:
+function s() {
 cargo cov -- show --use-color --ignore-filename-regex='/.cargo/registry' --instr-profile=res.profdata $(objects) --show-instantiations --show-line-counts-or-regions --show-expansions -Xdemangler=rustfilt --region-coverage-lt=100 | less -R
+}
 ```
 
 "t" doesn't do branch coverage. "z" does.

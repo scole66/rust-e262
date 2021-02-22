@@ -8,6 +8,9 @@ use super::update_expressions::UpdateExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
+// ExponentiationExpression[Yield, Await] :
+//      UnaryExpression[?Yield, ?Await]
+//      UpdateExpression[?Yield, ?Await] ** ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ExponentiationExpression {
     UnaryExpression(Box<UnaryExpression>),
@@ -94,7 +97,7 @@ impl ExponentiationExpression {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
+    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate, concise_check, concise_error_validate};
 
     // EXPONENTIATION EXPRESSION
     #[test]
@@ -103,6 +106,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
@@ -113,6 +117,7 @@ mod tests {
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ExponentiationExpression::Exponentiation(..)));
         pretty_check(&*se, "ExponentiationExpression: a ** b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
+        concise_check(&*se, "ExponentiationExpression: a ** b", vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -127,13 +132,29 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
-    fn exponentiation_expression_test_prettyerrors() {
+    fn exponentiation_expression_test_prettyerrors_1() {
         let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
+    }
+    #[test]
+    fn exponentiation_expression_test_prettyerrors_2() {
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn exponentiation_expression_test_conciseerrors_1() {
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn exponentiation_expression_test_conciseerrors_2() {
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
     }
 }

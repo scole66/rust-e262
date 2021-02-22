@@ -174,20 +174,32 @@ pub mod testhelp {
             MockWriter { writer, count: 0, target: errat, error_generated: false }
         }
     }
-    pub fn pretty_error_validate<T>(item: T)
+    fn printer_validate<U>(func: U)
     where
-        T: PrettyPrint,
+        U: Fn(&mut MockWriter<Vec<u8>>) -> IoResult<()>,
     {
         let mut target = 1;
         loop {
             let mut writer = MockWriter::new(Vec::new(), target);
-            let result = item.pprint(&mut writer);
+            let result = func(&mut writer);
             assert!(result.is_err() || !writer.error_generated);
             if !writer.error_generated {
                 break;
             }
             target += 1;
         }
-        assert!(target > 5); // Just to be sure the system is not utterly broken
+        assert!(target > 1); // Just to be sure the system is not utterly broken
+    }
+    pub fn pretty_error_validate<T>(item: T)
+    where
+        T: PrettyPrint,
+    {
+        printer_validate(|w| item.pprint(w))
+    }
+    pub fn concise_error_validate<T>(item: T)
+    where
+        T: PrettyPrint,
+    {
+        printer_validate(|w| item.pprint_concise(w))
     }
 }
