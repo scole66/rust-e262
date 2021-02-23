@@ -115,7 +115,7 @@ impl AdditiveExpression {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate, concise_check};
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 
     // ADDITIVE EXPRESSION
     #[test]
@@ -175,5 +175,15 @@ mod tests {
     fn additive_expression_test_prettyerrors_2() {
         let (item, _) = AdditiveExpression::parse(&mut newparser("3-4"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
+    }
+    #[test]
+    fn additive_expression_test_conciseerrors_1() {
+        let (item, _) = AdditiveExpression::parse(&mut newparser("3+4"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn additive_expression_test_conciseerrors_2() {
+        let (item, _) = AdditiveExpression::parse(&mut newparser("3-4"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
     }
 }
