@@ -135,14 +135,13 @@ impl UpdateExpression {
             })
     }
 }
-// Punctuator::PlusPlus => Ok((Box::new(UpdateExpression::PostIncrement(lhs)), after_punct)),
-// Punctuator::MinusMinus|_ => Ok((Box::new(UpdateExpression::PostDecrement(lhs)), after_punct))
 
 #[cfg(test)]
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::pretty_check;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
     // UPDATE EXPRESSION
     #[test]
     fn update_expression_test_lhs() {
@@ -151,6 +150,31 @@ mod tests {
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: 78", vec!["LeftHandSideExpression: 78"]);
+        concise_check(&*ue, "Numeric: 78", vec![]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn update_expression_test_lhs_2() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("(x=>x*2)"), Scanner::new(), false, false));
+        chk_scan(&scanner, 8);
+        assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
+        format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", vec!["LeftHandSideExpression: ( x => x * 2 )"]);
+        concise_check(&*ue, "ParenthesizedExpression: ( x => x * 2 )", vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"]);
+        assert!(ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn update_expression_test_lhs_3() {
+        let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("x"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
+        format!("{:?}", ue);
+        pretty_check(&*ue, "UpdateExpression: x", vec!["LeftHandSideExpression: x"]);
+        concise_check(&*ue, "IdentifierName: x", vec![]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn update_expression_test_preinc() {
@@ -159,6 +183,9 @@ mod tests {
         assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn update_expression_test_predec() {
@@ -167,6 +194,9 @@ mod tests {
         assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn update_expression_test_postinc() {
@@ -175,6 +205,9 @@ mod tests {
         assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn update_expression_test_postdec() {
@@ -183,6 +216,9 @@ mod tests {
         assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
+        concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);
+        assert!(!ue.is_function_definition());
+        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn update_expression_test_newline() {
@@ -201,5 +237,55 @@ mod tests {
     #[test]
     fn update_expression_test_syntax_error_02() {
         check_err(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false), "UnaryExpression expected", 1, 6);
+    }
+    #[test]
+    fn update_expression_prettycheck_1() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_prettycheck_2() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_prettycheck_3() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_prettycheck_4() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_prettycheck_5() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_concisecheck_1() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_concisecheck_2() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_concisecheck_3() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_concisecheck_4() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn update_expression_concisecheck_5() {
+        let (item, _) = UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
     }
 }
