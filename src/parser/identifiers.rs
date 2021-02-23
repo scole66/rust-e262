@@ -800,26 +800,25 @@ mod tests {
     }
     #[test]
     fn identifier_test_successful_bob() {
-        let result = Identifier::parse(&mut super::Parser::new("bob", true, super::ParseGoal::Script), Scanner::new());
-        assert!(result.is_ok());
-        let (identifier, scanner) = result.unwrap();
-        assert_eq!(scanner, super::Scanner { line: 1, column: 4, start_idx: 3 });
+        let result = check(Identifier::parse(&mut Parser::new("bob", true, ParseGoal::Script), Scanner::new()));
+        let (identifier, scanner) = result;
+        chk_scan(&scanner, 3);
         let Identifier::IdentifierName(data) = *identifier;
-        assert_eq!(data.string_value, "bob");
-        assert_eq!(data.keyword_id, None);
-        assert_eq!(data.line, 1);
-        assert_eq!(data.column, 1);
+        assert!(data.string_value == "bob");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
     }
     #[test]
     fn identifier_test_successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, super::ParseGoal::Script), Scanner::new()));
-        assert_eq!(scanner, super::Scanner { line: 1, column: 14, start_idx: 39 });
+        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, ParseGoal::Script), Scanner::new()));
+        assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
         let Identifier::IdentifierName(data) = *identifier;
-        assert_eq!(data.string_value, "手がける黒田征太郎さんです");
-        assert_eq!(data.keyword_id, None);
-        assert_eq!(data.line, 1);
-        assert_eq!(data.column, 1);
+        assert!(data.string_value == "手がける黒田征太郎さんです");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
     }
 
     #[test]
@@ -849,7 +848,7 @@ mod tests {
     #[test]
     fn identifier_reference_test_yield() {
         let idref = idref_create("yield", false);
-        assert_eq!(idref.strict, false);
+        assert!(!idref.strict);
         assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
         assert_eq!(idref.string_value(), "yield");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
@@ -864,7 +863,7 @@ mod tests {
     #[test]
     fn identifier_reference_test_await() {
         let idref = idref_create("await", false);
-        assert_eq!(idref.strict, false);
+        assert!(!idref.strict);
         assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
         assert_eq!(idref.string_value(), "await");
         assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
@@ -947,7 +946,6 @@ mod tests {
         concise_error_validate(*item);
     }
 
-
     fn bindingid_create(text: &str, y: bool, a: bool) -> Box<BindingIdentifier> {
         let yield_syntax = y;
         let await_syntax = a;
@@ -965,8 +963,8 @@ mod tests {
                 let bid = bindingid_create(text, *yflag, *aflag);
                 assert_eq!(bid.string_value(), text);
                 assert_eq!(bid.bound_names(), [text]);
-                assert_eq!(bid.yield_flag, *yflag);
-                assert_eq!(bid.await_flag, *aflag);
+                assert!((bid.yield_flag && *yflag) || (!bid.yield_flag && !*yflag));
+                assert!((bid.await_flag && *aflag) || (!bid.await_flag && !*aflag));
             }
         }
     }
