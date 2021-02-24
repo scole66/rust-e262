@@ -95,35 +95,6 @@ impl BitwiseANDExpression {
             }
             Ok((current, current_scanner))
         })
-        //let pot_ee1 = EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        //match pot_ee1 {
-        //    None => Ok(None),
-        //    Some((ee1, after_ee1)) => {
-        //        let mut current = Box::new(BitwiseANDExpression::EqualityExpression(ee1));
-        //        let mut current_scanner = after_ee1;
-        //        loop {
-        //            let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-        //            match op_token {
-        //                Token::Punctuator(Punctuator::Amp) => {
-        //                    let pot_ee2 = EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
-        //                    match pot_ee2 {
-        //                        None => {
-        //                            break;
-        //                        }
-        //                        Some((ee2, after_ee2)) => {
-        //                            current = Box::new(BitwiseANDExpression::BitwiseAND(current, ee2));
-        //                            current_scanner = after_ee2;
-        //                        }
-        //                    }
-        //                }
-        //                _ => {
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        Ok(Some((current, current_scanner)))
-        //    }
-        //}
     }
 }
 
@@ -215,36 +186,6 @@ impl BitwiseXORExpression {
             }
             Ok((current, current_scanner))
         })
-
-        //let pot_band = BitwiseANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        //match pot_band {
-        //    None => Ok(None),
-        //    Some((band1, after_band1)) => {
-        //        let mut current = Box::new(BitwiseXORExpression::BitwiseANDExpression(band1));
-        //        let mut current_scanner = after_band1;
-        //        loop {
-        //            let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-        //            match op_token {
-        //                Token::Punctuator(Punctuator::Caret) => {
-        //                    let pot_band2 = BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
-        //                    match pot_band2 {
-        //                        None => {
-        //                            break;
-        //                        }
-        //                        Some((band2, after_band2)) => {
-        //                            current = Box::new(BitwiseXORExpression::BitwiseXOR(current, band2));
-        //                            current_scanner = after_band2;
-        //                        }
-        //                    }
-        //                }
-        //                _ => {
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        Ok(Some((current, current_scanner)))
-        //    }
-        //}
     }
 }
 
@@ -336,36 +277,6 @@ impl BitwiseORExpression {
             }
             Ok((current, current_scanner))
         })
-
-        //let pot_bxor = BitwiseXORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        //match pot_bxor {
-        //    None => Ok(None),
-        //    Some((bxor1, after_bxor1)) => {
-        //        let mut current = Box::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
-        //        let mut current_scanner = after_bxor1;
-        //        loop {
-        //            let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-        //            match op_token {
-        //                Token::Punctuator(Punctuator::Pipe) => {
-        //                    let pot_bxor2 = BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
-        //                    match pot_bxor2 {
-        //                        None => {
-        //                            break;
-        //                        }
-        //                        Some((bxor2, after_bxor2)) => {
-        //                            current = Box::new(BitwiseORExpression::BitwiseOR(current, bxor2));
-        //                            current_scanner = after_bxor2;
-        //                        }
-        //                    }
-        //                }
-        //                _ => {
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        Ok(Some((current, current_scanner)))
-        //    }
-        //}
     }
 }
 
@@ -373,7 +284,7 @@ impl BitwiseORExpression {
 mod tests {
     use super::testhelp::{check, check_err, chk_scan, newparser};
     use super::*;
-    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 
     #[test]
     fn bitwise_and_expression_test_01() {
@@ -381,6 +292,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
         pretty_check(&*pn, "BitwiseANDExpression: a", vec!["EqualityExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -391,6 +303,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(&*pn, BitwiseANDExpression::BitwiseAND(_, _)));
         pretty_check(&*pn, "BitwiseANDExpression: a & b", vec!["BitwiseANDExpression: a", "EqualityExpression: b"]);
+        concise_check(&*pn, "BitwiseANDExpression: a & b", vec!["IdentifierName: a", "Punctuator: &", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
@@ -401,6 +314,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
         pretty_check(&*pn, "BitwiseANDExpression: a", vec!["EqualityExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -414,6 +328,11 @@ mod tests {
         let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(*item);
     }
+    #[test]
+    fn bitwise_and_expression_test_conciseerrors() {
+        let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
 
     #[test]
     fn bitwise_xor_expression_test_01() {
@@ -421,6 +340,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
         pretty_check(&*pn, "BitwiseXORExpression: a", vec!["BitwiseANDExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -431,6 +351,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(&*pn, BitwiseXORExpression::BitwiseXOR(_, _)));
         pretty_check(&*pn, "BitwiseXORExpression: a ^ b", vec!["BitwiseXORExpression: a", "BitwiseANDExpression: b"]);
+        concise_check(&*pn, "BitwiseXORExpression: a ^ b", vec!["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
@@ -441,6 +362,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
         pretty_check(&*pn, "BitwiseXORExpression: a", vec!["BitwiseANDExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -454,6 +376,11 @@ mod tests {
         let (item, _) = BitwiseXORExpression::parse(&mut newparser("a ^ b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(*item);
     }
+    #[test]
+    fn bitwise_xor_expression_test_conciseerrors() {
+        let (item, _) = BitwiseXORExpression::parse(&mut newparser("a ^ b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
 
     #[test]
     fn bitwise_or_expression_test_01() {
@@ -461,6 +388,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
         pretty_check(&*pn, "BitwiseORExpression: a", vec!["BitwiseXORExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -471,6 +399,7 @@ mod tests {
         chk_scan(&scanner, 3);
         assert!(matches!(&*pn, BitwiseORExpression::BitwiseOR(_, _)));
         pretty_check(&*pn, "BitwiseORExpression: a | b", vec!["BitwiseORExpression: a", "BitwiseXORExpression: b"]);
+        concise_check(&*pn, "BitwiseORExpression: a | b", vec!["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
@@ -481,6 +410,7 @@ mod tests {
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
         pretty_check(&*pn, "BitwiseORExpression: a", vec!["BitwiseXORExpression: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
@@ -493,5 +423,10 @@ mod tests {
     fn bitwise_or_expression_test_prettyerrors() {
         let (item, _) = BitwiseORExpression::parse(&mut newparser("a | b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(*item);
+    }
+    #[test]
+    fn bitwise_or_expression_test_conciseerrors() {
+        let (item, _) = BitwiseORExpression::parse(&mut newparser("a | b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
     }
 }
