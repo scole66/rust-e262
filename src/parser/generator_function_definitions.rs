@@ -7,6 +7,38 @@ use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 
 #[derive(Debug)]
+pub enum GeneratorMethod {}
+
+impl fmt::Display for GeneratorMethod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "unimplemented")
+    }
+}
+
+impl PrettyPrint for GeneratorMethod {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, _successive) = prettypad(pad, state);
+        writeln!(writer, "{}GeneratorMethod: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
+}
+
+impl GeneratorMethod {
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("GeneratorMethod unimplemenented", scanner.line, scanner.column))
+    }
+}
+
+#[derive(Debug)]
 pub enum GeneratorDeclaration {}
 
 impl fmt::Display for GeneratorDeclaration {

@@ -8,6 +8,38 @@ use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 #[derive(Debug)]
+pub enum AsyncMethod {}
+
+impl fmt::Display for AsyncMethod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "unimplemented")
+    }
+}
+
+impl PrettyPrint for AsyncMethod {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, _successive) = prettypad(pad, state);
+        writeln!(writer, "{}AsyncMethod: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
+}
+
+impl AsyncMethod {
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        Err(ParseError::new("AsyncMethod unimplemenented", scanner.line, scanner.column))
+    }
+}
+
+#[derive(Debug)]
 pub enum AsyncFunctionDeclaration {}
 
 impl fmt::Display for AsyncFunctionDeclaration {

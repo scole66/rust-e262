@@ -75,10 +75,10 @@ impl FunctionDeclaration {
             }
         }?;
         let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false)?;
+        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
         let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false)?;
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
         let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Box::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
     }
@@ -149,10 +149,10 @@ impl FunctionExpression {
             Err(_) => (None, after_func),
         };
         let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false)?;
+        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
         let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false)?;
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
         let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Box::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
     }
@@ -190,9 +190,10 @@ impl PrettyPrint for FunctionBody {
 }
 
 impl FunctionBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (fsl, after_fsl) = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(FunctionBody { statements: fsl }), after_fsl))
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+        // Can never return an error
+        let (fsl, after_fsl) = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag);
+        (Box::new(FunctionBody { statements: fsl }), after_fsl)
     }
 }
 
@@ -237,12 +238,13 @@ impl PrettyPrint for FunctionStatementList {
 }
 
 impl FunctionStatementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+        // Can never return an error.
         let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
             Err(_) => (None, scanner),
             Ok((st, s)) => (Some(st), s),
         };
-        Ok((Box::new(FunctionStatementList { statements: stmts }), after_stmts))
+        (Box::new(FunctionStatementList { statements: stmts }), after_stmts)
     }
 }
 

@@ -160,9 +160,11 @@ impl PrettyPrint for ConciseBody {
 impl ConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         match scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace) {
-            Ok(after_curly) => FunctionBody::parse(parser, after_curly, in_flag, false).and_then(|(fb, after_fb)| {
-                scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace).and_then(|after_rt| Ok((Box::new(ConciseBody::Function(fb)), after_rt)))
-            }),
+            Ok(after_curly) => {
+                let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
+                let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Box::new(ConciseBody::Function(fb)), after_rb))
+            }
             Err(_) => ExpressionBody::parse(parser, scanner, in_flag, false).and_then(|(exp, after_exp)| Ok((Box::new(ConciseBody::Expression(exp)), after_exp))),
         }
 

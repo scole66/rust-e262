@@ -39,9 +39,9 @@ impl PrettyPrint for UniqueFormalParameters {
 }
 
 impl UniqueFormalParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (fp, after_fp) = FormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(UniqueFormalParameters { formals: fp }), after_fp))
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+        let (fp, after_fp) = FormalParameters::parse(parser, scanner, yield_flag, await_flag);
+        (Box::new(UniqueFormalParameters { formals: fp }), after_fp)
     }
 }
 
@@ -118,7 +118,7 @@ impl PrettyPrint for FormalParameters {
 }
 
 impl FormalParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
         let pot_fpl = FormalParameterList::parse(parser, scanner, yield_flag, await_flag);
         let (fpl, after_fpl) = match pot_fpl {
             Err(_) => (None, scanner),
@@ -135,11 +135,11 @@ impl FormalParameters {
             Ok((f, s)) => (Some(f), s),
         };
         match (fpl, has_comma, frp) {
-            (Some(pl), true, Some(rp)) => Ok((Box::new(FormalParameters::ListRest(pl, rp)), after_frp)),
-            (Some(pl), true, None) => Ok((Box::new(FormalParameters::ListComma(pl)), after_comma)),
-            (Some(pl), false, _) => Ok((Box::new(FormalParameters::List(pl)), after_fpl)),
-            (None, false, Some(rp)) => Ok((Box::new(FormalParameters::Rest(rp)), after_frp)),
-            (None, false, None) | (None, true, _) => Ok((Box::new(FormalParameters::Empty), scanner)),
+            (Some(pl), true, Some(rp)) => (Box::new(FormalParameters::ListRest(pl, rp)), after_frp),
+            (Some(pl), true, None) => (Box::new(FormalParameters::ListComma(pl)), after_comma),
+            (Some(pl), false, _) => (Box::new(FormalParameters::List(pl)), after_fpl),
+            (None, false, Some(rp)) => (Box::new(FormalParameters::Rest(rp)), after_frp),
+            (None, false, None) | (None, true, _) => (Box::new(FormalParameters::Empty), scanner),
         }
     }
 }

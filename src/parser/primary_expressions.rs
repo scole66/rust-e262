@@ -966,20 +966,9 @@ impl PrettyPrint for PropertyName {
 
 impl PropertyName {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        match LiteralPropertyName::parse(parser, scanner) {
-            Ok((lpn, after_lpn)) => Ok((Box::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)),
-            Err(pe) => {
-                let err_lpn = Some(pe);
-
-                match ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag) {
-                    Ok((cpn, after_cpn)) => Ok((Box::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)),
-                    Err(pe) => {
-                        let err_cpn = Some(pe);
-                        Err(cmp::max_by(err_lpn, err_cpn, ParseError::compare_option).unwrap())
-                    }
-                }
-            }
-        }
+        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+            .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Box::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
+            .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Box::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
     }
 }
 
