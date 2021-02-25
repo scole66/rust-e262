@@ -49,7 +49,7 @@ function objects() {
 function z() {
   pushd ~/rustplay/rust-e262 > /dev/null
   rm -f res-*.profraw
-  RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test -j 1 "$@"
+  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test -j 1 "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
   cargo cov -- report --use-color --ignore-filename-regex='/.cargo/registry' --instr-profile=res.profdata $(objects)
   popd > /dev/null
