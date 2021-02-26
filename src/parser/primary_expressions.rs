@@ -1974,6 +1974,31 @@ mod tests {
         concise_check(&*node, "FunctionExpression: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
     }
     #[test]
+    fn primary_expression_test_generator() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 18);
+        assert!(matches!(node.kind, PrimaryExpressionKind::Generator(..)));
+        assert_eq!(node.is_function_definition(), true);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+        pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
+        concise_check(
+            &*node,
+            "GeneratorExpression: function * a ( b ) { c ; }",
+            vec![
+                "Keyword: function",
+                "Punctuator: *",
+                "IdentifierName: a",
+                "Punctuator: (",
+                "IdentifierName: b",
+                "Punctuator: )",
+                "Punctuator: {",
+                "ExpressionStatement: c ;",
+                "Punctuator: }",
+            ],
+        );
+    }
+    #[test]
     fn primary_expression_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
@@ -2014,6 +2039,11 @@ mod tests {
         pretty_error_validate(*item);
     }
     #[test]
+    fn primary_expression_test_prettyerrors_9() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
     fn primary_expression_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
@@ -2051,6 +2081,11 @@ mod tests {
     #[test]
     fn primary_expression_test_conciseerrors_8() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn primary_expression_test_conciseerrors_9() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
     }
 
