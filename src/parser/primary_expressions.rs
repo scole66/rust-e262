@@ -2000,9 +2000,7 @@ mod tests {
     }
     #[test]
     fn primary_expression_test_async_generator() {
-        let r = PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false);
-        println!("{:?}", r);
-        let (node, scanner) = check(r);
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
         chk_scan(&scanner, 24);
         assert!(matches!(node.kind, PrimaryExpressionKind::AsyncGenerator(..)));
         assert_eq!(node.is_function_definition(), true);
