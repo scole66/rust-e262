@@ -97,42 +97,61 @@ impl Expression {
                 Ok((current, current_scanner))
             })
         })
-
-        //let pot_left = AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        //match pot_left {
-        //    None => Ok(None),
-        //    Some((left, after_left)) => {
-        //        let mut current = Box::new(Expression::FallThru(left));
-        //        let mut current_scanner = after_left;
-        //        loop {
-        //            let (token, after_token) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-        //            match token {
-        //                Token::Punctuator(Punctuator::Comma) => {
-        //                    let pot_right = AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)?;
-        //                    match pot_right {
-        //                        None => {
-        //                            break;
-        //                        }
-        //                        Some((right, after_right)) => {
-        //                            current = Box::new(Expression::Comma(current, right));
-        //                            current_scanner = after_right;
-        //                        }
-        //                    }
-        //                }
-        //                _ => {
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        Ok(Some((current, current_scanner)))
-        //    }
-        //}
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // EXPRESSION
+    #[test]
+    fn expression_test_01() {
+        let (se, scanner) = check(Expression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*se, Expression::FallThru(_)));
+        pretty_check(&*se, "Expression: a", vec!["AssignmentExpression: a"]);
+        concise_check(&*se, "IdentifierName: a", vec![]);
+        format!("{:?}", se);
+        assert_eq!(se.is_function_definition(), false);
+        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn expression_test_02() {
+        let (se, scanner) = check(Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*se, Expression::Comma(..)));
+        pretty_check(&*se, "Expression: a , b", vec!["Expression: a", "AssignmentExpression: b"]);
+        concise_check(&*se, "Expression: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+        format!("{:?}", se);
+        assert_eq!(se.is_function_definition(), false);
+        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn expression_test_03() {
+        let (node, scanner) = check(Expression::parse(&mut newparser("a,"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 1);
+    }
+    #[test]
+    fn expression_test_prettyerrors_1() {
+        let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn expression_test_prettyerrors_2() {
+        let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn expression_test_conciseerrors_1() {
+        let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn expression_test_conciseerrors_2() {
+        let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+}
