@@ -10,7 +10,6 @@ edition = "2018"
 cc = "1.0"
 
 [dependencies]
-grcov = "0.5.15"
 num = "0.3"
 libc = "0.2"
 itertools = "0.10.0"
