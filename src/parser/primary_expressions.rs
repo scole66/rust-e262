@@ -303,6 +303,8 @@ impl PrimaryExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
             .otherwise(|| Self::parse_this(parser, scanner))
+            .otherwise(|| Self::parse_async_func(parser, scanner))
+            .otherwise(|| Self::parse_async_gen(parser, scanner))
             .otherwise(|| Self::parse_idref(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_literal(parser, scanner))
             .otherwise(|| Self::parse_array_literal(parser, scanner, yield_flag, await_flag))
@@ -312,8 +314,6 @@ impl PrimaryExpression {
             .otherwise(|| Self::parse_template_literal(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_class_exp(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_generator_exp(parser, scanner))
-            .otherwise(|| Self::parse_async_func(parser, scanner))
-            .otherwise(|| Self::parse_async_gen(parser, scanner))
             .otherwise(|| Self::parse_regex(parser, scanner))
     }
 }
@@ -1999,6 +1999,34 @@ mod tests {
         );
     }
     #[test]
+    fn primary_expression_test_async_generator() {
+        let r = PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false);
+        println!("{:?}", r);
+        let (node, scanner) = check(r);
+        chk_scan(&scanner, 24);
+        assert!(matches!(node.kind, PrimaryExpressionKind::AsyncGenerator(..)));
+        assert_eq!(node.is_function_definition(), true);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+        pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
+        concise_check(
+            &*node,
+            "AsyncGeneratorExpression: async function * a ( b ) { c ; }",
+            vec![
+                "Keyword: async",
+                "Keyword: function",
+                "Punctuator: *",
+                "IdentifierName: a",
+                "Punctuator: (",
+                "IdentifierName: b",
+                "Punctuator: )",
+                "Punctuator: {",
+                "ExpressionStatement: c ;",
+                "Punctuator: }",
+            ],
+        );
+    }
+    #[test]
     fn primary_expression_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
@@ -2044,6 +2072,11 @@ mod tests {
         pretty_error_validate(*item);
     }
     #[test]
+    fn primary_expression_test_prettyerrors_10() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
     fn primary_expression_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
@@ -2086,6 +2119,11 @@ mod tests {
     #[test]
     fn primary_expression_test_conciseerrors_9() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn primary_expression_test_conciseerrors_10() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
     }
 
