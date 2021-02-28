@@ -45,9 +45,37 @@ impl DebuggerStatement {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // DEBUGGER STATEMENT
+    #[test]
+    fn debugger_statement_test_01() {
+        let (se, scanner) = check(DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()));
+        chk_scan(&scanner, 9);
+        pretty_check(&*se, "DebuggerStatement: debugger ;", vec![]);
+        concise_check(&*se, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
+        format!("{:?}", se);
+    }
+    #[test]
+    fn debugger_statement_test_02() {
+        check_err(DebuggerStatement::parse(&mut newparser(""), Scanner::new()), "‘debugger’ expected", 1, 1);
+    }
+    #[test]
+    fn debugger_statement_test_03() {
+        check_err(DebuggerStatement::parse(&mut newparser("debugger"), Scanner::new()), "‘;’ expected", 1, 9);
+    }
+    #[test]
+    fn debugger_statement_test_prettyerrors_1() {
+        let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn debugger_statement_test_conciseerrors_1() {
+        let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
+        concise_error_validate(*item);
+    }
+}
