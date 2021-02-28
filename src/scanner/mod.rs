@@ -1,10 +1,10 @@
 pub mod ranges;
+use crate::strings::JSString;
 use crate::values::number_to_string;
 use num::bigint::BigInt;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
-use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ScanGoal {
@@ -12,67 +12,6 @@ pub enum ScanGoal {
     InputElementRegExp,
     InputElementTemplateTail,
     InputElementDiv,
-}
-
-#[derive(PartialEq, Clone)]
-pub struct JSString {
-    string: Rc<Vec<u16>>,
-}
-
-impl fmt::Debug for JSString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:?}", String::from_utf16_lossy(&self.string)))
-    }
-}
-
-impl fmt::Display for JSString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{}", String::from_utf16_lossy(&self.string)))
-    }
-}
-
-impl std::cmp::PartialEq<&str> for JSString {
-    fn eq(&self, other: &&str) -> bool {
-        let mut iter_vec = self.string.iter();
-        let mut iter_chars = (*other).chars();
-        loop {
-            let left = iter_vec.next();
-            let right = iter_chars.next();
-            if left.is_none() && right.is_none() {
-                return true;
-            }
-            if left.is_none() || right.is_none() {
-                return false;
-            }
-            if *(left.unwrap()) as u32 != right.unwrap() as u32 {
-                return false;
-            }
-        }
-    }
-}
-
-impl From<&str> for JSString {
-    fn from(source: &str) -> Self {
-        let mut result = Vec::with_capacity(source.len());
-        for val in source.encode_utf16() {
-            result.push(val);
-        }
-        JSString { string: Rc::new(result) }
-    }
-}
-
-impl From<&[u16]> for JSString {
-    fn from(source: &[u16]) -> Self {
-        let mut result = Vec::with_capacity(source.len());
-        result.extend_from_slice(source);
-        JSString { string: Rc::new(result) }
-    }
-}
-
-impl JSString {
-    pub fn take(source: Vec<u16>) -> JSString {
-        JSString { string: Rc::new(source) }
-    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -857,7 +796,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             result.append(&mut code_point_to_utf16_code_units(cp))
         }
     }
-    JSString { string: Rc::new(result) }
+    JSString::from(result)
 }
 
 fn keycomplete(source: &str, cmp: &str, kwd: Keyword) -> Option<Keyword> {
@@ -1591,7 +1530,7 @@ fn literal_string_value(source: &str) -> JSString {
         }
     }
 
-    JSString::take(result)
+    JSString::from(result)
 }
 
 fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
@@ -1815,10 +1754,10 @@ fn template_characters(scanner: &Scanner, source: &str) -> (Option<JSString>, JS
         let ch = chars.next();
         match ch {
             None | Some('`') => {
-                return (tv.map(|t| JSString::take(t)), JSString::take(trv), current_scanner);
+                return (tv.map(|t| JSString::from(t)), JSString::from(trv), current_scanner);
             }
             Some('$') if chars.peek() == Some(&'{') => {
-                return (tv.map(|t| JSString::take(t)), JSString::take(trv), current_scanner);
+                return (tv.map(|t| JSString::from(t)), JSString::from(trv), current_scanner);
             }
             Some('\\') => {
                 current_scanner.column += 1;

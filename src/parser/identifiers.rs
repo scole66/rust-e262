@@ -1,6 +1,7 @@
-use super::scanner::{scan_token, IdentifierData, JSString, Keyword, ScanGoal, Scanner, Token};
+use super::scanner::{scan_token, IdentifierData, Keyword, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use crate::strings::JSString;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;

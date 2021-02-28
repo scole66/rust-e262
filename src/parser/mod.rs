@@ -3,7 +3,8 @@ use std::cmp;
 use std::cmp::Ordering;
 
 use super::scanner;
-use super::scanner::{scan_token, IdentifierData, JSString, Keyword, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
+use crate::strings::JSString;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ParseGoal {

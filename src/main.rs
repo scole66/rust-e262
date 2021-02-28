@@ -8,6 +8,7 @@ mod dtoa_r;
 mod parser;
 mod prettyprint;
 mod scanner;
+mod strings;
 mod values;
 
 use parser::block::StatementList;
