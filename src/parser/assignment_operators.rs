@@ -154,78 +154,17 @@ impl AssignmentTargetType for AssignmentExpression {
 impl AssignmentExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<AssignmentExpression>, Scanner), ParseError> {
         Err(ParseError::new("AssignmentExpression expected", scanner.line, scanner.column))
-            //if yield_flag {
-            //    let pot_yield = YieldExpression::parse(parser, scanner, in_flag, await_flag)?;
-            //    if let Some((yieldexp, after_yield)) = pot_yield {
-            //        return Ok(Some((Box::new(AssignmentExpression::Yield(yieldexp)), after_yield)));
-            //    }
-            //}
             .otherwise(|| {
                 if yield_flag {
                     YieldExpression::parse(parser, scanner, in_flag, await_flag).and_then(|(yieldexp, after_yield)| Ok((Box::new(AssignmentExpression::Yield(yieldexp)), after_yield)))
                 } else {
-                    Err(ParseError::new("message should never appear", scanner.line, scanner.column))
+                    Err(ParseError::new(String::new(), scanner.line, scanner.column))
                 }
             })
-            //let pot_arrow = ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-            //if let Some((af, after_af)) = pot_arrow {
-            //    return Ok(Some((Box::new(AssignmentExpression::Arrow(af)), after_af)));
-            //}
             .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(af, after_af)| Ok((Box::new(AssignmentExpression::Arrow(af)), after_af))))
-            //let pot_asyncarrow = AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-            //if let Some((aaf, after_aaf)) = pot_asyncarrow {
-            //    return Ok(Some((Box::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf)));
-            //}
             .otherwise(|| {
                 AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(aaf, after_aaf)| Ok((Box::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf)))
             })
-            // let pot_lhs = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
-            // if let Some((lhs, after_lhs)) = pot_lhs {
-            //     let (op, after_op) = scan_token(&after_lhs, parser.source, ScanGoal::InputElementDiv);
-            //     if matches!(
-            //         &op,
-            //         Token::Punctuator(Punctuator::Eq)
-            //             | Token::Punctuator(Punctuator::AmpAmpEq)
-            //             | Token::Punctuator(Punctuator::PipePipeEq)
-            //             | Token::Punctuator(Punctuator::QQEq)
-            //             | Token::Punctuator(Punctuator::StarEq)
-            //             | Token::Punctuator(Punctuator::SlashEq)
-            //             | Token::Punctuator(Punctuator::PercentEq)
-            //             | Token::Punctuator(Punctuator::PlusEq)
-            //             | Token::Punctuator(Punctuator::MinusEq)
-            //             | Token::Punctuator(Punctuator::LtLtEq)
-            //             | Token::Punctuator(Punctuator::GtGtEq)
-            //             | Token::Punctuator(Punctuator::GtGtGtEq)
-            //             | Token::Punctuator(Punctuator::AmpEq)
-            //             | Token::Punctuator(Punctuator::PipeEq)
-            //             | Token::Punctuator(Punctuator::StarStarEq)
-            //             | Token::Punctuator(Punctuator::CaretEq)
-            //     ) {
-            //         let make_ae = match &op {
-            //             Token::Punctuator(Punctuator::Eq) => |lhs, ae| AssignmentExpression::Assignment(lhs, ae),
-            //             Token::Punctuator(Punctuator::AmpAmpEq) => |lhs, ae| AssignmentExpression::LandAssignment(lhs, ae),
-            //             Token::Punctuator(Punctuator::PipePipeEq) => |lhs, ae| AssignmentExpression::LorAssignment(lhs, ae),
-            //             Token::Punctuator(Punctuator::QQEq) => |lhs, ae| AssignmentExpression::CoalAssignment(lhs, ae),
-            //             Token::Punctuator(Punctuator::StarEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Multiply, ae),
-            //             Token::Punctuator(Punctuator::SlashEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Divide, ae),
-            //             Token::Punctuator(Punctuator::PercentEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Modulo, ae),
-            //             Token::Punctuator(Punctuator::PlusEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Add, ae),
-            //             Token::Punctuator(Punctuator::MinusEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Subtract, ae),
-            //             Token::Punctuator(Punctuator::LtLtEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::LeftShift, ae),
-            //             Token::Punctuator(Punctuator::GtGtEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::SignedRightShift, ae),
-            //             Token::Punctuator(Punctuator::GtGtGtEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::UnsignedRightShift, ae),
-            //             Token::Punctuator(Punctuator::AmpEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseAnd, ae),
-            //             Token::Punctuator(Punctuator::PipeEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseOr, ae),
-            //             Token::Punctuator(Punctuator::StarStarEq) => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae),
-            //             Token::Punctuator(Punctuator::CaretEq) | _ => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae),
-            //         };
-            //
-            //         let pot_ae = AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)?;
-            //         if let Some((ae, after_ae)) = pot_ae {
-            //             return Ok(Some((Box::new(make_ae(lhs, ae)), after_ae)));
-            //         }
-            //     }
-            // }
             .otherwise(|| {
                 LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(lhs, after_lhs)| {
                     scan_for_punct_set(
@@ -274,11 +213,6 @@ impl AssignmentExpression {
                     })
                 })
             })
-            // let pot_ce = ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-            // match pot_ce {
-            //     None => Ok(None),
-            //     Some((ce, after_ce)) => Ok(Some((Box::new(AssignmentExpression::FallThru(ce)), after_ce))),
-            // }
             .otherwise(|| {
                 ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(ce, after_ce)| Ok((Box::new(AssignmentExpression::FallThru(ce)), after_ce)))
             })
@@ -334,13 +268,413 @@ impl PrettyPrint for AssignmentOperator {
     where
         T: Write,
     {
-        self.pprint_with_leftpad(writer, pad, state)
+        pprint_token(writer, self, TokenType::Punctuator, pad, state)
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    #[test]
+    fn assignment_expression_test_01() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*node, AssignmentExpression::FallThru(..)));
+        pretty_check(&*node, "AssignmentExpression: a", vec!["ConditionalExpression: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn assignment_expression_test_02() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("yield a"), Scanner::new(), true, true, false));
+        chk_scan(&scanner, 7);
+        assert!(matches!(&*node, AssignmentExpression::Yield(..)));
+        pretty_check(&*node, "AssignmentExpression: yield a", vec!["YieldExpression: yield a"]);
+        concise_check(&*node, "YieldExpression: yield a", vec!["Keyword: yield", "IdentifierName: a"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_03() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::Arrow(..)));
+        pretty_check(&*node, "AssignmentExpression: a => a", vec!["ArrowFunction: a => a"]);
+        concise_check(&*node, "ArrowFunction: a => a", vec!["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
+        format!("{:?}", node);
+        assert!(node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_04() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*node, AssignmentExpression::Assignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a = b", vec!["LeftHandSideExpression: a", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a = b", vec!["IdentifierName: a", "Punctuator: =", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_05() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a *= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: *=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a *= b", vec!["IdentifierName: a", "Punctuator: *=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_06() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a/=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a /= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: /=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a /= b", vec!["IdentifierName: a", "Punctuator: /=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_07() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a%=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a %= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: %=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a %= b", vec!["IdentifierName: a", "Punctuator: %=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_08() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a+=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a += b", vec!["LeftHandSideExpression: a", "AssignmentOperator: +=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a += b", vec!["IdentifierName: a", "Punctuator: +=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_09() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a-=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a -= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: -=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a -= b", vec!["IdentifierName: a", "Punctuator: -=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_10() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a<<=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a <<= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: <<=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a <<= b", vec!["IdentifierName: a", "Punctuator: <<=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_11() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a>>=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a >>= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: >>=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a >>= b", vec!["IdentifierName: a", "Punctuator: >>=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_12() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a>>>=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a >>>= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: >>>=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a >>>= b", vec!["IdentifierName: a", "Punctuator: >>>=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_13() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a&=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a &= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: &=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a &= b", vec!["IdentifierName: a", "Punctuator: &=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_14() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a^=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a ^= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: ^=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a ^= b", vec!["IdentifierName: a", "Punctuator: ^=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_15() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a|=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a |= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: |=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a |= b", vec!["IdentifierName: a", "Punctuator: |=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_16() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a **= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: **=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a **= b", vec!["IdentifierName: a", "Punctuator: **=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_17() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a&&=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::LandAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a &&= b", vec!["LeftHandSideExpression: a", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a &&= b", vec!["IdentifierName: a", "Punctuator: &&=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_18() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a||=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::LorAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a ||= b", vec!["LeftHandSideExpression: a", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a ||= b", vec!["IdentifierName: a", "Punctuator: ||=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_19() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a??=b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        assert!(matches!(&*node, AssignmentExpression::CoalAssignment(..)));
+        pretty_check(&*node, "AssignmentExpression: a ??= b", vec!["LeftHandSideExpression: a", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a ??= b", vec!["IdentifierName: a", "Punctuator: ??=", "IdentifierName: b"]);
+        format!("{:?}", node);
+        assert!(!node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_1() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_2() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("yield a"), Scanner::new(), true, true, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_3() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_4() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_5() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_6() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a/=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_7() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a%=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_8() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a+=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_9() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a-=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_10() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a<<=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_11() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a>>=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_12() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a>>>=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_13() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a&=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_14() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a^=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_15() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a|=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_16() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_17() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a&&=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_18() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a||=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_prettyerrors_19() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a??=b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_1() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_2() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("yield a"), Scanner::new(), true, true, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_3() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_4() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_5() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_6() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a/=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_7() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a%=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_8() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a+=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_9() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a-=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_10() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a<<=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_11() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a>>=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_12() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a>>>=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_13() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a&=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_14() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a^=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_15() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a|=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_16() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_17() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a&&=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_18() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a||=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_19() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a??=b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+}
