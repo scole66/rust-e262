@@ -5,6 +5,7 @@ use std::io::Write;
 use super::assignment_operators::AssignmentExpression;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
+use super::parameter_lists::UniqueFormalParameters;
 use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterList;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
@@ -62,7 +63,7 @@ impl ArrowFunction {
 #[derive(Debug)]
 pub enum ArrowParameters {
     Identifier(Box<BindingIdentifier>),
-    Formals(Box<CoverParenthesizedExpressionAndArrowParameterList>),
+    Formals(Box<ArrowFormalParameters>),
 }
 
 impl fmt::Display for ArrowParameters {
@@ -103,9 +104,56 @@ impl ArrowParameters {
         Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
             .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).and_then(|(bi, after_bi)| Ok((Box::new(ArrowParameters::Identifier(bi)), after_bi))))
             .otherwise(|| {
-                CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)
-                    .and_then(|(formals, after_formals)| Ok((Box::new(ArrowParameters::Formals(formals)), after_formals)))
+                let (covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
+                let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
+                if after_formals != after_reparse {
+                    Err(ParseError::new("‘)’ expected", after_reparse.line, after_reparse.column))
+                } else {
+                    Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
+                }
             })
+    }
+}
+
+// ArrowFormalParameters[Yield, Await] :
+//      ( UniqueFormalParameters[?Yield, ?Await] )
+#[derive(Debug)]
+pub struct ArrowFormalParameters(Box<UniqueFormalParameters>);
+
+impl fmt::Display for ArrowFormalParameters {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "( {} )", self.0)
+    }
+}
+
+impl PrettyPrint for ArrowFormalParameters {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ArrowFormalParameters: {}", first, self)?;
+        pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        self.0.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
+    }
+}
+
+impl ArrowFormalParameters {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+        let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
+        let after_rp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        Ok((Box::new(ArrowFormalParameters(params)), after_rp))
     }
 }
 
@@ -167,23 +215,6 @@ impl ConciseBody {
             }
             Err(_) => ExpressionBody::parse(parser, scanner, in_flag, false).and_then(|(exp, after_exp)| Ok((Box::new(ConciseBody::Expression(exp)), after_exp))),
         }
-
-        // let (curly, after_curly) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        // if curly.matches_punct(Punctuator::LeftBrace) {
-        //     let pot_fb = FunctionBody::parse(parser, after_curly, in_flag, false)?;
-        //     if let Some((fb, after_fb)) = pot_fb {
-        //         let (rt_curly, after_rt) = scan_token(&after_fb, parser.source, ScanGoal::InputElementDiv);
-        //         if rt_curly.matches_punct(Punctuator::RightBrace) {
-        //             return Ok(Some((Box::new(ConciseBody::Function(fb)), after_rt)));
-        //         }
-        //     }
-        // } else {
-        //     let pot_exp = ExpressionBody::parse(parser, scanner, in_flag, false)?;
-        //     if let Some((exp, after_exp)) = pot_exp {
-        //         return Ok(Some((Box::new(ConciseBody::Expression(exp)), after_exp)));
-        //     }
-        // }
-        // Ok(None)
     }
 }
 

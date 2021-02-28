@@ -274,7 +274,7 @@ impl PrettyPrint for AssignmentOperator {
 
 #[cfg(test)]
 mod tests {
-    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::testhelp::{check, chk_scan, newparser};
     use super::*;
     use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 
@@ -307,6 +307,17 @@ mod tests {
         assert!(matches!(&*node, AssignmentExpression::Arrow(..)));
         pretty_check(&*node, "AssignmentExpression: a => a", vec!["ArrowFunction: a => a"]);
         concise_check(&*node, "ArrowFunction: a => a", vec!["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
+        format!("{:?}", node);
+        assert!(node.is_function_definition());
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
+    fn assignment_expression_test_031() {
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(&*node, AssignmentExpression::AsyncArrow(..)));
+        pretty_check(&*node, "AssignmentExpression: async a => a", vec!["AsyncArrowFunction: async a => a"]);
+        concise_check(&*node, "AsyncArrowFunction: async a => a", vec!["Keyword: async", "IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
         format!("{:?}", node);
         assert!(node.is_function_definition());
         assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
@@ -503,6 +514,11 @@ mod tests {
         pretty_error_validate(*item);
     }
     #[test]
+    fn assignment_expression_test_prettyerrors_31() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
     fn assignment_expression_test_prettyerrors_4() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(*item);
@@ -595,6 +611,11 @@ mod tests {
     #[test]
     fn assignment_expression_test_conciseerrors_3() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn assignment_expression_test_conciseerrors_31() {
+        let (item, _) = AssignmentExpression::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(*item);
     }
     #[test]

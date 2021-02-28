@@ -1,6 +1,7 @@
 pub mod ranges;
 use crate::values::number_to_string;
 use num::bigint::BigInt;
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
 use std::rc::Rc;
@@ -399,6 +400,24 @@ impl Scanner {
         Scanner { line: 1, column: 1, start_idx: 0 }
     }
 }
+impl PartialOrd for Scanner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.line < other.line {
+            Some(Ordering::Less)
+        } else if self.line > other.line {
+            Some(Ordering::Greater)
+        } else {
+            if self.column < other.column {
+                Some(Ordering::Less)
+            } else if self.column > other.column {
+                Some(Ordering::Greater)
+            } else {
+                Some(Ordering::Equal)
+            }
+        }
+    }
+}
+
 fn is_lineterm(ch: char) -> bool {
     ch == '\x0a' || ch == '\x0d' || ch == '\u{2028}' || ch == '\u{2029}'
 }

@@ -109,6 +109,44 @@ impl AsyncFunctionExpression {
     }
 }
 
+#[derive(Debug)]
+pub enum AsyncFunctionBody {}
+
+impl fmt::Display for AsyncFunctionBody {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "unimplemented")
+    }
+}
+
+impl PrettyPrint for AsyncFunctionBody {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, _successive) = prettypad(pad, state);
+        writeln!(writer, "{}AsyncFunctionBody: {}", first, self)
+    }
+
+    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        todo!()
+    }
+}
+
+impl IsFunctionDefinition for AsyncFunctionBody {
+    fn is_function_definition(&self) -> bool {
+        true
+    }
+}
+
+impl AsyncFunctionBody {
+    pub fn parse(_parser: &mut Parser, scanner: Scanner) -> (Box<Self>, Scanner) {
+        todo!()
+    }
+}
+
 // AwaitExpression[Yield] :
 //      await UnaryExpression[?Yield, +Await]
 #[derive(Debug)]
