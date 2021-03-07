@@ -98,15 +98,13 @@ impl PrettyPrint for Block {
 
 impl Block {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_tok| {
-            let (err, sl, after_sl_scan) = match StatementList::parse(parser, after_tok, yield_flag, await_flag, return_flag) {
-                Err(err) => (err, None, after_tok),
-                Ok((node, after)) => (ParseError::new("", 1, 1), Some(node), after),
-            };
-            scan_for_punct(after_sl_scan, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                .and_then(|after_close| Ok((Box::new(Block::Statements(sl)), after_close)))
-                .otherwise(|| Err(err))
-        })
+        let after_lb = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let (sl, after_sl) = match StatementList::parse(parser, after_lb, yield_flag, await_flag, return_flag) {
+            Err(_) => (None, after_lb),
+            Ok((node, scan)) => (Some(node), scan),
+        };
+        let after_rb = scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Box::new(Block::Statements(sl)), after_rb))
     }
 }
 
@@ -161,22 +159,21 @@ impl PrettyPrint for StatementList {
 
 impl StatementList {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag).and_then(|(item, after_item)| {
-            let mut current = Box::new(StatementList::Item(item));
-            let mut current_scanner = after_item;
-            loop {
-                match StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
-                    Err(_) => {
-                        break;
-                    }
-                    Ok((next, after_next)) => {
-                        current = Box::new(StatementList::List(current, next));
-                        current_scanner = after_next;
-                    }
+        let (item, after_item) = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+        let mut current = Box::new(StatementList::Item(item));
+        let mut current_scanner = after_item;
+        loop {
+            match StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+                Err(_) => {
+                    break;
+                }
+                Ok((next, after_next)) => {
+                    current = Box::new(StatementList::List(current, next));
+                    current_scanner = after_next;
                 }
             }
-            Ok((current, current_scanner))
-        })
+        }
+        Ok((current, current_scanner))
     }
 }
 
@@ -226,15 +223,168 @@ impl StatementListItem {
         Err(ParseError::new("Declaration or Statement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)
-                    .and_then(|(statement, after_statement)| Ok((Box::new(StatementListItem::Statement(statement)), after_statement)))
+                    .map(|(statement, after_statement)| (Box::new(StatementListItem::Statement(statement)), after_statement))
             })
-            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).and_then(|(decl, after_decl)| Ok((Box::new(StatementListItem::Declaration(decl)), after_decl))))
+            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Box::new(StatementListItem::Declaration(decl)), after_decl)))
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // BLOCK STATEMENT
+    #[test]
+    fn block_statement_test_01() {
+        let (node, scanner) = check(BlockStatement::parse(&mut newparser("{q;}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 4);
+        pretty_check(&*node, "BlockStatement: { q ; }", vec!["Block: { q ; }"]);
+        concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn block_statement_test_err_01() {
+        check_err(BlockStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘{’ expected", 1, 1);
+    }
+    #[test]
+    fn block_statement_test_prettyerrors_1() {
+        let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn block_statement_test_conciseerrors_1() {
+        let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // BLOCK
+    #[test]
+    fn block_test_01() {
+        let (node, scanner) = check(Block::parse(&mut newparser("{q;}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 4);
+        pretty_check(&*node, "Block: { q ; }", vec!["StatementList: q ;"]);
+        concise_check(&*node, "Block: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn block_test_02() {
+        let (node, scanner) = check(Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 2);
+        pretty_check(&*node, "Block: { }", vec![]);
+        concise_check(&*node, "Block: { }", vec!["Punctuator: {", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn block_test_err_01() {
+        check_err(Block::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘{’ expected", 1, 1);
+    }
+    #[test]
+    fn block_test_err_02() {
+        check_err(Block::parse(&mut newparser("{"), Scanner::new(), false, false, true), "‘}’ expected", 1, 2);
+    }
+    #[test]
+    fn block_test_prettyerrors_1() {
+        let (item, _) = Block::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn block_test_prettyerrors_2() {
+        let (item, _) = Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn block_test_conciseerrors_1() {
+        let (item, _) = Block::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn block_test_conciseerrors_2() {
+        let (item, _) = Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // STATEMENT LIST
+    #[test]
+    fn statement_list_test_01() {
+        let (node, scanner) = check(StatementList::parse(&mut newparser("a;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 2);
+        pretty_check(&*node, "StatementList: a ;", vec!["StatementListItem: a ;"]);
+        concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_list_test_02() {
+        let (node, scanner) = check(StatementList::parse(&mut newparser("a; b;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 5);
+        pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementList: a ;", "StatementListItem: b ;"]);
+        concise_check(&*node, "StatementList: a ; b ;", vec!["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_list_test_err_01() {
+        check_err(StatementList::parse(&mut newparser(""), Scanner::new(), false, false, true), "Declaration or Statement expected", 1, 1);
+    }
+    #[test]
+    fn statement_list_test_prettyerrors_1() {
+        let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_test_prettyerrors_2() {
+        let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_test_conciseerrors_1() {
+        let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_test_conciseerrors_2() {
+        let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+    // STATEMENT LIST ITEM
+    #[test]
+    fn statement_list_item_test_01() {
+        let (node, scanner) = check(StatementListItem::parse(&mut newparser("a;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 2);
+        pretty_check(&*node, "StatementListItem: a ;", vec!["Statement: a ;"]);
+        concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_list_item_test_02() {
+        let (node, scanner) = check(StatementListItem::parse(&mut newparser("let a;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 6);
+        pretty_check(&*node, "StatementListItem: let a ;", vec!["Declaration: let a ;"]);
+        concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_list_item_test_err_01() {
+        check_err(StatementListItem::parse(&mut newparser(""), Scanner::new(), false, false, true), "Declaration or Statement expected", 1, 1);
+    }
+    #[test]
+    fn statement_list_item_test_prettyerrors_1() {
+        let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_item_test_prettyerrors_2() {
+        let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_item_test_conciseerrors_1() {
+        let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn statement_list_item_test_conciseerrors_2() {
+        let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(*item);
+    }
+}
