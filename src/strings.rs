@@ -21,6 +21,12 @@ pub struct JSString {
     s: Spur,
 }
 
+impl JSString {
+    fn words<'a>(&self, pool: &'a Rodeo<Spur>) -> CharToU16Iterator<'a> {
+        CharToU16Iterator::new(pool.resolve(&self.s))
+    }
+}
+
 struct CharToU16Iterator<'a> {
     source: EncodeUtf16<'a>,
 }
@@ -161,10 +167,93 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_u16_test() {
+    fn from_u16_test_01() {
         let src: &[u16] = &[66, 111, 98]; // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
         assert_eq!(display, "Bob");
+        STRING_POOL.with(|sp| {
+            let pool = sp.borrow();
+            let words: Vec<u16> = res.words(&pool).collect();
+            assert_eq!(words, src);
+        })
+    }
+
+    #[test]
+    fn from_u16_test_02() {
+        let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert_eq!(display, "\u{0101}\u{E00D}\u{0C67}\u{E00E}\u{000D}\u{1111}\u{E00E}\u{000E}");
+        STRING_POOL.with(|sp| {
+            let pool = sp.borrow();
+            let words: Vec<u16> = res.words(&pool).collect();
+            assert_eq!(words, src);
+        })
+    }
+
+    #[test]
+    fn from_vec_test_01() {
+        let src: Vec<u16> = vec![66, 111, 98]; // Bob
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert_eq!(display, "Bob");
+        STRING_POOL.with(|sp| {
+            let pool = sp.borrow();
+            let words: Vec<u16> = res.words(&pool).collect();
+            assert_eq!(words, &[66, 111, 98]);
+        })
+    }
+
+    #[test]
+    fn from_str_test_01() {
+        let src: &str = "Bob"; // Bob
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert_eq!(display, "Bob");
+        STRING_POOL.with(|sp| {
+            let pool = sp.borrow();
+            let words: Vec<u16> = res.words(&pool).collect();
+            assert_eq!(words, &[66, 111, 98]);
+        })
+    }
+    #[test]
+    fn from_string_test_01() {
+        let src: String = String::from("Bob"); // Bob
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert_eq!(display, "Bob");
+        STRING_POOL.with(|sp| {
+            let pool = sp.borrow();
+            let words: Vec<u16> = res.words(&pool).collect();
+            assert_eq!(words, &[66, 111, 98]);
+        })
+    }
+    #[test]
+    fn debug_repr_test_01() {
+        let jsstr = JSString::from("hello");
+        let debug_str = format!("{:?}", jsstr);
+        assert_eq!(debug_str, "\"hello\"");
+    }
+    #[test]
+    fn equality_test_01() {
+        let s1 = JSString::from("blue");
+        let s2 = JSString::from("orange");
+        let s3 = JSString::from("blue");
+        assert_eq!(s1, s3);
+        assert_ne!(s1, s2);
+        assert_ne!(s2, s3);
+        assert_eq!(s1, "blue");
+        assert_eq!(s2, "orange");
+        assert_ne!(s1, "elephant");
+        assert_ne!(s1, "orange");
+    }
+
+    #[test]
+    fn iterator_test_01() {
+        let mystr = "blue\u{E00E}";
+        let i = CharToU16Iterator::new(mystr);
+        let res: Vec<u16> = i.collect();
+        assert_eq!(res, &[98, 108, 117, 101, 0xe00e]);
     }
 }
