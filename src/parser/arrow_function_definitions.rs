@@ -51,6 +51,7 @@ impl PrettyPrint for ArrowFunction {
 impl ArrowFunction {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
+        no_line_terminator(after_params, parser.source)?;
         let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((Box::new(ArrowFunction { parameters, body }), after_body))
@@ -106,11 +107,20 @@ impl ArrowParameters {
             .otherwise(|| {
                 let (covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
-                if after_formals != after_reparse {
-                    Err(ParseError::new("‘)’ expected", after_reparse.line, after_reparse.column))
-                } else {
-                    Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
-                }
+
+                // This is only a successful cover if the parsed production and its cover end at the same place. But
+                // particular cover is all about balanced parenthses. Since both productions require starting and ending
+                // with parentheses and they also both require correct nesting of parentheses, it's actually impossible
+                // for "after_formals" and "after_reparse" to be different. (Which means I can never get coverage with
+                // the "make an error if they're different" case.) So rather than do that, I'll just debug_assert.
+
+                // if after_formals != after_reparse {
+                //     Err(ParseError::new("‘)’ expected", after_reparse.line, after_reparse.column))
+                // } else {
+                //     Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
+                // }
+                debug_assert!(after_formals == after_reparse);
+                Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
             })
     }
 }
@@ -152,7 +162,7 @@ impl ArrowFormalParameters {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
-        let after_rp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         Ok((Box::new(ArrowFormalParameters(params)), after_rp))
     }
 }
@@ -207,14 +217,23 @@ impl PrettyPrint for ConciseBody {
 
 impl ConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        match scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace) {
-            Ok(after_curly) => {
+        Err(ParseError::new("ConciseBody expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
                 let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Box::new(ConciseBody::Function(fb)), after_rb))
-            }
-            Err(_) => ExpressionBody::parse(parser, scanner, in_flag, false).and_then(|(exp, after_exp)| Ok((Box::new(ConciseBody::Expression(exp)), after_exp))),
-        }
+            })
+            .otherwise(|| {
+                let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
+                match r {
+                    Err(_) => {
+                        let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
+                        Ok((Box::new(ConciseBody::Expression(exp)), after_exp))
+                    }
+                    Ok(_) => Err(ParseError::new("ExpressionBody expected", scanner.line, scanner.column)),
+                }
+            })
     }
 }
 
@@ -256,9 +275,203 @@ impl ExpressionBody {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // ARROW FUNCTION
+    #[test]
+    fn arrow_function_test_01() {
+        let (node, scanner) = check(ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
+        pretty_check(&*node, "ArrowFunction: a => a", vec!["ArrowParameters: a", "ConciseBody: a"]);
+        concise_check(&*node, "ArrowFunction: a => a", vec!["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn arrow_function_test_02() {
+        check_err(ArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false), "Identifier or Formal Parameters expected", 1, 1);
+    }
+    #[test]
+    fn arrow_function_test_03() {
+        check_err(ArrowFunction::parse(&mut newparser("a"), Scanner::new(), true, false, false), "‘=>’ expected", 1, 2);
+    }
+    #[test]
+    fn arrow_function_test_04() {
+        check_err(ArrowFunction::parse(&mut newparser("a=>"), Scanner::new(), true, false, false), "ConciseBody expected", 1, 4);
+    }
+    #[test]
+    fn arrow_function_test_05() {
+        check_err(ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 2);
+    }
+    #[test]
+    fn arrow_function_test_prettyerrors_1() {
+        let (item, _) = ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn arrow_function_test_conciseerrors_1() {
+        let (item, _) = ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // ARROW PARAMETERS
+    #[test]
+    fn arrow_parameters_test_01() {
+        let (node, scanner) = check(ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*node, ArrowParameters::Identifier(..)));
+        pretty_check(&*node, "ArrowParameters: a", vec!["BindingIdentifier: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn arrow_parameters_test_02() {
+        let r = ArrowParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false);
+        let (node, scanner) = check(r);
+        chk_scan(&scanner, 3);
+        assert!(matches!(&*node, ArrowParameters::Formals(..)));
+        pretty_check(&*node, "ArrowParameters: ( a )", vec!["ArrowFormalParameters: ( a )"]);
+        concise_check(&*node, "ArrowFormalParameters: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn arrow_parameters_test_err_01() {
+        check_err(ArrowParameters::parse(&mut newparser(""), Scanner::new(), false, false), "Identifier or Formal Parameters expected", 1, 1);
+    }
+    #[test]
+    fn arrow_parameters_test_err_02() {
+        check_err(ArrowParameters::parse(&mut newparser("("), Scanner::new(), false, false), "Expression, spread pattern, or closing paren expected", 1, 2);
+    }
+    #[test]
+    fn arrow_parameters_test_err_03() {
+        check_err(ArrowParameters::parse(&mut newparser("(a"), Scanner::new(), false, false), "‘)’ expected", 1, 3);
+    }
+    #[test]
+    fn arrow_parameters_test_err_04() {
+        check_err(ArrowParameters::parse(&mut newparser("(5 ** 3)"), Scanner::new(), false, false), "‘)’ expected", 1, 2);
+    }
+    #[test]
+    fn arrow_parameters_test_prettyerrors_1() {
+        let (item, _) = ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn arrow_parameters_test_prettyerrors_2() {
+        let (item, _) = ArrowParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn arrow_parameters_test_conciseerrors_1() {
+        let (item, _) = ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn arrow_parameters_test_conciseerrors_2() {
+        let (item, _) = ArrowParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // CONCISE BODY
+    #[test]
+    fn concise_body_test_01() {
+        let (node, scanner) = check(ConciseBody::parse(&mut newparser("a"), Scanner::new(), true));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*node, ConciseBody::Expression(..)));
+        pretty_check(&*node, "ConciseBody: a", vec!["ExpressionBody: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn concise_body_test_02() {
+        let (node, scanner) = check(ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true));
+        println!("node = {:?}", node);
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, ConciseBody::Function(..)));
+        pretty_check(&*node, "ConciseBody: { q ; }", vec!["FunctionBody: q ;"]);
+        concise_check(&*node, "ConciseBody: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn concise_body_test_err_01() {
+        check_err(ConciseBody::parse(&mut newparser(""), Scanner::new(), true), "ConciseBody expected", 1, 1);
+    }
+    #[test]
+    fn concise_body_test_err_02() {
+        check_err(ConciseBody::parse(&mut newparser("{"), Scanner::new(), true), "‘}’ expected", 1, 2);
+    }
+    #[test]
+    fn concise_body_test_prettyerrors_1() {
+        let (item, _) = ConciseBody::parse(&mut newparser("a"), Scanner::new(), true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn concise_body_test_prettyerrors_2() {
+        let (item, _) = ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn concise_body_test_conciseerrors_1() {
+        let (item, _) = ConciseBody::parse(&mut newparser("a"), Scanner::new(), true).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn concise_body_test_conciseerrors_2() {
+        let (item, _) = ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // EXPRESSION BODY
+    #[test]
+    fn expression_body_test_01() {
+        let (node, scanner) = check(ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false));
+        chk_scan(&scanner, 1);
+        pretty_check(&*node, "ExpressionBody: a", vec!["AssignmentExpression: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn expression_body_test_err_01() {
+        check_err(ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false), "AssignmentExpression expected", 1, 1);
+    }
+    #[test]
+    fn expression_body_test_prettyerrors_1() {
+        let (item, _) = ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn expression_body_test_conciseerrors_1() {
+        let (item, _) = ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // ARROW FORMAL PARAMETERS
+    #[test]
+    fn arrow_formal_parameters_test_01() {
+        let (node, scanner) = check(ArrowFormalParameters::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        pretty_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["UniqueFormalParameters: a , b"]);
+        concise_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn arrow_formal_parameters_test_err_01() {
+        check_err(ArrowFormalParameters::parse(&mut newparser(""), Scanner::new(), false, false), "‘(’ expected", 1, 1);
+    }
+    #[test]
+    fn arrow_formal_parameters_test_err_02() {
+        check_err(ArrowFormalParameters::parse(&mut newparser("("), Scanner::new(), false, false), "‘)’ expected", 1, 2);
+    }
+    #[test]
+    fn arrow_formal_parameters_test_prettyerrors_1() {
+        let (item, _) = ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn arrow_formal_parameters_test_conciseerrors_1() {
+        let (item, _) = ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+}
