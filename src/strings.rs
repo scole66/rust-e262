@@ -171,11 +171,13 @@ mod tests {
         let src: &[u16] = &[66, 111, 98]; // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
-        assert_eq!(display, "Bob");
+        //assert_eq!(display, "Bob");
+        assert!(display == "Bob");
         STRING_POOL.with(|sp| {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
-            assert_eq!(words, src);
+            //assert_eq!(words, src);
+            assert!(words == src);
         })
     }
 
@@ -184,11 +186,13 @@ mod tests {
         let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
         let res = JSString::from(src);
         let display = format!("{}", res);
-        assert_eq!(display, "\u{0101}\u{E00D}\u{0C67}\u{E00E}\u{000D}\u{1111}\u{E00E}\u{000E}");
+        //assert_eq!(display, "\u{0101}\u{E00D}\u{0C67}\u{E00E}\u{000D}\u{1111}\u{E00E}\u{000E}");
+        assert!(display == "\u{0101}\u{E00D}\u{0C67}\u{E00E}\u{000D}\u{1111}\u{E00E}\u{000E}");
         STRING_POOL.with(|sp| {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
-            assert_eq!(words, src);
+            //assert_eq!(words, src);
+            assert!(words == src);
         })
     }
 
@@ -197,11 +201,13 @@ mod tests {
         let src: Vec<u16> = vec![66, 111, 98]; // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
-        assert_eq!(display, "Bob");
+        //assert_eq!(display, "Bob");
+        assert!(display == "Bob");
         STRING_POOL.with(|sp| {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
-            assert_eq!(words, &[66, 111, 98]);
+            //assert_eq!(words, &[66, 111, 98]);
+            assert!(words == &[66, 111, 98]);
         })
     }
 
@@ -210,11 +216,13 @@ mod tests {
         let src: &str = "Bob"; // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
-        assert_eq!(display, "Bob");
+        //assert_eq!(display, "Bob");
+        assert!(display == "Bob");
         STRING_POOL.with(|sp| {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
-            assert_eq!(words, &[66, 111, 98]);
+            //assert_eq!(words, &[66, 111, 98]);
+            assert!(words == &[66, 111, 98]);
         })
     }
     #[test]
@@ -222,31 +230,35 @@ mod tests {
         let src: String = String::from("Bob"); // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
-        assert_eq!(display, "Bob");
+        //assert_eq!(display, "Bob");
+        assert!(display == "Bob");
         STRING_POOL.with(|sp| {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
-            assert_eq!(words, &[66, 111, 98]);
+            //assert_eq!(words, &[66, 111, 98]);
+            assert!(words == &[66, 111, 98]);
         })
     }
     #[test]
     fn debug_repr_test_01() {
         let jsstr = JSString::from("hello");
         let debug_str = format!("{:?}", jsstr);
-        assert_eq!(debug_str, "\"hello\"");
+        //assert_eq!(debug_str, "\"hello\"");
+        assert!(debug_str == "\"hello\"");
     }
     #[test]
     fn equality_test_01() {
         let s1 = JSString::from("blue");
         let s2 = JSString::from("orange");
         let s3 = JSString::from("blue");
-        assert_eq!(s1, s3);
-        assert_ne!(s1, s2);
-        assert_ne!(s2, s3);
-        assert_eq!(s1, "blue");
-        assert_eq!(s2, "orange");
-        assert_ne!(s1, "elephant");
-        assert_ne!(s1, "orange");
+        assert!(s1 == s3);
+        assert!(s1 != s2);
+        assert!(s2 != s3);
+        assert!(s1 == "blue");
+        assert!(s2 == "orange");
+        assert!(s1 != "elephant");
+        //assert_ne!(s1, "orange");
+        assert!(s1 != "orange");
     }
 
     #[test]
@@ -254,6 +266,14 @@ mod tests {
         let mystr = "blue\u{E00E}";
         let i = CharToU16Iterator::new(mystr);
         let res: Vec<u16> = i.collect();
-        assert_eq!(res, &[98, 108, 117, 101, 0xe00e]);
+        //assert_eq!(res, &[98, 108, 117, 101, 0xe00e]);
+        assert!(res == &[98, 108, 117, 101, 0xe00e]);
+    }
+
+    #[test]
+    fn clone_test() {
+        let s1 = JSString::from("crocodile");
+        let s2 = s1.clone();
+        assert!(s1 == s2);
     }
 }
