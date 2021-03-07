@@ -85,38 +85,25 @@ impl AsyncArrowFunction {
         in_flag: bool,
         yield_flag: bool,
         await_flag: bool,
-    ) -> Result<(Box<CoverCallExpressionAndAsyncArrowHead>, Scanner, Box<AsyncConciseBody>, Scanner), ParseError> {
+    ) -> Result<(Box<AsyncArrowHead>, Scanner, Box<AsyncConciseBody>, Scanner), ParseError> {
         let (cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
+        let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
+        assert!(after_params == after_reals);
         no_line_terminator(after_params, parser.source)?;
         let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
-        Ok((cceaaah, after_params, body, after_body))
-    }
-    fn reparse(parser: &mut Parser, start: Scanner, after: Scanner) -> Result<Box<AsyncArrowHead>, ParseError> {
-        let (real_params, after_reals) = AsyncArrowHead::parse(parser, start)?;
-        if after_reals != after {
-            Err(ParseError::new("‘)’ expected", after_reals.line, after_reals.column))
-        } else {
-            Ok(real_params)
-        }
+        Ok((real_params, after_params, body, after_body))
     }
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag, await_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
             (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError::compare)),
-            (Err(_), Ok((params, after_params, body, after_covered))) => {
-                let real_params = Self::reparse(parser, scanner, after_params)?;
-                Ok((Box::new(AsyncArrowFunction::Formals(real_params, body)), after_covered))
-            }
-            (Ok(norm), Err(_)) => Ok(norm),
-            (Ok((normal, after_normal)), Ok((params, after_params, body, after_covered))) => {
-                if after_normal >= after_covered {
-                    Ok((normal, after_normal))
-                } else {
-                    let real_params = Self::reparse(parser, scanner, after_params)?;
-                    Ok((Box::new(AsyncArrowFunction::Formals(real_params, body)), after_covered))
-                }
+            (Err(_), Ok((real_params, after_params, body, after_covered))) => Ok((Box::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
+            // (Ok(norm), Ok(covered)) can never happen, given the particulars of the productions
+            (norm, covered) => {
+                assert!(covered.is_err() && norm.is_ok());
+                norm
             }
         }
     }
@@ -213,17 +200,23 @@ impl PrettyPrint for AsyncConciseBody {
 
 impl AsyncConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        match scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace) {
-            Ok(after_curly) => {
+        Err(ParseError::new("AsyncConciseBody expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
                 let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Box::new(AsyncConciseBody::Function(fb)), after_rb))
-            }
-            Err(_) => {
-                let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, true)?;
-                Ok((Box::new(AsyncConciseBody::Expression(exp)), after_exp))
-            }
-        }
+            })
+            .otherwise(|| {
+                let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
+                match r {
+                    Err(_) => {
+                        let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, true)?;
+                        Ok((Box::new(AsyncConciseBody::Expression(exp)), after_exp))
+                    }
+                    Ok(_) => Err(ParseError::new(String::new(), scanner.line, scanner.column)),
+                }
+            })
     }
 }
 
@@ -307,9 +300,228 @@ impl CoverCallExpressionAndAsyncArrowHead {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // ASYNC ARROW FUNCTION
+    #[test]
+    fn async_arrow_function_test_01() {
+        let (node, scanner) = check(AsyncArrowFunction::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 10);
+        assert!(matches!(&*node, AsyncArrowFunction::IdentOnly(..)));
+        pretty_check(&*node, "AsyncArrowFunction: async a => a", vec!["AsyncArrowBindingIdentifier: a", "AsyncConciseBody: a"]);
+        concise_check(&*node, "AsyncArrowFunction: async a => a", vec!["Keyword: async", "IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_arrow_function_test_02() {
+        let (node, scanner) = check(AsyncArrowFunction::parse(&mut newparser("async (a,b)=>a+b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 16);
+        assert!(matches!(&*node, AsyncArrowFunction::Formals(..)));
+        pretty_check(&*node, "AsyncArrowFunction: async ( a , b ) => a + b", vec!["AsyncArrowHead: async ( a , b )", "AsyncConciseBody: a + b"]);
+        concise_check(&*node, "AsyncArrowFunction: async ( a , b ) => a + b", vec!["AsyncArrowHead: async ( a , b )", "Punctuator: =>", "AdditiveExpression: a + b"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_arrow_function_test_err_01() {
+        check_err(AsyncArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false), "‘async’ expected", 1, 1);
+    }
+    #[test]
+    fn async_arrow_function_test_err_02() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 6);
+    }
+    #[test]
+    fn async_arrow_function_test_err_03() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async"), Scanner::new(), true, false, false), "Not an identifier", 1, 6);
+    }
+    #[test]
+    fn async_arrow_function_test_err_04() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async a\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 8);
+    }
+    #[test]
+    fn async_arrow_function_test_err_05() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async a"), Scanner::new(), true, false, false), "‘=>’ expected", 1, 8);
+    }
+    #[test]
+    fn async_arrow_function_test_err_06() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async a=>"), Scanner::new(), true, false, false), "AsyncConciseBody expected", 1, 10);
+    }
+    #[test]
+    fn async_arrow_function_test_err_07() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async ("), Scanner::new(), true, false, false), "‘)’ expected", 1, 8);
+    }
+    #[test]
+    fn async_arrow_function_test_err_08() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async (5)"), Scanner::new(), true, false, false), "‘)’ expected", 1, 8);
+    }
+    #[test]
+    fn async_arrow_function_test_err_09() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("blue (5)"), Scanner::new(), true, false, false), "‘async’ expected", 1, 1);
+    }
+    #[test]
+    fn async_arrow_function_test_err_10() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async (a)\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 10);
+    }
+    #[test]
+    fn async_arrow_function_test_err_11() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async (a)"), Scanner::new(), true, false, false), "‘=>’ expected", 1, 10);
+    }
+    #[test]
+    fn async_arrow_function_test_err_12() {
+        check_err(AsyncArrowFunction::parse(&mut newparser("async (a)=>"), Scanner::new(), true, false, false), "AsyncConciseBody expected", 1, 12);
+    }
+    #[test]
+    fn async_arrow_function_test_prettyerrors_1() {
+        let (item, _) = AsyncArrowFunction::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_arrow_function_test_prettyerrors_2() {
+        let (item, _) = AsyncArrowFunction::parse(&mut newparser("async (a,b)=>a+b"), Scanner::new(), true, false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_arrow_function_test_conciseerrors_1() {
+        let (item, _) = AsyncArrowFunction::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn async_arrow_function_test_conciseerrors_2() {
+        let (item, _) = AsyncArrowFunction::parse(&mut newparser("async (a,b)=>a+b"), Scanner::new(), true, false, false).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // ASYNC CONCISE BODY
+    #[test]
+    fn async_concise_body_test_01() {
+        let (node, scanner) = check(AsyncConciseBody::parse(&mut newparser("a"), Scanner::new(), true));
+        chk_scan(&scanner, 1);
+        assert!(matches!(&*node, AsyncConciseBody::Expression(..)));
+        pretty_check(&*node, "AsyncConciseBody: a", vec!["ExpressionBody: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_concise_body_test_02() {
+        let (node, scanner) = check(AsyncConciseBody::parse(&mut newparser("{a;}"), Scanner::new(), true));
+        chk_scan(&scanner, 4);
+        assert!(matches!(&*node, AsyncConciseBody::Function(..)));
+        pretty_check(&*node, "AsyncConciseBody: { a ; }", vec!["AsyncFunctionBody: a ;"]);
+        concise_check(&*node, "AsyncConciseBody: { a ; }", vec!["Punctuator: {", "ExpressionStatement: a ;", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_concise_body_test_err_01() {
+        check_err(AsyncConciseBody::parse(&mut newparser(""), Scanner::new(), true), "AsyncConciseBody expected", 1, 1);
+    }
+    #[test]
+    fn async_concise_body_test_err_02() {
+        check_err(AsyncConciseBody::parse(&mut newparser("{"), Scanner::new(), true), "‘}’ expected", 1, 2);
+    }
+    #[test]
+    fn async_concise_body_test_prettyerrors_1() {
+        let (item, _) = AsyncConciseBody::parse(&mut newparser("expression"), Scanner::new(), true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_concise_body_test_prettyerrors_2() {
+        let (item, _) = AsyncConciseBody::parse(&mut newparser("{ statement_list; }"), Scanner::new(), true).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_concise_body_test_conciseerrors_1() {
+        let (item, _) = AsyncConciseBody::parse(&mut newparser("expression"), Scanner::new(), true).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn async_concise_body_test_conciseerrors_2() {
+        let (item, _) = AsyncConciseBody::parse(&mut newparser("{ statement_list; }"), Scanner::new(), true).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // ASYNC ARROW BINDING IDENTIFIER
+    #[test]
+    fn async_arrow_binding_identifier_test_01() {
+        let (node, scanner) = check(AsyncArrowBindingIdentifier::parse(&mut newparser("a"), Scanner::new(), false));
+        chk_scan(&scanner, 1);
+        pretty_check(&*node, "AsyncArrowBindingIdentifier: a", vec!["BindingIdentifier: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_arrow_binding_identifier_test_err_01() {
+        check_err(AsyncArrowBindingIdentifier::parse(&mut newparser(""), Scanner::new(), false), "Not an identifier", 1, 1);
+    }
+    #[test]
+    fn async_arrow_binding_identifier_test_prettyerrors_1() {
+        let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_arrow_binding_identifier_test_conciseerrors_1() {
+        let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), false).unwrap();
+        concise_error_validate(*item);
+    }
+    // COVER CALL EXPRESSION AND ASYNC ARROW HEAD
+    #[test]
+    fn cceaaah_test_01() {
+        let (node, scanner) = check(CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("a(10)"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        pretty_check(&*node, "CoverCallExpressionAndAsyncArrowHead: a ( 10 )", vec!["MemberExpression: a", "Arguments: ( 10 )"]);
+        concise_check(&*node, "CoverCallExpressionAndAsyncArrowHead: a ( 10 )", vec!["IdentifierName: a", "Arguments: ( 10 )"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn cceaaah_test_err_01() {
+        check_err(CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser(""), Scanner::new(), false, false), "MemberExpression expected", 1, 1);
+    }
+    #[test]
+    fn cceaaah_test_err_02() {
+        check_err(CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("name"), Scanner::new(), false, false), "‘(’ expected", 1, 5);
+    }
+    #[test]
+    fn cceaaah_test_prettyerrors_1() {
+        let (item, _) = CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn cceaaah_test_conciseerrors_1() {
+        let (item, _) = CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+
+    // ASYNC ARROW HEAD
+    #[test]
+    fn async_arrow_head_test_01() {
+        let (node, scanner) = check(AsyncArrowHead::parse(&mut newparser("async (a)"), Scanner::new()));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "AsyncArrowHead: async ( a )", vec!["ArrowFormalParameters: ( a )"]);
+        concise_check(&*node, "AsyncArrowHead: async ( a )", vec!["Keyword: async", "ArrowFormalParameters: ( a )"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn async_arrow_head_test_err_01() {
+        check_err(AsyncArrowHead::parse(&mut newparser(""), Scanner::new()), "‘async’ expected", 1, 1);
+    }
+    #[test]
+    fn async_arrow_head_test_err_02() {
+        check_err(AsyncArrowHead::parse(&mut newparser("async\n"), Scanner::new()), "Newline not allowed here.", 1, 6);
+    }
+    #[test]
+    fn async_arrow_head_test_err_03() {
+        check_err(AsyncArrowHead::parse(&mut newparser("async"), Scanner::new()), "‘(’ expected", 1, 6);
+    }
+    #[test]
+    fn async_arrow_head_test_prettyerrors_1() {
+        let (item, _) = AsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new()).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn async_arrow_head_test_conciseerrors_1() {
+        let (item, _) = AsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new()).unwrap();
+        concise_error_validate(*item);
+    }
+}

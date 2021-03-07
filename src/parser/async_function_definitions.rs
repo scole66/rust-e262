@@ -2,6 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
+use super::function_definitions::FunctionBody;
 use super::scanner::Scanner;
 use super::unary_operators::UnaryExpression;
 use super::*;
@@ -109,12 +110,14 @@ impl AsyncFunctionExpression {
     }
 }
 
+// AsyncFunctionBody :
+//      FunctionBody[~Yield, +Await]
 #[derive(Debug)]
-pub enum AsyncFunctionBody {}
+pub struct AsyncFunctionBody(Box<FunctionBody>);
 
 impl fmt::Display for AsyncFunctionBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "unimplemented")
+        self.0.fmt(f)
     }
 }
 
@@ -123,27 +126,23 @@ impl PrettyPrint for AsyncFunctionBody {
     where
         T: Write,
     {
-        let (first, _successive) = prettypad(pad, state);
-        writeln!(writer, "{}AsyncFunctionBody: {}", first, self)
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AsyncFunctionBody: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
-    fn concise_with_leftpad<T>(&self, _writer: &mut T, _pad: &str, _state: Spot) -> IoResult<()>
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        todo!()
-    }
-}
-
-impl IsFunctionDefinition for AsyncFunctionBody {
-    fn is_function_definition(&self) -> bool {
-        true
+        self.0.concise_with_leftpad(writer, pad, state)
     }
 }
 
 impl AsyncFunctionBody {
-    pub fn parse(_parser: &mut Parser, scanner: Scanner) -> (Box<Self>, Scanner) {
-        todo!()
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Box<Self>, Scanner) {
+        let (fb, after_fb) = FunctionBody::parse(parser, scanner, false, true);
+        (Box::new(AsyncFunctionBody(fb)), after_fb)
     }
 }
 
