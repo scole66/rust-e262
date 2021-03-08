@@ -241,6 +241,55 @@ mod tests {
         format!("{:?}", pn);
     }
     #[test]
+    fn method_definition_test_04() {
+        let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+        chk_scan(&scanner, 26);
+        assert!(matches!(&*pn, MethodDefinition::Generator(..)));
+        pretty_check(&*pn, "MethodDefinition: * a ( blue ) { this . a = blue ; }", vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"]);
+        concise_check(
+            &*pn,
+            "GeneratorMethod: * a ( blue ) { this . a = blue ; }",
+            vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        );
+        format!("{:?}", pn);
+    }
+    #[test]
+    fn method_definition_test_05() {
+        let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+        chk_scan(&scanner, 30);
+        assert!(matches!(&*pn, MethodDefinition::Async(..)));
+        pretty_check(&*pn, "MethodDefinition: async a ( blue ) { this . a = blue ; }", vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"]);
+        concise_check(
+            &*pn,
+            "AsyncMethod: async a ( blue ) { this . a = blue ; }",
+            vec!["Keyword: async", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        );
+        format!("{:?}", pn);
+    }
+    #[test]
+    fn method_definition_test_06() {
+        let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+        chk_scan(&scanner, 31);
+        assert!(matches!(&*pn, MethodDefinition::AsyncGenerator(..)));
+        pretty_check(&*pn, "MethodDefinition: async * a ( blue ) { this . a = blue ; }", vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"]);
+        concise_check(
+            &*pn,
+            "AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }",
+            vec![
+                "Keyword: async",
+                "Punctuator: *",
+                "IdentifierName: a",
+                "Punctuator: (",
+                "IdentifierName: blue",
+                "Punctuator: )",
+                "Punctuator: {",
+                "ExpressionStatement: this . a = blue ;",
+                "Punctuator: }",
+            ],
+        );
+        format!("{:?}", pn);
+    }
+    #[test]
     fn method_definition_test_errs_01() {
         check_err(MethodDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "MethodDefinition expected", 1, 1);
     }
@@ -328,6 +377,21 @@ mod tests {
         pretty_error_validate(*item);
     }
     #[test]
+    fn method_definition_test_prettyerrors_4() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn method_definition_test_prettyerrors_5() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
+    fn method_definition_test_prettyerrors_6() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
     fn method_definition_test_conciseerrors_1() {
         let (item, _) = MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
@@ -340,6 +404,21 @@ mod tests {
     #[test]
     fn method_definition_test_conciseerrors_3() {
         let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn method_definition_test_conciseerrors_4() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn method_definition_test_conciseerrors_5() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn method_definition_test_conciseerrors_6() {
+        let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
     }
 }

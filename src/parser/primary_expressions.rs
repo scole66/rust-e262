@@ -2026,6 +2026,31 @@ mod tests {
         );
     }
     #[test]
+    fn primary_expression_test_async_function() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 23);
+        assert!(matches!(node.kind, PrimaryExpressionKind::AsyncFunction(..)));
+        assert_eq!(node.is_function_definition(), true);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+        pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
+        concise_check(
+            &*node,
+            "AsyncFunctionExpression: async function a ( b ) { c ; }",
+            vec![
+                "Keyword: async",
+                "Keyword: function",
+                "IdentifierName: a",
+                "Punctuator: (",
+                "IdentifierName: b",
+                "Punctuator: )",
+                "Punctuator: {",
+                "ExpressionStatement: c ;",
+                "Punctuator: }",
+            ],
+        );
+    }
+    #[test]
     fn primary_expression_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(*item);
@@ -2076,6 +2101,11 @@ mod tests {
         pretty_error_validate(*item);
     }
     #[test]
+    fn primary_expression_test_prettyerrors_11() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(*item);
+    }
+    #[test]
     fn primary_expression_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
@@ -2123,6 +2153,11 @@ mod tests {
     #[test]
     fn primary_expression_test_conciseerrors_10() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(*item);
+    }
+    #[test]
+    fn primary_expression_test_conciseerrors_11() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
         concise_error_validate(*item);
     }
 
