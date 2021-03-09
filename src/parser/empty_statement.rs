@@ -63,11 +63,11 @@ mod tests {
     #[test]
     fn empty_statement_test_prettyerrors_1() {
         let (item, _) = EmptyStatement::parse(&mut newparser(";"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn empty_statement_test_conciseerrors_1() {
         let (item, _) = EmptyStatement::parse(&mut newparser(";"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

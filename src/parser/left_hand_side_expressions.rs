@@ -1505,72 +1505,72 @@ mod tests {
     #[test]
     fn member_expression_test_prettyerrors_1() {
         let (item, _) = MemberExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_2() {
         let (item, _) = MemberExpression::parse(&mut newparser("a[0]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_3() {
         let (item, _) = MemberExpression::parse(&mut newparser("a.b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_4() {
         let (item, _) = MemberExpression::parse(&mut newparser("a`b`"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_5() {
         let (item, _) = MemberExpression::parse(&mut newparser("super.a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_6() {
         let (item, _) = MemberExpression::parse(&mut newparser("import.meta"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_prettyerrors_7() {
         let (item, _) = MemberExpression::parse(&mut newparser("new a()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_1() {
         let (item, _) = MemberExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_2() {
         let (item, _) = MemberExpression::parse(&mut newparser("a[0]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_3() {
         let (item, _) = MemberExpression::parse(&mut newparser("a.b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_4() {
         let (item, _) = MemberExpression::parse(&mut newparser("a`b`"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_5() {
         let (item, _) = MemberExpression::parse(&mut newparser("super.a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_6() {
         let (item, _) = MemberExpression::parse(&mut newparser("import.meta"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn member_expression_test_conciseerrors_7() {
         let (item, _) = MemberExpression::parse(&mut newparser("new a()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // SUPER PROPERTY
@@ -1620,22 +1620,22 @@ mod tests {
     #[test]
     fn super_property_test_prettyerrors_1() {
         let (item, _) = SuperProperty::parse(&mut newparser("super[a]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn super_property_test_prettyerrors_2() {
         let (item, _) = SuperProperty::parse(&mut newparser("super.a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn super_property_test_conciseerrors_1() {
         let (item, _) = SuperProperty::parse(&mut newparser("super[a]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn super_property_test_conciseerrors_2() {
         let (item, _) = SuperProperty::parse(&mut newparser("super.a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // META PROPERTY
@@ -1680,22 +1680,22 @@ mod tests {
     #[test]
     fn meta_property_test_prettyerrors_1() {
         let (item, _) = MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn meta_property_test_prettyerrors_2() {
         let (item, _) = MetaProperty::parse(&mut newparser("import.meta"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn meta_property_test_conciseerrors_1() {
         let (item, _) = MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn meta_property_test_conciseerrors_2() {
         let (item, _) = MetaProperty::parse(&mut newparser("import.meta"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ARGUMENTS
@@ -1745,32 +1745,32 @@ mod tests {
     #[test]
     fn arguments_test_prettyerrors_1() {
         let (item, _) = Arguments::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arguments_test_prettyerrors_2() {
         let (item, _) = Arguments::parse(&mut newparser("(A)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arguments_test_prettyerrors_3() {
         let (item, _) = Arguments::parse(&mut newparser("(A,)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arguments_test_conciseerrors_1() {
         let (item, _) = Arguments::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn arguments_test_conciseerrors_2() {
         let (item, _) = Arguments::parse(&mut newparser("(A)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn arguments_test_conciseerrors_3() {
         let (item, _) = Arguments::parse(&mut newparser("(A,)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ARGUMENT LIST
@@ -1833,42 +1833,42 @@ mod tests {
     #[test]
     fn argument_list_test_prettyerrors_1() {
         let (item, _) = ArgumentList::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_prettyerrors_2() {
         let (item, _) = ArgumentList::parse(&mut newparser("...0"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_prettyerrors_3() {
         let (item, _) = ArgumentList::parse(&mut newparser("0,1"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_prettyerrors_4() {
         let (item, _) = ArgumentList::parse(&mut newparser("0,...a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_conciseerrors_1() {
         let (item, _) = ArgumentList::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_conciseerrors_2() {
         let (item, _) = ArgumentList::parse(&mut newparser("...0"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_conciseerrors_3() {
         let (item, _) = ArgumentList::parse(&mut newparser("0,1"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn argument_list_test_conciseerrors_4() {
         let (item, _) = ArgumentList::parse(&mut newparser("0,...a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // NEW EXPRESSION
@@ -1916,22 +1916,22 @@ mod tests {
     #[test]
     fn new_expression_test_prettyerrors_1() {
         let (item, _) = NewExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn new_expression_test_prettyerrors_2() {
         let (item, _) = NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn new_expression_test_conciseerrors_1() {
         let (item, _) = NewExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn new_expression_test_conciseerrors_2() {
         let (item, _) = NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // CALL MEMBER EXPRESSION
@@ -1954,12 +1954,12 @@ mod tests {
     #[test]
     fn call_member_expression_test_prettyerrors_1() {
         let (item, _) = CallMemberExpression::parse(&mut newparser("o(0)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_member_expression_test_conciseerrors_1() {
         let (item, _) = CallMemberExpression::parse(&mut newparser("o(0)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // SUPER CALL
@@ -1983,12 +1983,12 @@ mod tests {
     #[test]
     fn super_call_test_prettyerrors_1() {
         let (item, _) = SuperCall::parse(&mut newparser("super(0)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn super_call_test_conciseerrors_1() {
         let (item, _) = SuperCall::parse(&mut newparser("super(0)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // IMPORT CALL
@@ -2019,12 +2019,12 @@ mod tests {
     #[test]
     fn import_call_test_prettyerrors_1() {
         let (item, _) = ImportCall::parse(&mut newparser("import(blue)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn import_call_test_conciseerrors_1() {
         let (item, _) = ImportCall::parse(&mut newparser("import(blue)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // CALL EXPRESSION
@@ -2130,72 +2130,72 @@ mod tests {
     #[test]
     fn call_expression_test_prettyerrors_1() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_2() {
         let (item, _) = CallExpression::parse(&mut newparser("super(b)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_3() {
         let (item, _) = CallExpression::parse(&mut newparser("import(b)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_4() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)(c)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_5() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)[c]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_6() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b).c"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_prettyerrors_7() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)`c`"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_1() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_2() {
         let (item, _) = CallExpression::parse(&mut newparser("super(b)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_3() {
         let (item, _) = CallExpression::parse(&mut newparser("import(b)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_4() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)(c)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_5() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)[c]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_6() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b).c"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn call_expression_test_conciseerrors_7() {
         let (item, _) = CallExpression::parse(&mut newparser("a(b)`c`"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // OPTIONAL EXPRESSION
@@ -2241,32 +2241,32 @@ mod tests {
     #[test]
     fn optional_expression_test_prettyerrors_1() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_expression_test_prettyerrors_2() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_expression_test_prettyerrors_3() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a?.b?.c"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_expression_test_conciseerrors_1() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_expression_test_conciseerrors_2() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_expression_test_conciseerrors_3() {
         let (item, _) = OptionalExpression::parse(&mut newparser("a?.b?.c"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // OPTIONAL CHAIN
@@ -2379,82 +2379,82 @@ mod tests {
     #[test]
     fn optional_chain_test_prettyerrors_1() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_2() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.[0]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_3() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_4() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.`a`"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_5() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_6() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a[0]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_7() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a.b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_prettyerrors_8() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a`b`"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_1() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_2() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.[0]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_3() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_4() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.`a`"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_5() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_6() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a[0]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_7() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a.b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn optional_chain_test_conciseerrors_8() {
         let (item, _) = OptionalChain::parse(&mut newparser("?.a`b`"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // LEFT-HAND-SIDE EXPRESSION
@@ -2492,31 +2492,31 @@ mod tests {
     #[test]
     fn left_hand_side_expression_test_prettyerrors_1() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn left_hand_side_expression_test_prettyerrors_2() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn left_hand_side_expression_test_prettyerrors_3() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn left_hand_side_expression_test_conciseerrors_1() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn left_hand_side_expression_test_conciseerrors_2() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn left_hand_side_expression_test_conciseerrors_3() {
         let (item, _) = LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

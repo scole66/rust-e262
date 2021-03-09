@@ -501,201 +501,201 @@ mod tests {
     #[test]
     fn assignment_expression_test_prettyerrors_1() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_2() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("yield a"), Scanner::new(), true, true, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_3() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_31() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_4() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_5() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_6() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a/=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_7() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a%=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_8() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a+=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_9() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a-=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_10() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a<<=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_11() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a>>=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_12() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a>>>=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_13() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a&=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_14() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a^=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_15() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a|=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_16() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_17() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a&&=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_18() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a||=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_prettyerrors_19() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a??=b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_1() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_2() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("yield a"), Scanner::new(), true, true, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_3() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_31() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_4() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_5() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_6() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a/=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_7() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a%=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_8() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a+=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_9() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a-=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_10() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a<<=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_11() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a>>=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_12() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a>>>=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_13() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a&=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_14() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a^=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_15() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a|=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_16() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_17() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a&&=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_18() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a||=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn assignment_expression_test_conciseerrors_19() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a??=b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

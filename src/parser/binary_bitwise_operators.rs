@@ -326,12 +326,12 @@ mod tests {
     #[test]
     fn bitwise_and_expression_test_prettyerrors() {
         let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn bitwise_and_expression_test_conciseerrors() {
         let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     #[test]
@@ -374,12 +374,12 @@ mod tests {
     #[test]
     fn bitwise_xor_expression_test_prettyerrors() {
         let (item, _) = BitwiseXORExpression::parse(&mut newparser("a ^ b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn bitwise_xor_expression_test_conciseerrors() {
         let (item, _) = BitwiseXORExpression::parse(&mut newparser("a ^ b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     #[test]
@@ -422,11 +422,11 @@ mod tests {
     #[test]
     fn bitwise_or_expression_test_prettyerrors() {
         let (item, _) = BitwiseORExpression::parse(&mut newparser("a | b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn bitwise_or_expression_test_conciseerrors() {
         let (item, _) = BitwiseORExpression::parse(&mut newparser("a | b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

@@ -417,22 +417,22 @@ mod tests {
     #[test]
     fn logical_and_expression_test_prettyerrors_1() {
         let (item, _) = LogicalANDExpression::parse(&mut newparser("3"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn logical_and_expression_test_prettyerrors_2() {
         let (item, _) = LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn logical_and_expression_test_conciseerrors_1() {
         let (item, _) = LogicalANDExpression::parse(&mut newparser("3"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn logical_and_expression_test_conciseerrors_2() {
         let (item, _) = LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // LOGICAL OR EXPRESSION
@@ -472,22 +472,22 @@ mod tests {
     #[test]
     fn logical_or_expression_test_prettyerrors_1() {
         let (item, _) = LogicalORExpression::parse(&mut newparser("3"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn logical_or_expression_test_prettyerrors_2() {
         let (item, _) = LogicalORExpression::parse(&mut newparser("3||b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn logical_or_expression_test_conciseerrors_1() {
         let (item, _) = LogicalORExpression::parse(&mut newparser("3"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn logical_or_expression_test_conciseerrors_2() {
         let (item, _) = LogicalORExpression::parse(&mut newparser("3||b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // COALESCE EXPRESSION
@@ -518,12 +518,12 @@ mod tests {
     #[test]
     fn coalesce_expression_test_prettyerrors_1() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn coalesce_expression_test_conciseerrors_1() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // COALESCE EXPRESSION HEAD
@@ -544,22 +544,22 @@ mod tests {
     #[test]
     fn coalesce_expression_head_test_prettyerrors_1() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item.head);
+        pretty_error_validate(&*item.head);
     }
     #[test]
     fn coalesce_expression_head_test_prettyerrors_2() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item.head);
+        pretty_error_validate(&*item.head);
     }
     #[test]
     fn coalesce_expression_head_test_conciseerrors_1() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item.head);
+        concise_error_validate(&*item.head);
     }
     #[test]
     fn coalesce_expression_head_test_conciseerrors_2() {
         let (item, _) = CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item.head);
+        concise_error_validate(&*item.head);
     }
 
     // SHORT CIRCUIT EXPRESSION
@@ -592,21 +592,21 @@ mod tests {
     #[test]
     fn short_circuit_expression_test_prettyerrors_1() {
         let (item, _) = ShortCircuitExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn short_circuit_expression_test_prettyerrors_2() {
         let (item, _) = ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn short_circuit_expression_test_conciseerrors_1() {
         let (item, _) = ShortCircuitExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn short_circuit_expression_test_conciseerrors_2() {
         let (item, _) = ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

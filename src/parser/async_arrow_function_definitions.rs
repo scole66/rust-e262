@@ -376,22 +376,22 @@ mod tests {
     #[test]
     fn async_arrow_function_test_prettyerrors_1() {
         let (item, _) = AsyncArrowFunction::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_arrow_function_test_prettyerrors_2() {
         let (item, _) = AsyncArrowFunction::parse(&mut newparser("async (a,b)=>a+b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_arrow_function_test_conciseerrors_1() {
         let (item, _) = AsyncArrowFunction::parse(&mut newparser("async a=>a"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn async_arrow_function_test_conciseerrors_2() {
         let (item, _) = AsyncArrowFunction::parse(&mut newparser("async (a,b)=>a+b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC CONCISE BODY
@@ -424,22 +424,22 @@ mod tests {
     #[test]
     fn async_concise_body_test_prettyerrors_1() {
         let (item, _) = AsyncConciseBody::parse(&mut newparser("expression"), Scanner::new(), true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_concise_body_test_prettyerrors_2() {
         let (item, _) = AsyncConciseBody::parse(&mut newparser("{ statement_list; }"), Scanner::new(), true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_concise_body_test_conciseerrors_1() {
         let (item, _) = AsyncConciseBody::parse(&mut newparser("expression"), Scanner::new(), true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn async_concise_body_test_conciseerrors_2() {
         let (item, _) = AsyncConciseBody::parse(&mut newparser("{ statement_list; }"), Scanner::new(), true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC ARROW BINDING IDENTIFIER
@@ -458,12 +458,12 @@ mod tests {
     #[test]
     fn async_arrow_binding_identifier_test_prettyerrors_1() {
         let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_arrow_binding_identifier_test_conciseerrors_1() {
         let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     // COVER CALL EXPRESSION AND ASYNC ARROW HEAD
     #[test]
@@ -485,12 +485,12 @@ mod tests {
     #[test]
     fn cceaaah_test_prettyerrors_1() {
         let (item, _) = CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cceaaah_test_conciseerrors_1() {
         let (item, _) = CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC ARROW HEAD
@@ -517,11 +517,11 @@ mod tests {
     #[test]
     fn async_arrow_head_test_prettyerrors_1() {
         let (item, _) = AsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_arrow_head_test_conciseerrors_1() {
         let (item, _) = AsyncArrowHead::parse(&mut newparser("async(a,b,c)"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

@@ -189,32 +189,32 @@ mod tests {
     #[test]
     fn multiplicative_operator_test_prettycheck_1() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("*"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn multiplicative_operator_test_prettycheck_2() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("/"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn multiplicative_operator_test_prettycheck_3() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("%"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn multiplicative_operator_test_concisecheck_1() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("*"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn multiplicative_operator_test_concisecheck_2() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("/"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn multiplicative_operator_test_concisecheck_3() {
         let (item, _) = MultiplicativeOperator::parse(&mut newparser("%"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // MULTIPLICATIVE EXPRESSION
@@ -256,21 +256,21 @@ mod tests {
     #[test]
     fn multiplicative_expression_test_prettycheck_1() {
         let (item, _) = MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn multiplicative_expression_test_prettycheck_2() {
         let (item, _) = MultiplicativeExpression::parse(&mut newparser("a*1"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn multiplicative_expression_test_concisecheck_1() {
         let (item, _) = MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn multiplicative_expression_test_concisecheck_2() {
         let (item, _) = MultiplicativeExpression::parse(&mut newparser("a*1"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

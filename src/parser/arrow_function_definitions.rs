@@ -309,12 +309,12 @@ mod tests {
     #[test]
     fn arrow_function_test_prettyerrors_1() {
         let (item, _) = ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arrow_function_test_conciseerrors_1() {
         let (item, _) = ArrowFunction::parse(&mut newparser("a=>a"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ARROW PARAMETERS
@@ -356,22 +356,22 @@ mod tests {
     #[test]
     fn arrow_parameters_test_prettyerrors_1() {
         let (item, _) = ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arrow_parameters_test_prettyerrors_2() {
         let (item, _) = ArrowParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arrow_parameters_test_conciseerrors_1() {
         let (item, _) = ArrowParameters::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn arrow_parameters_test_conciseerrors_2() {
         let (item, _) = ArrowParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // CONCISE BODY
@@ -405,22 +405,22 @@ mod tests {
     #[test]
     fn concise_body_test_prettyerrors_1() {
         let (item, _) = ConciseBody::parse(&mut newparser("a"), Scanner::new(), true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn concise_body_test_prettyerrors_2() {
         let (item, _) = ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn concise_body_test_conciseerrors_1() {
         let (item, _) = ConciseBody::parse(&mut newparser("a"), Scanner::new(), true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn concise_body_test_conciseerrors_2() {
         let (item, _) = ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // EXPRESSION BODY
@@ -439,12 +439,12 @@ mod tests {
     #[test]
     fn expression_body_test_prettyerrors_1() {
         let (item, _) = ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn expression_body_test_conciseerrors_1() {
         let (item, _) = ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ARROW FORMAL PARAMETERS
@@ -467,11 +467,11 @@ mod tests {
     #[test]
     fn arrow_formal_parameters_test_prettyerrors_1() {
         let (item, _) = ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn arrow_formal_parameters_test_conciseerrors_1() {
         let (item, _) = ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

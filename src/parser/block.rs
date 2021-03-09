@@ -251,12 +251,12 @@ mod tests {
     #[test]
     fn block_statement_test_prettyerrors_1() {
         let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn block_statement_test_conciseerrors_1() {
         let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // BLOCK
@@ -287,22 +287,22 @@ mod tests {
     #[test]
     fn block_test_prettyerrors_1() {
         let (item, _) = Block::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn block_test_prettyerrors_2() {
         let (item, _) = Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn block_test_conciseerrors_1() {
         let (item, _) = Block::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn block_test_conciseerrors_2() {
         let (item, _) = Block::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // STATEMENT LIST
@@ -329,22 +329,22 @@ mod tests {
     #[test]
     fn statement_list_test_prettyerrors_1() {
         let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn statement_list_test_prettyerrors_2() {
         let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn statement_list_test_conciseerrors_1() {
         let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn statement_list_test_conciseerrors_2() {
         let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     // STATEMENT LIST ITEM
     #[test]
@@ -370,21 +370,21 @@ mod tests {
     #[test]
     fn statement_list_item_test_prettyerrors_1() {
         let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn statement_list_item_test_prettyerrors_2() {
         let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn statement_list_item_test_conciseerrors_1() {
         let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn statement_list_item_test_conciseerrors_2() {
         let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

@@ -2053,112 +2053,112 @@ mod tests {
     #[test]
     fn primary_expression_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_2() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_3() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_4() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_5() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_6() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("function (){}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_7() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_8() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_9() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_10() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_prettyerrors_11() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_2() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_3() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_4() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_5() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_6() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("function (){}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_7() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_8() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_9() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_10() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn primary_expression_test_conciseerrors_11() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // LITERAL
@@ -2226,42 +2226,42 @@ mod tests {
     #[test]
     fn literal_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_test_prettyerrors_2() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("true"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_test_prettyerrors_3() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_test_prettyerrors_4() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("'a'"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn literal_test_conciseerrors_2() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("true"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn literal_test_conciseerrors_3() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn literal_test_conciseerrors_4() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("'a'"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ELISION
@@ -2294,12 +2294,12 @@ mod tests {
     #[test]
     fn elision_test_prettyerrors_1() {
         let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn elision_test_conciseerrors_1() {
         let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // SPREAD ELEMENT
@@ -2324,12 +2324,12 @@ mod tests {
     #[test]
     fn spread_element_test_prettyerrors_1() {
         let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn spread_element_test_conciseerrors_1() {
         let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ELEMENT LIST
@@ -2423,82 +2423,82 @@ mod tests {
     #[test]
     fn element_list_test_prettyerrors_1() {
         let (item, _) = ElementList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_2() {
         let (item, _) = ElementList::parse(&mut newparser(",,,a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_3() {
         let (item, _) = ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_4() {
         let (item, _) = ElementList::parse(&mut newparser(",,,...a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_5() {
         let (item, _) = ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_6() {
         let (item, _) = ElementList::parse(&mut newparser("a,,,b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_7() {
         let (item, _) = ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_prettyerrors_8() {
         let (item, _) = ElementList::parse(&mut newparser("a,,,...b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_1() {
         let (item, _) = ElementList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_2() {
         let (item, _) = ElementList::parse(&mut newparser(",,,a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_3() {
         let (item, _) = ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_4() {
         let (item, _) = ElementList::parse(&mut newparser(",,,...a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_5() {
         let (item, _) = ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_6() {
         let (item, _) = ElementList::parse(&mut newparser("a,,,b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_7() {
         let (item, _) = ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn element_list_test_conciseerrors_8() {
         let (item, _) = ElementList::parse(&mut newparser("a,,,...b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ARRAY LITERAL
@@ -2570,52 +2570,52 @@ mod tests {
     #[test]
     fn array_literal_test_prettyerrors_1() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_prettyerrors_2() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[,,,]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_prettyerrors_3() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_prettyerrors_4() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_prettyerrors_5() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a,,,,]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_conciseerrors_1() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_conciseerrors_2() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[,,,]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_conciseerrors_3() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_conciseerrors_4() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn array_literal_test_conciseerrors_5() {
         let (item, _) = ArrayLiteral::parse(&mut newparser("[a,,,,]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // INITIALIZER
@@ -2636,12 +2636,12 @@ mod tests {
     #[test]
     fn initializer_test_prettyerrors_1() {
         let (item, _) = Initializer::parse(&mut newparser("=2"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn initializer_test_conciseerrors_1() {
         let (item, _) = Initializer::parse(&mut newparser("=2"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // COVER INITIALIZED NAME
@@ -2665,12 +2665,12 @@ mod tests {
     #[test]
     fn cover_initialized_name_test_prettyerrors_1() {
         let (item, _) = CoverInitializedName::parse(&mut newparser("a=2"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cover_initialized_name_test_conciseerrors_1() {
         let (item, _) = CoverInitializedName::parse(&mut newparser("a=2"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // COMPUTED PROPERTY NAME
@@ -2698,12 +2698,12 @@ mod tests {
     #[test]
     fn computed_property_name_test_prettyerrors_1() {
         let (item, _) = ComputedPropertyName::parse(&mut newparser("[4]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn computed_property_name_test_conciseerrors_1() {
         let (item, _) = ComputedPropertyName::parse(&mut newparser("[4]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // LITERAL PROPERTY NAME
@@ -2747,32 +2747,32 @@ mod tests {
     #[test]
     fn literal_property_name_test_prettyerrors_1() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("a"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_property_name_test_prettyerrors_2() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_property_name_test_prettyerrors_3() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn literal_property_name_test_conciseerrors_1() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("a"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn literal_property_name_test_conciseerrors_2() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn literal_property_name_test_conciseerrors_3() {
         let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // PROPERTY NAME
@@ -2801,22 +2801,22 @@ mod tests {
     #[test]
     fn property_name_test_prettyerrors_1() {
         let (item, _) = PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_name_test_prettyerrors_2() {
         let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_name_test_conciseerrors_1() {
         let (item, _) = PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_name_test_conciseerrors_2() {
         let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // PROPERTY DEFINITION
@@ -2880,52 +2880,52 @@ mod tests {
     #[test]
     fn property_definition_test_prettyerrors_1() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_prettyerrors_2() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a=2"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_prettyerrors_3() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a:2"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_prettyerrors_4() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_prettyerrors_5() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_conciseerrors_1() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_conciseerrors_2() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a=2"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_conciseerrors_3() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a:2"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_conciseerrors_4() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_definition_test_conciseerrors_5() {
         let (item, _) = PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // PROPERTY DEFINITION LIST
@@ -2961,22 +2961,22 @@ mod tests {
     #[test]
     fn property_definition_list_test_prettyerrors_1() {
         let (item, _) = PropertyDefinitionList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_list_test_prettyerrors_2() {
         let (item, _) = PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn property_definition_list_test_conciseerrors_1() {
         let (item, _) = PropertyDefinitionList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn property_definition_list_test_conciseerrors_2() {
         let (item, _) = PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // OBJECT LITERAL
@@ -3024,32 +3024,32 @@ mod tests {
     #[test]
     fn object_literal_test_prettyerrors_1() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn object_literal_test_prettyerrors_2() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn object_literal_test_prettyerrors_3() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{A:B,}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn object_literal_test_conciseerrors_1() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn object_literal_test_conciseerrors_2() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn object_literal_test_conciseerrors_3() {
         let (item, _) = ObjectLiteral::parse(&mut newparser("{A:B,}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // PARENTHESIZED EXPRESSION
@@ -3079,12 +3079,12 @@ mod tests {
     #[test]
     fn parenthesized_expression_test_prettyerrors_1() {
         let (item, _) = ParenthesizedExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn parenthesized_expression_test_conciseerrors_1() {
         let (item, _) = ParenthesizedExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // TEMPLATE MIDDLE LIST
@@ -3124,22 +3124,22 @@ mod tests {
     #[test]
     fn template_middle_list_test_prettyerrors_1() {
         let (item, _) = TemplateMiddleList::parse(&mut newparser("}${0"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_middle_list_test_prettyerrors_2() {
         let (item, _) = TemplateMiddleList::parse(&mut newparser("}${0}${1"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_middle_list_test_conciseerrors_1() {
         let (item, _) = TemplateMiddleList::parse(&mut newparser("}${0"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn template_middle_list_test_conciseerrors_2() {
         let (item, _) = TemplateMiddleList::parse(&mut newparser("}${0}${1"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // TEMPLATE SPANS
@@ -3169,22 +3169,22 @@ mod tests {
     #[test]
     fn template_spans_test_prettyerrors_1() {
         let (item, _) = TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_spans_test_prettyerrors_2() {
         let (item, _) = TemplateSpans::parse(&mut newparser("}${0}`"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_spans_test_conciseerrors_1() {
         let (item, _) = TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn template_spans_test_conciseerrors_2() {
         let (item, _) = TemplateSpans::parse(&mut newparser("}${0}`"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // SUBSTITUTION TEMPLATE
@@ -3212,12 +3212,12 @@ mod tests {
     #[test]
     fn substitution_template_test_prettyerrors_1() {
         let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${0}`"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn substitution_template_test_conciseerrors_1() {
         let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${0}`"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // TEMPLATE LITERAL
@@ -3250,22 +3250,22 @@ mod tests {
     #[test]
     fn template_literal_test_prettyerrors_1() {
         let (item, _) = TemplateLiteral::parse(&mut newparser("`${0}`"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_literal_test_prettyerrors_2() {
         let (item, _) = TemplateLiteral::parse(&mut newparser("``"), Scanner::new(), false, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn template_literal_test_conciseerrors_1() {
         let (item, _) = TemplateLiteral::parse(&mut newparser("`${0}`"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn template_literal_test_conciseerrors_2() {
         let (item, _) = TemplateLiteral::parse(&mut newparser("``"), Scanner::new(), false, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
@@ -3375,71 +3375,71 @@ mod tests {
     #[test]
     fn cpeaapl_test_prettyerrors_1() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_2() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_3() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_4() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_5() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...{})"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_6() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...a)"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_prettyerrors_7() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...{})"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_1() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_2() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_3() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_4() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_5() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...{})"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_6() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...a)"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn cpeaapl_test_conciseerrors_7() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...{})"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

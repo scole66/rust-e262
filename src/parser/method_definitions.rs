@@ -364,61 +364,61 @@ mod tests {
     #[test]
     fn method_definition_test_prettyerrors_1() {
         let (item, _) = MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_prettyerrors_2() {
         let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_prettyerrors_3() {
         let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_prettyerrors_4() {
         let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_prettyerrors_5() {
         let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_prettyerrors_6() {
         let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_1() {
         let (item, _) = MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_2() {
         let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_3() {
         let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_4() {
         let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_5() {
         let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn method_definition_test_conciseerrors_6() {
         let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

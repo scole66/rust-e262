@@ -106,21 +106,21 @@ mod tests {
     #[test]
     fn break_statement_test_prettyerrors_1() {
         let (item, _) = BreakStatement::parse(&mut newparser("break;"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn break_statement_test_prettyerrors_2() {
         let (item, _) = BreakStatement::parse(&mut newparser("break label;"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn break_statement_test_conciseerrors_1() {
         let (item, _) = BreakStatement::parse(&mut newparser("break;"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn break_statement_test_conciseerrors_2() {
         let (item, _) = BreakStatement::parse(&mut newparser("break label;"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

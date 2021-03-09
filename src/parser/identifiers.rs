@@ -919,32 +919,32 @@ mod tests {
     #[test]
     fn identifier_reference_prettycheck_1() {
         let (item, _) = IdentifierReference::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn identifier_reference_prettycheck_2() {
         let (item, _) = IdentifierReference::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn identifier_reference_prettycheck_3() {
         let (item, _) = IdentifierReference::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn identifier_reference_concisecheck_1() {
         let (item, _) = IdentifierReference::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn identifier_reference_concisecheck_2() {
         let (item, _) = IdentifierReference::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn identifier_reference_concisecheck_3() {
         let (item, _) = IdentifierReference::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     fn bindingid_create(text: &str, y: bool, a: bool) -> Box<BindingIdentifier> {
@@ -1010,32 +1010,32 @@ mod tests {
     #[test]
     fn binding_identifier_prettycheck_1() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn binding_identifier_prettycheck_2() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn binding_identifier_prettycheck_3() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn binding_identifier_concisecheck_1() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn binding_identifier_concisecheck_2() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn binding_identifier_concisecheck_3() {
         let (item, _) = BindingIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // LABEL IDENTIFIER
@@ -1130,31 +1130,31 @@ mod tests {
     #[test]
     fn label_identifier_prettycheck_1() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn label_identifier_prettycheck_2() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn label_identifier_prettycheck_3() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn label_identifier_concisecheck_1() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn label_identifier_concisecheck_2() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn label_identifier_concisecheck_3() {
         let (item, _) = LabelIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

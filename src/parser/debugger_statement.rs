@@ -71,11 +71,11 @@ mod tests {
     #[test]
     fn debugger_statement_test_prettyerrors_1() {
         let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn debugger_statement_test_conciseerrors_1() {
         let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

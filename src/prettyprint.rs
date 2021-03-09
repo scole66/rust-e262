@@ -190,13 +190,13 @@ pub mod testhelp {
         }
         assert!(target > 1); // Just to be sure the system is not utterly broken
     }
-    pub fn pretty_error_validate<T>(item: T)
+    pub fn pretty_error_validate<T>(item: &T)
     where
         T: PrettyPrint,
     {
         printer_validate(|w| item.pprint(w))
     }
-    pub fn concise_error_validate<T>(item: T)
+    pub fn concise_error_validate<T>(item: &T)
     where
         T: PrettyPrint,
     {

@@ -241,51 +241,51 @@ mod tests {
     #[test]
     fn update_expression_prettycheck_1() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn update_expression_prettycheck_2() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn update_expression_prettycheck_3() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn update_expression_prettycheck_4() {
         let (item, _) = UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn update_expression_prettycheck_5() {
         let (item, _) = UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn update_expression_concisecheck_1() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn update_expression_concisecheck_2() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn update_expression_concisecheck_3() {
         let (item, _) = UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn update_expression_concisecheck_4() {
         let (item, _) = UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn update_expression_concisecheck_5() {
         let (item, _) = UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

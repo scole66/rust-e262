@@ -321,12 +321,12 @@ mod tests {
     #[test]
     fn async_generator_method_test_prettyerrors_1() {
         let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_method_test_conciseerrors_1() {
         let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC GENERATOR DECLARATION
@@ -411,22 +411,22 @@ mod tests {
     #[test]
     fn async_generator_declaration_test_prettyerrors_1() {
         let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_declaration_test_prettyerrors_2() {
         let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_declaration_test_conciseerrors_1() {
         let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn async_generator_declaration_test_conciseerrors_2() {
         let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC GENERATOR EXPRESSION
@@ -503,22 +503,22 @@ mod tests {
     #[test]
     fn async_generator_expression_test_prettyerrors_1() {
         let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_expression_test_prettyerrors_2() {
         let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_expression_test_conciseerrors_1() {
         let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn async_generator_expression_test_conciseerrors_2() {
         let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 
     // ASYNC GENERATOR BODY
@@ -533,11 +533,11 @@ mod tests {
     #[test]
     fn async_generator_body_test_prettyerrors_1() {
         let (item, _) = AsyncGeneratorBody::parse(&mut newparser("yield 1;"), Scanner::new());
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn async_generator_body_test_conciseerrors_1() {
         let (item, _) = AsyncGeneratorBody::parse(&mut newparser("yield 1;"), Scanner::new());
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }

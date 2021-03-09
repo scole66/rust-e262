@@ -137,21 +137,21 @@ mod tests {
     #[test]
     fn expression_test_prettyerrors_1() {
         let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn expression_test_prettyerrors_2() {
         let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
-        pretty_error_validate(*item);
+        pretty_error_validate(&*item);
     }
     #[test]
     fn expression_test_conciseerrors_1() {
         let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
     #[test]
     fn expression_test_conciseerrors_2() {
         let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
-        concise_error_validate(*item);
+        concise_error_validate(&*item);
     }
 }
