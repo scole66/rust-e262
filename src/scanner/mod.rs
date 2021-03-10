@@ -345,14 +345,12 @@ impl PartialOrd for Scanner {
             Some(Ordering::Less)
         } else if self.line > other.line {
             Some(Ordering::Greater)
+        } else if self.column < other.column {
+            Some(Ordering::Less)
+        } else if self.column > other.column {
+            Some(Ordering::Greater)
         } else {
-            if self.column < other.column {
-                Some(Ordering::Less)
-            } else if self.column > other.column {
-                Some(Ordering::Greater)
-            } else {
-                Some(Ordering::Equal)
-            }
+            Some(Ordering::Equal)
         }
     }
 }
@@ -362,31 +360,25 @@ fn is_lineterm(ch: char) -> bool {
 }
 
 fn is_whitespace(ch: char) -> bool {
-    ch >= '\x09' && ch <= '\x0d'
+    ('\x09'..='\x0d').contains(&ch)
         || ch == '\x20'
         || ch == '\u{00a0}'
         || ch == '\u{2028}'
         || ch == '\u{2029}'
         || ch == '\u{feff}'
         || ch == '\u{1680}'
-        || ch >= '\u{2000}' && ch <= '\u{200a}'
+        || ('\u{2000}'..='\u{200a}').contains(&ch)
         || ch == '\u{202f}'
         || ch == '\u{205f}'
         || ch == '\u{3000}'
 }
 
 fn is_single_escape_char(ch: char) -> bool {
-    match ch {
-        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' => true,
-        _ => false,
-    }
+    matches!(ch, '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v')
 }
 
 fn is_escape_char(ch: char) -> bool {
-    match ch {
-        '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
-        _ => false,
-    }
+    matches!(ch, '\'' | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | 'u' | 'x' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9')
 }
 
 // Given a scanner context, return a new context (over the same source string) which begins at the first
@@ -408,7 +400,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
     }
     loop {
         if is_lineterm(ch) {
-            line = line + 1;
+            line += 1;
             column = 1;
             let previous = ch;
             idx = pending_idx; // consume the ch
@@ -433,7 +425,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
         }
 
         if is_whitespace(ch) {
-            column = column + 1;
+            column += 1;
             idx = pending_idx;
             match iter.next() {
                 None => return Ok(Scanner { line, column, start_idx: idx }),
@@ -451,13 +443,13 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                 None => return Ok(Scanner { line, column, start_idx: idx }),
                 Some(c) => {
                     ch_next = c;
-                    pending_idx = pending_idx + ch_next.len_utf8();
+                    pending_idx += ch_next.len_utf8();
                 }
             }
             match ch_next {
                 '/' => {
                     // Single-line comment
-                    column = column + 2;
+                    column += 2;
                     idx = pending_idx;
                     loop {
                         match iter.next() {
@@ -470,7 +462,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         if is_lineterm(ch) {
                             break;
                         }
-                        column = column + 1;
+                        column += 1;
                         idx = pending_idx;
                     }
                 }
@@ -478,7 +470,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                     // Multi-line comment
                     let comment_start_line = line;
                     let comment_start_column = column;
-                    column = column + 2;
+                    column += 2;
                     idx = pending_idx;
 
                     match iter.next() {
@@ -492,7 +484,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 
                     'comment: loop {
                         while ch == '*' {
-                            column = column + 1;
+                            column += 1;
                             idx = pending_idx;
                             match iter.next() {
                                 // If None comes back, this is actually a syntax error.
@@ -503,7 +495,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 }
                             }
                             if ch == '/' {
-                                column = column + 1;
+                                column += 1;
                                 idx = pending_idx;
                                 match iter.next() {
                                     None => return Ok(Scanner { line, column, start_idx: idx }),
@@ -517,7 +509,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         }
 
                         if is_lineterm(ch) {
-                            line = line + 1;
+                            line += 1;
                             column = 1;
                             idx = pending_idx;
                             let previous = ch;
@@ -541,7 +533,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             continue;
                         }
 
-                        column = column + 1;
+                        column += 1;
                         idx = pending_idx;
                         match iter.next() {
                             None => return Err(format!("Unterminated /*-style comment. Started on line {}, column {}.", comment_start_line, comment_start_column)),
@@ -562,11 +554,11 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
 }
 
 fn is_digit(ch: char) -> bool {
-    ch >= '0' && ch <= '9'
+    ('0'..='9').contains(&ch)
 }
 
 fn is_hex_digit(ch: char) -> bool {
-    (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+    ('0'..='9').contains(&ch) || ('a'..='f').contains(&ch) || ('A'..='F').contains(&ch)
 }
 
 fn hex_four_digits(scanner: &Scanner, source: &str) -> Option<Scanner> {
@@ -644,7 +636,7 @@ fn ues_char_value(source: &str) -> char {
     // We already know this is a valid Unicode Escape Sequence, so there's a lot of checking we don't do.
     let bytes = source.as_bytes();
     let value;
-    if bytes[1] == '{' as u8 {
+    if bytes[1] == b'{' {
         value = u32::from_str_radix(str::from_utf8(&bytes[2..bytes.len() - 1]).unwrap(), 16).unwrap();
     } else {
         value = u32::from_str_radix(str::from_utf8(&bytes[1..5]).unwrap(), 16).unwrap();
@@ -680,7 +672,7 @@ where
         None => return Ok(None),
         Some(c) => ch = c,
     }
-    idx = idx + ch.len_utf8();
+    idx += ch.len_utf8();
     if validate(ch) {
         Ok(Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: idx }))
     } else if ch == '\\' {
@@ -749,9 +741,9 @@ impl From<HexChar> for char {
 fn mv_of_hex_digit(digit: HexChar) -> u32 {
     let ch: char = digit.into();
     let code = ch as u32;
-    if ch >= '0' && ch <= '9' {
+    if ('0'..='9').contains(&ch) {
         code - '0' as u32
-    } else if ch >= 'A' && ch <= 'F' {
+    } else if ('A'..='F').contains(&ch) {
         code - 'A' as u32 + 10
     } else {
         code - 'a' as u32 + 10
@@ -1117,16 +1109,13 @@ fn decimal_integer_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
             let mut iter = source[scanner.start_idx..].chars();
             let mut after_iter = *scanner;
             match iter.next() {
-                Some(c) if c >= '1' && c <= '9' => {
-                    after_iter.column = after_iter.column + 1;
-                    after_iter.start_idx = after_iter.start_idx + 1;
+                Some(c) if ('1'..='9').contains(&c) => {
+                    after_iter.column += 1;
+                    after_iter.start_idx += 1;
                     let after_first_digit = after_iter;
-                    match iter.next() {
-                        Some('_') => {
-                            after_iter.column = after_iter.column + 1;
-                            after_iter.start_idx = after_iter.start_idx + 1;
-                        }
-                        _ => {}
+                    if let Some('_') = iter.next() {
+                        after_iter.column += 1;
+                        after_iter.start_idx += 1;
                     }
                     match decimal_digits(&after_iter, source, true) {
                         Some(after_remaining) => Some(after_remaining),
@@ -1160,14 +1149,14 @@ where
     for ch in source[scanner.start_idx..].chars() {
         match ch {
             c if validator(c) => {
-                latest.column = latest.column + 1;
-                latest.start_idx = latest.start_idx + 1;
+                latest.column += 1;
+                latest.start_idx += 1;
                 previous_was_digit = true;
             }
             '_' => {
                 if sep && previous_was_digit {
-                    latest.column = latest.column + 1;
-                    latest.start_idx = latest.start_idx + 1;
+                    latest.column += 1;
+                    latest.start_idx += 1;
                     previous_was_digit = false;
                 } else {
                     break;
@@ -1256,7 +1245,7 @@ fn decimal_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
 
 fn non_zero_digit(scanner: &Scanner, source: &str) -> Option<Scanner> {
     match source[scanner.start_idx..].chars().next() {
-        Some(ch) if ch >= '1' && ch <= '9' => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
+        Some(ch) if ('1'..='9').contains(&ch) => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
         _ => None,
     }
 }
@@ -1264,7 +1253,7 @@ fn non_zero_digit(scanner: &Scanner, source: &str) -> Option<Scanner> {
 fn decimal_big_integer_literal(scanner: &Scanner, source: &str) -> Option<Scanner> {
     match_char(scanner, source, '0')
         .and_then(|r| match_char(&r, source, 'n'))
-        .or_else(|| non_zero_digit(scanner, source).and_then(|r| decimal_digits(&r, source, true).or_else(|| Some(r))).and_then(|r| match_char(&r, source, 'n')))
+        .or_else(|| non_zero_digit(scanner, source).and_then(|r| decimal_digits(&r, source, true).or(Some(r))).and_then(|r| match_char(&r, source, 'n')))
         .or_else(|| non_zero_digit(scanner, source).and_then(|r| match_char(&r, source, '_')).and_then(|r| decimal_digits(&r, source, true)).and_then(|r| match_char(&r, source, 'n')))
 }
 
@@ -1281,7 +1270,7 @@ fn binary_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Option<
 }
 
 fn is_octal_digit(ch: char) -> bool {
-    ch >= '0' && ch <= '7'
+    ('0'..='7').contains(&ch)
 }
 
 fn octal_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
@@ -1358,7 +1347,7 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
 
     // Numbers can't be followed immediately by digits or identifiers. "3in" is a syntax error.
     if let Some(ch) = source[after.start_idx..].chars().next() {
-        if (ch >= '0' && ch <= '9') || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
+        if ('0'..='9').contains(&ch) || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
             return None;
         }
     }
@@ -1386,7 +1375,7 @@ fn escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
         Some('0') => {
             let lookahead = iter.next();
             match lookahead {
-                Some(ch) if ch >= '0' && ch <= '9' => None,
+                Some(ch) if ('0'..='9').contains(&ch) => None,
                 _ => Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + 1 }),
             }
         }
@@ -1535,9 +1524,9 @@ fn literal_string_value(source: &str) -> JSString {
 
 fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     let after = match_char(scanner, source, '"')
-        .and_then(|r| string_characters(&r, source, '"').or_else(|| Some(r)))
+        .and_then(|r| string_characters(&r, source, '"').or(Some(r)))
         .and_then(|r| match_char(&r, source, '"'))
-        .or_else(|| match_char(scanner, source, '\'').and_then(|r| string_characters(&r, source, '\'').or_else(|| Some(r))).and_then(|r| match_char(&r, source, '\'')))?;
+        .or_else(|| match_char(scanner, source, '\'').and_then(|r| string_characters(&r, source, '\'').or(Some(r))).and_then(|r| match_char(&r, source, '\'')))?;
     let start_idx = scanner.start_idx + 1;
     let after_idx = after.start_idx - 1;
     assert!(after_idx >= start_idx);
@@ -1658,16 +1647,18 @@ fn template_hex_digits_by_value(iter: &mut std::iter::Peekable<std::str::Chars>,
     loop {
         let pot_digit = iter.next();
         if !pot_digit.map_or(false, |c| c.is_ascii_hexdigit()) {
-            let tv;
-            let cv = CharVal::try_from(accumulator);
-            if consumed == 2 || pot_digit != Some('}') || cv.is_err() {
-                tv = None;
+            let tv = if consumed == 2 || pot_digit != Some('}') {
+                None
             } else {
-                // "unwrap" below is ok, because we've just validated the cv is_ok().
-                tv = Some(utf16_encode_code_point(cv.unwrap()));
-                raw_chars.push('}' as u16);
-                consumed += 1;
-            }
+                match CharVal::try_from(accumulator) {
+                    Err(_) => None,
+                    Ok(val) => {
+                        raw_chars.push('}' as u16);
+                        consumed += 1;
+                        Some(utf16_encode_code_point(val))
+                    }
+                }
+            };
             return (tv, raw_chars, Scanner { line: scanner.line, column: scanner.column + consumed as u32, start_idx: scanner.start_idx + consumed }, consumed);
         } else {
             consumed += 1;
@@ -1754,10 +1745,10 @@ fn template_characters(scanner: &Scanner, source: &str) -> (Option<JSString>, JS
         let ch = chars.next();
         match ch {
             None | Some('`') => {
-                return (tv.map(|t| JSString::from(t)), JSString::from(trv), current_scanner);
+                return (tv.map(JSString::from), JSString::from(trv), current_scanner);
             }
             Some('$') if chars.peek() == Some(&'{') => {
-                return (tv.map(|t| JSString::from(t)), JSString::from(trv), current_scanner);
+                return (tv.map(JSString::from), JSString::from(trv), current_scanner);
             }
             Some('\\') => {
                 current_scanner.column += 1;
@@ -1879,16 +1870,17 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
     }
 }
 fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
-        let ch = source[scanner.start_idx..].chars().next();
-        if ch == Some('/') {
-            None //todo!();
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+    //if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
+    //    let ch = source[scanner.start_idx..].chars().next();
+    //    if ch == Some('/') {
+    //        todo!();
+    //    } else {
+    //        None
+    //    }
+    //} else {
+    //    None
+    //}
+    None
 }
 fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementRegExpOrTemplateTail || goal == ScanGoal::InputElementTemplateTail {

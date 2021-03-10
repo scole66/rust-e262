@@ -78,23 +78,16 @@ impl AssignmentTargetType for Expression {
 impl Expression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("Expression expected", scanner.line, scanner.column)).otherwise(|| {
-            AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(left, after_left)| {
+            AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
                 let mut current = Box::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
-                loop {
-                    match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                        .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
-                    {
-                        Err(_) => {
-                            break;
-                        }
-                        Ok((right, after_right)) => {
-                            current = Box::new(Expression::Comma(current, right));
-                            current_scanner = after_right;
-                        }
-                    }
+                while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                    .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
+                {
+                    current = Box::new(Expression::Comma(current, right));
+                    current_scanner = after_right;
                 }
-                Ok((current, current_scanner))
+                (current, current_scanner)
             })
         })
     }

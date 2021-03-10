@@ -54,7 +54,7 @@ impl PrettyPrint for EqualityExpression {
     where
         T: Write,
     {
-        let mut work = |ee: &Box<EqualityExpression>, re: &Box<RelationalExpression>, op| {
+        let mut work = |ee: &EqualityExpression, re: &RelationalExpression, op| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}EqualityExpression: {}", first, self)
                 .and_then(|_| ee.concise_with_leftpad(writer, &successive, Spot::NotFinal))

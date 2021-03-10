@@ -207,7 +207,7 @@ mod tests {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
             //assert_eq!(words, &[66, 111, 98]);
-            assert!(words == &[66, 111, 98]);
+            assert!(words == [66, 111, 98]);
         })
     }
 
@@ -222,7 +222,7 @@ mod tests {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
             //assert_eq!(words, &[66, 111, 98]);
-            assert!(words == &[66, 111, 98]);
+            assert!(words == [66, 111, 98]);
         })
     }
     #[test]
@@ -236,7 +236,7 @@ mod tests {
             let pool = sp.borrow();
             let words: Vec<u16> = res.words(&pool).collect();
             //assert_eq!(words, &[66, 111, 98]);
-            assert!(words == &[66, 111, 98]);
+            assert!(words == [66, 111, 98]);
         })
     }
     #[test]
@@ -267,7 +267,7 @@ mod tests {
         let i = CharToU16Iterator::new(mystr);
         let res: Vec<u16> = i.collect();
         //assert_eq!(res, &[98, 108, 117, 101, 0xe00e]);
-        assert!(res == &[98, 108, 117, 101, 0xe00e]);
+        assert!(res == [98, 108, 117, 101, 0xe00e]);
     }
 
     #[test]

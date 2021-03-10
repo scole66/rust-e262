@@ -200,18 +200,11 @@ impl FormalParameterList {
         let (fp, after_fp) = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Box::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
-        loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
-            {
-                Ok((next, after_next)) => {
-                    current = Box::new(FormalParameterList::List(current, next));
-                    current_scanner = after_next;
-                }
-                Err(_) => {
-                    break;
-                }
-            }
+        while let Ok((next, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
+        {
+            current = Box::new(FormalParameterList::List(current, next));
+            current_scanner = after_next;
         }
         Ok((current, current_scanner))
     }

@@ -48,10 +48,10 @@ impl PrettyPrint for LabelledStatement {
 
 impl LabelledStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (li, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
+        let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
-        Ok((Box::new(LabelledStatement { identifier: li, item: item }), after_item))
+        Ok((Box::new(LabelledStatement { identifier, item }), after_item))
     }
 }
 

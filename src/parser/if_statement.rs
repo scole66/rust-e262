@@ -54,7 +54,7 @@ impl PrettyPrint for IfStatement {
         writeln!(writer, "{}IfStatement: {}", first, self)?;
         pprint_token(writer, "if", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let condition = |writer: &mut T, exp: &Box<Expression>| {
+        let condition = |writer: &mut T, exp: &Expression| {
             exp.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal))
         };
         match self {

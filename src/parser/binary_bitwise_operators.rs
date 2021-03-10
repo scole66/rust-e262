@@ -77,23 +77,16 @@ impl AssignmentTargetType for BitwiseANDExpression {
 
 impl BitwiseANDExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(ee1, after_ee1)| {
+        EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ee1, after_ee1)| {
             let mut current = Box::new(BitwiseANDExpression::EqualityExpression(ee1));
             let mut current_scanner = after_ee1;
-            loop {
-                match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp)
-                    .and_then(|after_op| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
-                {
-                    Ok((ee2, after_ee2)) => {
-                        current = Box::new(BitwiseANDExpression::BitwiseAND(current, ee2));
-                        current_scanner = after_ee2;
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                }
+            while let Ok((ee2, after_ee2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp)
+                .and_then(|after_op| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            {
+                current = Box::new(BitwiseANDExpression::BitwiseAND(current, ee2));
+                current_scanner = after_ee2;
             }
-            Ok((current, current_scanner))
+            (current, current_scanner)
         })
     }
 }
@@ -168,23 +161,16 @@ impl AssignmentTargetType for BitwiseXORExpression {
 
 impl BitwiseXORExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        BitwiseANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(band1, after_band1)| {
+        BitwiseANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(band1, after_band1)| {
             let mut current = Box::new(BitwiseXORExpression::BitwiseANDExpression(band1));
             let mut current_scanner = after_band1;
-            loop {
-                match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret)
-                    .and_then(|after_op| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
-                {
-                    Ok((band2, after_band2)) => {
-                        current = Box::new(BitwiseXORExpression::BitwiseXOR(current, band2));
-                        current_scanner = after_band2;
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                }
+            while let Ok((band2, after_band2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret)
+                .and_then(|after_op| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            {
+                current = Box::new(BitwiseXORExpression::BitwiseXOR(current, band2));
+                current_scanner = after_band2;
             }
-            Ok((current, current_scanner))
+            (current, current_scanner)
         })
     }
 }
@@ -259,23 +245,16 @@ impl AssignmentTargetType for BitwiseORExpression {
 
 impl BitwiseORExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        BitwiseXORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(bxor1, after_bxor1)| {
+        BitwiseXORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(bxor1, after_bxor1)| {
             let mut current = Box::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
             let mut current_scanner = after_bxor1;
-            loop {
-                match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe)
-                    .and_then(|after_op| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
-                {
-                    Ok((bxor2, after_bxor2)) => {
-                        current = Box::new(BitwiseORExpression::BitwiseOR(current, bxor2));
-                        current_scanner = after_bxor2;
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                }
+            while let Ok((bxor2, after_bxor2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe)
+                .and_then(|after_op| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            {
+                current = Box::new(BitwiseORExpression::BitwiseOR(current, bxor2));
+                current_scanner = after_bxor2;
             }
-            Ok((current, current_scanner))
+            (current, current_scanner)
         })
     }
 }

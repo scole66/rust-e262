@@ -56,7 +56,7 @@ fn repl(vm: &mut VM) {
         io::stdin().read_line(&mut line).expect("Failed to read line");
         let linelen = line.len();
         if linelen == 0 {
-            println!("");
+            println!();
             break;
         }
 

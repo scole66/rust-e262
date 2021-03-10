@@ -52,7 +52,7 @@ impl LexicalDeclaration {
         let (kwd, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match kwd {
             Keyword::Let => LetOrConst::Let,
-            Keyword::Const | _ => LetOrConst::Const,
+            _ => LetOrConst::Const,
         };
         let (bl, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
         let after_semi = scan_for_punct(after_bl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
@@ -498,8 +498,8 @@ impl PrettyPrint for BindingPattern {
 impl BindingPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("BindingPattern expected", scanner.line, scanner.column))
-            .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).and_then(|(obp, after_obp)| Ok((Box::new(BindingPattern::Object(obp)), after_obp))))
-            .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).and_then(|(abp, after_abp)| Ok((Box::new(BindingPattern::Array(abp)), after_abp))))
+            .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(obp, after_obp)| (Box::new(BindingPattern::Object(obp)), after_obp)))
+            .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(abp, after_abp)| (Box::new(BindingPattern::Array(abp)), after_abp)))
     }
 }
 
@@ -581,23 +581,23 @@ impl ObjectBindingPattern {
         Err(ParseError::new("ObjectBindingPattern expected", scanner.line, scanner.column)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_open| {
                 scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                    .and_then(|after_close| Ok((Box::new(ObjectBindingPattern::Empty), after_close)))
+                    .map(|after_close| (Box::new(ObjectBindingPattern::Empty), after_close))
                     .otherwise(|| {
                         BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(|(brp, after_brp)| {
                             scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                                .and_then(|after_close| Ok((Box::new(ObjectBindingPattern::RestOnly(brp)), after_close)))
+                                .map(|after_close| (Box::new(ObjectBindingPattern::RestOnly(brp)), after_close))
                         })
                     })
                     .otherwise(|| {
                         BindingPropertyList::parse(parser, after_open, yield_flag, await_flag).and_then(|(bpl, after_bpl)| {
-                            match scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).and_then(|after_close| Ok((None, after_close))).otherwise(
+                            match scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_close| (None, after_close)).otherwise(
                                 || {
                                     scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Comma).and_then(|after_comma| {
                                         let (brp, after_brp) = match BindingRestProperty::parse(parser, after_comma, yield_flag, await_flag) {
                                             Err(_) => (None, after_comma),
                                             Ok((node, s)) => (Some(node), s),
                                         };
-                                        scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).and_then(|after_final| Ok((Some(brp), after_final)))
+                                        scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_final| (Some(brp), after_final))
                                     })
                                 },
                             ) {
@@ -729,7 +729,7 @@ impl ArrayBindingPattern {
                 scan_for_punct_set(after_bel, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::RightBracket, Punctuator::Comma]).and_then(|(punct_next, after_next)| {
                     match punct_next {
                         Punctuator::RightBracket => Ok((Box::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
-                        Punctuator::Comma | _ => {
+                        _ => {
                             let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
                                 Err(err) => (None, after_next),
                                 Ok((e, s)) => (Some(e), s),
@@ -816,7 +816,7 @@ impl BindingRestProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)
             .and_then(|after_dots| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
-            .and_then(|(id, after_id)| Ok((Box::new(BindingRestProperty::Id(id)), after_id)))
+            .map(|(id, after_id)| (Box::new(BindingRestProperty::Id(id)), after_id))
     }
 }
 

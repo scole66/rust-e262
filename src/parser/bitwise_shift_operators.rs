@@ -51,7 +51,7 @@ impl PrettyPrint for ShiftExpression {
     where
         T: Write,
     {
-        let mut work = |left: &Box<ShiftExpression>, right: &Box<AdditiveExpression>, op| {
+        let mut work = |left: &ShiftExpression, right: &AdditiveExpression, op| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}ShiftExpression: {}", first, self)
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
@@ -88,30 +88,23 @@ impl AssignmentTargetType for ShiftExpression {
 
 impl ShiftExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(ae, after_ae)| {
+        AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ae, after_ae)| {
             let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
             let mut current_scan = after_ae;
-            loop {
-                match scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt]).and_then(
-                    |(shift_op, after_op)| {
-                        let make_se = match shift_op {
-                            Punctuator::GtGt => |se, ae| ShiftExpression::SignedRightShift(se, ae),
-                            Punctuator::LtLt => |se, ae| ShiftExpression::LeftShift(se, ae),
-                            Punctuator::GtGtGt | _ => |se, ae| ShiftExpression::UnsignedRightShift(se, ae),
-                        };
-                        AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).and_then(|(ae2, after_ae2)| Ok((make_se, ae2, after_ae2)))
-                    },
-                ) {
-                    Ok((make_se, ae2, after_ae2)) => {
-                        current = Box::new(make_se(current, ae2));
-                        current_scan = after_ae2;
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                }
+            while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt])
+                .and_then(|(shift_op, after_op)| {
+                    let make_se = match shift_op {
+                        Punctuator::GtGt => |se, ae| ShiftExpression::SignedRightShift(se, ae),
+                        Punctuator::LtLt => |se, ae| ShiftExpression::LeftShift(se, ae),
+                        _ => |se, ae| ShiftExpression::UnsignedRightShift(se, ae),
+                    };
+                    AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).map(|(ae2, after_ae2)| (make_se, ae2, after_ae2))
+                })
+            {
+                current = Box::new(make_se(current, ae2));
+                current_scan = after_ae2;
             }
-            Ok((current, current_scan))
+            (current, current_scan)
         })
     }
 }

@@ -228,16 +228,9 @@ impl CaseClauses {
         let (item, after_item) = CaseClause::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         let mut current = Box::new(CaseClauses::Item(item));
         let mut current_scanner = after_item;
-        loop {
-            match CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
-                Ok((next, after_next)) => {
-                    current = Box::new(CaseClauses::List(current, next));
-                    current_scanner = after_next;
-                }
-                Err(_) => {
-                    break;
-                }
-            }
+        while let Ok((next, after_next)) = CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+            current = Box::new(CaseClauses::List(current, next));
+            current_scanner = after_next;
         }
         Ok((current, current_scanner))
     }

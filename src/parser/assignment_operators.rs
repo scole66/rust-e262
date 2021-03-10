@@ -156,14 +156,14 @@ impl AssignmentExpression {
         Err(ParseError::new("AssignmentExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 if yield_flag {
-                    YieldExpression::parse(parser, scanner, in_flag, await_flag).and_then(|(yieldexp, after_yield)| Ok((Box::new(AssignmentExpression::Yield(yieldexp)), after_yield)))
+                    YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Box::new(AssignmentExpression::Yield(yieldexp)), after_yield))
                 } else {
                     Err(ParseError::new(String::new(), scanner.line, scanner.column))
                 }
             })
-            .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(af, after_af)| Ok((Box::new(AssignmentExpression::Arrow(af)), after_af))))
+            .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Box::new(AssignmentExpression::Arrow(af)), after_af)))
             .otherwise(|| {
-                AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(aaf, after_aaf)| Ok((Box::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf)))
+                AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(aaf, after_aaf)| (Box::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf))
             })
             .otherwise(|| {
                 LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(lhs, after_lhs)| {
@@ -207,14 +207,14 @@ impl AssignmentExpression {
                             Punctuator::AmpEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseAnd, ae),
                             Punctuator::PipeEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseOr, ae),
                             Punctuator::StarStarEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae),
-                            Punctuator::CaretEq | _ => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae),
+                            _ => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae),
                         };
-                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag).and_then(|(ae, after_ae)| Ok((Box::new(make_ae(lhs, ae)), after_ae)))
+                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag).map(|(ae, after_ae)| (Box::new(make_ae(lhs, ae)), after_ae))
                     })
                 })
             })
             .otherwise(|| {
-                ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(ce, after_ce)| Ok((Box::new(AssignmentExpression::FallThru(ce)), after_ce)))
+                ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ce, after_ce)| (Box::new(AssignmentExpression::FallThru(ce)), after_ce))
             })
     }
 }

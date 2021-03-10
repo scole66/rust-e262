@@ -206,7 +206,7 @@ fn member_expression_head_recursive(
         match TemplateLiteral::parse(parser, after_scan, yield_flag, await_flag, true).map(|(tl, after_tl)| (After::TLit(tl), after_tl)).otherwise(|| {
             scan_for_punct_set(after_scan, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::Dot, Punctuator::LeftBracket]).and_then(|(punct, after)| match punct {
                 Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp).map(|(id, after_id)| (After::Id(id), after_id)),
-                Punctuator::LeftBracket | _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(|(expression, after_exp)| {
+                _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(|(expression, after_exp)| {
                     scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket).map(|after_bracket| (After::Exp(expression), after_bracket))
                 }),
             })
@@ -316,7 +316,7 @@ impl SuperProperty {
                 let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                 Ok((Box::new(SuperProperty { kind: SuperPropertyKind::Expression(exp) }), after_rb))
             }
-            Punctuator::Dot | _ => {
+            _ => {
                 let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementRegExp)?;
                 Ok((Box::new(SuperProperty { kind: SuperPropertyKind::IdentifierName(id) }), after_id))
             }
@@ -396,7 +396,7 @@ impl MetaProperty {
         let (kwd, after_kwd) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
             Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaPropertyKind::NewTarget),
-            Keyword::Import | _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta),
+            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta),
         }
     }
 }
@@ -463,13 +463,13 @@ impl Arguments {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Arguments>, Scanner), ParseError> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)
-            .and_then(|after_rp| Ok((Box::new(Arguments { kind: ArgumentsKind::Empty }), after_rp)))
+            .map(|after_rp| (Box::new(Arguments { kind: ArgumentsKind::Empty }), after_rp))
             .otherwise(|| {
                 let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_args, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightParen])?;
                 match punct {
                     Punctuator::RightParen => Ok((Box::new(Arguments { kind: ArgumentsKind::ArgumentList(args) }), after_punct)),
-                    Punctuator::Comma | _ => {
+                    _ => {
                         let after_rp = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
                         Ok((Box::new(Arguments { kind: ArgumentsKind::ArgumentListComma(args) }), after_rp))
                     }
@@ -615,33 +615,26 @@ impl ArgumentList {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         ArgumentListKind::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
             .otherwise(|| ArgumentListKind::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
-            .and_then(|(kind, after)| {
+            .map(|(kind, after)| {
                 let mut top_scanner = after;
                 let mut top_box = Box::new(Self { kind });
-                loop {
-                    enum Dots {
-                        Dots,
-                        NoDots,
-                    }
-                    match ArgumentListKind::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
-                        .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
-                        .otherwise(|| ArgumentListKind::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag).map(|(ae, after_ae)| (ae, after_ae, Dots::Dots)))
-                    {
-                        Ok((ae, scan, dotstate)) => {
-                            top_box = Box::new(ArgumentList {
-                                kind: match dotstate {
-                                    Dots::Dots => ArgumentListKind::ArgumentListDotsAssignmentExpression(top_box, ae),
-                                    Dots::NoDots => ArgumentListKind::ArgumentListAssignmentExpression(top_box, ae),
-                                },
-                            });
-                            top_scanner = scan;
-                        }
-                        Err(_) => {
-                            break;
-                        }
-                    }
+                enum Dots {
+                    Dots,
+                    NoDots,
                 }
-                Ok((top_box, top_scanner))
+                while let Ok((ae, scan, dotstate)) = ArgumentListKind::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
+                    .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
+                    .otherwise(|| ArgumentListKind::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag).map(|(ae, after_ae)| (ae, after_ae, Dots::Dots)))
+                {
+                    top_box = Box::new(ArgumentList {
+                        kind: match dotstate {
+                            Dots::Dots => ArgumentListKind::ArgumentListDotsAssignmentExpression(top_box, ae),
+                            Dots::NoDots => ArgumentListKind::ArgumentListAssignmentExpression(top_box, ae),
+                        },
+                    });
+                    top_scanner = scan;
+                }
+                (top_box, top_scanner)
             })
     }
 }
@@ -928,7 +921,7 @@ impl PrettyPrint for CallExpression {
     where
         T: Write,
     {
-        let head = |writer: &mut T, node: &Box<CallExpression>| {
+        let head = |writer: &mut T, node: &CallExpression| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}CallExpression: {}", first, self)?;
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and(Ok(successive))
@@ -977,12 +970,11 @@ impl CallExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("CallExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
-                CallMemberExpression::parse(parser, scanner, yield_arg, await_arg)
-                    .and_then(|(cme, after_cme)| Ok((Box::new(Self { kind: CallExpressionKind::CallMemberExpression(cme) }), after_cme)))
+                CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Box::new(Self { kind: CallExpressionKind::CallMemberExpression(cme) }), after_cme))
             })
-            .otherwise(|| SuperCall::parse(parser, scanner, yield_arg, await_arg).and_then(|(sc, after_sc)| Ok((Box::new(Self { kind: CallExpressionKind::SuperCall(sc) }), after_sc))))
-            .otherwise(|| ImportCall::parse(parser, scanner, yield_arg, await_arg).and_then(|(ic, after_ic)| Ok((Box::new(Self { kind: CallExpressionKind::ImportCall(ic) }), after_ic))))
-            .and_then(|(ce, after_ce)| {
+            .otherwise(|| SuperCall::parse(parser, scanner, yield_arg, await_arg).map(|(sc, after_sc)| (Box::new(Self { kind: CallExpressionKind::SuperCall(sc) }), after_sc)))
+            .otherwise(|| ImportCall::parse(parser, scanner, yield_arg, await_arg).map(|(ic, after_ic)| (Box::new(Self { kind: CallExpressionKind::ImportCall(ic) }), after_ic)))
+            .map(|(ce, after_ce)| {
                 enum Follow {
                     Args(Box<Arguments>),
                     Exp(Box<Expression>),
@@ -991,41 +983,35 @@ impl CallExpression {
                 }
                 let mut top_box = ce;
                 let mut top_scanner = after_ce;
-                loop {
-                    match Arguments::parse(parser, top_scanner, yield_arg, await_arg)
-                        .map(|(args, after_args)| (Follow::Args(args), after_args))
-                        .otherwise(|| TemplateLiteral::parse(parser, top_scanner, yield_arg, await_arg, true).map(|(tl, after_tl)| (Follow::TLit(tl), after_tl)))
-                        .otherwise(|| {
-                            let (punct, after_punct) = scan_for_punct_set(top_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
-                            match punct {
-                                Punctuator::Dot => {
-                                    let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)?;
-                                    Ok((Follow::Id(id), after_id))
-                                }
-                                Punctuator::LeftBracket | _ => {
-                                    let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
-                                    let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
-                                    Ok((Follow::Exp(exp), after_rb))
-                                }
+                while let Ok((follow, scan)) = Arguments::parse(parser, top_scanner, yield_arg, await_arg)
+                    .map(|(args, after_args)| (Follow::Args(args), after_args))
+                    .otherwise(|| TemplateLiteral::parse(parser, top_scanner, yield_arg, await_arg, true).map(|(tl, after_tl)| (Follow::TLit(tl), after_tl)))
+                    .otherwise(|| {
+                        let (punct, after_punct) = scan_for_punct_set(top_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
+                        match punct {
+                            Punctuator::Dot => {
+                                let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)?;
+                                Ok((Follow::Id(id), after_id))
                             }
-                        }) {
-                        Ok((follow, scan)) => {
-                            top_box = Box::new(CallExpression {
-                                kind: match follow {
-                                    Follow::Exp(exp) => CallExpressionKind::CallExpressionExpression(top_box, exp),
-                                    Follow::Id(id) => CallExpressionKind::CallExpressionIdentifierName(top_box, id),
-                                    Follow::TLit(tl) => CallExpressionKind::CallExpressionTemplateLiteral(top_box, tl),
-                                    Follow::Args(args) => CallExpressionKind::CallExpressionArguments(top_box, args),
-                                },
-                            });
-                            top_scanner = scan;
+                            _ => {
+                                let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
+                                let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                                Ok((Follow::Exp(exp), after_rb))
+                            }
                         }
-                        Err(_) => {
-                            break;
-                        }
-                    }
+                    })
+                {
+                    top_box = Box::new(CallExpression {
+                        kind: match follow {
+                            Follow::Exp(exp) => CallExpressionKind::CallExpressionExpression(top_box, exp),
+                            Follow::Id(id) => CallExpressionKind::CallExpressionIdentifierName(top_box, id),
+                            Follow::TLit(tl) => CallExpressionKind::CallExpressionTemplateLiteral(top_box, tl),
+                            Follow::Args(args) => CallExpressionKind::CallExpressionArguments(top_box, args),
+                        },
+                    });
+                    top_scanner = scan;
                 }
-                Ok((top_box, top_scanner))
+                (top_box, top_scanner)
             })
     }
 }
@@ -1098,9 +1084,9 @@ impl AssignmentTargetType for LeftHandSideExpression {
 impl LeftHandSideExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("LeftHandSideExpression expected", scanner.line, scanner.column))
-            .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).and_then(|(opt, after_opt)| Ok((Box::new(Self::OptionalExpression(opt)), after_opt))))
-            .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).and_then(|(ce, after_ce)| Ok((Box::new(Self::CallExpression(ce)), after_ce))))
-            .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).and_then(|(ne, after_ne)| Ok((Box::new(Self::NewExpression(ne)), after_ne))))
+            .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Box::new(Self::OptionalExpression(opt)), after_opt)))
+            .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Box::new(Self::CallExpression(ce)), after_ce)))
+            .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Box::new(Self::NewExpression(ne)), after_ne)))
     }
 }
 
@@ -1186,21 +1172,14 @@ impl OptionalExpression {
                     Ok((Box::new(OptionalExpression::Call(ce, oc)), after_oc))
                 })
             })
-            .and_then(|(opt, after_opt)| {
+            .map(|(opt, after_opt)| {
                 let mut current = opt;
                 let mut current_scanner = after_opt;
-                loop {
-                    match OptionalChain::parse(parser, current_scanner, yield_flag, await_flag) {
-                        Ok((oc, after_oc)) => {
-                            current = Box::new(OptionalExpression::Opt(current, oc));
-                            current_scanner = after_oc;
-                        }
-                        Err(_) => {
-                            break;
-                        }
-                    }
+                while let Ok((oc, after_oc)) = OptionalChain::parse(parser, current_scanner, yield_flag, await_flag) {
+                    current = Box::new(OptionalExpression::Opt(current, oc));
+                    current_scanner = after_oc;
                 }
-                Ok((current, current_scanner))
+                (current, current_scanner)
             })
     }
 }
@@ -1366,7 +1345,7 @@ impl OptionalChain {
                             let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)?;
                             Ok((Follow::Id(id), after_id))
                         }
-                        Punctuator::LeftBracket | _ => {
+                        _ => {
                             let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
                             let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                             Ok((Follow::Exp(exp), after_rb))

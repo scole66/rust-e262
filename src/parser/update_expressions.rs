@@ -57,11 +57,11 @@ impl PrettyPrint for UpdateExpression {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}UpdateExpression: {}", first, self).and(Ok(successive))
         };
-        let workafter = |writer: &mut T, node: &Box<LeftHandSideExpression>, op: &str| {
+        let workafter = |writer: &mut T, node: &LeftHandSideExpression, op: &str| {
             head(writer)
                 .and_then(|successive| node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final)))
         };
-        let workbefore = |writer: &mut T, node: &Box<UnaryExpression>, op: &str| {
+        let workbefore = |writer: &mut T, node: &UnaryExpression, op: &str| {
             head(writer)
                 .and_then(|successive| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal).and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final)))
         };
@@ -118,7 +118,7 @@ impl UpdateExpression {
                         let (punct, after_punct) = scan_for_punct_set(after_lhs, parser.source, ScanGoal::InputElementDiv, &[Punctuator::PlusPlus, Punctuator::MinusMinus])?;
                         match punct {
                             Punctuator::PlusPlus => Ok((AftLHS::Inc, after_punct)),
-                            Punctuator::MinusMinus | _ => Ok((AftLHS::Dec, after_punct)),
+                            _ => Ok((AftLHS::Dec, after_punct)),
                         }
                     })
                     .otherwise(|| Ok((AftLHS::Nothing, after_lhs)))

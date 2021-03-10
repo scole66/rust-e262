@@ -709,7 +709,7 @@ impl ArrayLiteral {
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
                 match punct {
                     Punctuator::RightBracket => Ok((Box::new(ArrayLiteral::ElementList(el)), after_punct)),
-                    Punctuator::Comma | _ => {
+                    _ => {
                         let (elisions, after_elisions) = match Elisions::parse(parser, after_punct) {
                             Ok((node, scan)) => (Some(node), scan),
                             Err(_) => (None, after_punct),
@@ -1614,17 +1614,9 @@ impl TemplateMiddleList {
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         let (mut current_node, mut current_scanner) = Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        loop {
-            match Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag) {
-                Ok((middle, exp, after)) => {
-                    current_node = Box::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
-                    current_scanner = after;
-                }
-                Err(_) => {
-                    // Errors in recursive productions are swallowed
-                    break;
-                }
-            }
+        while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag) {
+            current_node = Box::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
+            current_scanner = after;
         }
         Ok((current_node, current_scanner))
     }

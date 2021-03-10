@@ -70,7 +70,7 @@ impl PrettyPrint for UnaryExpression {
     where
         T: Write,
     {
-        let mut work = |node: &Box<UnaryExpression>, op, kind| {
+        let mut work = |node: &UnaryExpression, op, kind| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}UnaryExpression: {}", first, self)
                 .and_then(|_| pprint_token(writer, op, kind, &successive, Spot::NotFinal))
@@ -128,13 +128,13 @@ impl UnaryExpression {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let mut unary_helper = |f: fn(Box<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Box::new(f(boxed)), after));
         match token {
-            Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(|boxed| UnaryExpression::Delete(boxed)),
-            Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(|boxed| UnaryExpression::Void(boxed)),
-            Token::Identifier(id) if id.matches(Keyword::Typeof) => unary_helper(|boxed| UnaryExpression::Typeof(boxed)),
-            Token::Punctuator(Punctuator::Plus) => unary_helper(|boxed| UnaryExpression::NoOp(boxed)),
-            Token::Punctuator(Punctuator::Minus) => unary_helper(|boxed| UnaryExpression::Negate(boxed)),
-            Token::Punctuator(Punctuator::Tilde) => unary_helper(|boxed| UnaryExpression::Complement(boxed)),
-            Token::Punctuator(Punctuator::Bang) => unary_helper(|boxed| UnaryExpression::Not(boxed)),
+            Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(UnaryExpression::Delete),
+            Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(UnaryExpression::Void),
+            Token::Identifier(id) if id.matches(Keyword::Typeof) => unary_helper(UnaryExpression::Typeof),
+            Token::Punctuator(Punctuator::Plus) => unary_helper(UnaryExpression::NoOp),
+            Token::Punctuator(Punctuator::Minus) => unary_helper(UnaryExpression::Negate),
+            Token::Punctuator(Punctuator::Tilde) => unary_helper(UnaryExpression::Complement),
+            Token::Punctuator(Punctuator::Bang) => unary_helper(UnaryExpression::Not),
             _ => Err(ParseError::new("UnaryExpression expected", scanner.line, scanner.column))
                 .otherwise(|| {
                     if await_flag {

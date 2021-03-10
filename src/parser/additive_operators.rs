@@ -52,7 +52,7 @@ impl PrettyPrint for AdditiveExpression {
     where
         T: Write,
     {
-        let mut work = |left: &Box<AdditiveExpression>, right: &Box<MultiplicativeExpression>, op| {
+        let mut work = |left: &AdditiveExpression, right: &MultiplicativeExpression, op| {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}AdditiveExpression: {}", first, self)
                 .and_then(|_| left.concise_with_leftpad(writer, &successive, Spot::NotFinal))
@@ -101,7 +101,7 @@ impl AdditiveExpression {
                 Ok((punct, me, after_me)) => {
                     current = Box::new(match punct {
                         Punctuator::Plus => AdditiveExpression::AdditiveExpressionAdd(current, me),
-                        Punctuator::Minus | _ => AdditiveExpression::AdditiveExpressionSubtract(current, me),
+                        _ => AdditiveExpression::AdditiveExpressionSubtract(current, me),
                     });
                     current_scanner = after_me;
                 }

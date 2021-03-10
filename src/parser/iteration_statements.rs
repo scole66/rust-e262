@@ -523,7 +523,7 @@ impl ForInOfStatement {
                             Ok((Box::new(ForInOfStatement::ForVarOf(for_binding, ae, stmt)), after_stmt))
                         }
                     }
-                    Keyword::In | _ => {
+                    _ => {
                         if await_seen {
                             Err(ParseError::new("await not allowed in \"for-in\" expressions", after_for.line, after_for.column))
                         } else {
@@ -550,7 +550,7 @@ impl ForInOfStatement {
                             Ok((Box::new(ForInOfStatement::ForLexOf(decl, ae, stmt)), after_stmt))
                         }
                     }
-                    Keyword::In | _ => {
+                    _ => {
                         if await_seen {
                             Err(ParseError::new("await not allowed in \"for-in\" expressions", after_for.line, after_for.column))
                         } else {
@@ -586,7 +586,7 @@ impl ForInOfStatement {
                             Ok((Box::new(ForInOfStatement::ForOf(lhs, ae, stmt)), after_stmt))
                         }
                     }
-                    Keyword::In | _ => {
+                    _ => {
                         if await_seen {
                             Err(ParseError::new("await not allowed in \"for-in\" expressions", after_for.line, after_for.column))
                         } else {
@@ -601,40 +601,49 @@ impl ForInOfStatement {
     }
 }
 
-fn pp_two<T, U, V>(writer: &mut T, pad: &str, n1: &Box<U>, n2: &Box<V>) -> IoResult<()>
+fn pp_two<T, U, UU, V, VV>(writer: &mut T, pad: &str, n1: &U, n2: &V) -> IoResult<()>
 where
     T: Write,
-    U: PrettyPrint,
-    V: PrettyPrint,
+    U: AsRef<UU>,
+    UU: PrettyPrint,
+    V: AsRef<VV>,
+    VV: PrettyPrint,
 {
-    n1.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n2.pprint_with_leftpad(writer, pad, Spot::Final)
+    n1.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n2.as_ref().pprint_with_leftpad(writer, pad, Spot::Final)
 }
 
-fn pp_three<T, U, V, W>(writer: &mut T, pad: &str, n1: &Box<U>, n2: &Box<V>, n3: &Box<W>) -> IoResult<()>
+fn pp_three<T, U, V, W, X, Y, Z>(writer: &mut T, pad: &str, n1: &U, n2: &V, n3: &W) -> IoResult<()>
 where
     T: Write,
-    U: PrettyPrint,
-    V: PrettyPrint,
-    W: PrettyPrint,
-{
-    n1.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n2.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n3.pprint_with_leftpad(writer, pad, Spot::Final)
-}
-
-fn pp_four<T, U, V, W, X>(writer: &mut T, pad: &str, n1: &Box<U>, n2: &Box<V>, n3: &Box<W>, n4: &Box<X>) -> IoResult<()>
-where
-    T: Write,
-    U: PrettyPrint,
-    V: PrettyPrint,
-    W: PrettyPrint,
+    U: AsRef<X>,
     X: PrettyPrint,
+    V: AsRef<Y>,
+    Y: PrettyPrint,
+    W: AsRef<Z>,
+    Z: PrettyPrint,
 {
-    n1.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n2.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n3.pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
-    n4.pprint_with_leftpad(writer, pad, Spot::Final)
+    n1.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n2.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n3.as_ref().pprint_with_leftpad(writer, pad, Spot::Final)
+}
+
+fn pp_four<T, U, UU, V, VV, W, WW, X, XX>(writer: &mut T, pad: &str, n1: &U, n2: &V, n3: &W, n4: &X) -> IoResult<()>
+where
+    T: Write,
+    U: AsRef<UU>,
+    UU: PrettyPrint,
+    V: AsRef<VV>,
+    VV: PrettyPrint,
+    W: AsRef<WW>,
+    WW: PrettyPrint,
+    X: AsRef<XX>,
+    XX: PrettyPrint,
+{
+    n1.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n2.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n3.as_ref().pprint_with_leftpad(writer, pad, Spot::NotFinal)?;
+    n4.as_ref().pprint_with_leftpad(writer, pad, Spot::Final)
 }
 
 // ForDeclaration[Yield, Await] :
@@ -680,7 +689,7 @@ impl ForDeclaration {
         let (tok, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match tok {
             Keyword::Let => LetOrConst::Let,
-            Keyword::Const | _ => LetOrConst::Const,
+            _ => LetOrConst::Const,
         };
         let (binding, after_binding) = ForBinding::parse(parser, after_tok, yield_flag, await_flag)?;
         Ok((Box::new(ForDeclaration::Binding(loc, binding)), after_binding))

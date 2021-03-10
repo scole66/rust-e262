@@ -103,7 +103,7 @@ impl PrettyPrint for ArrowParameters {
 impl ArrowParameters {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
         Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
-            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).and_then(|(bi, after_bi)| Ok((Box::new(ArrowParameters::Identifier(bi)), after_bi))))
+            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Box::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
                 let (covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;

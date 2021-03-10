@@ -48,7 +48,7 @@ impl MultiplicativeOperator {
         match op {
             Punctuator::Star => Ok((Box::new(MultiplicativeOperator::Multiply), after_op)),
             Punctuator::Slash => Ok((Box::new(MultiplicativeOperator::Divide), after_op)),
-            Punctuator::Percent | _ => Ok((Box::new(MultiplicativeOperator::Modulo), after_op)),
+            _ => Ok((Box::new(MultiplicativeOperator::Modulo), after_op)),
         }
     }
 }
@@ -130,19 +130,12 @@ impl MultiplicativeExpression {
         let (ee, after_ee) = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Box::new(MultiplicativeExpression::ExponentiationExpression(ee));
         let mut current_scanner = after_ee;
-        loop {
-            match MultiplicativeOperator::parse(parser, current_scanner).and_then(|(op, after_op)| {
-                let (ee2, after_ee2) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
-                Ok((op, ee2, after_ee2))
-            }) {
-                Ok((op, ee2, scan)) => {
-                    current = Box::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
-                    current_scanner = scan;
-                }
-                Err(_) => {
-                    break;
-                }
-            }
+        while let Ok((op, ee2, scan)) = MultiplicativeOperator::parse(parser, current_scanner).and_then(|(op, after_op)| {
+            let (ee2, after_ee2) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
+            Ok((op, ee2, after_ee2))
+        }) {
+            current = Box::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
+            current_scanner = scan;
         }
         Ok((current, current_scanner))
     }

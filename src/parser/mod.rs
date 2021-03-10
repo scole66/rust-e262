@@ -1,4 +1,3 @@
-use itertools;
 use std::cmp;
 use std::cmp::Ordering;
 
@@ -48,14 +47,12 @@ impl ParseError {
             Ordering::Less
         } else if left.line > right.line {
             Ordering::Greater
+        } else if left.column < right.column {
+            Ordering::Less
+        } else if left.column > right.column {
+            Ordering::Greater
         } else {
-            if left.column < right.column {
-                Ordering::Less
-            } else if left.column > right.column {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
+            Ordering::Equal
         }
     }
 
@@ -249,7 +246,7 @@ pub mod testhelp {
     use std::fmt;
     pub fn check<T>(res: Result<(Box<T>, Scanner), ParseError>) -> (Box<T>, Scanner) {
         assert!(res.is_ok());
-        return res.unwrap();
+        res.unwrap()
     }
     pub fn check_err<T>(res: Result<(Box<T>, Scanner), ParseError>, msg: &str, line: u32, column: u32)
     where

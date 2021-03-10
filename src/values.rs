@@ -69,7 +69,7 @@ where
     write!(writer, "e")?;
     let v = n - 1;
     write!(writer, "{}{}", if v > 0 { '+' } else { '-' }, v.abs())?;
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]
