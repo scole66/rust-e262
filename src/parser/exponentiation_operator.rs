@@ -10,7 +10,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ExponentiationExpression[Yield, Await] :
 //      UnaryExpression[?Yield, ?Await]
-//      UpdateExpression[?Yield, ?Await] * ExponentiationExpression[?Yield, ?Await]
+//      UpdateExpression[?Yield, ?Await] ** ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ExponentiationExpression {
     UnaryExpression(Rc<UnaryExpression>),
@@ -21,7 +21,7 @@ impl fmt::Display for ExponentiationExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             ExponentiationExpression::UnaryExpression(boxed) => write!(f, "{}", boxed),
-            ExponentiationExpression::Exponentiation(ue, ee) => write!(f, "{} * {}", ue, ee),
+            ExponentiationExpression::Exponentiation(ue, ee) => write!(f, "{} ** {}", ue, ee),
         }
     }
 }
@@ -52,7 +52,7 @@ impl PrettyPrint for ExponentiationExpression {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}ExponentiationExpression: {}", first, self)?;
                 left.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "**", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -125,11 +125,11 @@ mod tests {
     }
     #[test]
     fn exponentiation_expression_test_02() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a * b"), Scanner::new(), false, false));
+        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ExponentiationExpression::Exponentiation(..)));
-        pretty_check(&*se, "ExponentiationExpression: a * b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
-        concise_check(&*se, "ExponentiationExpression: a * b", vec!["IdentifierName: a", "Punctuator: *", "IdentifierName: b"]);
+        pretty_check(&*se, "ExponentiationExpression: a ** b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
+        concise_check(&*se, "ExponentiationExpression: a ** b", vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
         assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
@@ -140,7 +140,7 @@ mod tests {
     }
     #[test]
     fn exponentiation_expression_test_04() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a * @"), Scanner::new(), false, false));
+        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
@@ -151,7 +151,7 @@ mod tests {
     }
     #[test]
     fn exponentiation_expression_test_prettyerrors_1() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("3*4"), Scanner::new(), false, false).unwrap();
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test]

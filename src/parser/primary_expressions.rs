@@ -3198,7 +3198,7 @@ mod tests {
     }
     #[test]
     fn object_literal_test_06() {
-        check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "‘,’ or ‘}’ expected", 1, 5);
+        check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "One of [‘}’, ‘,’] expected", 1, 5);
     }
     #[test]
     fn object_literal_test_07() {

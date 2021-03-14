@@ -228,7 +228,7 @@ impl AssignmentExpression {
 }
 
 // AssignmentOperator : one of
-//      *= /= %= += -= <<= >>= >>>= &= ^= |= *=
+//      *= /= %= += -= <<= >>= >>>= &= ^= |= **=
 #[derive(Debug)]
 pub enum AssignmentOperator {
     Multiply,
@@ -259,7 +259,7 @@ impl fmt::Display for AssignmentOperator {
             AssignmentOperator::BitwiseAnd => write!(f, "&="),
             AssignmentOperator::BitwiseXor => write!(f, "^="),
             AssignmentOperator::BitwiseOr => write!(f, "|="),
-            AssignmentOperator::Exponentiate => write!(f, "*="),
+            AssignmentOperator::Exponentiate => write!(f, "**="),
         }
     }
 }
@@ -464,11 +464,11 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_16() {
-        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false));
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
-        pretty_check(&*node, "AssignmentExpression: a *= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: *=", "AssignmentExpression: b"]);
-        concise_check(&*node, "AssignmentExpression: a *= b", vec!["IdentifierName: a", "Punctuator: *=", "IdentifierName: b"]);
+        pretty_check(&*node, "AssignmentExpression: a **= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: **=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a **= b", vec!["IdentifierName: a", "Punctuator: **=", "IdentifierName: b"]);
         format!("{:?}", node);
         assert!(!node.is_function_definition());
         assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
@@ -588,7 +588,7 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_prettyerrors_16() {
-        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test]
@@ -688,7 +688,7 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_conciseerrors_16() {
-        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(&*item);
     }
     #[test]
