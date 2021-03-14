@@ -46,7 +46,7 @@ impl fmt::Display for Identifier {
 }
 
 impl Identifier {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Identifier(id) => match id.keyword_id {
@@ -142,13 +142,22 @@ impl Identifier {
                     {
                         Err(ParseError::new(format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value), id.line, id.column))
                     } else {
-                        let node = Identifier::IdentifierName(id);
-                        let boxed = Box::new(node);
-                        Ok((boxed, after_tok))
+                        Ok((Rc::new(Identifier::IdentifierName(id)), after_tok))
                     }
                 }
             },
             _ => Err(ParseError::new("Not an identifier", scanner.line, scanner.column)),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.identifier_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.identifier_cache.insert(scanner, result.clone());
+                result
+            }
         }
     }
 }
@@ -160,7 +169,7 @@ impl Identifier {
 
 #[derive(Debug)]
 enum IdentifierReferenceKind {
-    Identifier(Box<Identifier>),
+    Identifier(Rc<Identifier>),
     Yield,
     Await,
 }
@@ -241,25 +250,37 @@ impl fmt::Display for IdentifierReference {
 }
 
 impl IdentifierReference {
-    pub fn parse(parser: &mut Parser, initial_scanner: Scanner, arg_yield: bool, arg_await: bool) -> Result<(Box<IdentifierReference>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, initial_scanner: Scanner, arg_yield: bool, arg_await: bool) -> ParseResult<Self> {
         let production = Identifier::parse(parser, initial_scanner);
         match production {
             Ok((ident, scanner)) => {
                 let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), strict: parser.strict };
-                let boxed = Box::new(node);
+                let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
             Err(pe) => {
                 let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
                     Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => {
-                        Ok((Box::new(IdentifierReference { kind: IdentifierReferenceKind::Await, strict: parser.strict }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, strict: parser.strict }), scan))
                     }
                     Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => {
-                        Ok((Box::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: parser.strict }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: parser.strict }), scan))
                     }
                     _ => Err(pe),
                 }
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.identifier_reference_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.identifier_reference_cache.insert(key, result.clone());
+                result
             }
         }
     }
@@ -271,7 +292,7 @@ impl IdentifierReference {
 //    await
 #[derive(Debug)]
 enum BindingIdentifierKind {
-    Identifier(Box<Identifier>),
+    Identifier(Rc<Identifier>),
     Yield,
     Await,
 }
@@ -341,21 +362,33 @@ impl PrettyPrint for BindingIdentifier {
 }
 
 impl BindingIdentifier {
-    pub fn parse(parser: &mut Parser, starting_scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, starting_scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let production = Identifier::parse(parser, starting_scanner);
         match production {
             Ok((ident, scanner)) => {
                 let node = BindingIdentifier { kind: BindingIdentifierKind::Identifier(ident), yield_flag, await_flag };
-                let boxed = Box::new(node);
+                let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
             Err(pe) => {
                 let (token, scan) = scan_token(&starting_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    Token::Identifier(id) if id.matches(Keyword::Await) => Ok((Box::new(BindingIdentifier { kind: BindingIdentifierKind::Await, yield_flag, await_flag }), scan)),
-                    Token::Identifier(id) if id.matches(Keyword::Yield) => Ok((Box::new(BindingIdentifier { kind: BindingIdentifierKind::Yield, yield_flag, await_flag }), scan)),
+                    Token::Identifier(id) if id.matches(Keyword::Await) => Ok((Rc::new(BindingIdentifier { kind: BindingIdentifierKind::Await, yield_flag, await_flag }), scan)),
+                    Token::Identifier(id) if id.matches(Keyword::Yield) => Ok((Rc::new(BindingIdentifier { kind: BindingIdentifierKind::Yield, yield_flag, await_flag }), scan)),
                     _ => Err(pe),
                 }
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_identifier_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_identifier_cache.insert(key, result.clone());
+                result
             }
         }
     }
@@ -367,7 +400,7 @@ impl BindingIdentifier {
 //      [~Await]await
 #[derive(Debug)]
 pub enum LabelIdentifier {
-    Identifier(Box<Identifier>),
+    Identifier(Rc<Identifier>),
     Yield,
     Await,
 }
@@ -408,23 +441,35 @@ impl PrettyPrint for LabelIdentifier {
 }
 
 impl LabelIdentifier {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let pot_id = Identifier::parse(parser, scanner);
         match pot_id {
-            Ok((id, after_id)) => Ok((Box::new(LabelIdentifier::Identifier(id)), after_id)),
+            Ok((id, after_id)) => Ok((Rc::new(LabelIdentifier::Identifier(id)), after_id)),
             Err(pe) => {
                 if !yield_flag || !await_flag {
                     let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
                     if !yield_flag && tok.matches_keyword(Keyword::Yield) {
-                        Ok((Box::new(LabelIdentifier::Yield), after_tok))
+                        Ok((Rc::new(LabelIdentifier::Yield), after_tok))
                     } else if !await_flag && tok.matches_keyword(Keyword::Await) {
-                        Ok((Box::new(LabelIdentifier::Await), after_tok))
+                        Ok((Rc::new(LabelIdentifier::Await), after_tok))
                     } else {
                         Err(pe)
                     }
                 } else {
                     Err(pe)
                 }
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.label_identifier_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.label_identifier_cache.insert(key, result.clone());
+                result
             }
         }
     }
@@ -804,7 +849,7 @@ mod tests {
         let result = check(Identifier::parse(&mut Parser::new("bob", true, ParseGoal::Script), Scanner::new()));
         let (identifier, scanner) = result;
         chk_scan(&scanner, 3);
-        let Identifier::IdentifierName(data) = *identifier;
+        let Identifier::IdentifierName(data) = &*identifier;
         assert!(data.string_value == "bob");
         assert!(data.keyword_id.is_none());
         assert!(data.line == 1);
@@ -815,7 +860,7 @@ mod tests {
         let text = "手がける黒田征太郎さんです";
         let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, ParseGoal::Script), Scanner::new()));
         assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
-        let Identifier::IdentifierName(data) = *identifier;
+        let Identifier::IdentifierName(data) = &*identifier;
         assert!(data.string_value == "手がける黒田征太郎さんです");
         assert!(data.keyword_id.is_none());
         assert!(data.line == 1);
@@ -826,7 +871,7 @@ mod tests {
     fn identifier_reference_test_debug() {
         assert_eq!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: false }), "IdentifierReference { kind: Yield, strict: false }");
     }
-    fn idref_create(text: &str, strict: bool) -> Box<IdentifierReference> {
+    fn idref_create(text: &str, strict: bool) -> Rc<IdentifierReference> {
         let yield_syntax = false;
         let await_syntax = false;
         let result = IdentifierReference::parse(&mut Parser::new(text, strict, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
@@ -883,7 +928,7 @@ mod tests {
     }
     #[test]
     fn identifier_reference_test_punct() {
-        let idref = IdentifierReference::parse(&mut Parser::new("**", false, ParseGoal::Script), Scanner::new(), true, true);
+        let idref = IdentifierReference::parse(&mut Parser::new("*", false, ParseGoal::Script), Scanner::new(), true, true);
         check_parse_error(idref, "Not an identifier");
     }
     #[test]
@@ -947,7 +992,7 @@ mod tests {
         concise_error_validate(&*item);
     }
 
-    fn bindingid_create(text: &str, y: bool, a: bool) -> Box<BindingIdentifier> {
+    fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
         let yield_syntax = y;
         let await_syntax = a;
         let strict = false;
@@ -1003,7 +1048,7 @@ mod tests {
         let mut p1 = Parser::new("function", false, ParseGoal::Script);
         let r1 = BindingIdentifier::parse(&mut p1, Scanner::new(), false, false);
         check_parse_error(r1, "‘function’ is a reserved word and may not be used as an identifier");
-        let mut p2 = Parser::new("**", false, ParseGoal::Script);
+        let mut p2 = Parser::new("*", false, ParseGoal::Script);
         let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
         check_parse_error(r2, "Not an identifier");
     }

@@ -19,10 +19,10 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      ForInOfStatement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum IterationStatement {
-    DoWhile(Box<DoWhileStatement>),
-    While(Box<WhileStatement>),
-    For(Box<ForStatement>),
-    ForInOf(Box<ForInOfStatement>),
+    DoWhile(Rc<DoWhileStatement>),
+    While(Rc<WhileStatement>),
+    For(Rc<ForStatement>),
+    ForInOf(Rc<ForInOfStatement>),
 }
 
 impl fmt::Display for IterationStatement {
@@ -65,24 +65,36 @@ impl PrettyPrint for IterationStatement {
 }
 
 impl IterationStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("IterationStatement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (dowhile, after_dowhile) = DoWhileStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(IterationStatement::DoWhile(dowhile)), after_dowhile))
+                Ok((Rc::new(IterationStatement::DoWhile(dowhile)), after_dowhile))
             })
             .otherwise(|| {
                 let (whl, after_whl) = WhileStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(IterationStatement::While(whl)), after_whl))
+                Ok((Rc::new(IterationStatement::While(whl)), after_whl))
             })
             .otherwise(|| {
                 let (fr, after_fr) = ForStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(IterationStatement::For(fr)), after_fr))
+                Ok((Rc::new(IterationStatement::For(fr)), after_fr))
             })
             .otherwise(|| {
                 let (forin, after_forin) = ForInOfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(IterationStatement::ForInOf(forin)), after_forin))
+                Ok((Rc::new(IterationStatement::ForInOf(forin)), after_forin))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.iteration_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.iteration_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -90,7 +102,7 @@ impl IterationStatement {
 //      do Statement[?Yield, ?Await, ?Return] while ( Expression[+In, ?Yield, ?Await] ) ;
 #[derive(Debug)]
 pub enum DoWhileStatement {
-    Do(Box<Statement>, Box<Expression>),
+    Do(Rc<Statement>, Rc<Expression>),
 }
 
 impl fmt::Display for DoWhileStatement {
@@ -129,7 +141,7 @@ impl PrettyPrint for DoWhileStatement {
 }
 
 impl DoWhileStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_do = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Do)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_do, yield_flag, await_flag, return_flag)?;
         let after_while = scan_for_keyword(after_stmt, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
@@ -137,7 +149,19 @@ impl DoWhileStatement {
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let after_semi = scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Box::new(DoWhileStatement::Do(stmt, exp)), after_semi))
+        Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.do_while_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.do_while_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -145,7 +169,7 @@ impl DoWhileStatement {
 //      while ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum WhileStatement {
-    While(Box<Expression>, Box<Statement>),
+    While(Rc<Expression>, Rc<Statement>),
 }
 
 impl fmt::Display for WhileStatement {
@@ -182,13 +206,25 @@ impl PrettyPrint for WhileStatement {
 }
 
 impl WhileStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_while = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
         let after_open = scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        Ok((Box::new(WhileStatement::While(exp, stmt)), after_stmt))
+        Ok((Rc::new(WhileStatement::While(exp, stmt)), after_stmt))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.while_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.while_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -198,9 +234,9 @@ impl WhileStatement {
 //      for ( LexicalDeclaration[~In, ?Yield, ?Await] Expression[+In, ?Yield, ?Await]opt ; Expression[+In, ?Yield, ?Await]opt ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum ForStatement {
-    For(Option<Box<Expression>>, Option<Box<Expression>>, Option<Box<Expression>>, Box<Statement>),
-    ForVar(Box<VariableDeclarationList>, Option<Box<Expression>>, Option<Box<Expression>>, Box<Statement>),
-    ForLex(Box<LexicalDeclaration>, Option<Box<Expression>>, Option<Box<Expression>>, Box<Statement>),
+    For(Option<Rc<Expression>>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>),
+    ForVar(Rc<VariableDeclarationList>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>),
+    ForLex(Rc<LexicalDeclaration>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>),
 }
 
 impl fmt::Display for ForStatement {
@@ -267,7 +303,7 @@ impl PrettyPrint for ForStatement {
         writeln!(w, "{}ForStatement: {}", first, self)?;
         pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(w, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
-        let maybeprint = |w: &mut T, e: &Option<Box<Expression>>| {
+        let maybeprint = |w: &mut T, e: &Option<Rc<Expression>>| {
             if let Some(exp) = e {
                 exp.concise_with_leftpad(w, &suc, Spot::NotFinal)
             } else {
@@ -307,7 +343,7 @@ impl PrettyPrint for ForStatement {
 }
 
 impl ForStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_for = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
         let after_open = scan_for_punct(after_for, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         Err(ParseError::new("Badly formed for-statement initializer", after_open.line, after_open.column))
@@ -327,7 +363,7 @@ impl ForStatement {
                 };
                 let after_close = scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(ForStatement::ForVar(vdl, exp1, exp2, stmt)), after_stmt))
+                Ok((Rc::new(ForStatement::ForVar(vdl, exp1, exp2, stmt)), after_stmt))
             })
             .otherwise(|| {
                 // for ( LexicalDeclaration Expression ; Expression ) Statement
@@ -343,7 +379,7 @@ impl ForStatement {
                 };
                 let after_close = scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(ForStatement::ForLex(lex, exp1, exp2, stmt)), after_stmt))
+                Ok((Rc::new(ForStatement::ForLex(lex, exp1, exp2, stmt)), after_stmt))
             })
             .otherwise(|| {
                 // for ( Expression ; Expression ; Expression ) Statement
@@ -370,8 +406,20 @@ impl ForStatement {
                 };
                 let after_close = scan_for_punct(after_inc, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(ForStatement::For(init, test, inc, stmt)), after_stmt))
+                Ok((Rc::new(ForStatement::For(init, test, inc, stmt)), after_stmt))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.for_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.for_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -387,15 +435,15 @@ impl ForStatement {
 //      [+Await] for await ( ForDeclaration[?Yield, ?Await] of AssignmentExpression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum ForInOfStatement {
-    ForIn(Box<LeftHandSideExpression>, Box<Expression>, Box<Statement>),
-    ForVarIn(Box<ForBinding>, Box<Expression>, Box<Statement>),
-    ForLexIn(Box<ForDeclaration>, Box<Expression>, Box<Statement>),
-    ForOf(Box<LeftHandSideExpression>, Box<AssignmentExpression>, Box<Statement>),
-    ForVarOf(Box<ForBinding>, Box<AssignmentExpression>, Box<Statement>),
-    ForLexOf(Box<ForDeclaration>, Box<AssignmentExpression>, Box<Statement>),
-    ForAwaitOf(Box<LeftHandSideExpression>, Box<AssignmentExpression>, Box<Statement>),
-    ForAwaitVarOf(Box<ForBinding>, Box<AssignmentExpression>, Box<Statement>),
-    ForAwaitLexOf(Box<ForDeclaration>, Box<AssignmentExpression>, Box<Statement>),
+    ForIn(Rc<LeftHandSideExpression>, Rc<Expression>, Rc<Statement>),
+    ForVarIn(Rc<ForBinding>, Rc<Expression>, Rc<Statement>),
+    ForLexIn(Rc<ForDeclaration>, Rc<Expression>, Rc<Statement>),
+    ForOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    ForVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
+    ForLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
+    ForAwaitOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    ForAwaitVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
+    ForAwaitLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
 }
 
 impl fmt::Display for ForInOfStatement {
@@ -496,7 +544,7 @@ impl PrettyPrint for ForInOfStatement {
 }
 
 impl ForInOfStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_for = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
         let (await_seen, after_await) = match await_flag {
             true => match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
@@ -518,9 +566,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Box::new(ForInOfStatement::ForAwaitVarOf(for_binding, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForAwaitVarOf(for_binding, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Box::new(ForInOfStatement::ForVarOf(for_binding, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForVarOf(for_binding, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -530,7 +578,7 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Box::new(ForInOfStatement::ForVarIn(for_binding, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForVarIn(for_binding, exp, stmt)), after_stmt))
                         }
                     }
                 }
@@ -545,9 +593,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Box::new(ForInOfStatement::ForAwaitLexOf(decl, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForAwaitLexOf(decl, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Box::new(ForInOfStatement::ForLexOf(decl, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForLexOf(decl, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -557,7 +605,7 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Box::new(ForInOfStatement::ForLexIn(decl, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForLexIn(decl, exp, stmt)), after_stmt))
                         }
                     }
                 }
@@ -581,9 +629,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Box::new(ForInOfStatement::ForAwaitOf(lhs, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForAwaitOf(lhs, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Box::new(ForInOfStatement::ForOf(lhs, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForOf(lhs, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -593,11 +641,22 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Box::new(ForInOfStatement::ForIn(lhs, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::ForIn(lhs, exp, stmt)), after_stmt))
                         }
                     }
                 }
             })
+    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.for_in_of_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.for_in_of_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -650,7 +709,7 @@ where
 //      LetOrConst ForBinding[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ForDeclaration {
-    Binding(LetOrConst, Box<ForBinding>),
+    Binding(LetOrConst, Rc<ForBinding>),
 }
 
 impl fmt::Display for ForDeclaration {
@@ -685,14 +744,26 @@ impl PrettyPrint for ForDeclaration {
 }
 
 impl ForDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (tok, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match tok {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
         };
         let (binding, after_binding) = ForBinding::parse(parser, after_tok, yield_flag, await_flag)?;
-        Ok((Box::new(ForDeclaration::Binding(loc, binding)), after_binding))
+        Ok((Rc::new(ForDeclaration::Binding(loc, binding)), after_binding))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.for_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.for_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -701,8 +772,8 @@ impl ForDeclaration {
 //      BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ForBinding {
-    Identifier(Box<BindingIdentifier>),
-    Pattern(Box<BindingPattern>),
+    Identifier(Rc<BindingIdentifier>),
+    Pattern(Rc<BindingPattern>),
 }
 
 impl fmt::Display for ForBinding {
@@ -739,16 +810,28 @@ impl PrettyPrint for ForBinding {
 }
 
 impl ForBinding {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ForBinding expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (id, after_id) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(ForBinding::Identifier(id)), after_id))
+                Ok((Rc::new(ForBinding::Identifier(id)), after_id))
             })
             .otherwise(|| {
                 let (pat, after_pat) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(ForBinding::Pattern(pat)), after_pat))
+                Ok((Rc::new(ForBinding::Pattern(pat)), after_pat))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.for_binding_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.for_binding_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -11,7 +11,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      FormalParameters[?Yield, ?Await]
 #[derive(Debug)]
 pub struct UniqueFormalParameters {
-    formals: Box<FormalParameters>,
+    formals: Rc<FormalParameters>,
 }
 
 impl fmt::Display for UniqueFormalParameters {
@@ -39,9 +39,21 @@ impl PrettyPrint for UniqueFormalParameters {
 }
 
 impl UniqueFormalParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         let (fp, after_fp) = FormalParameters::parse(parser, scanner, yield_flag, await_flag);
-        (Box::new(UniqueFormalParameters { formals: fp }), after_fp)
+        (Rc::new(UniqueFormalParameters { formals: fp }), after_fp)
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.unique_formal_parameters_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.unique_formal_parameters_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -54,10 +66,10 @@ impl UniqueFormalParameters {
 #[derive(Debug)]
 pub enum FormalParameters {
     Empty,
-    Rest(Box<FunctionRestParameter>),
-    List(Box<FormalParameterList>),
-    ListComma(Box<FormalParameterList>),
-    ListRest(Box<FormalParameterList>, Box<FunctionRestParameter>),
+    Rest(Rc<FunctionRestParameter>),
+    List(Rc<FormalParameterList>),
+    ListComma(Rc<FormalParameterList>),
+    ListRest(Rc<FormalParameterList>, Rc<FunctionRestParameter>),
 }
 
 impl fmt::Display for FormalParameters {
@@ -118,7 +130,7 @@ impl PrettyPrint for FormalParameters {
 }
 
 impl FormalParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         let pot_fpl = FormalParameterList::parse(parser, scanner, yield_flag, await_flag);
         let (fpl, after_fpl) = match pot_fpl {
             Err(_) => (None, scanner),
@@ -135,11 +147,23 @@ impl FormalParameters {
             Ok((f, s)) => (Some(f), s),
         };
         match (fpl, has_comma, frp) {
-            (Some(pl), true, Some(rp)) => (Box::new(FormalParameters::ListRest(pl, rp)), after_frp),
-            (Some(pl), true, None) => (Box::new(FormalParameters::ListComma(pl)), after_comma),
-            (Some(pl), false, _) => (Box::new(FormalParameters::List(pl)), after_fpl),
-            (None, false, Some(rp)) => (Box::new(FormalParameters::Rest(rp)), after_frp),
-            (None, false, None) | (None, true, _) => (Box::new(FormalParameters::Empty), scanner),
+            (Some(pl), true, Some(rp)) => (Rc::new(FormalParameters::ListRest(pl, rp)), after_frp),
+            (Some(pl), true, None) => (Rc::new(FormalParameters::ListComma(pl)), after_comma),
+            (Some(pl), false, _) => (Rc::new(FormalParameters::List(pl)), after_fpl),
+            (None, false, Some(rp)) => (Rc::new(FormalParameters::Rest(rp)), after_frp),
+            (None, false, None) | (None, true, _) => (Rc::new(FormalParameters::Empty), scanner),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.formal_parameters_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.formal_parameters_cache.insert(key, result.clone());
+                result
+            }
         }
     }
 }
@@ -149,8 +173,8 @@ impl FormalParameters {
 //      FormalParameterList[?Yield, ?Await] , FormalParameter[?Yield, ?Await]
 #[derive(Debug)]
 pub enum FormalParameterList {
-    Item(Box<FormalParameter>),
-    List(Box<FormalParameterList>, Box<FormalParameter>),
+    Item(Rc<FormalParameter>),
+    List(Rc<FormalParameterList>, Rc<FormalParameter>),
 }
 
 impl fmt::Display for FormalParameterList {
@@ -196,17 +220,29 @@ impl PrettyPrint for FormalParameterList {
 }
 
 impl FormalParameterList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (fp, after_fp) = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(FormalParameterList::Item(fp));
+        let mut current = Rc::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
         while let Ok((next, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
             .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
         {
-            current = Box::new(FormalParameterList::List(current, next));
+            current = Rc::new(FormalParameterList::List(current, next));
             current_scanner = after_next;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.formal_parameter_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.formal_parameter_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -214,7 +250,7 @@ impl FormalParameterList {
 //      BindingRestElement[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionRestParameter {
-    element: Box<BindingRestElement>,
+    element: Rc<BindingRestElement>,
 }
 
 impl fmt::Display for FunctionRestParameter {
@@ -242,9 +278,21 @@ impl PrettyPrint for FunctionRestParameter {
 }
 
 impl FunctionRestParameter {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (bre, after_bre) = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(FunctionRestParameter { element: bre }), after_bre))
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (element, after_bre) = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Rc::new(FunctionRestParameter { element }), after_bre))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.function_rest_parameter_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.function_rest_parameter_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -252,7 +300,7 @@ impl FunctionRestParameter {
 //      BindingElement[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FormalParameter {
-    element: Box<BindingElement>,
+    element: Rc<BindingElement>,
 }
 
 impl fmt::Display for FormalParameter {
@@ -280,9 +328,21 @@ impl PrettyPrint for FormalParameter {
 }
 
 impl FormalParameter {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (be, after_be) = BindingElement::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(FormalParameter { element: be }), after_be))
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (element, after_be) = BindingElement::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Rc::new(FormalParameter { element }), after_be))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.formal_parameter_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.formal_parameter_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -13,8 +13,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct LabelledStatement {
-    identifier: Box<LabelIdentifier>,
-    item: Box<LabelledItem>,
+    identifier: Rc<LabelIdentifier>,
+    item: Rc<LabelledItem>,
 }
 
 impl fmt::Display for LabelledStatement {
@@ -47,11 +47,23 @@ impl PrettyPrint for LabelledStatement {
 }
 
 impl LabelledStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
-        Ok((Box::new(LabelledStatement { identifier, item }), after_item))
+        Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.labelled_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.labelled_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -60,8 +72,8 @@ impl LabelledStatement {
 //      FunctionDeclaration[?Yield, ?Await, ~Default]
 #[derive(Debug)]
 pub enum LabelledItem {
-    Statement(Box<Statement>),
-    Function(Box<FunctionDeclaration>),
+    Statement(Rc<Statement>),
+    Function(Rc<FunctionDeclaration>),
 }
 
 impl fmt::Display for LabelledItem {
@@ -98,16 +110,28 @@ impl PrettyPrint for LabelledItem {
 }
 
 impl LabelledItem {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("LabelledItem expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(LabelledItem::Statement(stmt)), after_stmt))
+                Ok((Rc::new(LabelledItem::Statement(stmt)), after_stmt))
             })
             .otherwise(|| {
                 let (fcn, after_fcn) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
-                Ok((Box::new(LabelledItem::Function(fcn)), after_fcn))
+                Ok((Rc::new(LabelledItem::Function(fcn)), after_fcn))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.labelled_item_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.labelled_item_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

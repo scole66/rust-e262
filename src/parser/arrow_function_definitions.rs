@@ -15,8 +15,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
 #[derive(Debug)]
 pub struct ArrowFunction {
-    parameters: Box<ArrowParameters>,
-    body: Box<ConciseBody>,
+    parameters: Rc<ArrowParameters>,
+    body: Rc<ConciseBody>,
 }
 
 impl fmt::Display for ArrowFunction {
@@ -49,12 +49,24 @@ impl PrettyPrint for ArrowFunction {
 }
 
 impl ArrowFunction {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         no_line_terminator(after_params, parser.source)?;
         let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
-        Ok((Box::new(ArrowFunction { parameters, body }), after_body))
+        Ok((Rc::new(ArrowFunction { parameters, body }), after_body))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.arrow_function_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.arrow_function_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -63,8 +75,8 @@ impl ArrowFunction {
 //      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ArrowParameters {
-    Identifier(Box<BindingIdentifier>),
-    Formals(Box<ArrowFormalParameters>),
+    Identifier(Rc<BindingIdentifier>),
+    Formals(Rc<ArrowFormalParameters>),
 }
 
 impl fmt::Display for ArrowParameters {
@@ -101,9 +113,9 @@ impl PrettyPrint for ArrowParameters {
 }
 
 impl ArrowParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
-            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Box::new(ArrowParameters::Identifier(bi)), after_bi)))
+            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
                 let (covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
@@ -120,15 +132,27 @@ impl ArrowParameters {
                 //     Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
                 // }
                 debug_assert!(after_formals == after_reparse);
-                Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
+                Ok((Rc::new(ArrowParameters::Formals(formals)), after_formals))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.arrow_parameters_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.arrow_parameters_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
 // ArrowFormalParameters[Yield, Await] :
 //      ( UniqueFormalParameters[?Yield, ?Await] )
 #[derive(Debug)]
-pub struct ArrowFormalParameters(Box<UniqueFormalParameters>);
+pub struct ArrowFormalParameters(Rc<UniqueFormalParameters>);
 
 impl fmt::Display for ArrowFormalParameters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -159,11 +183,23 @@ impl PrettyPrint for ArrowFormalParameters {
 }
 
 impl ArrowFormalParameters {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
         let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        Ok((Box::new(ArrowFormalParameters(params)), after_rp))
+        Ok((Rc::new(ArrowFormalParameters(params)), after_rp))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.arrow_formal_parameters_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.arrow_formal_parameters_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -172,8 +208,8 @@ impl ArrowFormalParameters {
 //      { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub enum ConciseBody {
-    Expression(Box<ExpressionBody>),
-    Function(Box<FunctionBody>),
+    Expression(Rc<ExpressionBody>),
+    Function(Rc<FunctionBody>),
 }
 
 impl fmt::Display for ConciseBody {
@@ -216,24 +252,36 @@ impl PrettyPrint for ConciseBody {
 }
 
 impl ConciseBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ConciseBody expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
                 let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Box::new(ConciseBody::Function(fb)), after_rb))
+                Ok((Rc::new(ConciseBody::Function(fb)), after_rb))
             })
             .otherwise(|| {
                 let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
                 match r {
                     Err(_) => {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
-                        Ok((Box::new(ConciseBody::Expression(exp)), after_exp))
+                        Ok((Rc::new(ConciseBody::Expression(exp)), after_exp))
                     }
                     Ok(_) => Err(ParseError::new("ExpressionBody expected", scanner.line, scanner.column)),
                 }
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
+        let key = InKey { scanner, in_flag };
+        match parser.concise_body_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag);
+                parser.concise_body_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -241,7 +289,7 @@ impl ConciseBody {
 //      AssignmentExpression[?In, ~Yield, ?Await]
 #[derive(Debug)]
 pub struct ExpressionBody {
-    expression: Box<AssignmentExpression>,
+    expression: Rc<AssignmentExpression>,
 }
 
 impl fmt::Display for ExpressionBody {
@@ -269,9 +317,21 @@ impl PrettyPrint for ExpressionBody {
 }
 
 impl ExpressionBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, false, await_flag)?;
-        Ok((Box::new(ExpressionBody { expression: ae }), after_ae))
+        Ok((Rc::new(ExpressionBody { expression: ae }), after_ae))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InAwaitKey { scanner, in_flag, await_flag };
+        match parser.expression_body_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, await_flag);
+                parser.expression_body_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -351,7 +411,7 @@ mod tests {
     }
     #[test]
     fn arrow_parameters_test_err_04() {
-        check_err(ArrowParameters::parse(&mut newparser("(5 ** 3)"), Scanner::new(), false, false), "‘)’ expected", 1, 2);
+        check_err(ArrowParameters::parse(&mut newparser("(5 * 3)"), Scanner::new(), false, false), "‘)’ expected", 1, 2);
     }
     #[test]
     fn arrow_parameters_test_prettyerrors_1() {

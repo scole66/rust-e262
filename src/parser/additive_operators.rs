@@ -13,9 +13,9 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      AdditiveExpression[?Yield, ?Await] - MultiplicativeExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum AdditiveExpression {
-    MultiplicativeExpression(Box<MultiplicativeExpression>),
-    AdditiveExpressionAdd(Box<AdditiveExpression>, Box<MultiplicativeExpression>),
-    AdditiveExpressionSubtract(Box<AdditiveExpression>, Box<MultiplicativeExpression>),
+    MultiplicativeExpression(Rc<MultiplicativeExpression>),
+    AdditiveExpressionAdd(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
+    AdditiveExpressionSubtract(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
 }
 
 impl fmt::Display for AdditiveExpression {
@@ -87,27 +87,32 @@ impl AssignmentTargetType for AdditiveExpression {
 }
 
 impl AdditiveExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (me, after_me) = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(AdditiveExpression::MultiplicativeExpression(me));
+        let mut current = Rc::new(AdditiveExpression::MultiplicativeExpression(me));
         let mut current_scanner = after_me;
-        loop {
-            match scan_for_punct_set(current_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Plus, Punctuator::Minus])
-                .and_then(|(token, after_op)| MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag).map(|(node, after_node)| (token, node, after_node)))
-            {
-                Err(_) => {
-                    break;
-                }
-                Ok((punct, me, after_me)) => {
-                    current = Box::new(match punct {
-                        Punctuator::Plus => AdditiveExpression::AdditiveExpressionAdd(current, me),
-                        _ => AdditiveExpression::AdditiveExpressionSubtract(current, me),
-                    });
-                    current_scanner = after_me;
-                }
-            }
+        while let Ok((punct, me, after_me)) = scan_for_punct_set(current_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Plus, Punctuator::Minus])
+            .and_then(|(token, after_op)| MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag).map(|(node, after_node)| (token, node, after_node)))
+        {
+            current = Rc::new(match punct {
+                Punctuator::Plus => AdditiveExpression::AdditiveExpressionAdd(current, me),
+                _ => AdditiveExpression::AdditiveExpressionSubtract(current, me),
+            });
+            current_scanner = after_me;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.additive_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.additive_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -12,7 +12,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      LetOrConst BindingList[?In, ?Yield, ?Await] ;
 #[derive(Debug)]
 pub enum LexicalDeclaration {
-    List(LetOrConst, Box<BindingList>),
+    List(LetOrConst, Rc<BindingList>),
 }
 
 impl fmt::Display for LexicalDeclaration {
@@ -48,7 +48,7 @@ impl PrettyPrint for LexicalDeclaration {
 }
 
 impl LexicalDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (kwd, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match kwd {
             Keyword::Let => LetOrConst::Let,
@@ -56,7 +56,19 @@ impl LexicalDeclaration {
         };
         let (bl, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
         let after_semi = scan_for_punct(after_bl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Box::new(LexicalDeclaration::List(loc, bl)), after_semi))
+        Ok((Rc::new(LexicalDeclaration::List(loc, bl)), after_semi))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.lexical_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.lexical_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -100,8 +112,8 @@ impl PrettyPrint for LetOrConst {
 //      BindingList[?In, ?Yield, ?Await] , LexicalBinding[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingList {
-    Item(Box<LexicalBinding>),
-    List(Box<BindingList>, Box<LexicalBinding>),
+    Item(Rc<LexicalBinding>),
+    List(Rc<BindingList>, Rc<LexicalBinding>),
 }
 
 impl fmt::Display for BindingList {
@@ -147,24 +159,29 @@ impl PrettyPrint for BindingList {
 }
 
 impl BindingList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (lb, after_lb) = LexicalBinding::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        let mut current = Box::new(BindingList::Item(lb));
+        let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
-        loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
-            {
-                Err(_) => {
-                    break;
-                }
-                Ok((lb2, after_lb2)) => {
-                    current = Box::new(BindingList::List(current, lb2));
-                    current_scanner = after_lb2;
-                }
-            }
+        while let Ok((lb2, after_lb2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
+        {
+            current = Rc::new(BindingList::List(current, lb2));
+            current_scanner = after_lb2;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.binding_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.binding_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -173,8 +190,8 @@ impl BindingList {
 //      BindingPattern[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum LexicalBinding {
-    Identifier(Box<BindingIdentifier>, Option<Box<Initializer>>),
-    Pattern(Box<BindingPattern>, Box<Initializer>),
+    Identifier(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
+    Pattern(Rc<BindingPattern>, Rc<Initializer>),
 }
 
 impl fmt::Display for LexicalBinding {
@@ -232,7 +249,7 @@ impl PrettyPrint for LexicalBinding {
 }
 
 impl LexicalBinding {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("LexicalBinding expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -240,13 +257,25 @@ impl LexicalBinding {
                     Err(_) => (None, after_bi),
                     Ok((i, after_i)) => (Some(i), after_i),
                 };
-                Ok((Box::new(LexicalBinding::Identifier(bi, init)), after_init))
+                Ok((Rc::new(LexicalBinding::Identifier(bi, init)), after_init))
             })
             .otherwise(|| {
                 let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
                 let (init, after_init) = Initializer::parse(parser, after_bp, in_flag, yield_flag, await_flag)?;
-                Ok((Box::new(LexicalBinding::Pattern(bp, init)), after_init))
+                Ok((Rc::new(LexicalBinding::Pattern(bp, init)), after_init))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.lexical_binding_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.lexical_binding_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -254,7 +283,7 @@ impl LexicalBinding {
 //      var VariableDeclarationList[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
 pub enum VariableStatement {
-    Var(Box<VariableDeclarationList>),
+    Var(Rc<VariableDeclarationList>),
 }
 
 impl fmt::Display for VariableStatement {
@@ -289,11 +318,23 @@ impl PrettyPrint for VariableStatement {
 }
 
 impl VariableStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_var = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
         let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
         let after_semi = scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Box::new(VariableStatement::Var(vdl)), after_semi))
+        Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.variable_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.variable_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -302,8 +343,8 @@ impl VariableStatement {
 //      VariableDeclarationList[?In, ?Yield, ?Await] , VariableDeclaration[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum VariableDeclarationList {
-    Item(Box<VariableDeclaration>),
-    List(Box<VariableDeclarationList>, Box<VariableDeclaration>),
+    Item(Rc<VariableDeclaration>),
+    List(Rc<VariableDeclarationList>, Rc<VariableDeclaration>),
 }
 
 impl fmt::Display for VariableDeclarationList {
@@ -349,24 +390,29 @@ impl PrettyPrint for VariableDeclarationList {
 }
 
 impl VariableDeclarationList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (decl, after_dcl) = VariableDeclaration::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        let mut current = Box::new(VariableDeclarationList::Item(decl));
+        let mut current = Rc::new(VariableDeclarationList::Item(decl));
         let mut current_scanner = after_dcl;
-        loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag))
-            {
-                Err(_) => {
-                    break;
-                }
-                Ok((next, after_next)) => {
-                    current = Box::new(VariableDeclarationList::List(current, next));
-                    current_scanner = after_next;
-                }
-            }
+        while let Ok((next, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag))
+        {
+            current = Rc::new(VariableDeclarationList::List(current, next));
+            current_scanner = after_next;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.variable_declaration_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.variable_declaration_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -375,8 +421,8 @@ impl VariableDeclarationList {
 //      BindingPattern[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum VariableDeclaration {
-    Identifier(Box<BindingIdentifier>, Option<Box<Initializer>>),
-    Pattern(Box<BindingPattern>, Box<Initializer>),
+    Identifier(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
+    Pattern(Rc<BindingPattern>, Rc<Initializer>),
 }
 
 impl fmt::Display for VariableDeclaration {
@@ -434,7 +480,7 @@ impl PrettyPrint for VariableDeclaration {
 }
 
 impl VariableDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("VariableDeclaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -443,13 +489,25 @@ impl VariableDeclaration {
                     Err(_) => (None, after_bi),
                     Ok((i, after_i)) => (Some(i), after_i),
                 };
-                Ok((Box::new(VariableDeclaration::Identifier(bi, init)), after_init))
+                Ok((Rc::new(VariableDeclaration::Identifier(bi, init)), after_init))
             })
             .otherwise(|| {
                 let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
                 let (init, after_init) = Initializer::parse(parser, after_bp, in_flag, yield_flag, await_flag)?;
-                Ok((Box::new(VariableDeclaration::Pattern(bp, init)), after_init))
+                Ok((Rc::new(VariableDeclaration::Pattern(bp, init)), after_init))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.variable_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.variable_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -458,8 +516,8 @@ impl VariableDeclaration {
 //      ArrayBindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingPattern {
-    Object(Box<ObjectBindingPattern>),
-    Array(Box<ArrayBindingPattern>),
+    Object(Rc<ObjectBindingPattern>),
+    Array(Rc<ArrayBindingPattern>),
 }
 
 impl fmt::Display for BindingPattern {
@@ -496,10 +554,22 @@ impl PrettyPrint for BindingPattern {
 }
 
 impl BindingPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BindingPattern expected", scanner.line, scanner.column))
-            .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(obp, after_obp)| (Box::new(BindingPattern::Object(obp)), after_obp)))
-            .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(abp, after_abp)| (Box::new(BindingPattern::Array(abp)), after_abp)))
+            .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(obp, after_obp)| (Rc::new(BindingPattern::Object(obp)), after_obp)))
+            .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(abp, after_abp)| (Rc::new(BindingPattern::Array(abp)), after_abp)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_pattern_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_pattern_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -511,9 +581,9 @@ impl BindingPattern {
 #[derive(Debug)]
 pub enum ObjectBindingPattern {
     Empty,
-    RestOnly(Box<BindingRestProperty>),
-    ListOnly(Box<BindingPropertyList>),
-    ListRest(Box<BindingPropertyList>, Option<Box<BindingRestProperty>>),
+    RestOnly(Rc<BindingRestProperty>),
+    ListOnly(Rc<BindingPropertyList>),
+    ListRest(Rc<BindingPropertyList>, Option<Rc<BindingRestProperty>>),
 }
 
 impl fmt::Display for ObjectBindingPattern {
@@ -577,38 +647,48 @@ impl PrettyPrint for ObjectBindingPattern {
 }
 
 impl ObjectBindingPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ObjectBindingPattern expected", scanner.line, scanner.column)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_open| {
                 scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                    .map(|after_close| (Box::new(ObjectBindingPattern::Empty), after_close))
+                    .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
                     .otherwise(|| {
                         BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(|(brp, after_brp)| {
                             scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                                .map(|after_close| (Box::new(ObjectBindingPattern::RestOnly(brp)), after_close))
+                                .map(|after_close| (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close))
                         })
                     })
                     .otherwise(|| {
                         BindingPropertyList::parse(parser, after_open, yield_flag, await_flag).and_then(|(bpl, after_bpl)| {
-                            match scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_close| (None, after_close)).otherwise(
-                                || {
-                                    scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Comma).and_then(|after_comma| {
-                                        let (brp, after_brp) = match BindingRestProperty::parse(parser, after_comma, yield_flag, await_flag) {
-                                            Err(_) => (None, after_comma),
-                                            Ok((node, s)) => (Some(node), s),
-                                        };
-                                        scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_final| (Some(brp), after_final))
-                                    })
-                                },
-                            ) {
-                                Ok((None, after)) => Ok((Box::new(ObjectBindingPattern::ListOnly(bpl)), after)),
-                                Ok((Some(brp), after)) => Ok((Box::new(ObjectBindingPattern::ListRest(bpl, brp)), after)),
+                            match scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_close| (None, after_close)).otherwise(|| {
+                                scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Comma).and_then(|after_comma| {
+                                    let (brp, after_brp) = match BindingRestProperty::parse(parser, after_comma, yield_flag, await_flag) {
+                                        Err(_) => (None, after_comma),
+                                        Ok((node, s)) => (Some(node), s),
+                                    };
+                                    scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_final| (Some(brp), after_final))
+                                })
+                            }) {
+                                Ok((None, after)) => Ok((Rc::new(ObjectBindingPattern::ListOnly(bpl)), after)),
+                                Ok((Some(brp), after)) => Ok((Rc::new(ObjectBindingPattern::ListRest(bpl, brp)), after)),
                                 Err(e) => Err(e),
                             }
                         })
                     })
             })
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.object_binding_pattern_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.object_binding_pattern_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -618,9 +698,9 @@ impl ObjectBindingPattern {
 //      [ BindingElementList[?Yield, ?Await] , Elisionopt BindingRestElement[?Yield, ?Await]opt ]
 #[derive(Debug)]
 pub enum ArrayBindingPattern {
-    RestOnly(Option<Box<Elisions>>, Option<Box<BindingRestElement>>),
-    ListOnly(Box<BindingElementList>),
-    ListRest(Box<BindingElementList>, Option<Box<Elisions>>, Option<Box<BindingRestElement>>),
+    RestOnly(Option<Rc<Elisions>>, Option<Rc<BindingRestElement>>),
+    ListOnly(Rc<BindingElementList>),
+    ListRest(Rc<BindingElementList>, Option<Rc<Elisions>>, Option<Rc<BindingRestElement>>),
 }
 
 impl fmt::Display for ArrayBindingPattern {
@@ -722,13 +802,13 @@ impl PrettyPrint for ArrayBindingPattern {
 }
 
 impl ArrayBindingPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_first = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
                 scan_for_punct_set(after_bel, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::RightBracket, Punctuator::Comma]).and_then(|(punct_next, after_next)| {
                     match punct_next {
-                        Punctuator::RightBracket => Ok((Box::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
+                        Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
                         _ => {
                             let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
                                 Err(err) => (None, after_next),
@@ -739,7 +819,7 @@ impl ArrayBindingPattern {
                                 Ok((b, s)) => (Some(b), s, None),
                             };
                             match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
-                                Ok(after_close) => Ok((Box::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close)),
+                                Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close)),
                                 Err(pe) => {
                                     let mut err = Some(pe);
                                     if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
@@ -762,7 +842,7 @@ impl ArrayBindingPattern {
                     Ok((b, s)) => (Some(b), s, None),
                 };
                 match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
-                    Ok(after_close) => Ok((Box::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close)),
+                    Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close)),
                     Err(pe) => {
                         let mut err = Some(pe);
                         if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
@@ -773,13 +853,25 @@ impl ArrayBindingPattern {
                 }
             })
     }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.array_binding_pattern_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.array_binding_pattern_cache.insert(key, result.clone());
+                result
+            }
+        }
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
 //      ... BindingIdentifier[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingRestProperty {
-    Id(Box<BindingIdentifier>),
+    Id(Rc<BindingIdentifier>),
 }
 
 impl fmt::Display for BindingRestProperty {
@@ -813,10 +905,22 @@ impl PrettyPrint for BindingRestProperty {
 }
 
 impl BindingRestProperty {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)
             .and_then(|after_dots| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
-            .map(|(id, after_id)| (Box::new(BindingRestProperty::Id(id)), after_id))
+            .map(|(id, after_id)| (Rc::new(BindingRestProperty::Id(id)), after_id))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_rest_property_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_rest_property_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -825,8 +929,8 @@ impl BindingRestProperty {
 //      BindingPropertyList[?Yield, ?Await] , BindingProperty[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingPropertyList {
-    Item(Box<BindingProperty>),
-    List(Box<BindingPropertyList>, Box<BindingProperty>),
+    Item(Rc<BindingProperty>),
+    List(Rc<BindingPropertyList>, Rc<BindingProperty>),
 }
 
 impl fmt::Display for BindingPropertyList {
@@ -872,24 +976,29 @@ impl PrettyPrint for BindingPropertyList {
 }
 
 impl BindingPropertyList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (bp, after_bp) = BindingProperty::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(BindingPropertyList::Item(bp));
+        let mut current = Rc::new(BindingPropertyList::Item(bp));
         let mut current_scan = after_bp;
-        loop {
-            match scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
-            {
-                Err(_) => {
-                    break;
-                }
-                Ok((bp2, after_bp2)) => {
-                    current = Box::new(BindingPropertyList::List(current, bp2));
-                    current_scan = after_bp2;
-                }
-            }
+        while let Ok((bp2, after_bp2)) = scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
+        {
+            current = Rc::new(BindingPropertyList::List(current, bp2));
+            current_scan = after_bp2;
         }
         Ok((current, current_scan))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_property_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_property_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -898,8 +1007,8 @@ impl BindingPropertyList {
 //      BindingElementList[?Yield, ?Await] , BindingElisionElement[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingElementList {
-    Item(Box<BindingElisionElement>),
-    List(Box<BindingElementList>, Box<BindingElisionElement>),
+    Item(Rc<BindingElisionElement>),
+    List(Rc<BindingElementList>, Rc<BindingElisionElement>),
 }
 
 impl fmt::Display for BindingElementList {
@@ -945,9 +1054,9 @@ impl PrettyPrint for BindingElementList {
 }
 
 impl BindingElementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (elem, after_elem) = BindingElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(BindingElementList::Item(elem));
+        let mut current = Rc::new(BindingElementList::Item(elem));
         let mut current_scanner = after_elem;
         loop {
             match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
@@ -957,12 +1066,24 @@ impl BindingElementList {
                     break;
                 }
                 Ok((next, after_next)) => {
-                    current = Box::new(BindingElementList::List(current, next));
+                    current = Rc::new(BindingElementList::List(current, next));
                     current_scanner = after_next;
                 }
             }
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_element_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_element_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -970,7 +1091,7 @@ impl BindingElementList {
 //      Elisionopt BindingElement[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingElisionElement {
-    Element(Option<Box<Elisions>>, Box<BindingElement>),
+    Element(Option<Rc<Elisions>>, Rc<BindingElement>),
 }
 
 impl fmt::Display for BindingElisionElement {
@@ -1015,13 +1136,25 @@ impl PrettyPrint for BindingElisionElement {
 }
 
 impl BindingElisionElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (elision, after_elision) = match Elisions::parse(parser, scanner) {
             Err(_) => (None, scanner),
             Ok((e, s)) => (Some(e), s),
         };
         let (be, after_be) = BindingElement::parse(parser, after_elision, yield_flag, await_flag)?;
-        Ok((Box::new(BindingElisionElement::Element(elision, be)), after_be))
+        Ok((Rc::new(BindingElisionElement::Element(elision, be)), after_be))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_elision_element_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_elision_element_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1030,8 +1163,8 @@ impl BindingElisionElement {
 //      PropertyName[?Yield, ?Await] : BindingElement[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingProperty {
-    Single(Box<SingleNameBinding>),
-    Property(Box<PropertyName>, Box<BindingElement>),
+    Single(Rc<SingleNameBinding>),
+    Property(Rc<PropertyName>, Rc<BindingElement>),
 }
 
 impl fmt::Display for BindingProperty {
@@ -1077,18 +1210,30 @@ impl PrettyPrint for BindingProperty {
 }
 
 impl BindingProperty {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BindingProperty expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_token = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (be, after_be) = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
-                Ok((Box::new(BindingProperty::Property(pn, be)), after_be))
+                Ok((Rc::new(BindingProperty::Property(pn, be)), after_be))
             })
             .otherwise(|| {
                 let (snb, after_snb) = SingleNameBinding::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(BindingProperty::Single(snb)), after_snb))
+                Ok((Rc::new(BindingProperty::Single(snb)), after_snb))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_property_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_property_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1097,8 +1242,8 @@ impl BindingProperty {
 //      BindingPattern[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
 pub enum BindingElement {
-    Single(Box<SingleNameBinding>),
-    Pattern(Box<BindingPattern>, Option<Box<Initializer>>),
+    Single(Rc<SingleNameBinding>),
+    Pattern(Rc<BindingPattern>, Option<Rc<Initializer>>),
 }
 
 impl fmt::Display for BindingElement {
@@ -1146,7 +1291,7 @@ impl PrettyPrint for BindingElement {
 }
 
 impl BindingElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BindingElement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
@@ -1154,12 +1299,24 @@ impl BindingElement {
                     Err(_) => (None, after_bp),
                     Ok((i, s)) => (Some(i), s),
                 };
-                Ok((Box::new(BindingElement::Pattern(bp, init)), after_init))
+                Ok((Rc::new(BindingElement::Pattern(bp, init)), after_init))
             })
             .otherwise(|| {
                 let (snb, after_snb) = SingleNameBinding::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(BindingElement::Single(snb)), after_snb))
+                Ok((Rc::new(BindingElement::Single(snb)), after_snb))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_element_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_element_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1167,7 +1324,7 @@ impl BindingElement {
 //      BindingIdentifier[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
 pub enum SingleNameBinding {
-    Id(Box<BindingIdentifier>, Option<Box<Initializer>>),
+    Id(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
 }
 
 impl fmt::Display for SingleNameBinding {
@@ -1212,13 +1369,25 @@ impl PrettyPrint for SingleNameBinding {
 }
 
 impl SingleNameBinding {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         let (init, after_init) = match Initializer::parse(parser, after_bi, true, yield_flag, await_flag) {
             Err(_) => (None, after_bi),
             Ok((i, s)) => (Some(i), s),
         };
-        Ok((Box::new(SingleNameBinding::Id(bi, init)), after_init))
+        Ok((Rc::new(SingleNameBinding::Id(bi, init)), after_init))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.single_name_binding_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.single_name_binding_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1227,8 +1396,8 @@ impl SingleNameBinding {
 //      ... BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingRestElement {
-    Identifier(Box<BindingIdentifier>),
-    Pattern(Box<BindingPattern>),
+    Identifier(Rc<BindingIdentifier>),
+    Pattern(Rc<BindingPattern>),
 }
 
 impl fmt::Display for BindingRestElement {
@@ -1268,11 +1437,23 @@ impl PrettyPrint for BindingRestElement {
 }
 
 impl BindingRestElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new("‘[’, ‘{’, or an identifier expected", after_tok.line, after_tok.column))
-            .otherwise(|| BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| (Box::new(BindingRestElement::Pattern(bp)), after_bp)))
-            .otherwise(|| BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| (Box::new(BindingRestElement::Identifier(bi)), after_bi)))
+            .otherwise(|| BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp)))
+            .otherwise(|| BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.binding_rest_element_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.binding_rest_element_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

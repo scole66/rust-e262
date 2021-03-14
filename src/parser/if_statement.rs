@@ -13,8 +13,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] [lookahead ≠ else]
 #[derive(Debug)]
 pub enum IfStatement {
-    WithElse(Box<Expression>, Box<Statement>, Box<Statement>),
-    WithoutElse(Box<Expression>, Box<Statement>),
+    WithElse(Rc<Expression>, Rc<Statement>, Rc<Statement>),
+    WithoutElse(Rc<Expression>, Rc<Statement>),
 }
 
 impl fmt::Display for IfStatement {
@@ -73,17 +73,29 @@ impl PrettyPrint for IfStatement {
 }
 
 impl IfStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_lead = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
         let after_open = scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (stmt1, after_stmt1) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         match scan_for_keyword(after_stmt1, parser.source, ScanGoal::InputElementRegExp, Keyword::Else) {
-            Err(_) => Ok((Box::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)),
+            Err(_) => Ok((Rc::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)),
             Ok(after_else) => {
                 let (stmt2, after_stmt2) = Statement::parse(parser, after_else, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2))
+                Ok((Rc::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2))
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.if_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.if_statement_cache.insert(key, result.clone());
+                result
             }
         }
     }

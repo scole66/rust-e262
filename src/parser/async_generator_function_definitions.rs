@@ -14,9 +14,9 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      async [no LineTerminator here] * PropertyName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorMethod {
-    name: Box<PropertyName>,
-    params: Box<UniqueFormalParameters>,
-    body: Box<AsyncGeneratorBody>,
+    name: Rc<PropertyName>,
+    params: Rc<UniqueFormalParameters>,
+    body: Rc<AsyncGeneratorBody>,
 }
 
 impl fmt::Display for AsyncGeneratorMethod {
@@ -56,7 +56,7 @@ impl PrettyPrint for AsyncGeneratorMethod {
 }
 
 impl AsyncGeneratorMethod {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         let after_star = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (name, after_name) = PropertyName::parse(parser, after_star, yield_flag, await_flag)?;
@@ -66,7 +66,19 @@ impl AsyncGeneratorMethod {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(AsyncGeneratorMethod { name, params, body }), after_rb))
+        Ok((Rc::new(AsyncGeneratorMethod { name, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.async_generator_method_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.async_generator_method_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -75,9 +87,9 @@ impl AsyncGeneratorMethod {
 //      [+Default] async [no LineTerminator here] function * ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorDeclaration {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<AsyncGeneratorBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<AsyncGeneratorBody>,
 }
 
 impl fmt::Display for AsyncGeneratorDeclaration {
@@ -131,7 +143,7 @@ impl IsFunctionDefinition for AsyncGeneratorDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
@@ -152,7 +164,19 @@ impl AsyncGeneratorDeclaration {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(AsyncGeneratorDeclaration { ident, params, body }), after_rb))
+        Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
+        match parser.async_generator_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
+                parser.async_generator_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -160,9 +184,9 @@ impl AsyncGeneratorDeclaration {
 //      async [no LineTerminator here] function * BindingIdentifier[+Yield, +Await]opt ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorExpression {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<AsyncGeneratorBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<AsyncGeneratorBody>,
 }
 
 impl fmt::Display for AsyncGeneratorExpression {
@@ -216,7 +240,7 @@ impl IsFunctionDefinition for AsyncGeneratorExpression {
 }
 
 impl AsyncGeneratorExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
@@ -231,14 +255,25 @@ impl AsyncGeneratorExpression {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(AsyncGeneratorExpression { ident, params, body }), after_rb))
+        Ok((Rc::new(AsyncGeneratorExpression { ident, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.async_generator_expression_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.async_generator_expression_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 
 // AsyncGeneratorBody :
 //      FunctionBody[+Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncGeneratorBody(Box<FunctionBody>);
+pub struct AsyncGeneratorBody(Rc<FunctionBody>);
 
 impl fmt::Display for AsyncGeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -265,9 +300,20 @@ impl PrettyPrint for AsyncGeneratorBody {
 }
 
 impl AsyncGeneratorBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         let (body, after_body) = FunctionBody::parse(parser, scanner, true, true);
-        (Box::new(AsyncGeneratorBody(body)), after_body)
+        (Rc::new(AsyncGeneratorBody(body)), after_body)
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+        match parser.async_generator_body_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.async_generator_body_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 

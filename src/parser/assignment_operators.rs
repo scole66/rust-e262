@@ -23,15 +23,15 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      LeftHandSideExpression[?Yield, ?Await] ??= AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum AssignmentExpression {
-    FallThru(Box<ConditionalExpression>),
-    Yield(Box<YieldExpression>),
-    Arrow(Box<ArrowFunction>),
-    AsyncArrow(Box<AsyncArrowFunction>),
-    Assignment(Box<LeftHandSideExpression>, Box<AssignmentExpression>),
-    OpAssignment(Box<LeftHandSideExpression>, AssignmentOperator, Box<AssignmentExpression>),
-    LandAssignment(Box<LeftHandSideExpression>, Box<AssignmentExpression>),
-    LorAssignment(Box<LeftHandSideExpression>, Box<AssignmentExpression>),
-    CoalAssignment(Box<LeftHandSideExpression>, Box<AssignmentExpression>),
+    FallThru(Rc<ConditionalExpression>),
+    Yield(Rc<YieldExpression>),
+    Arrow(Rc<ArrowFunction>),
+    AsyncArrow(Rc<AsyncArrowFunction>),
+    Assignment(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>),
+    OpAssignment(Rc<LeftHandSideExpression>, AssignmentOperator, Rc<AssignmentExpression>),
+    LandAssignment(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>),
+    LorAssignment(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>),
+    CoalAssignment(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for AssignmentExpression {
@@ -152,19 +152,17 @@ impl AssignmentTargetType for AssignmentExpression {
 }
 
 impl AssignmentExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<AssignmentExpression>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("AssignmentExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 if yield_flag {
-                    YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Box::new(AssignmentExpression::Yield(yieldexp)), after_yield))
+                    YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield))
                 } else {
                     Err(ParseError::new(String::new(), scanner.line, scanner.column))
                 }
             })
-            .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Box::new(AssignmentExpression::Arrow(af)), after_af)))
-            .otherwise(|| {
-                AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(aaf, after_aaf)| (Box::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf))
-            })
+            .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Rc::new(AssignmentExpression::Arrow(af)), after_af)))
+            .otherwise(|| AsyncArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(aaf, after_aaf)| (Rc::new(AssignmentExpression::AsyncArrow(aaf)), after_aaf)))
             .otherwise(|| {
                 LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(lhs, after_lhs)| {
                     scan_for_punct_set(
@@ -209,18 +207,28 @@ impl AssignmentExpression {
                             Punctuator::StarStarEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Exponentiate, ae),
                             _ => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::BitwiseXor, ae),
                         };
-                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag).map(|(ae, after_ae)| (Box::new(make_ae(lhs, ae)), after_ae))
+                        AssignmentExpression::parse(parser, after_op, in_flag, yield_flag, await_flag).map(|(ae, after_ae)| (Rc::new(make_ae(lhs, ae)), after_ae))
                     })
                 })
             })
-            .otherwise(|| {
-                ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ce, after_ce)| (Box::new(AssignmentExpression::FallThru(ce)), after_ce))
-            })
+            .otherwise(|| ConditionalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ce, after_ce)| (Rc::new(AssignmentExpression::FallThru(ce)), after_ce)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.assignment_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.assignment_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
 // AssignmentOperator : one of
-//      *= /= %= += -= <<= >>= >>>= &= ^= |= **=
+//      *= /= %= += -= <<= >>= >>>= &= ^= |= *=
 #[derive(Debug)]
 pub enum AssignmentOperator {
     Multiply,
@@ -251,7 +259,7 @@ impl fmt::Display for AssignmentOperator {
             AssignmentOperator::BitwiseAnd => write!(f, "&="),
             AssignmentOperator::BitwiseXor => write!(f, "^="),
             AssignmentOperator::BitwiseOr => write!(f, "|="),
-            AssignmentOperator::Exponentiate => write!(f, "**="),
+            AssignmentOperator::Exponentiate => write!(f, "*="),
         }
     }
 }
@@ -456,11 +464,11 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_16() {
-        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false));
+        let (node, scanner) = check(AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(&*node, AssignmentExpression::OpAssignment(..)));
-        pretty_check(&*node, "AssignmentExpression: a **= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: **=", "AssignmentExpression: b"]);
-        concise_check(&*node, "AssignmentExpression: a **= b", vec!["IdentifierName: a", "Punctuator: **=", "IdentifierName: b"]);
+        pretty_check(&*node, "AssignmentExpression: a *= b", vec!["LeftHandSideExpression: a", "AssignmentOperator: *=", "AssignmentExpression: b"]);
+        concise_check(&*node, "AssignmentExpression: a *= b", vec!["IdentifierName: a", "Punctuator: *=", "IdentifierName: b"]);
         format!("{:?}", node);
         assert!(!node.is_function_definition());
         assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
@@ -580,7 +588,7 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_prettyerrors_16() {
-        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test]
@@ -680,7 +688,7 @@ mod tests {
     }
     #[test]
     fn assignment_expression_test_conciseerrors_16() {
-        let (item, _) = AssignmentExpression::parse(&mut newparser("a**=b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) = AssignmentExpression::parse(&mut newparser("a*=b"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(&*item);
     }
     #[test]

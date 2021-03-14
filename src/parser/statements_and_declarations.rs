@@ -43,20 +43,20 @@ use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 //      DebuggerStatement
 #[derive(Debug)]
 pub enum Statement {
-    Block(Box<BlockStatement>),
-    Variable(Box<VariableStatement>),
-    Empty(Box<EmptyStatement>),
-    Expression(Box<ExpressionStatement>),
-    If(Box<IfStatement>),
-    Breakable(Box<BreakableStatement>),
-    Continue(Box<ContinueStatement>),
-    Break(Box<BreakStatement>),
-    Return(Box<ReturnStatement>),
-    With(Box<WithStatement>),
-    Labelled(Box<LabelledStatement>),
-    Throw(Box<ThrowStatement>),
-    Try(Box<TryStatement>),
-    Debugger(Box<DebuggerStatement>),
+    Block(Rc<BlockStatement>),
+    Variable(Rc<VariableStatement>),
+    Empty(Rc<EmptyStatement>),
+    Expression(Rc<ExpressionStatement>),
+    If(Rc<IfStatement>),
+    Breakable(Rc<BreakableStatement>),
+    Continue(Rc<ContinueStatement>),
+    Break(Rc<BreakStatement>),
+    Return(Rc<ReturnStatement>),
+    With(Rc<WithStatement>),
+    Labelled(Rc<LabelledStatement>),
+    Throw(Rc<ThrowStatement>),
+    Try(Rc<TryStatement>),
+    Debugger(Rc<DebuggerStatement>),
 }
 
 impl fmt::Display for Statement {
@@ -128,64 +128,76 @@ impl PrettyPrint for Statement {
 }
 
 impl Statement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Statement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (block, after_block) = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::Block(block)), after_block))
+                Ok((Rc::new(Statement::Block(block)), after_block))
             })
             .otherwise(|| {
                 let (var, after_var) = VariableStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Variable(var)), after_var))
+                Ok((Rc::new(Statement::Variable(var)), after_var))
             })
             .otherwise(|| {
                 let (empty, after_empty) = EmptyStatement::parse(parser, scanner)?;
-                Ok((Box::new(Statement::Empty(empty)), after_empty))
+                Ok((Rc::new(Statement::Empty(empty)), after_empty))
             })
             .otherwise(|| {
                 let (exp, after_exp) = ExpressionStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Expression(exp)), after_exp))
+                Ok((Rc::new(Statement::Expression(exp)), after_exp))
             })
             .otherwise(|| {
                 let (if_node, after_if) = IfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::If(if_node)), after_if))
+                Ok((Rc::new(Statement::If(if_node)), after_if))
             })
             .otherwise(|| {
                 let (bable_node, after_bable) = BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::Breakable(bable_node)), after_bable))
+                Ok((Rc::new(Statement::Breakable(bable_node)), after_bable))
             })
             .otherwise(|| {
                 let (cont_node, after_cont) = ContinueStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Continue(cont_node)), after_cont))
+                Ok((Rc::new(Statement::Continue(cont_node)), after_cont))
             })
             .otherwise(|| {
                 let (break_node, after_break) = BreakStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Break(break_node)), after_break))
+                Ok((Rc::new(Statement::Break(break_node)), after_break))
             })
             .otherwise(|| {
                 let (return_node, after_return) = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Return(return_node)), after_return))
+                Ok((Rc::new(Statement::Return(return_node)), after_return))
             })
             .otherwise(|| {
                 let (with_node, after_with) = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::With(with_node)), after_with))
+                Ok((Rc::new(Statement::With(with_node)), after_with))
             })
             .otherwise(|| {
                 let (lbl_node, after_lbl) = LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::Labelled(lbl_node)), after_lbl))
+                Ok((Rc::new(Statement::Labelled(lbl_node)), after_lbl))
             })
             .otherwise(|| {
                 let (throw_node, after_throw) = ThrowStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(Statement::Throw(throw_node)), after_throw))
+                Ok((Rc::new(Statement::Throw(throw_node)), after_throw))
             })
             .otherwise(|| {
                 let (try_node, after_try) = TryStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Statement::Try(try_node)), after_try))
+                Ok((Rc::new(Statement::Try(try_node)), after_try))
             })
             .otherwise(|| {
                 let (dbg_node, after_dbg) = DebuggerStatement::parse(parser, scanner)?;
-                Ok((Box::new(Statement::Debugger(dbg_node)), after_dbg))
+                Ok((Rc::new(Statement::Debugger(dbg_node)), after_dbg))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -195,9 +207,9 @@ impl Statement {
 //      LexicalDeclaration[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum Declaration {
-    Hoistable(Box<HoistableDeclaration>),
-    Class(Box<ClassDeclaration>),
-    Lexical(Box<LexicalDeclaration>),
+    Hoistable(Rc<HoistableDeclaration>),
+    Class(Rc<ClassDeclaration>),
+    Lexical(Rc<LexicalDeclaration>),
 }
 
 impl fmt::Display for Declaration {
@@ -237,20 +249,32 @@ impl PrettyPrint for Declaration {
 }
 
 impl Declaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Declaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (hoist, after_hoist) = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
-                Ok((Box::new(Declaration::Hoistable(hoist)), after_hoist))
+                Ok((Rc::new(Declaration::Hoistable(hoist)), after_hoist))
             })
             .otherwise(|| {
                 let (cls, after_cls) = ClassDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
-                Ok((Box::new(Declaration::Class(cls)), after_cls))
+                Ok((Rc::new(Declaration::Class(cls)), after_cls))
             })
             .otherwise(|| {
                 let (lex, after_lex) = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
-                Ok((Box::new(Declaration::Lexical(lex)), after_lex))
+                Ok((Rc::new(Declaration::Lexical(lex)), after_lex))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -261,10 +285,10 @@ impl Declaration {
 //      AsyncGeneratorDeclaration[?Yield, ?Await, ?Default]
 #[derive(Debug)]
 pub enum HoistableDeclaration {
-    Function(Box<FunctionDeclaration>),
-    Generator(Box<GeneratorDeclaration>),
-    AsyncFunction(Box<AsyncFunctionDeclaration>),
-    AsyncGenerator(Box<AsyncGeneratorDeclaration>),
+    Function(Rc<FunctionDeclaration>),
+    Generator(Rc<GeneratorDeclaration>),
+    AsyncFunction(Rc<AsyncFunctionDeclaration>),
+    AsyncGenerator(Rc<AsyncGeneratorDeclaration>),
 }
 
 impl fmt::Display for HoistableDeclaration {
@@ -307,24 +331,36 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("HoistableDeclaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-                Ok((Box::new(HoistableDeclaration::Function(func)), after_func))
+                Ok((Rc::new(HoistableDeclaration::Function(func)), after_func))
             })
             .otherwise(|| {
                 let (gen, after_gen) = GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-                Ok((Box::new(HoistableDeclaration::Generator(gen)), after_gen))
+                Ok((Rc::new(HoistableDeclaration::Generator(gen)), after_gen))
             })
             .otherwise(|| {
                 let (afun, after_afun) = AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-                Ok((Box::new(HoistableDeclaration::AsyncFunction(afun)), after_afun))
+                Ok((Rc::new(HoistableDeclaration::AsyncFunction(afun)), after_afun))
             })
             .otherwise(|| {
                 let (agen, after_agen) = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-                Ok((Box::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
+                Ok((Rc::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
+        match parser.hoistable_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
+                parser.hoistable_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -333,8 +369,8 @@ impl HoistableDeclaration {
 //      SwitchStatement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum BreakableStatement {
-    Iteration(Box<IterationStatement>),
-    Switch(Box<SwitchStatement>),
+    Iteration(Rc<IterationStatement>),
+    Switch(Rc<SwitchStatement>),
 }
 
 impl fmt::Display for BreakableStatement {
@@ -371,16 +407,28 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BreakableStatement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(BreakableStatement::Iteration(iter)), after_iter))
+                Ok((Rc::new(BreakableStatement::Iteration(iter)), after_iter))
             })
             .otherwise(|| {
                 let (switch, after_switch) = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(BreakableStatement::Switch(switch)), after_switch))
+                Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.breakable_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.breakable_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

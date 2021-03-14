@@ -11,7 +11,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum BlockStatement {
-    Block(Box<Block>),
+    Block(Rc<Block>),
 }
 
 impl fmt::Display for BlockStatement {
@@ -42,9 +42,21 @@ impl PrettyPrint for BlockStatement {
 }
 
 impl BlockStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (block, after_block) = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        Ok((Box::new(BlockStatement::Block(block)), after_block))
+        Ok((Rc::new(BlockStatement::Block(block)), after_block))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.block_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.block_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -52,7 +64,7 @@ impl BlockStatement {
 //      { StatementList[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
 pub enum Block {
-    Statements(Option<Box<StatementList>>),
+    Statements(Option<Rc<StatementList>>),
 }
 
 impl fmt::Display for Block {
@@ -97,14 +109,26 @@ impl PrettyPrint for Block {
 }
 
 impl Block {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_lb = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_lb, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_lb),
             Ok((node, scan)) => (Some(node), scan),
         };
         let after_rb = scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(Block::Statements(sl)), after_rb))
+        Ok((Rc::new(Block::Statements(sl)), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.block_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.block_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -113,8 +137,8 @@ impl Block {
 //      StatementList[?Yield, ?Await, ?Return] StatementListItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum StatementList {
-    Item(Box<StatementListItem>),
-    List(Box<StatementList>, Box<StatementListItem>),
+    Item(Rc<StatementListItem>),
+    List(Rc<StatementList>, Rc<StatementListItem>),
 }
 
 impl fmt::Display for StatementList {
@@ -158,22 +182,27 @@ impl PrettyPrint for StatementList {
 }
 
 impl StatementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (item, after_item) = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
-        let mut current = Box::new(StatementList::Item(item));
+        let mut current = Rc::new(StatementList::Item(item));
         let mut current_scanner = after_item;
-        loop {
-            match StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
-                Err(_) => {
-                    break;
-                }
-                Ok((next, after_next)) => {
-                    current = Box::new(StatementList::List(current, next));
-                    current_scanner = after_next;
-                }
-            }
+        while let Ok((next, after_next)) = StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+            current = Rc::new(StatementList::List(current, next));
+            current_scanner = after_next;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.statement_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.statement_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -182,8 +211,8 @@ impl StatementList {
 //      Declaration[?Yield, ?Await]
 #[derive(Debug)]
 pub enum StatementListItem {
-    Statement(Box<Statement>),
-    Declaration(Box<Declaration>),
+    Statement(Rc<Statement>),
+    Declaration(Rc<Declaration>),
 }
 
 impl fmt::Display for StatementListItem {
@@ -219,13 +248,24 @@ impl PrettyPrint for StatementListItem {
 }
 
 impl StatementListItem {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Declaration or Statement expected", scanner.line, scanner.column))
             .otherwise(|| {
-                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)
-                    .map(|(statement, after_statement)| (Box::new(StatementListItem::Statement(statement)), after_statement))
+                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(|(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement))
             })
-            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Box::new(StatementListItem::Declaration(decl)), after_decl)))
+            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.statement_list_item_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.statement_list_item_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -386,5 +426,14 @@ mod tests {
     fn statement_list_item_test_conciseerrors_2() {
         let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
         concise_error_validate(&*item);
+    }
+
+    #[test]
+    fn really_slow() {
+        StatementList::parse(&mut newparser("obj = { blue: 0x0000ff, bluify: function (r, g, b) { return b; } };"), Scanner::new(), false, false, true).expect("test");
+    }
+    #[test]
+    fn probe() {
+        StatementList::parse(&mut newparser("obj = { };"), Scanner::new(), false, false, true).expect("test");
     }
 }

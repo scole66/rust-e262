@@ -20,15 +20,15 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      [+Await]AwaitExpression[?Yield]
 #[derive(Debug)]
 pub enum UnaryExpression {
-    UpdateExpression(Box<UpdateExpression>),
-    Delete(Box<UnaryExpression>),
-    Void(Box<UnaryExpression>),
-    Typeof(Box<UnaryExpression>),
-    NoOp(Box<UnaryExpression>),
-    Negate(Box<UnaryExpression>),
-    Complement(Box<UnaryExpression>),
-    Not(Box<UnaryExpression>),
-    Await(Box<AwaitExpression>),
+    UpdateExpression(Rc<UpdateExpression>),
+    Delete(Rc<UnaryExpression>),
+    Void(Rc<UnaryExpression>),
+    Typeof(Rc<UnaryExpression>),
+    NoOp(Rc<UnaryExpression>),
+    Negate(Rc<UnaryExpression>),
+    Complement(Rc<UnaryExpression>),
+    Not(Rc<UnaryExpression>),
+    Await(Rc<AwaitExpression>),
 }
 
 impl fmt::Display for UnaryExpression {
@@ -124,9 +124,9 @@ impl AssignmentTargetType for UnaryExpression {
 }
 
 impl UnaryExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        let mut unary_helper = |f: fn(Box<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Box::new(f(boxed)), after));
+        let mut unary_helper = |f: fn(Rc<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Rc::new(f(boxed)), after));
         match token {
             Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(UnaryExpression::Delete),
             Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(UnaryExpression::Void),
@@ -138,12 +138,24 @@ impl UnaryExpression {
             _ => Err(ParseError::new("UnaryExpression expected", scanner.line, scanner.column))
                 .otherwise(|| {
                     if await_flag {
-                        AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Box::new(UnaryExpression::Await(ae)), after))
+                        AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
                     } else {
                         Err(ParseError::new(String::new(), scanner.line, scanner.column))
                     }
                 })
-                .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Box::new(UnaryExpression::UpdateExpression(ue)), after))),
+                .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.unary_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.unary_expression_cache.insert(key, result.clone());
+                result
+            }
         }
     }
 }

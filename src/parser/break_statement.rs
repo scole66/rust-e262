@@ -13,7 +13,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 #[derive(Debug)]
 pub enum BreakStatement {
     Bare,
-    Labelled(Box<LabelIdentifier>),
+    Labelled(Rc<LabelIdentifier>),
 }
 
 impl fmt::Display for BreakStatement {
@@ -53,14 +53,26 @@ impl PrettyPrint for BreakStatement {
 }
 
 impl BreakStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_break = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
-        scan_for_punct(after_break, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Box::new(BreakStatement::Bare), after_semi)).otherwise(|| {
+        scan_for_punct(after_break, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(BreakStatement::Bare), after_semi)).otherwise(|| {
             no_line_terminator(after_break, parser.source)?;
             let (li, after_li) = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
             let after_semi = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
-            Ok((Box::new(BreakStatement::Labelled(li)), after_semi))
+            Ok((Rc::new(BreakStatement::Labelled(li)), after_semi))
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.break_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.break_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

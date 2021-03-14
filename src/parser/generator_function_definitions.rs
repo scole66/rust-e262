@@ -15,9 +15,9 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      * PropertyName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorMethod {
-    name: Box<PropertyName>,
-    params: Box<UniqueFormalParameters>,
-    body: Box<GeneratorBody>,
+    name: Rc<PropertyName>,
+    params: Rc<UniqueFormalParameters>,
+    body: Rc<GeneratorBody>,
 }
 
 impl fmt::Display for GeneratorMethod {
@@ -56,7 +56,7 @@ impl PrettyPrint for GeneratorMethod {
 }
 
 impl GeneratorMethod {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
         let (name, after_name) = PropertyName::parse(parser, after_star, yield_flag, await_flag)?;
         let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
@@ -65,7 +65,19 @@ impl GeneratorMethod {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(GeneratorMethod { name, params, body }), after_rb))
+        Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.generator_method_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.generator_method_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -74,9 +86,9 @@ impl GeneratorMethod {
 //      [+Default] function * ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorDeclaration {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<GeneratorBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<GeneratorBody>,
 }
 
 impl fmt::Display for GeneratorDeclaration {
@@ -123,7 +135,7 @@ impl PrettyPrint for GeneratorDeclaration {
 }
 
 impl GeneratorDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
@@ -142,7 +154,19 @@ impl GeneratorDeclaration {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(GeneratorDeclaration { ident, params, body }), after_rb))
+        Ok((Rc::new(GeneratorDeclaration { ident, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
+        match parser.generator_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
+                parser.generator_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -150,9 +174,9 @@ impl GeneratorDeclaration {
 //      function * BindingIdentifier[+Yield, ~Await]opt ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorExpression {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<GeneratorBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<GeneratorBody>,
 }
 
 impl fmt::Display for GeneratorExpression {
@@ -205,7 +229,7 @@ impl IsFunctionDefinition for GeneratorExpression {
 }
 
 impl GeneratorExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, true, false) {
@@ -218,14 +242,25 @@ impl GeneratorExpression {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(GeneratorExpression { ident, params, body }), after_rb))
+        Ok((Rc::new(GeneratorExpression { ident, params, body }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.generator_expression_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.generator_expression_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 
 // GeneratorBody :
 //      FunctionBody[+Yield, ~Await]
 #[derive(Debug)]
-pub struct GeneratorBody(Box<FunctionBody>);
+pub struct GeneratorBody(Rc<FunctionBody>);
 
 impl fmt::Display for GeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -252,9 +287,20 @@ impl PrettyPrint for GeneratorBody {
 }
 
 impl GeneratorBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         let (fb, after_fb) = FunctionBody::parse(parser, scanner, true, false);
-        (Box::new(GeneratorBody(fb)), after_fb)
+        (Rc::new(GeneratorBody(fb)), after_fb)
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+        match parser.generator_body_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.generator_body_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -265,8 +311,8 @@ impl GeneratorBody {
 #[derive(Debug)]
 pub enum YieldExpression {
     Simple,
-    Expression(Box<AssignmentExpression>),
-    From(Box<AssignmentExpression>),
+    Expression(Rc<AssignmentExpression>),
+    From(Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for YieldExpression {
@@ -319,23 +365,36 @@ impl PrettyPrint for YieldExpression {
 }
 
 impl YieldExpression {
-    fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(String::new(), scanner.line, scanner.column))
             .otherwise(|| {
                 let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
-                Ok((Box::new(YieldExpression::From(ae)), after_ae))
+                Ok((Rc::new(YieldExpression::From(ae)), after_ae))
             })
             .otherwise(|| {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
-                Ok((Box::new(YieldExpression::Expression(ae)), after_ae))
+                Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
             })
     }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_yield = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Yield)?;
         no_line_terminator(after_yield, parser.source)
             .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag))
-            .otherwise(|| Ok((Box::new(YieldExpression::Simple), after_yield)))
+            .otherwise(|| Ok((Rc::new(YieldExpression::Simple), after_yield)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InAwaitKey { scanner, in_flag, await_flag };
+        match parser.yield_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, await_flag);
+                parser.yield_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -351,11 +410,7 @@ mod tests {
         let (node, scanner) = check(GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         pretty_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["PropertyName: a", "UniqueFormalParameters: ", "GeneratorBody: "]);
-        concise_check(
-            &*node,
-            "GeneratorMethod: * a (  ) {  }",
-            vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
-        );
+        concise_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
         format!("{:?}", node);
     }
     #[test]

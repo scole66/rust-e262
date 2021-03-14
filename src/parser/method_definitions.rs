@@ -21,12 +21,12 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      set PropertyName[?Yield, ?Await] ( PropertySetParameterList ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub enum MethodDefinition {
-    NamedFunction(Box<PropertyName>, Box<UniqueFormalParameters>, Box<FunctionBody>),
-    Generator(Box<GeneratorMethod>),
-    Async(Box<AsyncMethod>),
-    AsyncGenerator(Box<AsyncGeneratorMethod>),
-    Getter(Box<PropertyName>, Box<FunctionBody>),
-    Setter(Box<PropertyName>, Box<PropertySetParameterList>, Box<FunctionBody>),
+    NamedFunction(Rc<PropertyName>, Rc<UniqueFormalParameters>, Rc<FunctionBody>),
+    Generator(Rc<GeneratorMethod>),
+    Async(Rc<AsyncMethod>),
+    AsyncGenerator(Rc<AsyncGeneratorMethod>),
+    Getter(Rc<PropertyName>, Rc<FunctionBody>),
+    Setter(Rc<PropertyName>, Rc<PropertySetParameterList>, Rc<FunctionBody>),
 }
 
 impl fmt::Display for MethodDefinition {
@@ -118,7 +118,7 @@ impl PrettyPrint for MethodDefinition {
 }
 
 impl MethodDefinition {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("MethodDefinition expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_get = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
@@ -128,7 +128,7 @@ impl MethodDefinition {
                 let after_lb = scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
                 let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Box::new(MethodDefinition::Getter(pn, body)), after_rb))
+                Ok((Rc::new(MethodDefinition::Getter(pn, body)), after_rb))
             })
             .otherwise(|| {
                 let after_set = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
@@ -139,11 +139,11 @@ impl MethodDefinition {
                 let after_lb = scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
                 let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Box::new(MethodDefinition::Setter(pn, args, body)), after_rb))
+                Ok((Rc::new(MethodDefinition::Setter(pn, args, body)), after_rb))
             })
-            .otherwise(|| AsyncMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Box::new(MethodDefinition::Async(node)), scan)))
-            .otherwise(|| AsyncGeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Box::new(MethodDefinition::AsyncGenerator(node)), scan)))
-            .otherwise(|| GeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Box::new(MethodDefinition::Generator(node)), scan)))
+            .otherwise(|| AsyncMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::Async(node)), scan)))
+            .otherwise(|| AsyncGeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::AsyncGenerator(node)), scan)))
+            .otherwise(|| GeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::Generator(node)), scan)))
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
@@ -152,8 +152,20 @@ impl MethodDefinition {
                 let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
                 let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Box::new(MethodDefinition::NamedFunction(name, ufp, body)), after_rb))
+                Ok((Rc::new(MethodDefinition::NamedFunction(name, ufp, body)), after_rb))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.method_definition_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.method_definition_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -161,7 +173,7 @@ impl MethodDefinition {
 //      FormalParameter[~Yield, ~Await]
 #[derive(Debug)]
 pub struct PropertySetParameterList {
-    node: Box<FormalParameter>,
+    node: Rc<FormalParameter>,
 }
 
 impl fmt::Display for PropertySetParameterList {
@@ -189,8 +201,19 @@ impl PrettyPrint for PropertySetParameterList {
 }
 
 impl PropertySetParameterList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
-        FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Box::new(PropertySetParameterList { node }), scanner))
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.property_set_parameter_list_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.property_set_parameter_list_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 

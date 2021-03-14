@@ -15,8 +15,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      CoverCallExpressionAndAsyncArrowHead[?Yield, ?Await] [no LineTerminator here] => AsyncConciseBody[?In]
 #[derive(Debug)]
 pub enum AsyncArrowFunction {
-    IdentOnly(Box<AsyncArrowBindingIdentifier>, Box<AsyncConciseBody>),
-    Formals(Box<AsyncArrowHead>, Box<AsyncConciseBody>),
+    IdentOnly(Rc<AsyncArrowBindingIdentifier>, Rc<AsyncConciseBody>),
+    Formals(Rc<AsyncArrowHead>, Rc<AsyncConciseBody>),
 }
 
 impl fmt::Display for AsyncArrowFunction {
@@ -70,14 +70,14 @@ impl PrettyPrint for AsyncArrowFunction {
 }
 
 impl AsyncArrowFunction {
-    fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (id, after_id) = AsyncArrowBindingIdentifier::parse(parser, after_async, yield_flag)?;
         no_line_terminator(after_id, parser.source)?;
         let after_arrow = scan_for_punct(after_id, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
-        Ok((Box::new(AsyncArrowFunction::IdentOnly(id, body)), after_body))
+        Ok((Rc::new(AsyncArrowFunction::IdentOnly(id, body)), after_body))
     }
     fn parse_covered_form(
         parser: &mut Parser,
@@ -85,7 +85,7 @@ impl AsyncArrowFunction {
         in_flag: bool,
         yield_flag: bool,
         await_flag: bool,
-    ) -> Result<(Box<AsyncArrowHead>, Scanner, Box<AsyncConciseBody>, Scanner), ParseError> {
+    ) -> Result<(Rc<AsyncArrowHead>, Scanner, Rc<AsyncConciseBody>, Scanner), ParseError> {
         let (cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
@@ -94,16 +94,28 @@ impl AsyncArrowFunction {
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((real_params, after_params, body, after_body))
     }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag, await_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
             (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError::compare)),
-            (Err(_), Ok((real_params, after_params, body, after_covered))) => Ok((Box::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
+            (Err(_), Ok((real_params, after_params, body, after_covered))) => Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
             // (Ok(norm), Ok(covered)) can never happen, given the particulars of the productions
             (norm, covered) => {
                 assert!(covered.is_err() && norm.is_ok());
                 norm
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.async_arrow_function_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.async_arrow_function_cache.insert(key, result.clone());
+                result
             }
         }
     }
@@ -112,7 +124,7 @@ impl AsyncArrowFunction {
 // AsyncArrowHead :
 //      async [no LineTerminator here] ArrowFormalParameters[~Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncArrowHead(Box<ArrowFormalParameters>);
+pub struct AsyncArrowHead(Rc<ArrowFormalParameters>);
 
 impl fmt::Display for AsyncArrowHead {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -142,11 +154,22 @@ impl PrettyPrint for AsyncArrowHead {
 }
 
 impl AsyncArrowHead {
-    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (params, after_params) = ArrowFormalParameters::parse(parser, after_async, false, true)?;
-        Ok((Box::new(AsyncArrowHead(params)), after_params))
+        Ok((Rc::new(AsyncArrowHead(params)), after_params))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.async_arrow_head_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.async_arrow_head_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -155,8 +178,8 @@ impl AsyncArrowHead {
 //      { AsyncFunctionBody }
 #[derive(Debug)]
 pub enum AsyncConciseBody {
-    Expression(Box<ExpressionBody>),
-    Function(Box<AsyncFunctionBody>),
+    Expression(Rc<ExpressionBody>),
+    Function(Rc<AsyncFunctionBody>),
 }
 
 impl fmt::Display for AsyncConciseBody {
@@ -199,31 +222,43 @@ impl PrettyPrint for AsyncConciseBody {
 }
 
 impl AsyncConciseBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("AsyncConciseBody expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
                 let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Box::new(AsyncConciseBody::Function(fb)), after_rb))
+                Ok((Rc::new(AsyncConciseBody::Function(fb)), after_rb))
             })
             .otherwise(|| {
                 let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
                 match r {
                     Err(_) => {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, true)?;
-                        Ok((Box::new(AsyncConciseBody::Expression(exp)), after_exp))
+                        Ok((Rc::new(AsyncConciseBody::Expression(exp)), after_exp))
                     }
                     Ok(_) => Err(ParseError::new(String::new(), scanner.line, scanner.column)),
                 }
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
+        let key = InKey { scanner, in_flag };
+        match parser.async_concise_body_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag);
+                parser.async_concise_body_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :
 //      BindingIdentifier[?Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncArrowBindingIdentifier(Box<BindingIdentifier>);
+pub struct AsyncArrowBindingIdentifier(Rc<BindingIdentifier>);
 
 impl fmt::Display for AsyncArrowBindingIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -250,9 +285,21 @@ impl PrettyPrint for AsyncArrowBindingIdentifier {
 }
 
 impl AsyncArrowBindingIdentifier {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
         let (ident, after_ident) = BindingIdentifier::parse(parser, scanner, yield_flag, true)?;
-        Ok((Box::new(AsyncArrowBindingIdentifier(ident)), after_ident))
+        Ok((Rc::new(AsyncArrowBindingIdentifier(ident)), after_ident))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
+        let key = YieldKey { scanner, yield_flag };
+        match parser.async_arrow_binding_identifer_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag);
+                parser.async_arrow_binding_identifer_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -260,8 +307,8 @@ impl AsyncArrowBindingIdentifier {
 //      MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await]
 #[derive(Debug)]
 pub struct CoverCallExpressionAndAsyncArrowHead {
-    expression: Box<MemberExpression>,
-    args: Box<Arguments>,
+    expression: Rc<MemberExpression>,
+    args: Rc<Arguments>,
 }
 
 impl fmt::Display for CoverCallExpressionAndAsyncArrowHead {
@@ -293,10 +340,22 @@ impl PrettyPrint for CoverCallExpressionAndAsyncArrowHead {
 }
 
 impl CoverCallExpressionAndAsyncArrowHead {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (expression, after_exp) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let (args, after_args) = Arguments::parse(parser, after_exp, yield_flag, await_flag)?;
-        Ok((Box::new(CoverCallExpressionAndAsyncArrowHead { expression, args }), after_args))
+        Ok((Rc::new(CoverCallExpressionAndAsyncArrowHead { expression, args }), after_args))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.cover_call_expression_and_async_arrow_head_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.cover_call_expression_and_async_arrow_head_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

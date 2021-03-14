@@ -13,7 +13,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 #[derive(Debug)]
 pub enum ReturnStatement {
     Bare,
-    Expression(Box<Expression>),
+    Expression(Rc<Expression>),
 }
 
 impl fmt::Display for ReturnStatement {
@@ -55,13 +55,13 @@ impl PrettyPrint for ReturnStatement {
 impl ReturnStatement {
     // Given ‘return’
     // See if we can parse ‘[no LineTerminator here] Expression ;’
-    fn parse_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (_, after_next) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         // The following check is broken for literals which span more than one line (strings can do this). Need to come up with a better way.
         if scanner.line == after_next.line {
             let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
             let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
-            Ok((Box::new(ReturnStatement::Expression(exp)), after_semi))
+            Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
         } else {
             Err(ParseError::new("Expression expected", scanner.line, scanner.column))
         }
@@ -69,16 +69,28 @@ impl ReturnStatement {
 
     // Given ‘return’
     // See if we can parse ‘;’
-    fn parse_semi(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_semi(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_semi = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Box::new(ReturnStatement::Bare), after_semi))
+        Ok((Rc::new(ReturnStatement::Bare), after_semi))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_ret = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
         Err(ParseError::new("‘;’ or an Expression expected", after_ret.line, after_ret.column))
             .otherwise(|| Self::parse_exp(parser, after_ret, yield_flag, await_flag))
             .otherwise(|| Self::parse_semi(parser, after_ret))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.return_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.return_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -43,12 +43,23 @@ impl PrettyPrint for MultiplicativeOperator {
 }
 
 impl MultiplicativeOperator {
-    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<MultiplicativeOperator>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
         let (op, after_op) = scan_for_punct_set(scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Star, Punctuator::Slash, Punctuator::Percent])?;
         match op {
-            Punctuator::Star => Ok((Box::new(MultiplicativeOperator::Multiply), after_op)),
-            Punctuator::Slash => Ok((Box::new(MultiplicativeOperator::Divide), after_op)),
-            _ => Ok((Box::new(MultiplicativeOperator::Modulo), after_op)),
+            Punctuator::Star => Ok((Rc::new(MultiplicativeOperator::Multiply), after_op)),
+            Punctuator::Slash => Ok((Rc::new(MultiplicativeOperator::Divide), after_op)),
+            _ => Ok((Rc::new(MultiplicativeOperator::Modulo), after_op)),
+        }
+    }
+
+    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
+        match parser.multiplicative_operator_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.multiplicative_operator_cache.insert(scanner, result.clone());
+                result
+            }
         }
     }
 }
@@ -58,8 +69,8 @@ impl MultiplicativeOperator {
 //      MultiplicativeExpression[?Yield, ?Await] MultiplicativeOperator ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum MultiplicativeExpression {
-    ExponentiationExpression(Box<ExponentiationExpression>),
-    MultiplicativeExpressionExponentiationExpression(Box<MultiplicativeExpression>, Box<MultiplicativeOperator>, Box<ExponentiationExpression>),
+    ExponentiationExpression(Rc<ExponentiationExpression>),
+    MultiplicativeExpressionExponentiationExpression(Rc<MultiplicativeExpression>, Rc<MultiplicativeOperator>, Rc<ExponentiationExpression>),
 }
 
 impl fmt::Display for MultiplicativeExpression {
@@ -126,18 +137,30 @@ impl PrettyPrint for MultiplicativeExpression {
 }
 
 impl MultiplicativeExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (ee, after_ee) = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(MultiplicativeExpression::ExponentiationExpression(ee));
+        let mut current = Rc::new(MultiplicativeExpression::ExponentiationExpression(ee));
         let mut current_scanner = after_ee;
         while let Ok((op, ee2, scan)) = MultiplicativeOperator::parse(parser, current_scanner).and_then(|(op, after_op)| {
             let (ee2, after_ee2) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
             Ok((op, ee2, after_ee2))
         }) {
-            current = Box::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
+            current = Rc::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
             current_scanner = scan;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.multiplicative_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.multiplicative_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -33,7 +33,7 @@ impl PrettyPrint for ClassDeclaration {
 }
 
 impl ClassDeclaration {
-    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool, _default_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ClassDeclaration unimplemented", scanner.line, scanner.column))
     }
 }
@@ -71,7 +71,7 @@ impl IsFunctionDefinition for ClassExpression {
 }
 
 impl ClassExpression {
-    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    pub fn parse(_parser: &mut Parser, scanner: Scanner, _yield_flag: bool, _await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ClassExpression Unimplemented", scanner.line, scanner.column))
     }
 }

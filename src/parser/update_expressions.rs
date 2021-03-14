@@ -16,11 +16,11 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      -- UnaryExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum UpdateExpression {
-    LeftHandSideExpression(Box<LeftHandSideExpression>),
-    PostIncrement(Box<LeftHandSideExpression>),
-    PostDecrement(Box<LeftHandSideExpression>),
-    PreIncrement(Box<UnaryExpression>),
-    PreDecrement(Box<UnaryExpression>),
+    LeftHandSideExpression(Rc<LeftHandSideExpression>),
+    PostIncrement(Rc<LeftHandSideExpression>),
+    PostDecrement(Rc<LeftHandSideExpression>),
+    PreIncrement(Rc<UnaryExpression>),
+    PreDecrement(Rc<UnaryExpression>),
 }
 
 impl fmt::Display for UpdateExpression {
@@ -94,17 +94,17 @@ impl AssignmentTargetType for UpdateExpression {
 }
 
 impl UpdateExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("UpdateExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_plusses = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::PlusPlus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_plusses, yield_flag, await_flag)?;
-                Ok((Box::new(UpdateExpression::PreIncrement(ue)), after_ue))
+                Ok((Rc::new(UpdateExpression::PreIncrement(ue)), after_ue))
             })
             .otherwise(|| {
                 let after_minuses = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::MinusMinus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_minuses, yield_flag, await_flag)?;
-                Ok((Box::new(UpdateExpression::PreDecrement(ue)), after_ue))
+                Ok((Rc::new(UpdateExpression::PreDecrement(ue)), after_ue))
             })
             .otherwise(|| {
                 enum AftLHS {
@@ -124,7 +124,7 @@ impl UpdateExpression {
                     .otherwise(|| Ok((AftLHS::Nothing, after_lhs)))
                     .map(|(aft, scan)| {
                         (
-                            Box::new(match aft {
+                            Rc::new(match aft {
                                 AftLHS::Nothing => UpdateExpression::LeftHandSideExpression(lhs),
                                 AftLHS::Inc => UpdateExpression::PostIncrement(lhs),
                                 AftLHS::Dec => UpdateExpression::PostDecrement(lhs),
@@ -133,6 +133,18 @@ impl UpdateExpression {
                         )
                     })
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.update_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.update_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

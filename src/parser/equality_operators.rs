@@ -15,11 +15,11 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      EqualityExpression[?In, ?Yield, ?Await] !== RelationalExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum EqualityExpression {
-    RelationalExpression(Box<RelationalExpression>),
-    Equal(Box<EqualityExpression>, Box<RelationalExpression>),
-    NotEqual(Box<EqualityExpression>, Box<RelationalExpression>),
-    StrictEqual(Box<EqualityExpression>, Box<RelationalExpression>),
-    NotStrictEqual(Box<EqualityExpression>, Box<RelationalExpression>),
+    RelationalExpression(Rc<RelationalExpression>),
+    Equal(Rc<EqualityExpression>, Rc<RelationalExpression>),
+    NotEqual(Rc<EqualityExpression>, Rc<RelationalExpression>),
+    StrictEqual(Rc<EqualityExpression>, Rc<RelationalExpression>),
+    NotStrictEqual(Rc<EqualityExpression>, Rc<RelationalExpression>),
 }
 
 impl fmt::Display for EqualityExpression {
@@ -91,9 +91,9 @@ impl AssignmentTargetType for EqualityExpression {
 }
 
 impl EqualityExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        let mut current = Box::new(EqualityExpression::RelationalExpression(re1));
+        let mut current = Rc::new(EqualityExpression::RelationalExpression(re1));
         let mut current_scanner = after_re1;
         loop {
             let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
@@ -112,12 +112,24 @@ impl EqualityExpression {
                     break;
                 }
                 Ok((re2, after_re2)) => {
-                    current = Box::new(make_ee(current, re2));
+                    current = Rc::new(make_ee(current, re2));
                     current_scanner = after_re2;
                 }
             }
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.equality_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.equality_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

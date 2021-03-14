@@ -12,8 +12,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      Expression[?In, ?Yield, ?Await] , AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum Expression {
-    FallThru(Box<AssignmentExpression>),
-    Comma(Box<Expression>, Box<AssignmentExpression>),
+    FallThru(Rc<AssignmentExpression>),
+    Comma(Rc<Expression>, Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for Expression {
@@ -76,20 +76,32 @@ impl AssignmentTargetType for Expression {
 }
 
 impl Expression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Expression expected", scanner.line, scanner.column)).otherwise(|| {
             AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
-                let mut current = Box::new(Expression::FallThru(left));
+                let mut current = Rc::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
                 while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
                     .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
                 {
-                    current = Box::new(Expression::Comma(current, right));
+                    current = Rc::new(Expression::Comma(current, right));
                     current_scanner = after_right;
                 }
                 (current, current_scanner)
             })
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

@@ -1,5 +1,8 @@
+use ahash::RandomState;
 use std::cmp;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 use super::scanner;
 use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
@@ -11,15 +14,670 @@ pub enum ParseGoal {
     Module,
 }
 
+impl Default for ParseGoal {
+    fn default() -> Self {
+        ParseGoal::Script
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub enum ParseSymbol {
+    IdentifierReference,
+    BindingIdentifier,
+    LabelIdentifier,
+    Identifier,
+    PrimaryExpression,
+    CoverParenthesizedExpressionAndArrowParameterList,
+    ParenthesizedExpression,
+    Literal,
+    ArrayLiteral,
+    ElementList,
+    Elision,
+    SpreadElement,
+    ObjectLiteral,
+    PropertyDefinitionList,
+    PropertyDefinition,
+    PropertyName,
+    LiteralPropertyName,
+    ComputedPropertyName,
+    CoverInitializedName,
+    Initializer,
+    TemplateLiteral,
+    SubstitutionTemplate,
+    TemplateSpans,
+    TemplateMiddleList,
+    MemberExpression,
+    SuperProperty,
+    MetaProperty,
+    NewTarget,
+    ImportMeta,
+    NewExpression,
+    CallExpression,
+    CallMemberExpression,
+    SuperCall,
+    ImportCall,
+    Arguments,
+    ArgumentList,
+    OptionalExpression,
+    OptionalChain,
+    LeftHandSideExpression,
+    UpdateExpression,
+    UnaryExpression,
+    ExponentiationExpression,
+    MultiplicativeExpression,
+    MultiplicativeOperator,
+    AdditiveExpression,
+    ShiftExpression,
+    RelationalExpression,
+    EqualityExpression,
+    BitwiseANDExpression,
+    BitwiseXORExpression,
+    BitwiseORExpression,
+    LogicalANDExpression,
+    LogicalORExpression,
+    CoalesceExpression,
+    CoalesceExpressionHead,
+    ShortCircuitExpression,
+    ConditionalExpression,
+    AssignmentExpression,
+    AssignmentOperator,
+    AssignmentPattern,
+    ObjectAssignmentPattern,
+    ArrayAssignmentPattern,
+    AssignmentRestProperty,
+    AssignmentPropertyList,
+    AssignmentElementList,
+    AssignmentElisionElement,
+    AssignmentProperty,
+    AssignmentElement,
+    AssignmentRestElement,
+    DestructuringAssignmentTarget,
+    Expression,
+    Statement,
+    Declaration,
+    HoistableDeclaration,
+    BreakableStatement,
+    BlockStatement,
+    Block,
+    StatementList,
+    StatementListItem,
+    LexicalDeclaration,
+    LetOrConst,
+    BindingList,
+    LexicalBinding,
+    VariableStatement,
+    VariableDeclarationList,
+    VariableDeclaration,
+    BindingPattern,
+    ObjectBindingPattern,
+    ArrayBindingPattern,
+    BindingRestProperty,
+    BindingPropertyList,
+    BindingElementList,
+    BindingElisionElement,
+    BindingProperty,
+    BindingElement,
+    SingleNameBinding,
+    BindingRestElement,
+    EmptyStatement,
+    ExpressionStatement,
+    IfStatement,
+    IterationStatement,
+    DoWhileStatement,
+    WhileStatement,
+    ForStatement,
+    ForInOfStatement,
+    ForDeclaration,
+    ForBinding,
+    ContinueStatement,
+    BreakStatement,
+    ReturnStatement,
+    WithStatement,
+    SwitchStatement,
+    CaseBlock,
+    CaseClauses,
+    CaseClause,
+    DefaultClause,
+    LabelledStatement,
+    LabelledItem,
+    ThrowStatement,
+    TryStatement,
+    Catch,
+    Finally,
+    CatchParameter,
+    DebuggerStatement,
+    UniqueFormalParameters,
+    FormalParameters,
+    FormalParameterList,
+    FunctionRestParameter,
+    FormalParameter,
+    FunctionDeclaration,
+    FunctionExpression,
+    FunctionBody,
+    FunctionStatementList,
+    ArrowFunction,
+    ArrowParameters,
+    ConciseBody,
+    ExpressionBody,
+    ArrowFormalParameters,
+    AsyncArrowFunction,
+    AsyncConciseBody,
+    AsyncArrowBindingIdentifier,
+    CoverCallExpressionAndAsyncArrowHead,
+    AsyncArrowHead,
+    MethodDefinition,
+    PropertySetParameterList,
+    GeneratorMethod,
+    GeneratorDeclaration,
+    GeneratorExpression,
+    GeneratorBody,
+    YieldExpression,
+    AsyncGeneratorMethod,
+    AsyncGeneratorDeclaration,
+    AsyncGeneratorExpression,
+    AsyncGeneratorBody,
+    AsyncFunctionDeclaration,
+    AsyncFunctionExpression,
+    AsyncMethod,
+    AsyncFunctionBody,
+    AwaitExpression,
+    ClassDeclaration,
+    ClassExpression,
+    ClassTail,
+    ClassHeritage,
+    ClassBody,
+    ClassElementList,
+    ClassElement,
+    Script,
+    ScriptBody,
+    Module,
+    ModuleBody,
+    ModuleItemList,
+    ModuleItem,
+    ImportDeclaration,
+    ImportClause,
+    ImportedDefaultBinding,
+    NameSpaceImport,
+    NamedImports,
+    FromClause,
+    ImportsList,
+    ImportSpecifier,
+    ModuleSpecifier,
+    ImportedBinding,
+    ExportDeclaration,
+    ExportFromClause,
+    NamedExports,
+    ExportsList,
+    ExportSpecifier,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct ParseCacheKey {
+    symbol: ParseSymbol,
+    scanner: Scanner,
+    in_flag: bool,
+    yield_flag: bool,
+    await_flag: bool,
+    return_flag: bool,
+    default_flag: bool,
+}
+
+use additive_operators::AdditiveExpression;
+use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
+use assignment_operators::{AssignmentExpression, AssignmentOperator};
+use async_arrow_function_definitions::{AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody, CoverCallExpressionAndAsyncArrowHead};
+use async_function_definitions::{AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression};
+use async_generator_function_definitions::{AsyncGeneratorBody, AsyncGeneratorDeclaration, AsyncGeneratorExpression, AsyncGeneratorMethod};
+use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
+use binary_logical_operators::{CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression};
+use bitwise_shift_operators::ShiftExpression;
+use block::{Block, BlockStatement, StatementList, StatementListItem};
+use break_statement::BreakStatement;
+use class_definitions::{ClassDeclaration, ClassExpression};
+use comma_operator::Expression;
+use conditional_operator::ConditionalExpression;
+use continue_statement::ContinueStatement;
+use debugger_statement::DebuggerStatement;
+use declarations_and_variables::{
+    ArrayBindingPattern, BindingElement, BindingElementList, BindingElisionElement, BindingList, BindingPattern, BindingProperty, BindingPropertyList, BindingRestElement,
+    BindingRestProperty, LexicalBinding, LexicalDeclaration, ObjectBindingPattern, SingleNameBinding, VariableDeclaration, VariableDeclarationList, VariableStatement,
+};
+use empty_statement::EmptyStatement;
+use equality_operators::EqualityExpression;
+use exponentiation_operator::ExponentiationExpression;
+use expression_statement::ExpressionStatement;
+use function_definitions::{FunctionBody, FunctionDeclaration, FunctionExpression, FunctionStatementList};
+use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
+use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
+use if_statement::IfStatement;
+use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
+use labelled_statements::{LabelledItem, LabelledStatement};
+use left_hand_side_expressions::{
+    ArgumentList, Arguments, CallExpression, CallMemberExpression, ImportCall, LeftHandSideExpression, MemberExpression, MetaProperty, NewExpression, OptionalChain, OptionalExpression,
+    SuperCall, SuperProperty,
+};
+use method_definitions::{MethodDefinition, PropertySetParameterList};
+use multiplicative_operators::{MultiplicativeExpression, MultiplicativeOperator};
+use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
+use primary_expressions::{
+    ArrayLiteral, ComputedPropertyName, CoverInitializedName, CoverParenthesizedExpressionAndArrowParameterList, ElementList, Elisions, Initializer, Literal, LiteralPropertyName,
+    ObjectLiteral, ParenthesizedExpression, PrimaryExpression, PropertyDefinition, PropertyDefinitionList, PropertyName, SpreadElement, SubstitutionTemplate, TemplateLiteral,
+    TemplateMiddleList, TemplateSpans,
+};
+use relational_operators::RelationalExpression;
+use return_statement::ReturnStatement;
+use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
+use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
+use throw_statement::ThrowStatement;
+use try_statement::{Catch, CatchParameter, Finally, TryStatement};
+use unary_operators::UnaryExpression;
+use update_expressions::UpdateExpression;
+use with_statement::WithStatement;
+
+//pub struct ParseCacheValue(Result<(ParseNode, Scanner), ParseError>);
+pub enum ParseCacheValue {
+    IdentifierReference(Result<(Rc<IdentifierReference>, Scanner), ParseError>),
+    BindingIdentifier(Result<(Rc<BindingIdentifier>, Scanner), ParseError>),
+    LabelIdentifier(Result<(Rc<LabelIdentifier>, Scanner), ParseError>),
+    Identifier(Result<(Rc<Identifier>, Scanner), ParseError>),
+    PrimaryExpression(Result<(Rc<PrimaryExpression>, Scanner), ParseError>),
+    CoverParenthesizedExpressionAndArrowParameterList(Result<(Rc<CoverParenthesizedExpressionAndArrowParameterList>, Scanner), ParseError>),
+    ParenthesizedExpression(Result<(Rc<ParenthesizedExpression>, Scanner), ParseError>),
+    Literal(Result<(Rc<Literal>, Scanner), ParseError>),
+    ArrayLiteral(Result<(Rc<ArrayLiteral>, Scanner), ParseError>),
+    ElementList(Result<(Rc<ElementList>, Scanner), ParseError>),
+    Elisions(Result<(Rc<Elisions>, Scanner), ParseError>),
+    SpreadElement(Result<(Rc<SpreadElement>, Scanner), ParseError>),
+    ObjectLiteral(Result<(Rc<ObjectLiteral>, Scanner), ParseError>),
+    PropertyDefinitionList(Result<(Rc<PropertyDefinitionList>, Scanner), ParseError>),
+    PropertyDefinition(Result<(Rc<PropertyDefinition>, Scanner), ParseError>),
+    PropertyName(Result<(Rc<PropertyName>, Scanner), ParseError>),
+    LiteralPropertyName(Result<(Rc<LiteralPropertyName>, Scanner), ParseError>),
+    ComputedPropertyName(Result<(Rc<ComputedPropertyName>, Scanner), ParseError>),
+    CoverInitializedName(Result<(Rc<CoverInitializedName>, Scanner), ParseError>),
+    Initializer(Result<(Rc<Initializer>, Scanner), ParseError>),
+    TemplateLiteral(Result<(Rc<TemplateLiteral>, Scanner), ParseError>),
+    SubstitutionTemplate(Result<(Rc<SubstitutionTemplate>, Scanner), ParseError>),
+    TemplateSpans(Result<(Rc<TemplateSpans>, Scanner), ParseError>),
+    TemplateMiddleList(Result<(Rc<TemplateMiddleList>, Scanner), ParseError>),
+    MemberExpression(Result<(Rc<MemberExpression>, Scanner), ParseError>),
+    SuperProperty(Result<(Rc<SuperProperty>, Scanner), ParseError>),
+    MetaProperty(Result<(Rc<MetaProperty>, Scanner), ParseError>),
+    //NewTarget(Result<(Rc<NewTarget>, Scanner), ParseError>),
+    //ImportMeta(Result<(Rc<ImportMeta>, Scanner), ParseError>),
+    NewExpression(Result<(Rc<NewExpression>, Scanner), ParseError>),
+    CallExpression(Result<(Rc<CallExpression>, Scanner), ParseError>),
+    CallMemberExpression(Result<(Rc<CallMemberExpression>, Scanner), ParseError>),
+    SuperCall(Result<(Rc<SuperCall>, Scanner), ParseError>),
+    ImportCall(Result<(Rc<ImportCall>, Scanner), ParseError>),
+    Arguments(Result<(Rc<Arguments>, Scanner), ParseError>),
+    ArgumentList(Result<(Rc<ArgumentList>, Scanner), ParseError>),
+    OptionalExpression(Result<(Rc<OptionalExpression>, Scanner), ParseError>),
+    OptionalChain(Result<(Rc<OptionalChain>, Scanner), ParseError>),
+    LeftHandSideExpression(Result<(Rc<LeftHandSideExpression>, Scanner), ParseError>),
+    UpdateExpression(Result<(Rc<UpdateExpression>, Scanner), ParseError>),
+    UnaryExpression(Result<(Rc<UnaryExpression>, Scanner), ParseError>),
+    ExponentiationExpression(Result<(Rc<ExponentiationExpression>, Scanner), ParseError>),
+    MultiplicativeExpression(Result<(Rc<MultiplicativeExpression>, Scanner), ParseError>),
+    MultiplicativeOperator(Result<(Rc<MultiplicativeOperator>, Scanner), ParseError>),
+    AdditiveExpression(Result<(Rc<AdditiveExpression>, Scanner), ParseError>),
+    ShiftExpression(Result<(Rc<ShiftExpression>, Scanner), ParseError>),
+    RelationalExpression(Result<(Rc<RelationalExpression>, Scanner), ParseError>),
+    EqualityExpression(Result<(Rc<EqualityExpression>, Scanner), ParseError>),
+    BitwiseANDExpression(Result<(Rc<BitwiseANDExpression>, Scanner), ParseError>),
+    BitwiseXORExpression(Result<(Rc<BitwiseXORExpression>, Scanner), ParseError>),
+    BitwiseORExpression(Result<(Rc<BitwiseORExpression>, Scanner), ParseError>),
+    LogicalANDExpression(Result<(Rc<LogicalANDExpression>, Scanner), ParseError>),
+    LogicalORExpression(Result<(Rc<LogicalORExpression>, Scanner), ParseError>),
+    CoalesceExpression(Result<(Rc<CoalesceExpression>, Scanner), ParseError>),
+    CoalesceExpressionHead(Result<(Rc<CoalesceExpressionHead>, Scanner), ParseError>),
+    ShortCircuitExpression(Result<(Rc<ShortCircuitExpression>, Scanner), ParseError>),
+    ConditionalExpression(Result<(Rc<ConditionalExpression>, Scanner), ParseError>),
+    AssignmentExpression(Result<(Rc<AssignmentExpression>, Scanner), ParseError>),
+    AssignmentOperator(Result<(Rc<AssignmentOperator>, Scanner), ParseError>),
+    //AssignmentPattern(Result<(Rc<AssignmentPattern>, Scanner), ParseError>),
+    //ObjectAssignmentPattern(Result<(Rc<ObjectAssignmentPattern>, Scanner), ParseError>),
+    //ArrayAssignmentPattern(Result<(Rc<ArrayAssignmentPattern>, Scanner), ParseError>),
+    //AssignmentRestProperty(Result<(Rc<AssignmentRestProperty>, Scanner), ParseError>),
+    //AssignmentPropertyList(Result<(Rc<AssignmentPropertyList>, Scanner), ParseError>),
+    //AssignmentElementList(Result<(Rc<AssignmentElementList>, Scanner), ParseError>),
+    //AssignmentElisionElement(Result<(Rc<AssignmentElisionElement>, Scanner), ParseError>),
+    //AssignmentProperty(Result<(Rc<AssignmentProperty>, Scanner), ParseError>),
+    //AssignmentElement(Result<(Rc<AssignmentElement>, Scanner), ParseError>),
+    //AssignmentRestElement(Result<(Rc<AssignmentRestElement>, Scanner), ParseError>),
+    //DestructuringAssignmentTarget(Result<(Rc<DestructuringAssignmentTarget>, Scanner), ParseError>),
+    Expression(Result<(Rc<Expression>, Scanner), ParseError>),
+    Statement(Result<(Rc<Statement>, Scanner), ParseError>),
+    Declaration(Result<(Rc<Declaration>, Scanner), ParseError>),
+    HoistableDeclaration(Result<(Rc<HoistableDeclaration>, Scanner), ParseError>),
+    BreakableStatement(Result<(Rc<BreakableStatement>, Scanner), ParseError>),
+    BlockStatement(Result<(Rc<BlockStatement>, Scanner), ParseError>),
+    Block(Result<(Rc<Block>, Scanner), ParseError>),
+    StatementList(Result<(Rc<StatementList>, Scanner), ParseError>),
+    StatementListItem(Result<(Rc<StatementListItem>, Scanner), ParseError>),
+    LexicalDeclaration(Result<(Rc<LexicalDeclaration>, Scanner), ParseError>),
+    //LetOrConst(Result<(Rc<LetOrConst>, Scanner), ParseError>),
+    BindingList(Result<(Rc<BindingList>, Scanner), ParseError>),
+    LexicalBinding(Result<(Rc<LexicalBinding>, Scanner), ParseError>),
+    VariableStatement(Result<(Rc<VariableStatement>, Scanner), ParseError>),
+    VariableDeclarationList(Result<(Rc<VariableDeclarationList>, Scanner), ParseError>),
+    VariableDeclaration(Result<(Rc<VariableDeclaration>, Scanner), ParseError>),
+    BindingPattern(Result<(Rc<BindingPattern>, Scanner), ParseError>),
+    ObjectBindingPattern(Result<(Rc<ObjectBindingPattern>, Scanner), ParseError>),
+    ArrayBindingPattern(Result<(Rc<ArrayBindingPattern>, Scanner), ParseError>),
+    BindingRestProperty(Result<(Rc<BindingRestProperty>, Scanner), ParseError>),
+    BindingPropertyList(Result<(Rc<BindingPropertyList>, Scanner), ParseError>),
+    BindingElementList(Result<(Rc<BindingElementList>, Scanner), ParseError>),
+    BindingElisionElement(Result<(Rc<BindingElisionElement>, Scanner), ParseError>),
+    BindingProperty(Result<(Rc<BindingProperty>, Scanner), ParseError>),
+    BindingElement(Result<(Rc<BindingElement>, Scanner), ParseError>),
+    SingleNameBinding(Result<(Rc<SingleNameBinding>, Scanner), ParseError>),
+    BindingRestElement(Result<(Rc<BindingRestElement>, Scanner), ParseError>),
+    EmptyStatement(Result<(Rc<EmptyStatement>, Scanner), ParseError>),
+    ExpressionStatement(Result<(Rc<ExpressionStatement>, Scanner), ParseError>),
+    IfStatement(Result<(Rc<IfStatement>, Scanner), ParseError>),
+    IterationStatement(Result<(Rc<IterationStatement>, Scanner), ParseError>),
+    DoWhileStatement(Result<(Rc<DoWhileStatement>, Scanner), ParseError>),
+    WhileStatement(Result<(Rc<WhileStatement>, Scanner), ParseError>),
+    ForStatement(Result<(Rc<ForStatement>, Scanner), ParseError>),
+    ForInOfStatement(Result<(Rc<ForInOfStatement>, Scanner), ParseError>),
+    ForDeclaration(Result<(Rc<ForDeclaration>, Scanner), ParseError>),
+    ForBinding(Result<(Rc<ForBinding>, Scanner), ParseError>),
+    ContinueStatement(Result<(Rc<ContinueStatement>, Scanner), ParseError>),
+    BreakStatement(Result<(Rc<BreakStatement>, Scanner), ParseError>),
+    ReturnStatement(Result<(Rc<ReturnStatement>, Scanner), ParseError>),
+    WithStatement(Result<(Rc<WithStatement>, Scanner), ParseError>),
+    SwitchStatement(Result<(Rc<SwitchStatement>, Scanner), ParseError>),
+    CaseBlock(Result<(Rc<CaseBlock>, Scanner), ParseError>),
+    CaseClauses(Result<(Rc<CaseClauses>, Scanner), ParseError>),
+    CaseClause(Result<(Rc<CaseClause>, Scanner), ParseError>),
+    DefaultClause(Result<(Rc<DefaultClause>, Scanner), ParseError>),
+    LabelledStatement(Result<(Rc<LabelledStatement>, Scanner), ParseError>),
+    LabelledItem(Result<(Rc<LabelledItem>, Scanner), ParseError>),
+    ThrowStatement(Result<(Rc<ThrowStatement>, Scanner), ParseError>),
+    TryStatement(Result<(Rc<TryStatement>, Scanner), ParseError>),
+    Catch(Result<(Rc<Catch>, Scanner), ParseError>),
+    Finally(Result<(Rc<Finally>, Scanner), ParseError>),
+    CatchParameter(Result<(Rc<CatchParameter>, Scanner), ParseError>),
+    DebuggerStatement(Result<(Rc<DebuggerStatement>, Scanner), ParseError>),
+    UniqueFormalParameters(Result<(Rc<UniqueFormalParameters>, Scanner), ParseError>),
+    FormalParameters(Result<(Rc<FormalParameters>, Scanner), ParseError>),
+    FormalParameterList(Result<(Rc<FormalParameterList>, Scanner), ParseError>),
+    FunctionRestParameter(Result<(Rc<FunctionRestParameter>, Scanner), ParseError>),
+    FormalParameter(Result<(Rc<FormalParameter>, Scanner), ParseError>),
+    FunctionDeclaration(Result<(Rc<FunctionDeclaration>, Scanner), ParseError>),
+    FunctionExpression(Result<(Rc<FunctionExpression>, Scanner), ParseError>),
+    FunctionBody(Result<(Rc<FunctionBody>, Scanner), ParseError>),
+    FunctionStatementList(Result<(Rc<FunctionStatementList>, Scanner), ParseError>),
+    ArrowFunction(Result<(Rc<ArrowFunction>, Scanner), ParseError>),
+    ArrowParameters(Result<(Rc<ArrowParameters>, Scanner), ParseError>),
+    ConciseBody(Result<(Rc<ConciseBody>, Scanner), ParseError>),
+    ExpressionBody(Result<(Rc<ExpressionBody>, Scanner), ParseError>),
+    ArrowFormalParameters(Result<(Rc<ArrowFormalParameters>, Scanner), ParseError>),
+    AsyncArrowFunction(Result<(Rc<AsyncArrowFunction>, Scanner), ParseError>),
+    AsyncConciseBody(Result<(Rc<AsyncConciseBody>, Scanner), ParseError>),
+    AsyncArrowBindingIdentifier(Result<(Rc<AsyncArrowBindingIdentifier>, Scanner), ParseError>),
+    CoverCallExpressionAndAsyncArrowHead(Result<(Rc<CoverCallExpressionAndAsyncArrowHead>, Scanner), ParseError>),
+    AsyncArrowHead(Result<(Rc<AsyncArrowHead>, Scanner), ParseError>),
+    MethodDefinition(Result<(Rc<MethodDefinition>, Scanner), ParseError>),
+    PropertySetParameterList(Result<(Rc<PropertySetParameterList>, Scanner), ParseError>),
+    GeneratorMethod(Result<(Rc<GeneratorMethod>, Scanner), ParseError>),
+    GeneratorDeclaration(Result<(Rc<GeneratorDeclaration>, Scanner), ParseError>),
+    GeneratorExpression(Result<(Rc<GeneratorExpression>, Scanner), ParseError>),
+    GeneratorBody(Result<(Rc<GeneratorBody>, Scanner), ParseError>),
+    YieldExpression(Result<(Rc<YieldExpression>, Scanner), ParseError>),
+    AsyncGeneratorMethod(Result<(Rc<AsyncGeneratorMethod>, Scanner), ParseError>),
+    AsyncGeneratorDeclaration(Result<(Rc<AsyncGeneratorDeclaration>, Scanner), ParseError>),
+    AsyncGeneratorExpression(Result<(Rc<AsyncGeneratorExpression>, Scanner), ParseError>),
+    AsyncGeneratorBody(Result<(Rc<AsyncGeneratorBody>, Scanner), ParseError>),
+    AsyncFunctionDeclaration(Result<(Rc<AsyncFunctionDeclaration>, Scanner), ParseError>),
+    AsyncFunctionExpression(Result<(Rc<AsyncFunctionExpression>, Scanner), ParseError>),
+    AsyncMethod(Result<(Rc<AsyncMethod>, Scanner), ParseError>),
+    AsyncFunctionBody(Result<(Rc<AsyncFunctionBody>, Scanner), ParseError>),
+    AwaitExpression(Result<(Rc<AwaitExpression>, Scanner), ParseError>),
+    ClassDeclaration(Result<(Rc<ClassDeclaration>, Scanner), ParseError>),
+    ClassExpression(Result<(Rc<ClassExpression>, Scanner), ParseError>),
+    //ClassTail(Result<(Rc<ClassTail>, Scanner), ParseError>),
+    //ClassHeritage(Result<(Rc<ClassHeritage>, Scanner), ParseError>),
+    //ClassBody(Result<(Rc<ClassBody>, Scanner), ParseError>),
+    //ClassElementList(Result<(Rc<ClassElementList>, Scanner), ParseError>),
+    //ClassElement(Result<(Rc<ClassElement>, Scanner), ParseError>),
+    //Script(Result<(Rc<Script>, Scanner), ParseError>),
+    //ScriptBody(Result<(Rc<ScriptBody>, Scanner), ParseError>),
+    //Module(Result<(Rc<Module>, Scanner), ParseError>),
+    //ModuleBody(Result<(Rc<ModuleBody>, Scanner), ParseError>),
+    //ModuleItemList(Result<(Rc<ModuleItemList>, Scanner), ParseError>),
+    //ModuleItem(Result<(Rc<ModuleItem>, Scanner), ParseError>),
+    //ImportDeclaration(Result<(Rc<ImportDeclaration>, Scanner), ParseError>),
+    //ImportClause(Result<(Rc<ImportClause>, Scanner), ParseError>),
+    //ImportedDefaultBinding(Result<(Rc<ImportedDefaultBinding>, Scanner), ParseError>),
+    //NameSpaceImport(Result<(Rc<NameSpaceImport>, Scanner), ParseError>),
+    //NamedImports(Result<(Rc<NamedImports>, Scanner), ParseError>),
+    //FromClause(Result<(Rc<FromClause>, Scanner), ParseError>),
+    //ImportsList(Result<(Rc<ImportsList>, Scanner), ParseError>),
+    //ImportSpecifier(Result<(Rc<ImportSpecifier>, Scanner), ParseError>),
+    //ModuleSpecifier(Result<(Rc<ModuleSpecifier>, Scanner), ParseError>),
+    //ImportedBinding(Result<(Rc<ImportedBinding>, Scanner), ParseError>),
+    //ExportDeclaration(Result<(Rc<ExportDeclaration>, Scanner), ParseError>),
+    //ExportFromClause(Result<(Rc<ExportFromClause>, Scanner), ParseError>),
+    //NamedExports(Result<(Rc<NamedExports>, Scanner), ParseError>),
+    //ExportsList(Result<(Rc<ExportsList>, Scanner), ParseError>),
+    //ExportSpecifier(Result<(Rc<ExportSpecifier>, Scanner), ParseError>),
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct YieldAwaitKey {
+    scanner: Scanner,
+    yield_flag: bool,
+    await_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct YieldAwaitTaggedKey {
+    scanner: Scanner,
+    yield_flag: bool,
+    await_flag: bool,
+    tagged_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct InYieldAwaitKey {
+    scanner: Scanner,
+    in_flag: bool,
+    yield_flag: bool,
+    await_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct InKey {
+    scanner: Scanner,
+    in_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct InAwaitKey {
+    scanner: Scanner,
+    in_flag: bool,
+    await_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct YieldAwaitReturnKey {
+    scanner: Scanner,
+    yield_flag: bool,
+    await_flag: bool,
+    return_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct YieldKey {
+    scanner: Scanner,
+    yield_flag: bool,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct YieldAwaitDefaultKey {
+    scanner: Scanner,
+    yield_flag: bool,
+    await_flag: bool,
+    default_flag: bool,
+}
+
+type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
+
+#[derive(Default)]
 pub struct Parser<'a> {
     pub source: &'a str,
     pub strict: bool,
     pub goal: ParseGoal,
+    pub array_literal_cache: HashMap<YieldAwaitKey, ParseResult<ArrayLiteral>, RandomState>,
+    pub binding_identifier_cache: HashMap<YieldAwaitKey, ParseResult<BindingIdentifier>, RandomState>,
+    pub cin_cache: HashMap<YieldAwaitKey, ParseResult<CoverInitializedName>, RandomState>,
+    pub cpn_cache: HashMap<YieldAwaitKey, ParseResult<ComputedPropertyName>, RandomState>,
+    pub element_list_cache: HashMap<YieldAwaitKey, ParseResult<ElementList>, RandomState>,
+    pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
+    pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
+    pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
+    pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
+    pub label_identifier_cache: HashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
+    pub literal_cache: HashMap<Scanner, ParseResult<Literal>, RandomState>,
+    pub lpn_cache: HashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
+    pub member_expression_cache: HashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
+    pub object_literal_cache: HashMap<YieldAwaitKey, ParseResult<ObjectLiteral>, RandomState>,
+    pub pdl_cache: HashMap<YieldAwaitKey, ParseResult<PropertyDefinitionList>, RandomState>,
+    pub primary_expression_cache: HashMap<YieldAwaitKey, ParseResult<PrimaryExpression>, RandomState>,
+    pub property_def_cache: HashMap<YieldAwaitKey, ParseResult<PropertyDefinition>, RandomState>,
+    pub property_name_cache: HashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
+    pub spread_element_cache: HashMap<YieldAwaitKey, ParseResult<SpreadElement>, RandomState>,
+    pub substitution_template_cache: HashMap<YieldAwaitTaggedKey, ParseResult<SubstitutionTemplate>, RandomState>,
+    pub template_literal_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
+    pub template_middle_list_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateMiddleList>, RandomState>,
+    pub template_spans_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateSpans>, RandomState>,
+    pub parenthesized_exp_cache: HashMap<YieldAwaitKey, ParseResult<ParenthesizedExpression>, RandomState>,
+    pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
+    pub super_property_cache: HashMap<YieldAwaitKey, ParseResult<SuperProperty>, RandomState>,
+    pub method_definition_cache: HashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
+    pub property_set_parameter_list_cache: HashMap<Scanner, ParseResult<PropertySetParameterList>, RandomState>,
+    pub meta_property_cache: HashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
+    pub arguments_cache: HashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
+    pub argument_list_cache: HashMap<YieldAwaitKey, ParseResult<ArgumentList>, RandomState>,
+    pub new_expression_cache: HashMap<YieldAwaitKey, ParseResult<NewExpression>, RandomState>,
+    pub call_member_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallMemberExpression>, RandomState>,
+    pub super_call_cache: HashMap<YieldAwaitKey, ParseResult<SuperCall>, RandomState>,
+    pub import_call_cache: HashMap<YieldAwaitKey, ParseResult<ImportCall>, RandomState>,
+    pub call_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
+    pub lhs_cache: HashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
+    pub optional_expression_cache: HashMap<YieldAwaitKey, ParseResult<OptionalExpression>, RandomState>,
+    pub optional_chain_cache: HashMap<YieldAwaitKey, ParseResult<OptionalChain>, RandomState>,
+    pub additive_expression_cache: HashMap<YieldAwaitKey, ParseResult<AdditiveExpression>, RandomState>,
+    pub arrow_function_cache: HashMap<InYieldAwaitKey, ParseResult<ArrowFunction>, RandomState>,
+    pub arrow_formal_parameters_cache: HashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
+    pub concise_body_cache: HashMap<InKey, ParseResult<ConciseBody>, RandomState>,
+    pub arrow_parameters_cache: HashMap<YieldAwaitKey, ParseResult<ArrowParameters>, RandomState>,
+    pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
+    pub break_statement_cache: HashMap<YieldAwaitKey, ParseResult<BreakStatement>, RandomState>,
+    pub expression_cache: HashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
+    pub lexical_declaration_cache: HashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
+    pub binding_list_cache: HashMap<InYieldAwaitKey, ParseResult<BindingList>, RandomState>,
+    pub lexical_binding_cache: HashMap<InYieldAwaitKey, ParseResult<LexicalBinding>, RandomState>,
+    pub variable_statement_cache: HashMap<YieldAwaitKey, ParseResult<VariableStatement>, RandomState>,
+    pub debugger_statement_cache: HashMap<Scanner, ParseResult<DebuggerStatement>, RandomState>,
+    pub variable_declaration_list_cache: HashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
+    pub variable_declaration_cache: HashMap<InYieldAwaitKey, ParseResult<VariableDeclaration>, RandomState>,
+    pub binding_pattern_cache: HashMap<YieldAwaitKey, ParseResult<BindingPattern>, RandomState>,
+    pub object_binding_pattern_cache: HashMap<YieldAwaitKey, ParseResult<ObjectBindingPattern>, RandomState>,
+    pub array_binding_pattern_cache: HashMap<YieldAwaitKey, ParseResult<ArrayBindingPattern>, RandomState>,
+    pub binding_rest_property_cache: HashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
+    pub binding_property_list_cache: HashMap<YieldAwaitKey, ParseResult<BindingPropertyList>, RandomState>,
+    pub binding_element_list_cache: HashMap<YieldAwaitKey, ParseResult<BindingElementList>, RandomState>,
+    pub binding_elision_element_cache: HashMap<YieldAwaitKey, ParseResult<BindingElisionElement>, RandomState>,
+    pub binding_property_cache: HashMap<YieldAwaitKey, ParseResult<BindingProperty>, RandomState>,
+    pub binding_element_cache: HashMap<YieldAwaitKey, ParseResult<BindingElement>, RandomState>,
+    pub single_name_binding_cache: HashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
+    pub binding_rest_element_cache: HashMap<YieldAwaitKey, ParseResult<BindingRestElement>, RandomState>,
+    pub empty_statement_cache: HashMap<Scanner, ParseResult<EmptyStatement>, RandomState>,
+    pub expression_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExpressionStatement>, RandomState>,
+    pub throw_statement_cache: HashMap<YieldAwaitKey, ParseResult<ThrowStatement>, RandomState>,
+    pub continue_statement_cache: HashMap<YieldAwaitKey, ParseResult<ContinueStatement>, RandomState>,
+    pub conditional_expression_cache: HashMap<InYieldAwaitKey, ParseResult<ConditionalExpression>, RandomState>,
+    pub exponentiation_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExponentiationExpression>, RandomState>,
+    pub assignment_expression_cache: HashMap<InYieldAwaitKey, ParseResult<AssignmentExpression>, RandomState>,
+    pub with_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WithStatement>, RandomState>,
+    pub unary_expression_cache: HashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
+    pub update_expression_cache: HashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
+    pub try_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<TryStatement>, RandomState>,
+    pub catch_cache: HashMap<YieldAwaitReturnKey, ParseResult<Catch>, RandomState>,
+    pub finally_cache: HashMap<YieldAwaitReturnKey, ParseResult<Finally>, RandomState>,
+    pub catch_parameter_cache: HashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
+    pub return_statement_cache: HashMap<YieldAwaitKey, ParseResult<ReturnStatement>, RandomState>,
+    pub equality_expression_cache: HashMap<InYieldAwaitKey, ParseResult<EqualityExpression>, RandomState>,
+    pub async_arrow_function_cache: HashMap<InYieldAwaitKey, ParseResult<AsyncArrowFunction>, RandomState>,
+    pub async_arrow_head_cache: HashMap<Scanner, ParseResult<AsyncArrowHead>, RandomState>,
+    pub async_concise_body_cache: HashMap<InKey, ParseResult<AsyncConciseBody>, RandomState>,
+    pub async_arrow_binding_identifer_cache: HashMap<YieldKey, ParseResult<AsyncArrowBindingIdentifier>, RandomState>,
+    pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
+    pub async_function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<AsyncFunctionDeclaration>, RandomState>,
+    pub async_function_expression_cache: HashMap<Scanner, ParseResult<AsyncFunctionExpression>, RandomState>,
+    pub async_method_cache: HashMap<YieldAwaitKey, ParseResult<AsyncMethod>, RandomState>,
+    pub async_function_body_cache: HashMap<Scanner, (Rc<AsyncFunctionBody>, Scanner), RandomState>,
+    pub await_expression_cache: HashMap<YieldKey, ParseResult<AwaitExpression>, RandomState>,
+    pub switch_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<SwitchStatement>, RandomState>,
+    pub case_block_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseBlock>, RandomState>,
+    pub case_clauses_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClauses>, RandomState>,
+    pub case_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClause>, RandomState>,
+    pub default_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<DefaultClause>, RandomState>,
+    pub statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
+    pub declaration_cache: HashMap<YieldAwaitKey, ParseResult<Declaration>, RandomState>,
+    pub hoistable_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<HoistableDeclaration>, RandomState>,
+    pub breakable_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<BreakableStatement>, RandomState>,
+    pub relational_expression_cache: HashMap<InYieldAwaitKey, ParseResult<RelationalExpression>, RandomState>,
+    pub block_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<BlockStatement>, RandomState>,
+    pub block_cache: HashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
+    pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
+    pub statement_list_item_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementListItem>, RandomState>,
+    pub async_generator_method_cache: HashMap<YieldAwaitKey, ParseResult<AsyncGeneratorMethod>, RandomState>,
+    pub async_generator_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<AsyncGeneratorDeclaration>, RandomState>,
+    pub async_generator_expression_cache: HashMap<Scanner, ParseResult<AsyncGeneratorExpression>, RandomState>,
+    pub async_generator_body_cache: HashMap<Scanner, (Rc<AsyncGeneratorBody>, Scanner), RandomState>,
+    pub bitwise_and_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseANDExpression>, RandomState>,
+    pub bitwise_xor_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseXORExpression>, RandomState>,
+    pub bitwise_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
+    pub shift_expression_cache: HashMap<YieldAwaitKey, ParseResult<ShiftExpression>, RandomState>,
+    pub logical_and_expression_cache: HashMap<InYieldAwaitKey, ParseResult<LogicalANDExpression>, RandomState>,
+    pub logical_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<LogicalORExpression>, RandomState>,
+    pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
+    pub short_circuit_expression_cache: HashMap<InYieldAwaitKey, ParseResult<ShortCircuitExpression>, RandomState>,
+    pub function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
+    pub function_expression_cache: HashMap<Scanner, ParseResult<FunctionExpression>, RandomState>,
+    pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
+    pub function_statement_list_cache: HashMap<YieldAwaitKey, (Rc<FunctionStatementList>, Scanner), RandomState>,
+    pub generator_method_cache: HashMap<YieldAwaitKey, ParseResult<GeneratorMethod>, RandomState>,
+    pub generator_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<GeneratorDeclaration>, RandomState>,
+    pub generator_expression_cache: HashMap<Scanner, ParseResult<GeneratorExpression>, RandomState>,
+    pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
+    pub yield_expression_cache: HashMap<InAwaitKey, ParseResult<YieldExpression>, RandomState>,
+    pub if_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IfStatement>, RandomState>,
+    pub labelled_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<LabelledStatement>, RandomState>,
+    pub labelled_item_cache: HashMap<YieldAwaitReturnKey, ParseResult<LabelledItem>, RandomState>,
+    pub multiplicative_operator_cache: HashMap<Scanner, ParseResult<MultiplicativeOperator>, RandomState>,
+    pub multiplicative_expression_cache: HashMap<YieldAwaitKey, ParseResult<MultiplicativeExpression>, RandomState>,
+    pub unique_formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
+    pub formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
+    pub formal_parameter_list_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameterList>, RandomState>,
+    pub function_rest_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FunctionRestParameter>, RandomState>,
+    pub formal_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
+    pub iteration_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IterationStatement>, RandomState>,
+    pub do_while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<DoWhileStatement>, RandomState>,
+    pub while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WhileStatement>, RandomState>,
+    pub for_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForStatement>, RandomState>,
+    pub for_in_of_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForInOfStatement>, RandomState>,
+    pub for_declaration_cache: HashMap<YieldAwaitKey, ParseResult<ForDeclaration>, RandomState>,
+    pub for_binding_cache: HashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(source: &'a str, strict: bool, goal: ParseGoal) -> Self {
-        Self { source, strict, goal }
+        Self { source, strict, goal, ..Default::default() }
     }
 }
 
@@ -244,11 +902,11 @@ pub mod with_statement;
 pub mod testhelp {
     use super::*;
     use std::fmt;
-    pub fn check<T>(res: Result<(Box<T>, Scanner), ParseError>) -> (Box<T>, Scanner) {
+    pub fn check<T>(res: ParseResult<T>) -> (Rc<T>, Scanner) {
         assert!(res.is_ok());
         res.unwrap()
     }
-    pub fn check_err<T>(res: Result<(Box<T>, Scanner), ParseError>, msg: &str, line: u32, column: u32)
+    pub fn check_err<T>(res: ParseResult<T>, msg: &str, line: u32, column: u32)
     where
         T: fmt::Debug,
     {
@@ -262,7 +920,7 @@ pub mod testhelp {
     pub fn newparser(text: &str) -> Parser {
         Parser::new(text, false, ParseGoal::Script)
     }
-    pub fn check_parse_error<T, U>(result: Result<T, ParseError>, msg: U)
+    pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U)
     where
         T: fmt::Debug,
         U: Into<String>,

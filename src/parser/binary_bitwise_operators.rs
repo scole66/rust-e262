@@ -12,8 +12,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      BitwiseANDExpression[?In, ?Yield, ?Await] & EqualityExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum BitwiseANDExpression {
-    EqualityExpression(Box<EqualityExpression>),
-    BitwiseAND(Box<BitwiseANDExpression>, Box<EqualityExpression>),
+    EqualityExpression(Rc<EqualityExpression>),
+    BitwiseAND(Rc<BitwiseANDExpression>, Rc<EqualityExpression>),
 }
 
 impl fmt::Display for BitwiseANDExpression {
@@ -76,18 +76,30 @@ impl AssignmentTargetType for BitwiseANDExpression {
 }
 
 impl BitwiseANDExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ee1, after_ee1)| {
-            let mut current = Box::new(BitwiseANDExpression::EqualityExpression(ee1));
+            let mut current = Rc::new(BitwiseANDExpression::EqualityExpression(ee1));
             let mut current_scanner = after_ee1;
             while let Ok((ee2, after_ee2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp)
                 .and_then(|after_op| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
-                current = Box::new(BitwiseANDExpression::BitwiseAND(current, ee2));
+                current = Rc::new(BitwiseANDExpression::BitwiseAND(current, ee2));
                 current_scanner = after_ee2;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.bitwise_and_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.bitwise_and_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -96,8 +108,8 @@ impl BitwiseANDExpression {
 //      BitwiseXORExpression[?In, ?Yield, ?Await] ^ BitwiseANDExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum BitwiseXORExpression {
-    BitwiseANDExpression(Box<BitwiseANDExpression>),
-    BitwiseXOR(Box<BitwiseXORExpression>, Box<BitwiseANDExpression>),
+    BitwiseANDExpression(Rc<BitwiseANDExpression>),
+    BitwiseXOR(Rc<BitwiseXORExpression>, Rc<BitwiseANDExpression>),
 }
 
 impl fmt::Display for BitwiseXORExpression {
@@ -160,18 +172,30 @@ impl AssignmentTargetType for BitwiseXORExpression {
 }
 
 impl BitwiseXORExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         BitwiseANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(band1, after_band1)| {
-            let mut current = Box::new(BitwiseXORExpression::BitwiseANDExpression(band1));
+            let mut current = Rc::new(BitwiseXORExpression::BitwiseANDExpression(band1));
             let mut current_scanner = after_band1;
             while let Ok((band2, after_band2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret)
                 .and_then(|after_op| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
-                current = Box::new(BitwiseXORExpression::BitwiseXOR(current, band2));
+                current = Rc::new(BitwiseXORExpression::BitwiseXOR(current, band2));
                 current_scanner = after_band2;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.bitwise_xor_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.bitwise_xor_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -180,8 +204,8 @@ impl BitwiseXORExpression {
 //      BitwiseORExpression[?In, ?Yield, ?Await] | BitwiseXORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum BitwiseORExpression {
-    BitwiseXORExpression(Box<BitwiseXORExpression>),
-    BitwiseOR(Box<BitwiseORExpression>, Box<BitwiseXORExpression>),
+    BitwiseXORExpression(Rc<BitwiseXORExpression>),
+    BitwiseOR(Rc<BitwiseORExpression>, Rc<BitwiseXORExpression>),
 }
 
 impl fmt::Display for BitwiseORExpression {
@@ -244,18 +268,30 @@ impl AssignmentTargetType for BitwiseORExpression {
 }
 
 impl BitwiseORExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         BitwiseXORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(bxor1, after_bxor1)| {
-            let mut current = Box::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
+            let mut current = Rc::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
             let mut current_scanner = after_bxor1;
             while let Ok((bxor2, after_bxor2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe)
                 .and_then(|after_op| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
-                current = Box::new(BitwiseORExpression::BitwiseOR(current, bxor2));
+                current = Rc::new(BitwiseORExpression::BitwiseOR(current, bxor2));
                 current_scanner = after_bxor2;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.bitwise_or_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.bitwise_or_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

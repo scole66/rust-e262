@@ -13,8 +13,8 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      ShortCircuitExpression[?In, ?Yield, ?Await] ? AssignmentExpression[+In, ?Yield, ?Await] : AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum ConditionalExpression {
-    FallThru(Box<ShortCircuitExpression>),
-    Conditional(Box<ShortCircuitExpression>, Box<AssignmentExpression>, Box<AssignmentExpression>),
+    FallThru(Rc<ShortCircuitExpression>),
+    Conditional(Rc<ShortCircuitExpression>, Rc<AssignmentExpression>, Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for ConditionalExpression {
@@ -82,7 +82,7 @@ impl AssignmentTargetType for ConditionalExpression {
 }
 
 impl ConditionalExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
             .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
@@ -91,8 +91,20 @@ impl ConditionalExpression {
                     .and_then(|after_colon| AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag))
                     .map(|(ae2, after_ae2)| (ae1, ae2, after_ae2))
             }) {
-            Ok((thenish, elseish, after)) => Ok((Box::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
-            Err(_) => Ok((Box::new(ConditionalExpression::FallThru(left)), after_left)),
+            Ok((thenish, elseish, after)) => Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
+            Err(_) => Ok((Rc::new(ConditionalExpression::FallThru(left)), after_left)),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.conditional_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.conditional_expression_cache.insert(key, result.clone());
+                result
+            }
         }
     }
 }

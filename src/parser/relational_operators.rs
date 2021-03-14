@@ -17,13 +17,13 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      [+In] RelationalExpression[+In, ?Yield, ?Await] in ShiftExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum RelationalExpression {
-    ShiftExpression(Box<ShiftExpression>),
-    Less(Box<RelationalExpression>, Box<ShiftExpression>),
-    Greater(Box<RelationalExpression>, Box<ShiftExpression>),
-    LessEqual(Box<RelationalExpression>, Box<ShiftExpression>),
-    GreaterEqual(Box<RelationalExpression>, Box<ShiftExpression>),
-    InstanceOf(Box<RelationalExpression>, Box<ShiftExpression>),
-    In(Box<RelationalExpression>, Box<ShiftExpression>),
+    ShiftExpression(Rc<ShiftExpression>),
+    Less(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    Greater(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    LessEqual(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    GreaterEqual(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    InstanceOf(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    In(Rc<RelationalExpression>, Rc<ShiftExpression>),
 }
 
 impl fmt::Display for RelationalExpression {
@@ -112,9 +112,10 @@ impl RelationalExpression {
             || tok.matches_keyword(Keyword::Instanceof)
             || (tok.matches_keyword(Keyword::In) && in_flag)
     }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (se, after_se) = ShiftExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Box::new(RelationalExpression::ShiftExpression(se));
+        let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
         let mut current_scanner = after_se;
         loop {
             let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
@@ -132,7 +133,7 @@ impl RelationalExpression {
                         break;
                     }
                     Ok((se2, after_se2)) => {
-                        current = Box::new(make_re(current, se2));
+                        current = Rc::new(make_re(current, se2));
                         current_scanner = after_se2;
                     }
                 }
@@ -141,6 +142,18 @@ impl RelationalExpression {
             }
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.relational_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.relational_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

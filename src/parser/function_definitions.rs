@@ -14,9 +14,9 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      [+Default] function ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionDeclaration {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<FunctionBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<FunctionBody>,
 }
 
 impl fmt::Display for FunctionDeclaration {
@@ -62,7 +62,7 @@ impl PrettyPrint for FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
             Ok((node, scan)) => Ok((Some(node), scan)),
@@ -80,7 +80,19 @@ impl FunctionDeclaration {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
         let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
+        Ok((Rc::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
+        match parser.function_declaration_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
+                parser.function_declaration_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -88,9 +100,9 @@ impl FunctionDeclaration {
 //      function BindingIdentifier[~Yield, ~Await]opt ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub struct FunctionExpression {
-    ident: Option<Box<BindingIdentifier>>,
-    params: Box<FormalParameters>,
-    body: Box<FunctionBody>,
+    ident: Option<Rc<BindingIdentifier>>,
+    params: Rc<FormalParameters>,
+    body: Rc<FunctionBody>,
 }
 
 impl fmt::Display for FunctionExpression {
@@ -142,7 +154,7 @@ impl IsFunctionDefinition for FunctionExpression {
 }
 
 impl FunctionExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, false, false) {
             Ok((node, scan)) => (Some(node), scan),
@@ -154,7 +166,18 @@ impl FunctionExpression {
         let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
         let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Box::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
+        Ok((Rc::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.function_expression_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.function_expression_cache.insert(scanner, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -162,7 +185,7 @@ impl FunctionExpression {
 //      FunctionStatementList[?Yield, ?Await]
 #[derive(Debug)]
 pub struct FunctionBody {
-    statements: Box<FunctionStatementList>,
+    statements: Rc<FunctionStatementList>,
 }
 
 impl fmt::Display for FunctionBody {
@@ -190,10 +213,22 @@ impl PrettyPrint for FunctionBody {
 }
 
 impl FunctionBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         // Can never return an error
         let (fsl, after_fsl) = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag);
-        (Box::new(FunctionBody { statements: fsl }), after_fsl)
+        (Rc::new(FunctionBody { statements: fsl }), after_fsl)
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.function_body_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.function_body_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -201,7 +236,7 @@ impl FunctionBody {
 //      StatementList[?Yield, ?Await, +Return]opt
 #[derive(Debug)]
 pub struct FunctionStatementList {
-    statements: Option<Box<StatementList>>,
+    statements: Option<Rc<StatementList>>,
 }
 
 impl fmt::Display for FunctionStatementList {
@@ -238,13 +273,25 @@ impl PrettyPrint for FunctionStatementList {
 }
 
 impl FunctionStatementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Box<Self>, Scanner) {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         // Can never return an error.
         let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
             Err(_) => (None, scanner),
             Ok((st, s)) => (Some(st), s),
         };
-        (Box::new(FunctionStatementList { statements: stmts }), after_stmts)
+        (Rc::new(FunctionStatementList { statements: stmts }), after_stmts)
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.function_statement_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.function_statement_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

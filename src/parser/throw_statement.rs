@@ -10,7 +10,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 // ThrowStatement[Yield, Await] :
 //      throw [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub struct ThrowStatement(Box<Expression>);
+pub struct ThrowStatement(Rc<Expression>);
 
 impl fmt::Display for ThrowStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -41,12 +41,24 @@ impl PrettyPrint for ThrowStatement {
 }
 
 impl ThrowStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_throw = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
         no_line_terminator(after_throw, parser.source)?;
         let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
         let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Box::new(ThrowStatement(exp)), after_semi))
+        Ok((Rc::new(ThrowStatement(exp)), after_semi))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.throw_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.throw_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

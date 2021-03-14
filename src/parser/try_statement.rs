@@ -15,9 +15,9 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      try Block[?Yield, ?Await, ?Return] Catch[?Yield, ?Await, ?Return] Finally[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum TryStatement {
-    Catch(Box<Block>, Box<Catch>),
-    Finally(Box<Block>, Box<Finally>),
-    Full(Box<Block>, Box<Catch>, Box<Finally>),
+    Catch(Rc<Block>, Rc<Catch>),
+    Finally(Rc<Block>, Rc<Finally>),
+    Full(Rc<Block>, Rc<Catch>, Rc<Finally>),
 }
 
 impl fmt::Display for TryStatement {
@@ -80,13 +80,13 @@ impl PrettyPrint for TryStatement {
 }
 
 impl TryStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_try = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
         let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
-            Catch(Box<Catch>),
-            Finally(Box<Finally>),
-            Full(Box<Catch>, Box<Finally>),
+            Catch(Rc<Catch>),
+            Finally(Rc<Finally>),
+            Full(Rc<Catch>, Rc<Finally>),
         }
         Err(ParseError::new("Catch or Finally block expected", after_block.line, after_block.column))
             .otherwise(|| {
@@ -102,7 +102,7 @@ impl TryStatement {
             })
             .map(|(kind, scan)| {
                 (
-                    Box::new(match kind {
+                    Rc::new(match kind {
                         CaseKind::Catch(c) => TryStatement::Catch(block, c),
                         CaseKind::Finally(f) => TryStatement::Finally(block, f),
                         CaseKind::Full(c, f) => TryStatement::Full(block, c, f),
@@ -111,6 +111,18 @@ impl TryStatement {
                 )
             })
     }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.try_statement_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.try_statement_cache.insert(key, result.clone());
+                result
+            }
+        }
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -118,8 +130,8 @@ impl TryStatement {
 //      catch Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct Catch {
-    parameter: Option<Box<CatchParameter>>,
-    block: Box<Block>,
+    parameter: Option<Rc<CatchParameter>>,
+    block: Rc<Block>,
 }
 
 impl fmt::Display for Catch {
@@ -161,20 +173,32 @@ impl PrettyPrint for Catch {
 }
 
 impl Catch {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
         Err(ParseError::new("( or { expected", after_catch.line, after_catch.column))
             .otherwise(|| {
                 let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Catch { parameter: None, block }), after_block))
+                Ok((Rc::new(Catch { parameter: None, block }), after_block))
             })
             .otherwise(|| {
                 let after_open = scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
                 let after_close = scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                Ok((Box::new(Catch { parameter: Some(cp), block }), after_block))
+                Ok((Rc::new(Catch { parameter: Some(cp), block }), after_block))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.catch_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.catch_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -182,7 +206,7 @@ impl Catch {
 //      finally Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct Finally {
-    block: Box<Block>,
+    block: Rc<Block>,
 }
 
 impl fmt::Display for Finally {
@@ -213,10 +237,22 @@ impl PrettyPrint for Finally {
 }
 
 impl Finally {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_fin = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
         let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
-        Ok((Box::new(Finally { block }), after_block))
+        Ok((Rc::new(Finally { block }), after_block))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
+        match parser.finally_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
+                parser.finally_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -225,8 +261,8 @@ impl Finally {
 //      BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum CatchParameter {
-    Ident(Box<BindingIdentifier>),
-    Pattern(Box<BindingPattern>),
+    Ident(Rc<BindingIdentifier>),
+    Pattern(Rc<BindingPattern>),
 }
 
 impl fmt::Display for CatchParameter {
@@ -263,16 +299,28 @@ impl PrettyPrint for CatchParameter {
 }
 
 impl CatchParameter {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("CatchParameter expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(CatchParameter::Ident(bi)), after_bi))
+                Ok((Rc::new(CatchParameter::Ident(bi)), after_bi))
             })
             .otherwise(|| {
                 let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Box::new(CatchParameter::Pattern(bp)), after_bp))
+                Ok((Rc::new(CatchParameter::Pattern(bp)), after_bp))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.catch_parameter_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.catch_parameter_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 

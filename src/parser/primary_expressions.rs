@@ -38,17 +38,17 @@ use crate::values::number_to_string;
 #[derive(Debug)]
 pub enum PrimaryExpressionKind {
     This,
-    IdentifierReference(Box<IdentifierReference>),
-    Literal(Box<Literal>),
-    ArrayLiteral(Box<ArrayLiteral>),
-    ObjectLiteral(Box<ObjectLiteral>),
-    Parenthesized(Box<ParenthesizedExpression>),
-    TemplateLiteral(Box<TemplateLiteral>),
-    Function(Box<FunctionExpression>),
-    Class(Box<ClassExpression>),
-    Generator(Box<GeneratorExpression>),
-    AsyncFunction(Box<AsyncFunctionExpression>),
-    AsyncGenerator(Box<AsyncGeneratorExpression>),
+    IdentifierReference(Rc<IdentifierReference>),
+    Literal(Rc<Literal>),
+    ArrayLiteral(Rc<ArrayLiteral>),
+    ObjectLiteral(Rc<ObjectLiteral>),
+    Parenthesized(Rc<ParenthesizedExpression>),
+    TemplateLiteral(Rc<TemplateLiteral>),
+    Function(Rc<FunctionExpression>),
+    Class(Rc<ClassExpression>),
+    Generator(Rc<GeneratorExpression>),
+    AsyncFunction(Rc<AsyncFunctionExpression>),
+    AsyncGenerator(Rc<AsyncGeneratorExpression>),
     RegularExpression(RegularExpressionData),
 }
 
@@ -162,146 +162,157 @@ impl AssignmentTargetType for PrimaryExpression {
 }
 
 pub trait ToPrimaryExpressionKind {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind;
-    fn to_primary_expression_result(node: Box<Self>, scanner: Scanner) -> Result<(Box<PrimaryExpression>, Scanner), ParseError> {
-        Ok((Box::new(PrimaryExpression { kind: Self::to_primary_expression_kind(node) }), scanner))
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind;
+    fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
+        Ok((Rc::new(PrimaryExpression { kind: Self::to_primary_expression_kind(node) }), scanner))
     }
 }
 
 impl ToPrimaryExpressionKind for IdentifierReference {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::IdentifierReference(node)
     }
 }
 
 impl ToPrimaryExpressionKind for Literal {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Literal(node)
     }
 }
 
 impl ToPrimaryExpressionKind for ArrayLiteral {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::ArrayLiteral(node)
     }
 }
 
 impl ToPrimaryExpressionKind for ObjectLiteral {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::ObjectLiteral(node)
     }
 }
 
 impl ToPrimaryExpressionKind for ParenthesizedExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Parenthesized(node)
     }
 }
 
 impl ToPrimaryExpressionKind for TemplateLiteral {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::TemplateLiteral(node)
     }
 }
 
 impl ToPrimaryExpressionKind for FunctionExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Function(node)
     }
 }
 
 impl ToPrimaryExpressionKind for ClassExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Class(node)
     }
 }
 
 impl ToPrimaryExpressionKind for GeneratorExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::Generator(node)
     }
 }
 
 impl ToPrimaryExpressionKind for AsyncFunctionExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::AsyncFunction(node)
     }
 }
 
 impl ToPrimaryExpressionKind for AsyncGeneratorExpression {
-    fn to_primary_expression_kind(node: Box<Self>) -> PrimaryExpressionKind {
+    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
         PrimaryExpressionKind::AsyncGenerator(node)
     }
 }
 
 impl PrimaryExpression {
-    fn parse_this(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_this(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
-        Ok((Box::new(PrimaryExpression { kind: PrimaryExpressionKind::This }), after))
+        Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::This }), after))
     }
 
-    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         IdentifierReference::to_primary_expression_result(node, after)
     }
 
-    fn parse_literal(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_literal(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = Literal::parse(parser, scanner)?;
         Literal::to_primary_expression_result(node, after)
     }
 
-    fn parse_array_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_array_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = ArrayLiteral::parse(parser, scanner, yield_flag, await_flag)?;
         ArrayLiteral::to_primary_expression_result(node, after)
     }
 
-    fn parse_object_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_object_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = ObjectLiteral::parse(parser, scanner, yield_flag, await_flag)?;
         ObjectLiteral::to_primary_expression_result(node, after)
     }
 
-    fn parse_function_exp(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_function_exp(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = FunctionExpression::parse(parser, scanner)?;
         FunctionExpression::to_primary_expression_result(node, after)
     }
-    fn parse_parenthesized_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_parenthesized_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = ParenthesizedExpression::parse(parser, scanner, yield_flag, await_flag)?;
         ParenthesizedExpression::to_primary_expression_result(node, after)
     }
-    fn parse_template_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_template_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = TemplateLiteral::parse(parser, scanner, yield_flag, await_flag, false)?;
         TemplateLiteral::to_primary_expression_result(node, after)
     }
 
-    fn parse_class_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_class_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (node, after) = ClassExpression::parse(parser, scanner, yield_flag, await_flag)?;
         ClassExpression::to_primary_expression_result(node, after)
     }
 
-    fn parse_generator_exp(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_generator_exp(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = GeneratorExpression::parse(parser, scanner)?;
         GeneratorExpression::to_primary_expression_result(node, after)
     }
 
-    fn parse_async_func(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_async_func(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = AsyncFunctionExpression::parse(parser, scanner)?;
         AsyncFunctionExpression::to_primary_expression_result(node, after)
     }
 
-    fn parse_async_gen(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_async_gen(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (node, after) = AsyncGeneratorExpression::parse(parser, scanner)?;
         AsyncGeneratorExpression::to_primary_expression_result(node, after)
     }
 
-    fn parse_regex(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_regex(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            Token::RegularExpression(rd) => Ok((Box::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
+            Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
             _ => Err(ParseError::new("Expected regular expression", scanner.line, scanner.column)),
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.primary_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.primary_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
+    }
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
@@ -352,7 +363,7 @@ impl PrettyPrint for Elisions {
 }
 
 impl Elisions {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Elisions>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         // Note: This function only ever returns an error at the same lexical position as the input args. Generally this
         // means it's never a reportable error. If this production is used optionally, throwing away the error makes the
         // most sense, otherwise you get unreachable code.
@@ -364,11 +375,22 @@ impl Elisions {
                 return if comma_count == 0 {
                     Err(ParseError::new("Expected one or more commas", current_scanner.line, current_scanner.column))
                 } else {
-                    Ok((Box::new(Elisions { count: comma_count }), current_scanner))
+                    Ok((Rc::new(Elisions { count: comma_count }), current_scanner))
                 };
             }
             comma_count += 1;
             current_scanner = after_comma;
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.elision_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.elision_cache.insert(scanner, result.clone());
+                result
+            }
         }
     }
 }
@@ -377,7 +399,7 @@ impl Elisions {
 //      ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum SpreadElement {
-    AssignmentExpression(Box<AssignmentExpression>),
+    AssignmentExpression(Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for SpreadElement {
@@ -410,10 +432,22 @@ impl PrettyPrint for SpreadElement {
 }
 
 impl SpreadElement {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<SpreadElement>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
-        Ok((Box::new(SpreadElement::AssignmentExpression(ae)), after_ae))
+        Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.spread_element_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.spread_element_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -424,10 +458,10 @@ impl SpreadElement {
 //      ElementList[?Yield, ?Await] , Elisionopt SpreadElement[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ElementList {
-    AssignmentExpression((Option<Box<Elisions>>, Box<AssignmentExpression>)),
-    SpreadElement((Option<Box<Elisions>>, Box<SpreadElement>)),
-    ElementListAssignmentExpression((Box<ElementList>, Option<Box<Elisions>>, Box<AssignmentExpression>)),
-    ElementListSpreadElement((Box<ElementList>, Option<Box<Elisions>>, Box<SpreadElement>)),
+    AssignmentExpression((Option<Rc<Elisions>>, Rc<AssignmentExpression>)),
+    SpreadElement((Option<Rc<Elisions>>, Rc<SpreadElement>)),
+    ElementListAssignmentExpression((Rc<ElementList>, Option<Rc<Elisions>>, Rc<AssignmentExpression>)),
+    ElementListSpreadElement((Rc<ElementList>, Option<Rc<Elisions>>, Rc<SpreadElement>)),
 }
 
 impl fmt::Display for ElementList {
@@ -548,12 +582,12 @@ impl PrettyPrint for ElementList {
 }
 
 enum ELItemKind {
-    AE(Box<AssignmentExpression>),
-    SE(Box<SpreadElement>),
+    AE(Rc<AssignmentExpression>),
+    SE(Rc<SpreadElement>),
 }
 
 impl ElementList {
-    fn non_recursive_part(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Option<Box<Elisions>>, ELItemKind, Scanner), ParseError> {
+    fn non_recursive_part(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Option<Rc<Elisions>>, ELItemKind, Scanner), ParseError> {
         let pot_elision = Elisions::parse(parser, scanner);
         let (elision, after_e_scanner) = match pot_elision {
             Ok((boxed, after_elision)) => (Some(boxed), after_elision),
@@ -580,41 +614,39 @@ impl ElementList {
         }
     }
 
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<ElementList>, Scanner), ParseError> {
-        let mut current_production: Box<ElementList>;
-        let mut current_scanner: Scanner;
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let mut current_production;
+        let mut current_scanner;
 
         let (elision, item, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
         current_production = match item {
-            ELItemKind::AE(boxed_ae) => Box::new(ElementList::AssignmentExpression((elision, boxed_ae))),
-            ELItemKind::SE(boxed_se) => Box::new(ElementList::SpreadElement((elision, boxed_se))),
+            ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression((elision, boxed_ae))),
+            ELItemKind::SE(boxed_se) => Rc::new(ElementList::SpreadElement((elision, boxed_se))),
         };
         current_scanner = after;
 
-        loop {
-            let (token, after_tok) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
-            match token {
-                Token::Punctuator(Punctuator::Comma) => {
-                    match Self::non_recursive_part(parser, after_tok, yield_flag, await_flag) {
-                        Ok((elision, item, after)) => {
-                            current_production = match item {
-                                ELItemKind::AE(boxed_ae) => Box::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae))),
-                                ELItemKind::SE(boxed_se) => Box::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se))),
-                            };
-                            current_scanner = after;
-                        }
-                        Err(_) => {
-                            // Errors are swallowed in recursive productions. We just break out.
-                            break;
-                        }
-                    }
-                }
-                _ => {
-                    break;
-                }
-            }
+        while let Ok((elision, item, after)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
+        {
+            current_production = match item {
+                ELItemKind::AE(boxed_ae) => Rc::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae))),
+                ELItemKind::SE(boxed_se) => Rc::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se))),
+            };
+            current_scanner = after;
         }
         Ok((current_production, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.element_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.element_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -624,9 +656,9 @@ impl ElementList {
 //      [ ElementList[?Yield, ?Await] , Elisionopt ]
 #[derive(Debug)]
 pub enum ArrayLiteral {
-    Empty(Option<Box<Elisions>>),
-    ElementList(Box<ElementList>),
-    ElementListElision(Box<ElementList>, Option<Box<Elisions>>),
+    Empty(Option<Rc<Elisions>>),
+    ElementList(Rc<ElementList>),
+    ElementListElision(Rc<ElementList>, Option<Rc<Elisions>>),
 }
 
 impl fmt::Display for ArrayLiteral {
@@ -701,21 +733,21 @@ impl PrettyPrint for ArrayLiteral {
 }
 
 impl ArrayLiteral {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new("‘,’, ‘]’, or an ElementList expected", after.line, after.column))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
                 match punct {
-                    Punctuator::RightBracket => Ok((Box::new(ArrayLiteral::ElementList(el)), after_punct)),
+                    Punctuator::RightBracket => Ok((Rc::new(ArrayLiteral::ElementList(el)), after_punct)),
                     _ => {
                         let (elisions, after_elisions) = match Elisions::parse(parser, after_punct) {
                             Ok((node, scan)) => (Some(node), scan),
                             Err(_) => (None, after_punct),
                         };
                         let end_scan = scan_for_punct(after_elisions, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
-                        Ok((Box::new(ArrayLiteral::ElementListElision(el, elisions)), end_scan))
+                        Ok((Rc::new(ArrayLiteral::ElementListElision(el, elisions)), end_scan))
                     }
                 }
             })
@@ -725,8 +757,20 @@ impl ArrayLiteral {
                     Err(_) => (None, after),
                 };
                 let end_scan = scan_for_punct(after_elisions, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
-                Ok((Box::new(ArrayLiteral::Empty(elisions)), end_scan))
+                Ok((Rc::new(ArrayLiteral::Empty(elisions)), end_scan))
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.array_literal_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.array_literal_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -734,7 +778,7 @@ impl ArrayLiteral {
 //      = AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum Initializer {
-    AssignmentExpression(Box<AssignmentExpression>),
+    AssignmentExpression(Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for Initializer {
@@ -767,10 +811,22 @@ impl PrettyPrint for Initializer {
 }
 
 impl Initializer {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> Result<(Box<Initializer>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Initializer> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Eq)?;
         let (boxed_ae, after_ae) = AssignmentExpression::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        Ok((Box::new(Initializer::AssignmentExpression(boxed_ae)), after_ae))
+        Ok((Rc::new(Initializer::AssignmentExpression(boxed_ae)), after_ae))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Initializer> {
+        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
+        match parser.initializer_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
+                parser.initializer_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -778,7 +834,7 @@ impl Initializer {
 //      IdentifierReference[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum CoverInitializedName {
-    InitializedName(Box<IdentifierReference>, Box<Initializer>),
+    InitializedName(Rc<IdentifierReference>, Rc<Initializer>),
 }
 
 impl fmt::Display for CoverInitializedName {
@@ -812,10 +868,22 @@ impl PrettyPrint for CoverInitializedName {
 }
 
 impl CoverInitializedName {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (idref, after_idref) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         let (izer, after_izer) = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
-        Ok((Box::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
+        Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.cin_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.cin_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -823,7 +891,7 @@ impl CoverInitializedName {
 //      [ AssignmentExpression[+In, ?Yield, ?Await] ]
 #[derive(Debug)]
 pub enum ComputedPropertyName {
-    AssignmentExpression(Box<AssignmentExpression>),
+    AssignmentExpression(Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for ComputedPropertyName {
@@ -857,11 +925,23 @@ impl PrettyPrint for ComputedPropertyName {
 }
 
 impl ComputedPropertyName {
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
         let after_rb = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
-        Ok((Box::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
+        Ok((Rc::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
+    }
+
+    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.cpn_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.cpn_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -912,14 +992,25 @@ impl PrettyPrint for LiteralPropertyName {
 }
 
 impl LiteralPropertyName {
-    fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            Token::Identifier(id) => Ok((Box::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
-            Token::String(s) => Ok((Box::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
-            Token::Number(n) => Ok((Box::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
-            Token::BigInt(b) => Ok((Box::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
+            Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
+            Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
+            Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
+            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
             _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        match parser.lpn_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.lpn_cache.insert(scanner, result.clone());
+                result
+            }
         }
     }
 }
@@ -929,8 +1020,8 @@ impl LiteralPropertyName {
 //      ComputedPropertyName[?Yield, ?Await]
 #[derive(Debug)]
 pub enum PropertyName {
-    LiteralPropertyName(Box<LiteralPropertyName>),
-    ComputedPropertyName(Box<ComputedPropertyName>),
+    LiteralPropertyName(Rc<LiteralPropertyName>),
+    ComputedPropertyName(Rc<ComputedPropertyName>),
 }
 
 impl fmt::Display for PropertyName {
@@ -966,10 +1057,22 @@ impl PrettyPrint for PropertyName {
 }
 
 impl PropertyName {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
-            .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Box::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
-            .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Box::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
+            .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
+            .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.property_name_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.property_name_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -981,11 +1084,11 @@ impl PropertyName {
 //      ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum PropertyDefinition {
-    IdentifierReference(Box<IdentifierReference>),
-    CoverInitializedName(Box<CoverInitializedName>),
-    PropertyNameAssignmentExpression(Box<PropertyName>, Box<AssignmentExpression>),
-    MethodDefinition(Box<MethodDefinition>),
-    AssignmentExpression(Box<AssignmentExpression>),
+    IdentifierReference(Rc<IdentifierReference>),
+    CoverInitializedName(Rc<CoverInitializedName>),
+    PropertyNameAssignmentExpression(Rc<PropertyName>, Rc<AssignmentExpression>),
+    MethodDefinition(Rc<MethodDefinition>),
+    AssignmentExpression(Rc<AssignmentExpression>),
 }
 
 impl fmt::Display for PropertyDefinition {
@@ -1044,51 +1147,58 @@ impl PrettyPrint for PropertyDefinition {
 }
 
 impl PropertyDefinition {
-    fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
         let (tok, after_tok) = scan_token(&after_pn, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Punctuator(Punctuator::Colon) => {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
-                Ok((Box::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
+                Ok((Rc::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
             }
             _ => Err(ParseError::new("‘:’ expected", after_pn.line, after_pn.column)),
         }
     }
 
-    fn parse_cin(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_cin(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (cin, after_cin) = CoverInitializedName::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(PropertyDefinition::CoverInitializedName(cin)), after_cin))
+        Ok((Rc::new(PropertyDefinition::CoverInitializedName(cin)), after_cin))
     }
 
-    fn parse_md(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_md(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (md, after_md) = MethodDefinition::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(PropertyDefinition::MethodDefinition(md)), after_md))
+        Ok((Rc::new(PropertyDefinition::MethodDefinition(md)), after_md))
     }
 
-    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (idref, after_idref) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(PropertyDefinition::IdentifierReference(idref)), after_idref))
+        Ok((Rc::new(PropertyDefinition::IdentifierReference(idref)), after_idref))
     }
 
-    fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        match tok {
-            Token::Punctuator(Punctuator::Ellipsis) => {
-                let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
-                Ok((Box::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))
-            }
-            _ => Err(ParseError::new("‘...’ expected", scanner.line, scanner.column)),
-        }
+    fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
+        Ok((Rc::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_idref(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.property_def_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.property_def_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1097,8 +1207,8 @@ impl PropertyDefinition {
 //      PropertyDefinitionList[?Yield, ?Await] , PropertyDefinition[?Yield, ?Await]
 #[derive(Debug)]
 pub enum PropertyDefinitionList {
-    OneDef(Box<PropertyDefinition>),
-    ManyDefs(Box<PropertyDefinitionList>, Box<PropertyDefinition>),
+    OneDef(Rc<PropertyDefinition>),
+    ManyDefs(Rc<PropertyDefinitionList>, Rc<PropertyDefinition>),
 }
 
 impl fmt::Display for PropertyDefinitionList {
@@ -1143,31 +1253,29 @@ impl PrettyPrint for PropertyDefinitionList {
 }
 
 impl PropertyDefinitionList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (pd, after_pd) = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current_production = Box::new(PropertyDefinitionList::OneDef(pd));
+        let mut current_production = Rc::new(PropertyDefinitionList::OneDef(pd));
         let mut current_scanner = after_pd;
-        loop {
-            let (comma, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
-            match comma {
-                Token::Punctuator(Punctuator::Comma) => {
-                    match PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag) {
-                        Err(_) => {
-                            // Swallow errors in recursive productions
-                            break;
-                        }
-                        Ok((pd2, after_pd2)) => {
-                            current_production = Box::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
-                            current_scanner = after_pd2;
-                        }
-                    }
-                }
-                _ => {
-                    break;
-                }
-            }
+        while let Ok((pd2, after_pd2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
+        {
+            current_production = Rc::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
+            current_scanner = after_pd2;
         }
         Ok((current_production, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.pdl_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.pdl_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1178,8 +1286,8 @@ impl PropertyDefinitionList {
 #[derive(Debug)]
 pub enum ObjectLiteral {
     Empty,
-    Normal(Box<PropertyDefinitionList>),
-    TrailingComma(Box<PropertyDefinitionList>),
+    Normal(Rc<PropertyDefinitionList>),
+    TrailingComma(Rc<PropertyDefinitionList>),
 }
 
 impl fmt::Display for ObjectLiteral {
@@ -1226,33 +1334,35 @@ impl PrettyPrint for ObjectLiteral {
 }
 
 impl ObjectLiteral {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
-        let (lb, after_brace) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        match lb {
-            Token::Punctuator(Punctuator::LeftBrace) => match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
-                Err(_) => {
-                    let (rb, after_brace2) = scan_token(&after_brace, parser.source, ScanGoal::InputElementRegExp);
-                    match rb {
-                        Token::Punctuator(Punctuator::RightBrace) => Ok((Box::new(ObjectLiteral::Empty), after_brace2)),
-                        _ => Err(ParseError::new("‘}’ expected", after_brace.line, after_brace.column)),
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
+            Err(_) => {
+                let after_brace2 = scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Rc::new(ObjectLiteral::Empty), after_brace2))
+            }
+            Ok((pdl, after_pdl)) => {
+                let (comma_or_brace, after_punct) = scan_for_punct_set(after_pdl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::RightBrace, Punctuator::Comma])?;
+                match comma_or_brace {
+                    Punctuator::RightBrace => Ok((Rc::new(ObjectLiteral::Normal(pdl)), after_punct)),
+                    _ => {
+                        let after_brace3 = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                        Ok((Rc::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))
                     }
                 }
-                Ok((pdl, after_pdl)) => {
-                    let (comma_or_brace, after_punct) = scan_token(&after_pdl, parser.source, ScanGoal::InputElementRegExp);
-                    match comma_or_brace {
-                        Token::Punctuator(Punctuator::RightBrace) => Ok((Box::new(ObjectLiteral::Normal(pdl)), after_punct)),
-                        Token::Punctuator(Punctuator::Comma) => {
-                            let (rb2, after_brace3) = scan_token(&after_punct, parser.source, ScanGoal::InputElementRegExp);
-                            match rb2 {
-                                Token::Punctuator(Punctuator::RightBrace) => Ok((Box::new(ObjectLiteral::TrailingComma(pdl)), after_brace3)),
-                                _ => Err(ParseError::new("‘}’ expected", after_punct.line, after_punct.column)),
-                            }
-                        }
-                        _ => Err(ParseError::new("‘,’ or ‘}’ expected", after_pdl.line, after_pdl.column)),
-                    }
-                }
-            },
-            _ => Err(ParseError::new("‘{’ expected", scanner.line, scanner.column)),
+            }
+        }
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.object_literal_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.object_literal_cache.insert(key, result.clone());
+                result
+            }
         }
     }
 }
@@ -1339,15 +1449,26 @@ impl PrettyPrint for Literal {
 }
 
 impl Literal {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Box<Literal>, Scanner), ParseError> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
+        match parser.literal_cache.get(&scanner) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner);
+                parser.literal_cache.insert(scanner, result.clone());
+                result
+            }
+        }
+    }
+
+    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
         let (token, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
-            Token::Identifier(id) if id.matches(Keyword::Null) => Ok((Box::new(Literal { kind: LiteralKind::NullLiteral }), newscanner)),
-            Token::Identifier(id) if id.matches(Keyword::True) => Ok((Box::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner)),
-            Token::Identifier(id) if id.matches(Keyword::False) => Ok((Box::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner)),
-            Token::Number(num) => Ok((Box::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
-            Token::BigInt(bi) => Ok((Box::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
-            Token::String(s) => Ok((Box::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
+            Token::Identifier(id) if id.matches(Keyword::Null) => Ok((Rc::new(Literal { kind: LiteralKind::NullLiteral }), newscanner)),
+            Token::Identifier(id) if id.matches(Keyword::True) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner)),
+            Token::Identifier(id) if id.matches(Keyword::False) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner)),
+            Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
+            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
+            Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
             _ => Err(ParseError::new("Literal expected", scanner.line, scanner.column)),
         }
     }
@@ -1359,7 +1480,7 @@ impl Literal {
 #[derive(Debug)]
 pub enum TemplateLiteral {
     NoSubstitutionTemplate(TemplateData, bool),
-    SubstitutionTemplate(Box<SubstitutionTemplate>),
+    SubstitutionTemplate(Rc<SubstitutionTemplate>),
 }
 
 impl fmt::Display for TemplateLiteral {
@@ -1396,24 +1517,36 @@ impl PrettyPrint for TemplateLiteral {
 }
 
 impl TemplateLiteral {
-    fn parse_nst(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_nst(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
         let (tok, after_nst) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::NoSubstitutionTemplate(td) = tok {
-            Ok((Box::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
+            Ok((Rc::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
         } else {
             Err(ParseError::new("NoSubstitutionTemplate expected", scanner.line, scanner.column))
         }
     }
 
-    fn parse_subst(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_subst(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (node, after) = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        Ok((Box::new(TemplateLiteral::SubstitutionTemplate(node)), after))
+        Ok((Rc::new(TemplateLiteral::SubstitutionTemplate(node)), after))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("TemplateLiteral expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_nst(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
+        match parser.template_literal_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
+                parser.template_literal_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1423,8 +1556,8 @@ impl TemplateLiteral {
 pub struct SubstitutionTemplate {
     template_head: TemplateData,
     tagged: bool,
-    expression: Box<Expression>,
-    template_spans: Box<TemplateSpans>,
+    expression: Rc<Expression>,
+    template_spans: Rc<TemplateSpans>,
 }
 
 impl fmt::Display for SubstitutionTemplate {
@@ -1456,14 +1589,25 @@ impl PrettyPrint for SubstitutionTemplate {
 }
 
 impl SubstitutionTemplate {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (head, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::TemplateHead(td) = head {
             let (exp_boxed, after_exp) = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
             let (spans_boxed, after_spans) = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
-            Ok((Box::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
+            Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
         } else {
             Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
+        }
+    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
+        match parser.substitution_template_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
+                parser.substitution_template_cache.insert(key, result.clone());
+                result
+            }
         }
     }
 }
@@ -1474,7 +1618,7 @@ impl SubstitutionTemplate {
 #[derive(Debug)]
 pub enum TemplateSpans {
     Tail(TemplateData, bool),
-    List(Box<TemplateMiddleList>, TemplateData, bool),
+    List(Rc<TemplateMiddleList>, TemplateData, bool),
 }
 
 impl fmt::Display for TemplateSpans {
@@ -1518,28 +1662,39 @@ impl PrettyPrint for TemplateSpans {
 }
 
 impl TemplateSpans {
-    fn parse_tail(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_tail(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
         let (token, after_tmplt) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateTail(td) = token {
-            Ok((Box::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
+            Ok((Rc::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
         } else {
             Err(ParseError::new("TemplateTail expected", scanner.line, scanner.column))
         }
     }
 
-    fn parse_tml_tail(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_tml_tail(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (tml, after_tml) = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
         let (token, after_tmplt) = scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateTail(td) = token {
-            Ok((Box::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
+            Ok((Rc::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
         } else {
             Err(ParseError::new("TemplateTail expected", after_tml.line, after_tml.column))
         }
     }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
+    }
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
+        match parser.template_spans_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
+                parser.template_spans_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1548,8 +1703,8 @@ impl TemplateSpans {
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum TemplateMiddleList {
-    ListHead(TemplateData, Box<Expression>, bool),
-    ListMid(Box<TemplateMiddleList>, TemplateData, Box<Expression>, bool),
+    ListHead(TemplateData, Rc<Expression>, bool),
+    ListMid(Rc<TemplateMiddleList>, TemplateData, Rc<Expression>, bool),
 }
 
 impl fmt::Display for TemplateMiddleList {
@@ -1597,7 +1752,7 @@ impl PrettyPrint for TemplateMiddleList {
 }
 
 impl TemplateMiddleList {
-    fn parse_tm_exp_unboxed(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(TemplateData, Box<Expression>, Scanner), ParseError> {
+    fn parse_tm_exp_unboxed(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError> {
         let (middle, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateMiddle(td) = middle {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
@@ -1607,18 +1762,30 @@ impl TemplateMiddleList {
         }
     }
 
-    fn parse_tm_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_tm_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (td, exp, after_exp) = Self::parse_tm_exp_unboxed(parser, scanner, yield_flag, await_flag)?;
-        Ok((Box::new(TemplateMiddleList::ListHead(td, exp, tagged_flag)), after_exp))
+        Ok((Rc::new(TemplateMiddleList::ListHead(td, exp, tagged_flag)), after_exp))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (mut current_node, mut current_scanner) = Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
         while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag) {
-            current_node = Box::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
+            current_node = Rc::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
             current_scanner = after;
         }
         Ok((current_node, current_scanner))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
+        match parser.template_middle_list_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
+                parser.template_middle_list_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1626,7 +1793,7 @@ impl TemplateMiddleList {
 //      ( Expression[+In, ?Yield, ?Await] )
 #[derive(Debug)]
 pub enum ParenthesizedExpression {
-    Expression(Box<Expression>),
+    Expression(Rc<Expression>),
 }
 
 impl fmt::Display for ParenthesizedExpression {
@@ -1675,11 +1842,23 @@ impl AssignmentTargetType for ParenthesizedExpression {
 }
 
 impl ParenthesizedExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let after_rp = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-        Ok((Box::new(ParenthesizedExpression::Expression(exp)), after_rp))
+        Ok((Rc::new(ParenthesizedExpression::Expression(exp)), after_rp))
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.parenthesized_exp_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.parenthesized_exp_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -1693,13 +1872,13 @@ impl ParenthesizedExpression {
 //      ( Expression[+In, ?Yield, ?Await] , ... BindingPattern[?Yield, ?Await] )
 #[derive(Debug)]
 pub enum CoverParenthesizedExpressionAndArrowParameterList {
-    Expression(Box<Expression>),
-    ExpComma(Box<Expression>),
+    Expression(Rc<Expression>),
+    ExpComma(Rc<Expression>),
     Empty,
-    Ident(Box<BindingIdentifier>),
-    Pattern(Box<BindingPattern>),
-    ExpIdent(Box<Expression>, Box<BindingIdentifier>),
-    ExpPattern(Box<Expression>, Box<BindingPattern>),
+    Ident(Rc<BindingIdentifier>),
+    Pattern(Rc<BindingPattern>),
+    ExpIdent(Rc<Expression>, Rc<BindingIdentifier>),
+    ExpPattern(Rc<Expression>, Rc<BindingPattern>),
 }
 
 impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
@@ -1786,17 +1965,17 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
 }
 
 impl CoverParenthesizedExpressionAndArrowParameterList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         enum BndType {
-            Id(Box<BindingIdentifier>),
-            Pat(Box<BindingPattern>),
+            Id(Rc<BindingIdentifier>),
+            Pat(Rc<BindingPattern>),
         }
         let after_lparen = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         Err(ParseError::new("Expression, spread pattern, or closing paren expected", after_lparen.line, after_lparen.column))
             .otherwise(|| {
                 // ( )
                 let after_rparen = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-                Ok((Box::new(CoverParenthesizedExpressionAndArrowParameterList::Empty), after_rparen))
+                Ok((Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty), after_rparen))
             })
             .otherwise(|| {
                 // ( ... BindingIdentifier )
@@ -1809,7 +1988,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                         .and_then(|(bnd, scan)| scan_for_punct(scan, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen).map(|after_rp| (bnd, after_rp)))
                         .map(|(bnd, scan)| {
                             (
-                                Box::new(match bnd {
+                                Rc::new(match bnd {
                                     BndType::Id(id) => CoverParenthesizedExpressionAndArrowParameterList::Ident(id),
                                     BndType::Pat(pat) => CoverParenthesizedExpressionAndArrowParameterList::Pattern(pat),
                                 }),
@@ -1822,8 +2001,8 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 enum AfterExp {
                     Empty,
                     Comma,
-                    SpreadId(Box<BindingIdentifier>),
-                    SpreadPat(Box<BindingPattern>),
+                    SpreadId(Rc<BindingIdentifier>),
+                    SpreadPat(Rc<BindingPattern>),
                 }
                 let (exp, after_exp) = Expression::parse(parser, after_lparen, true, yield_flag, await_flag)?;
                 scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
@@ -1850,7 +2029,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                     })
                     .map(|(aftexp, scan)| {
                         (
-                            Box::new(match aftexp {
+                            Rc::new(match aftexp {
                                 AfterExp::Empty => CoverParenthesizedExpressionAndArrowParameterList::Expression(exp),
                                 AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma(exp),
                                 AfterExp::SpreadId(id) => CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id),
@@ -1860,6 +2039,18 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                         )
                     })
             })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.cpeaapl_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.cpeaapl_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -2213,7 +2404,7 @@ mod tests {
     }
     #[test]
     fn literal_test_punct() {
-        check_err(Literal::parse(&mut newparser("**"), Scanner::new()), "Literal expected", 1, 1);
+        check_err(Literal::parse(&mut newparser("*"), Scanner::new()), "Literal expected", 1, 1);
     }
     #[test]
     fn literal_test_prettyerrors_1() {

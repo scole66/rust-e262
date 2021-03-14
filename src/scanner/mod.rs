@@ -328,7 +328,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Scanner {
     pub line: u32,
     pub column: u32,

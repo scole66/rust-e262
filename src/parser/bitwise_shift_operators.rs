@@ -14,10 +14,10 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      ShiftExpression[?Yield, ?Await] >>> AdditiveExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ShiftExpression {
-    AdditiveExpression(Box<AdditiveExpression>),
-    LeftShift(Box<ShiftExpression>, Box<AdditiveExpression>),
-    SignedRightShift(Box<ShiftExpression>, Box<AdditiveExpression>),
-    UnsignedRightShift(Box<ShiftExpression>, Box<AdditiveExpression>),
+    AdditiveExpression(Rc<AdditiveExpression>),
+    LeftShift(Rc<ShiftExpression>, Rc<AdditiveExpression>),
+    SignedRightShift(Rc<ShiftExpression>, Rc<AdditiveExpression>),
+    UnsignedRightShift(Rc<ShiftExpression>, Rc<AdditiveExpression>),
 }
 
 impl fmt::Display for ShiftExpression {
@@ -87,9 +87,9 @@ impl AssignmentTargetType for ShiftExpression {
 }
 
 impl ShiftExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Box<Self>, Scanner), ParseError> {
+    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ae, after_ae)| {
-            let mut current = Box::new(ShiftExpression::AdditiveExpression(ae));
+            let mut current = Rc::new(ShiftExpression::AdditiveExpression(ae));
             let mut current_scan = after_ae;
             while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt])
                 .and_then(|(shift_op, after_op)| {
@@ -101,11 +101,23 @@ impl ShiftExpression {
                     AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).map(|(ae2, after_ae2)| (make_se, ae2, after_ae2))
                 })
             {
-                current = Box::new(make_se(current, ae2));
+                current = Rc::new(make_se(current, ae2));
                 current_scan = after_ae2;
             }
             (current, current_scan)
         })
+    }
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
+        match parser.shift_expression_cache.get(&key) {
+            Some(result) => result.clone(),
+            None => {
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                parser.shift_expression_cache.insert(key, result.clone());
+                result
+            }
+        }
     }
 }
 
