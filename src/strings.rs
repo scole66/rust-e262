@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::Index;
+use std::rc::Rc;
 
 // So: JS String.
 //
@@ -9,7 +10,7 @@ use std::ops::Index;
 
 #[derive(PartialEq, Clone)]
 pub struct JSString {
-    s: Vec<u16>,
+    s: Rc<Vec<u16>>,
 }
 
 impl JSString {
@@ -24,7 +25,7 @@ impl JSString {
 
 impl From<Vec<u16>> for JSString {
     fn from(source: Vec<u16>) -> Self {
-        Self { s: source }
+        Self { s: Rc::new(source) }
     }
 }
 
