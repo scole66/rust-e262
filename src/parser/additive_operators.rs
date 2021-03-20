@@ -87,7 +87,8 @@ impl AssignmentTargetType for AdditiveExpression {
 }
 
 impl AdditiveExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // AdditiveExpression's only direct parent is ShiftExpression. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (me, after_me) = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(AdditiveExpression::MultiplicativeExpression(me));
         let mut current_scanner = after_me;
@@ -101,18 +102,6 @@ impl AdditiveExpression {
             current_scanner = after_me;
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.additive_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.additive_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

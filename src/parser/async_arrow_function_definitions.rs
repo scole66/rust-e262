@@ -70,6 +70,7 @@ impl PrettyPrint for AsyncArrowFunction {
 }
 
 impl AsyncArrowFunction {
+    // AsyncArrowFunction's (only) parent is AssignmentExpression. It doesn't need caching.
     fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
@@ -94,7 +95,8 @@ impl AsyncArrowFunction {
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((real_params, after_params, body, after_body))
     }
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag, await_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
@@ -104,18 +106,6 @@ impl AsyncArrowFunction {
             (norm, covered) => {
                 assert!(covered.is_err() && norm.is_ok());
                 norm
-            }
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.async_arrow_function_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.async_arrow_function_cache.insert(key, result.clone());
-                result
             }
         }
     }
@@ -154,22 +144,12 @@ impl PrettyPrint for AsyncArrowHead {
 }
 
 impl AsyncArrowHead {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    // No caching needed. Parent: AsyncArrowFunction
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (params, after_params) = ArrowFormalParameters::parse(parser, after_async, false, true)?;
         Ok((Rc::new(AsyncArrowHead(params)), after_params))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.async_arrow_head_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.async_arrow_head_cache.insert(scanner, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -222,7 +202,8 @@ impl PrettyPrint for AsyncConciseBody {
 }
 
 impl AsyncConciseBody {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
+    // No caching required. Only parent is AsyncArrowFunction
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("AsyncConciseBody expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
@@ -240,18 +221,6 @@ impl AsyncConciseBody {
                     Ok(_) => Err(ParseError::new(String::new(), scanner.line, scanner.column)),
                 }
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        let key = InKey { scanner, in_flag };
-        match parser.async_concise_body_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag);
-                parser.async_concise_body_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -285,21 +254,10 @@ impl PrettyPrint for AsyncArrowBindingIdentifier {
 }
 
 impl AsyncArrowBindingIdentifier {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
+    // No caching needed. Only parent: AsyncArrowFunction
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
         let (ident, after_ident) = BindingIdentifier::parse(parser, scanner, yield_flag, true)?;
         Ok((Rc::new(AsyncArrowBindingIdentifier(ident)), after_ident))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
-        let key = YieldKey { scanner, yield_flag };
-        match parser.async_arrow_binding_identifer_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag);
-                parser.async_arrow_binding_identifer_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -532,6 +490,14 @@ mod tests {
         pretty_check(&*node, "CoverCallExpressionAndAsyncArrowHead: a ( 10 )", vec!["MemberExpression: a", "Arguments: ( 10 )"]);
         concise_check(&*node, "CoverCallExpressionAndAsyncArrowHead: a ( 10 )", vec!["IdentifierName: a", "Arguments: ( 10 )"]);
         format!("{:?}", node);
+    }
+    #[test]
+    fn cceaaah_test_cache_01() {
+        let mut parser = newparser("blue(67)");
+        let (node, scanner) = check(CoverCallExpressionAndAsyncArrowHead::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(CoverCallExpressionAndAsyncArrowHead::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn cceaaah_test_err_01() {

@@ -733,7 +733,8 @@ impl PrettyPrint for ArrayLiteral {
 }
 
 impl ArrayLiteral {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new("‘,’, ‘]’, or an ElementList expected", after.line, after.column))
             .otherwise(|| {
@@ -759,18 +760,6 @@ impl ArrayLiteral {
                 let end_scan = scan_for_punct(after_elisions, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
                 Ok((Rc::new(ArrayLiteral::Empty(elisions)), end_scan))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.array_literal_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.array_literal_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

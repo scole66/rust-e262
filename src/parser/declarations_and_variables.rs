@@ -802,7 +802,8 @@ impl PrettyPrint for ArrayBindingPattern {
 }
 
 impl ArrayBindingPattern {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // ArrayBindingPattern's only parent is BindingPattern. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_first = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
@@ -852,18 +853,6 @@ impl ArrayBindingPattern {
                     }
                 }
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.array_binding_pattern_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.array_binding_pattern_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

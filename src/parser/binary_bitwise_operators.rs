@@ -76,7 +76,8 @@ impl AssignmentTargetType for BitwiseANDExpression {
 }
 
 impl BitwiseANDExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // No caching needed. Only one parent.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         EqualityExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(ee1, after_ee1)| {
             let mut current = Rc::new(BitwiseANDExpression::EqualityExpression(ee1));
             let mut current_scanner = after_ee1;
@@ -88,18 +89,6 @@ impl BitwiseANDExpression {
             }
             (current, current_scanner)
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.bitwise_and_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.bitwise_and_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -172,7 +161,8 @@ impl AssignmentTargetType for BitwiseXORExpression {
 }
 
 impl BitwiseXORExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // Only one parent. No need to cache.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         BitwiseANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(band1, after_band1)| {
             let mut current = Rc::new(BitwiseXORExpression::BitwiseANDExpression(band1));
             let mut current_scanner = after_band1;
@@ -184,18 +174,6 @@ impl BitwiseXORExpression {
             }
             (current, current_scanner)
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.bitwise_xor_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.bitwise_xor_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -429,6 +407,14 @@ mod tests {
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
         assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
+    }
+    #[test]
+    fn bitwise_or_expression_test_cache_01() {
+        let mut parser = newparser("6|7");
+        let (node, scanner) = check(BitwiseORExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(BitwiseORExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn bitwise_or_expression_test_04() {

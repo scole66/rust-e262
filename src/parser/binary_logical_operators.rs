@@ -76,7 +76,8 @@ impl AssignmentTargetType for LogicalANDExpression {
 }
 
 impl LogicalANDExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // No need to cache. Only one parent.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         BitwiseORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
             let mut current = Rc::new(LogicalANDExpression::BitwiseORExpression(left));
             let mut current_scanner = after_left;
@@ -88,18 +89,6 @@ impl LogicalANDExpression {
             }
             (current, current_scanner)
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.logical_and_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.logical_and_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -172,7 +161,8 @@ impl AssignmentTargetType for LogicalORExpression {
 }
 
 impl LogicalORExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // Only one parent, no need to cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         LogicalANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
             let mut current = Rc::new(LogicalORExpression::LogicalANDExpression(left));
             let mut current_scanner = after_left;
@@ -184,18 +174,6 @@ impl LogicalORExpression {
             }
             (current, current_scanner)
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.logical_or_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.logical_or_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -376,7 +354,8 @@ impl AssignmentTargetType for ShortCircuitExpression {
 }
 
 impl ShortCircuitExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // No need to cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Improper Expression", scanner.line, scanner.column))
             .otherwise(|| {
                 CoalesceExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(coal, after_coal)| (Rc::new(ShortCircuitExpression::CoalesceExpression(coal)), after_coal))
@@ -384,18 +363,6 @@ impl ShortCircuitExpression {
             .otherwise(|| {
                 LogicalORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(lor, after_lor)| (Rc::new(ShortCircuitExpression::LogicalORExpression(lor)), after_lor))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.short_circuit_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.short_circuit_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -531,6 +498,14 @@ mod tests {
         pretty_check(&*pn, "CoalesceExpression: z ?? a ?? b", vec!["CoalesceExpressionHead: z ?? a", "BitwiseORExpression: b"]);
         concise_check(&*pn, "CoalesceExpression: z ?? a ?? b", vec!["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"]);
         format!("{:?}", pn);
+    }
+    #[test]
+    fn coalesce_expression_test_cache_01() {
+        let mut parser = newparser("z??a??b");
+        let (node, scanner) = check(CoalesceExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(CoalesceExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn coalesce_expression_test_03() {

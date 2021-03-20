@@ -49,24 +49,13 @@ impl PrettyPrint for ArrowFunction {
 }
 
 impl ArrowFunction {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // ArrowFunction's only parent is AssignmentExpression. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         no_line_terminator(after_params, parser.source)?;
         let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((Rc::new(ArrowFunction { parameters, body }), after_body))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.arrow_function_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.arrow_function_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -113,7 +102,8 @@ impl PrettyPrint for ArrowParameters {
 }
 
 impl ArrowParameters {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // ArrowParameters's only direct parent is ArrowFunction. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
             .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
@@ -134,18 +124,6 @@ impl ArrowParameters {
                 debug_assert!(after_formals == after_reparse);
                 Ok((Rc::new(ArrowParameters::Formals(formals)), after_formals))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.arrow_parameters_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.arrow_parameters_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -183,6 +161,7 @@ impl PrettyPrint for ArrowFormalParameters {
 }
 
 impl ArrowFormalParameters {
+    // I _think_ this needs to be cached.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
@@ -252,7 +231,8 @@ impl PrettyPrint for ConciseBody {
 }
 
 impl ConciseBody {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
+    // ConciseBody's only direct parent is ArrowFunction. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ConciseBody expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
@@ -270,18 +250,6 @@ impl ConciseBody {
                     Ok(_) => Err(ParseError::new("ExpressionBody expected", scanner.line, scanner.column)),
                 }
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        let key = InKey { scanner, in_flag };
-        match parser.concise_body_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag);
-                parser.concise_body_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -317,6 +285,7 @@ impl PrettyPrint for ExpressionBody {
 }
 
 impl ExpressionBody {
+    // ExpressionBody has multiple potential parents. It should be cached.
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, false, await_flag)?;
         Ok((Rc::new(ExpressionBody { expression: ae }), after_ae))
@@ -493,6 +462,14 @@ mod tests {
         format!("{:?}", node);
     }
     #[test]
+    fn expression_body_test_cache_01() {
+        let mut parser = newparser("a+b+c+d+e");
+        let (node, scanner) = check(ExpressionBody::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(ExpressionBody::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn expression_body_test_err_01() {
         check_err(ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false), "AssignmentExpression expected", 1, 1);
     }
@@ -515,6 +492,14 @@ mod tests {
         pretty_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["UniqueFormalParameters: a , b"]);
         concise_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"]);
         format!("{:?}", node);
+    }
+    #[test]
+    fn arrow_formal_parameters_test_cache_01() {
+        let mut parser = newparser("(a,b)");
+        let (node, scanner) = check(ArrowFormalParameters::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(ArrowFormalParameters::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn arrow_formal_parameters_test_err_01() {

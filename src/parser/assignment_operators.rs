@@ -507,6 +507,14 @@ mod tests {
         assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
+    fn assignment_expression_test_cache_01() {
+        let mut parser = newparser("a+=b+c+d+e");
+        let (node, scanner) = check(AssignmentExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(AssignmentExpression::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn assignment_expression_test_prettyerrors_1() {
         let (item, _) = AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(&*item);

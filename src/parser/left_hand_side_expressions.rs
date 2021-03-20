@@ -482,6 +482,7 @@ impl PrettyPrint for Arguments {
 }
 
 impl Arguments {
+    // Arguments has many parents. It needs caching.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen).map(|after_rp| (Rc::new(Arguments { kind: ArgumentsKind::Empty }), after_rp)).otherwise(
@@ -646,7 +647,8 @@ impl PrettyPrint for ArgumentList {
 }
 
 impl ArgumentList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // ArgumentList's only direct parent is Arguments; it doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         ArgumentListKind::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
             .otherwise(|| ArgumentListKind::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
             .map(|(kind, after)| {
@@ -670,18 +672,6 @@ impl ArgumentList {
                 }
                 (top_box, top_scanner)
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.argument_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.argument_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

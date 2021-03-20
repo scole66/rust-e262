@@ -65,7 +65,8 @@ impl PrettyPrint for AsyncFunctionDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    // AsyncFunctionDeclaration's only parent is HoistableDeclaration. It doesn't need to be cached.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let after_function = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
@@ -86,18 +87,6 @@ impl AsyncFunctionDeclaration {
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncFunctionDeclaration { ident, params, body }), after_rb))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
-        match parser.async_function_declaration_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
-                parser.async_function_declaration_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -160,7 +149,8 @@ impl IsFunctionDefinition for AsyncFunctionExpression {
 }
 
 impl AsyncFunctionExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    // AsyncFunctionExpression's only parent is PrimaryExpression. It doesn't need caching.
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let after_function = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
@@ -175,17 +165,6 @@ impl AsyncFunctionExpression {
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncFunctionExpression { ident, params, body }), after_rb))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.async_function_expression_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.async_function_expression_cache.insert(scanner, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -234,7 +213,8 @@ impl PrettyPrint for AsyncMethod {
 }
 
 impl AsyncMethod {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // No caching required. Parent: MethodDefinition
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (ident, after_ident) = PropertyName::parse(parser, after_async, yield_flag, await_flag)?;
@@ -245,18 +225,6 @@ impl AsyncMethod {
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncMethod { ident, params, body }), after_rb))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.async_method_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.async_method_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -345,22 +313,11 @@ impl PrettyPrint for AwaitExpression {
 }
 
 impl AwaitExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
+    // No caching required. Parent: UnaryExpression
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
         let after_await = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Await)?;
         let (ue, after_ue) = UnaryExpression::parse(parser, after_await, yield_flag, true)?;
         Ok((Rc::new(AwaitExpression::Await(ue)), after_ue))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
-        let key = YieldKey { scanner, yield_flag };
-        match parser.await_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag);
-                parser.await_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -659,6 +616,14 @@ mod tests {
         pretty_check(&*node, "AsyncFunctionBody: ", vec!["FunctionBody: "]);
         concise_check(&*node, "", vec![]);
         format!("{:?}", node);
+    }
+    #[test]
+    fn async_function_body_test_cache_01() {
+        let mut parser = newparser("blue(67); orange(30);");
+        let (node, scanner) = AsyncFunctionBody::parse(&mut parser, Scanner::new());
+        let (node2, scanner2) = AsyncFunctionBody::parse(&mut parser, Scanner::new());
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn async_function_body_test_prettyerrors_1() {
