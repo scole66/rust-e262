@@ -53,7 +53,8 @@ impl PrettyPrint for BreakStatement {
 }
 
 impl BreakStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache needed
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_break = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
         scan_for_punct(after_break, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(BreakStatement::Bare), after_semi)).otherwise(|| {
             no_line_terminator(after_break, parser.source)?;
@@ -61,18 +62,6 @@ impl BreakStatement {
             let after_semi = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
             Ok((Rc::new(BreakStatement::Labelled(li)), after_semi))
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.break_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.break_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

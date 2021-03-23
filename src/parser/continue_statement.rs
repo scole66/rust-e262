@@ -53,7 +53,8 @@ impl PrettyPrint for ContinueStatement {
 }
 
 impl ContinueStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no need to cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_cont = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Continue)?;
         Err(ParseError::new("Expected label or semicolon", after_cont.line, after_cont.column))
             .otherwise(|| {
@@ -66,18 +67,6 @@ impl ContinueStatement {
                 let after_semi = scan_for_punct(after_cont, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 Ok((Rc::new(ContinueStatement::Bare), after_semi))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.continue_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.continue_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

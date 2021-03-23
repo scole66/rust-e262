@@ -87,7 +87,8 @@ impl AssignmentTargetType for ShiftExpression {
 }
 
 impl ShiftExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // Only one parent. No need to cache.
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ae, after_ae)| {
             let mut current = Rc::new(ShiftExpression::AdditiveExpression(ae));
             let mut current_scan = after_ae;
@@ -106,18 +107,6 @@ impl ShiftExpression {
             }
             (current, current_scan)
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.shift_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.shift_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

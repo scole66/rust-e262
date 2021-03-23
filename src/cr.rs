@@ -4,7 +4,7 @@ use crate::values::ECMAScriptValue;
 #[derive(Clone)]
 pub struct CompletionInfo {
     value: Option<ECMAScriptValue>,
-    target: Option<JSString>
+    target: Option<JSString>,
 }
 
 #[derive(Clone)]

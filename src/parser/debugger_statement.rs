@@ -38,21 +38,11 @@ impl PrettyPrint for DebuggerStatement {
 }
 
 impl DebuggerStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    // no need to cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_deb = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
         let after_semi = scan_for_punct(after_deb, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
         Ok((Rc::new(DebuggerStatement), after_semi))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.debugger_statement_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.debugger_statement_cache.insert(scanner, result.clone());
-                result
-            }
-        }
     }
 }
 

@@ -82,7 +82,8 @@ impl AssignmentTargetType for ConditionalExpression {
 }
 
 impl ConditionalExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no need to cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
             .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
@@ -93,18 +94,6 @@ impl ConditionalExpression {
             }) {
             Ok((thenish, elseish, after)) => Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
             Err(_) => Ok((Rc::new(ConditionalExpression::FallThru(left)), after_left)),
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.conditional_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.conditional_expression_cache.insert(key, result.clone());
-                result
-            }
         }
     }
 }

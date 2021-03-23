@@ -49,7 +49,6 @@ impl From<String> for JSString {
     }
 }
 
-
 impl fmt::Debug for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         String::from_utf16_lossy(&self.s).fmt(f)
@@ -254,7 +253,6 @@ mod tests {
         assert!(s1 != "blu");
     }
 
-
     #[test]
     fn clone_test() {
         let s1 = JSString::from("crocodile");
@@ -292,9 +290,9 @@ mod tests {
             CodePointAtResult { code_point: 0xde00, code_unit_count: 1, is_unpaired_surrogate: true },
             CodePointAtResult { code_point: 0xd900, code_unit_count: 1, is_unpaired_surrogate: true },
             CodePointAtResult { code_point: 0xe2, code_unit_count: 1, is_unpaired_surrogate: false },
-            CodePointAtResult { code_point: 0xd902, code_unit_count: 1, is_unpaired_surrogate: true }
+            CodePointAtResult { code_point: 0xd902, code_unit_count: 1, is_unpaired_surrogate: true },
         ];
-        let positions = vec![ 0, 1, 3, 4, 5, 6 ];
+        let positions = vec![0, 1, 3, 4, 5, 6];
         for idx in 0..positions.len() {
             let result = code_point_at(&mystr, positions[idx]);
             assert!(result == expected[idx]);

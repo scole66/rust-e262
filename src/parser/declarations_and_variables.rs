@@ -159,7 +159,8 @@ impl PrettyPrint for BindingList {
 }
 
 impl BindingList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (lb, after_lb) = LexicalBinding::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
@@ -170,18 +171,6 @@ impl BindingList {
             current_scanner = after_lb2;
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.binding_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.binding_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -249,7 +238,8 @@ impl PrettyPrint for LexicalBinding {
 }
 
 impl LexicalBinding {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("LexicalBinding expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -264,18 +254,6 @@ impl LexicalBinding {
                 let (init, after_init) = Initializer::parse(parser, after_bp, in_flag, yield_flag, await_flag)?;
                 Ok((Rc::new(LexicalBinding::Pattern(bp, init)), after_init))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.lexical_binding_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.lexical_binding_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -318,23 +296,12 @@ impl PrettyPrint for VariableStatement {
 }
 
 impl VariableStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_var = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
         let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
         let after_semi = scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
         Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.variable_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.variable_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -480,7 +447,8 @@ impl PrettyPrint for VariableDeclaration {
 }
 
 impl VariableDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("VariableDeclaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -496,18 +464,6 @@ impl VariableDeclaration {
                 let (init, after_init) = Initializer::parse(parser, after_bp, in_flag, yield_flag, await_flag)?;
                 Ok((Rc::new(VariableDeclaration::Pattern(bp, init)), after_init))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.variable_declaration_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.variable_declaration_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -647,7 +603,8 @@ impl PrettyPrint for ObjectBindingPattern {
 }
 
 impl ObjectBindingPattern {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ObjectBindingPattern expected", scanner.line, scanner.column)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_open| {
                 scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
@@ -677,18 +634,6 @@ impl ObjectBindingPattern {
                     })
             })
         })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.object_binding_pattern_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.object_binding_pattern_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -965,7 +910,8 @@ impl PrettyPrint for BindingPropertyList {
 }
 
 impl BindingPropertyList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (bp, after_bp) = BindingProperty::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingPropertyList::Item(bp));
         let mut current_scan = after_bp;
@@ -976,18 +922,6 @@ impl BindingPropertyList {
             current_scan = after_bp2;
         }
         Ok((current, current_scan))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.binding_property_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.binding_property_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1043,7 +977,8 @@ impl PrettyPrint for BindingElementList {
 }
 
 impl BindingElementList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (elem, after_elem) = BindingElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingElementList::Item(elem));
         let mut current_scanner = after_elem;
@@ -1061,18 +996,6 @@ impl BindingElementList {
             }
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.binding_element_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.binding_element_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1125,25 +1048,14 @@ impl PrettyPrint for BindingElisionElement {
 }
 
 impl BindingElisionElement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (elision, after_elision) = match Elisions::parse(parser, scanner) {
             Err(_) => (None, scanner),
             Ok((e, s)) => (Some(e), s),
         };
         let (be, after_be) = BindingElement::parse(parser, after_elision, yield_flag, await_flag)?;
         Ok((Rc::new(BindingElisionElement::Element(elision, be)), after_be))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.binding_elision_element_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.binding_elision_element_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1199,7 +1111,8 @@ impl PrettyPrint for BindingProperty {
 }
 
 impl BindingProperty {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    // no cache
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BindingProperty expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
@@ -1211,18 +1124,6 @@ impl BindingProperty {
                 let (snb, after_snb) = SingleNameBinding::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(BindingProperty::Single(snb)), after_snb))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.binding_property_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.binding_property_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1470,6 +1371,14 @@ mod tests {
         format!("{:?}", node);
     }
     #[test]
+    fn lexical_declaration_test_cache_01() {
+        let mut parser = newparser("let i=0;");
+        let (node, scanner) = check(LexicalDeclaration::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(LexicalDeclaration::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn lexical_declaration_test_err_01() {
         check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "One of [‘let’, ‘const’] expected", 1, 1);
     }
@@ -1631,6 +1540,14 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn variable_declaration_list_test_cache_01() {
+        let mut parser = newparser("a,b,c,d,10");
+        let (node, scanner) = check(VariableDeclarationList::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(VariableDeclarationList::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn variable_declaration_list_test_err_01() {
         check_err(VariableDeclarationList::parse(&mut newparser(""), Scanner::new(), true, false, false), "VariableDeclaration expected", 1, 1);
     }
@@ -1700,6 +1617,14 @@ mod tests {
         format!("{:?}", node);
         pretty_error_validate(&*node);
         concise_error_validate(&*node);
+    }
+    #[test]
+    fn binding_pattern_test_cache_01() {
+        let mut parser = newparser("{one, two, three}");
+        let (node, scanner) = check(BindingPattern::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(BindingPattern::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn binding_pattern_test_err_01() {
@@ -1936,6 +1861,14 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn binding_rest_property_test_cache_01() {
+        let mut parser = newparser("...xyz");
+        let (node, scanner) = check(BindingRestProperty::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(BindingRestProperty::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn binding_rest_property_test_err_01() {
         check_err(BindingRestProperty::parse(&mut newparser(""), Scanner::new(), false, false), "‘...’ expected", 1, 1);
     }
@@ -2124,6 +2057,14 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn binding_element_test_cache_01() {
+        let mut parser = newparser("{xyz}=test_object");
+        let (node, scanner) = check(BindingElement::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(BindingElement::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn binding_element_test_err_01() {
         check_err(BindingElement::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
     }
@@ -2152,6 +2093,14 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn single_name_binding_test_cache_01() {
+        let mut parser = newparser("xyz=green");
+        let (node, scanner) = check(SingleNameBinding::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(SingleNameBinding::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn single_name_binding_test_err_01() {
         check_err(SingleNameBinding::parse(&mut newparser(""), Scanner::new(), false, false), "Not an identifier", 1, 1);
     }
@@ -2178,6 +2127,14 @@ mod tests {
         format!("{:?}", node);
         pretty_error_validate(&*node);
         concise_error_validate(&*node);
+    }
+    #[test]
+    fn binding_rest_element_test_cache_01() {
+        let mut parser = newparser("...{xyz}");
+        let (node, scanner) = check(BindingRestElement::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(BindingRestElement::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn binding_rest_element_test_err_01() {

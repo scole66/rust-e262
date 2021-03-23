@@ -42,21 +42,10 @@ impl PrettyPrint for BlockStatement {
 }
 
 impl BlockStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    // no caching needed
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (block, after_block) = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(BlockStatement::Block(block)), after_block))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.block_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.block_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -248,24 +237,13 @@ impl PrettyPrint for StatementListItem {
 }
 
 impl StatementListItem {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    // no caching needed
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Declaration or Statement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(|(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement))
             })
             .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl)))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.statement_list_item_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.statement_list_item_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -317,6 +295,14 @@ mod tests {
         format!("{:?}", node);
     }
     #[test]
+    fn block_test_cache_01() {
+        let mut parser = newparser("{ a=1; b=2; c=3; }");
+        let (node, scanner) = check(Block::parse(&mut parser, Scanner::new(), false, false, true));
+        let (node2, scanner2) = check(Block::parse(&mut parser, Scanner::new(), false, false, true));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+    #[test]
     fn block_test_err_01() {
         check_err(Block::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘{’ expected", 1, 1);
     }
@@ -361,6 +347,14 @@ mod tests {
         pretty_check(&*node, "StatementList: a ; b ;", vec!["StatementList: a ;", "StatementListItem: b ;"]);
         concise_check(&*node, "StatementList: a ; b ;", vec!["ExpressionStatement: a ;", "ExpressionStatement: b ;"]);
         format!("{:?}", node);
+    }
+    #[test]
+    fn statement_list_test_cache_01() {
+        let mut parser = newparser("a=1; b=2; c=3;");
+        let (node, scanner) = check(StatementList::parse(&mut parser, Scanner::new(), false, false, true));
+        let (node2, scanner2) = check(StatementList::parse(&mut parser, Scanner::new(), false, false, true));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
     fn statement_list_test_err_01() {
