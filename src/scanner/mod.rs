@@ -1934,6 +1934,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Sc
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use num::traits::Zero;

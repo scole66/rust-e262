@@ -8,7 +8,7 @@ use num::bigint::BigInt;
 use std::io;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum ECMAScriptValue {
     Undefined,
     Null,
@@ -62,10 +62,20 @@ impl From<&str> for ECMAScriptValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum PropertyKey {
     String(JSString),
     Symbol(Symbol),
+}
+
+impl PropertyKey {
+    pub fn is_array_index(&self) -> bool {
+        // An array index is an integer index whose numeric value i is in the range +0𝔽 ≤ i < 𝔽(2^32 - 1).
+        match self {
+            PropertyKey::Symbol(_) => false,
+            PropertyKey::String(s) => String::from_utf16(s.as_slice()).map(|sss| sss.parse::<u32>().is_ok()).unwrap_or(false),
+        }
+    }
 }
 
 impl From<&str> for PropertyKey {
@@ -80,7 +90,7 @@ impl From<Symbol> for PropertyKey {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Symbol {
     ToPrimitive,
 }

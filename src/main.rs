@@ -5,12 +5,15 @@ use std::env;
 use std::io::{self, Write};
 
 mod agent;
+mod boolean_object;
+mod comparison;
 mod cr;
 mod dtoa_r;
 mod errors;
 mod object;
 mod parser;
 mod prettyprint;
+mod realm;
 mod scanner;
 mod strings;
 mod values;
