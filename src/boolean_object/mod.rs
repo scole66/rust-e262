@@ -1,5 +1,6 @@
 use super::agent::Agent;
 use super::cr::{AbruptCompletion, Completion};
+use super::errors::create_type_error;
 use super::object::{
     ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
@@ -162,6 +163,30 @@ pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
     let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicIdentifier::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
     *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
     o
+}
+
+// The abstract operation thisBooleanValue takes argument value. It performs the following steps when called:
+//
+//  1. If Type(value) is Boolean, return value.
+//  2. If Type(value) is Object and value has a [[BooleanData]] internal slot, then
+//      a. Let b be value.[[BooleanData]].
+//      b. Assert: Type(b) is Boolean.
+//      c. Return b.
+//  3. Throw a TypeError exception.
+pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    match value {
+        ECMAScriptValue::Boolean(b) => Ok(*b),
+        ECMAScriptValue::Object(o) => {
+            let bool_obj = o.o.to_boolean_obj();
+            if let Some(b_obj) = bool_obj {
+                let b = *b_obj.boolean_data().borrow();
+                Ok(b)
+            } else {
+                Err(create_type_error(agent, "Object has no boolean value"))
+            }
+        }
+        _ => Err(create_type_error(agent, "Value is not boolean")),
+    }
 }
 
 #[cfg(test)]

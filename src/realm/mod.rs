@@ -1,6 +1,7 @@
 use super::agent::Agent;
 use super::cr::AbruptCompletion;
 use super::object::{define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor};
+use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
 
 pub struct GlobalEnvironmentRecord {}
@@ -8,8 +9,10 @@ pub struct GlobalEnvironmentRecord {}
 pub enum IntrinsicIdentifier {
     Boolean,
     BooleanPrototype,
+    ErrorPrototype,
     FunctionPrototype,
     ThrowTypeError,
+    TypeErrorPrototype,
 }
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
@@ -33,6 +36,7 @@ pub struct Intrinsics {
     pub encode_uri: Object,                         // encodeURI	The encodeURI function (19.2.6.4)
     pub encode_uri_component: Object,               // encodeURIComponent	The encodeURIComponent function (19.2.6.5)
     pub error: Object,                              // Error	The Error constructor (20.5.1)
+    pub error_prototype: Object,                    //
     pub eval: Object,                               // eval	The eval function (19.2.1)
     pub eval_error: Object,                         // EvalError	The EvalError constructor (20.5.5.1)
     pub finalization_registry: Object,              // FinalizationRegistry	The FinalizationRegistry constructor (26.2.1)
@@ -74,6 +78,7 @@ pub struct Intrinsics {
     pub throw_type_error: Object,                  // A function object that unconditionally throws a new instance of %TypeError%
     pub typed_array: Object,                       // The super class of all typed Array constructors (23.2.1)
     pub type_error: Object,                        // TypeError	The TypeError constructor (20.5.5.5)
+    pub type_error_prototype: Object,              //
     pub uint8_array: Object,                       // Uint8Array	The Uint8Array constructor (23.2)
     pub uint8_clampedarray: Object,                // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
     pub uint16_array: Object,                      // Uint16Array	The Uint16Array constructor (23.2)
@@ -87,11 +92,14 @@ pub struct Intrinsics {
 impl Intrinsics {
     pub fn get(&self, id: IntrinsicIdentifier) -> Object {
         match id {
-            IntrinsicIdentifier::FunctionPrototype => self.function_prototype.clone(),
-            IntrinsicIdentifier::ThrowTypeError => self.throw_type_error.clone(),
-            IntrinsicIdentifier::BooleanPrototype => self.boolean_prototype.clone(),
-            IntrinsicIdentifier::Boolean => self.boolean.clone(),
+            IntrinsicIdentifier::FunctionPrototype => &self.function_prototype,
+            IntrinsicIdentifier::ThrowTypeError => &self.throw_type_error,
+            IntrinsicIdentifier::BooleanPrototype => &self.boolean_prototype,
+            IntrinsicIdentifier::Boolean => &self.boolean,
+            IntrinsicIdentifier::ErrorPrototype => &self.error_prototype,
+            IntrinsicIdentifier::TypeErrorPrototype => &self.type_error_prototype,
         }
+        .clone()
     }
 }
 
@@ -146,6 +154,7 @@ fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
         encode_uri: dead.clone(),
         encode_uri_component: dead.clone(),
         error: dead.clone(),
+        error_prototype: dead.clone(),
         eval: dead.clone(),
         eval_error: dead.clone(),
         finalization_registry: dead.clone(),
@@ -187,6 +196,7 @@ fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
         throw_type_error: dead.clone(),
         typed_array: dead.clone(),
         type_error: dead.clone(),
+        type_error_prototype: dead.clone(),
         uint8_array: dead.clone(),
         uint8_clampedarray: dead.clone(),
         uint16_array: dead.clone(),
@@ -228,14 +238,14 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     let tte = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
     tte.o.prevent_extensions().unwrap();
     realm_rec.intrinsics.throw_type_error = tte;
-    // %Boolean.prototype%
+    ///////////////////////////////////////////////////////////////////
+    // %Boolean% and %Boolean.prototype%
     let boolproto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.object_prototype), &[InternalSlotName::BooleanData]);
     realm_rec.intrinsics.boolean_prototype = boolproto;
-    // %Boolean%
-    let boolconstructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let bool_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
-        &boolconstructor,
+        &bool_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.boolean_prototype.clone())),
@@ -246,13 +256,142 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.boolean = boolconstructor;
+    realm_rec.intrinsics.boolean = bool_constructor;
     define_property_or_throw(
         agent,
         &realm_rec.intrinsics.boolean_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.boolean.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    ///////////////////////////////////////////////////////////////////
+    // %Error% and %Error.prototype%
+    let error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.object_prototype), &[]);
+    realm_rec.intrinsics.error_prototype = error_proto;
+    let error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    define_property_or_throw(
+        agent,
+        &error_constructor,
+        &PropertyKey::from("prototype"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error_prototype.clone())),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    realm_rec.intrinsics.error = error_constructor;
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.error_prototype,
+        &PropertyKey::from("constructor"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.error_prototype,
+        &PropertyKey::from("message"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from(""))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.error_prototype,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("Error"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    ///////////////////////////////////////////////////////////////////
+    // %TypeError% and %TypeError.prototype%
+    let type_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
+    realm_rec.intrinsics.type_error_prototype = type_error_proto;
+    let type_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    define_property_or_throw(
+        agent,
+        &type_error_constructor,
+        &PropertyKey::from("prototype"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.type_error_prototype.clone())),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &type_error_constructor,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    realm_rec.intrinsics.type_error = type_error_constructor;
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.type_error_prototype,
+        &PropertyKey::from("constructor"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.type_error_prototype,
+        &PropertyKey::from("message"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from(""))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.type_error_prototype,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),

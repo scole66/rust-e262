@@ -55,6 +55,12 @@ impl fmt::Debug for JSString {
     }
 }
 
+impl From<JSString> for String {
+    fn from(source: JSString) -> Self {
+        String::from_utf16_lossy(&source.s)
+    }
+}
+
 impl fmt::Display for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         String::from_utf16_lossy(&self.s).fmt(f)

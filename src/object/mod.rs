@@ -3,6 +3,7 @@ use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
 use super::cr::{AbruptCompletion, Completion};
 use super::errors::create_type_error;
+use super::errors::ErrorObject;
 use super::realm::{get_function_realm, IntrinsicIdentifier};
 use super::values::{ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
@@ -680,6 +681,9 @@ pub trait ObjectInterface {
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         None
     }
+    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
+        None
+    }
 
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion>;
     fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion>;
@@ -893,10 +897,12 @@ pub enum InternalSlotName {
     Prototype,
     Extensible,
     BooleanData,
+    ErrorData,
     Nonsense, // For testing purposes, for the time being.
 }
 const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
 const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
+const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
 fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
         return false;
@@ -920,6 +926,8 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         Object::new(agent)
     } else if slot_match(&BOOLEAN_OBJECT_SLOTS, &slot_set) {
         BooleanObject::object(agent)
+    } else if slot_match(&ERROR_OBJECT_SLOTS, &slot_set) {
+        ErrorObject::object(agent)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);

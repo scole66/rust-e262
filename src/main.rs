@@ -101,10 +101,5 @@ fn main() {
     });
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::prettyprint::testhelp::pretty_check;
-//    use parser::testhelp::{check, check_none, chk_scan, newparser};
-//
-//}
+#[cfg(test)]
+mod tests;
