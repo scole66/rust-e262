@@ -29,6 +29,10 @@ pub fn create_type_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
     AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_type_error_object(agent, message))), target: None })
 }
 
+pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
+    todo!()
+}
+
 pub struct ErrorObject {
     common: RefCell<CommonObjectData>,
 }
@@ -36,6 +40,12 @@ pub struct ErrorObject {
 impl ErrorObject {
     pub fn object(agent: &mut Agent) -> Object {
         Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent)) }) }
+    }
+}
+
+impl<'a> From<&'a ErrorObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a ErrorObject) -> Self {
+        obj
     }
 }
 
@@ -84,6 +94,6 @@ impl ObjectInterface for ErrorObject {
         ordinary_delete(&*self, key)
     }
     fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
-        Ok(ordinary_own_property_keys(&*self))
+        Ok(ordinary_own_property_keys(self))
     }
 }

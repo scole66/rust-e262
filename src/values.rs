@@ -1,10 +1,16 @@
-use crate::agent::Agent;
-use crate::cr::Completion;
-use crate::dtoa_r::dtoa;
-use crate::errors::create_type_error;
-use crate::object::{call, get, get_method, Object};
-use crate::strings::JSString;
+use super::agent::Agent;
+use super::bigint_object::create_bigint_object;
+use super::boolean_object::create_boolean_object;
+use super::cr::{AbruptCompletion, Completion};
+use super::dtoa_r::dtoa;
+use super::errors::create_type_error;
+use super::number_object::create_number_object;
+use super::object::{call, get, get_method, Object};
+use super::string_object::create_string_object;
+use super::strings::JSString;
+use super::symbol_object::create_symbol_object;
 use num::bigint::BigInt;
+use std::convert::TryFrom;
 use std::io;
 use std::rc::Rc;
 
@@ -84,15 +90,48 @@ impl From<&str> for PropertyKey {
     }
 }
 
+impl From<&JSString> for PropertyKey {
+    fn from(source: &JSString) -> Self {
+        Self::String(source.clone())
+    }
+}
+
+impl From<JSString> for PropertyKey {
+    fn from(source: JSString) -> Self {
+        Self::String(source)
+    }
+}
+
 impl From<Symbol> for PropertyKey {
     fn from(source: Symbol) -> Self {
         Self::Symbol(source)
     }
 }
 
+impl TryFrom<PropertyKey> for JSString {
+    type Error = &'static str;
+    fn try_from(key: PropertyKey) -> Result<Self, Self::Error> {
+        match key {
+            PropertyKey::String(s) => Ok(s),
+            PropertyKey::Symbol(_) => Err("Expected String-valued property key"),
+        }
+    }
+}
+
+impl TryFrom<&PropertyKey> for JSString {
+    type Error = &'static str;
+    fn try_from(key: &PropertyKey) -> Result<Self, Self::Error> {
+        match key {
+            PropertyKey::String(s) => Ok(s.clone()),
+            PropertyKey::Symbol(_) => Err("Expected String-valued property key"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Symbol {
     ToPrimitive,
+    Unscopables,
 }
 
 pub fn number_to_string<T>(writer: &mut T, value: f64) -> io::Result<()>
@@ -248,6 +287,68 @@ pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: 
         ordinary_to_primitive(agent, obj, pt)
     } else {
         Ok(input.clone())
+    }
+}
+
+// ToBoolean ( argument )
+//
+// The abstract operation ToBoolean takes argument argument. It converts argument to a value of type Boolean according
+// to Table 11:
+//
+// Table 11: ToBoolean Conversions
+// +---------------+-----------------------------------------------------------------------------------------+
+// | Argument Type | Result                                                                                  |
+// +---------------+-----------------------------------------------------------------------------------------+
+// | Undefined     | Return false.                                                                           |
+// | Null          | Return false.                                                                           |
+// | Boolean       | Return argument.                                                                        |
+// | Number        | If argument is +0𝔽, -0𝔽, or NaN, return false; otherwise return true.                   |
+// | String        | If argument is the empty String (its length is 0), return false; otherwise return true. |
+// | Symbol        | Return true.                                                                            |
+// | BigInt        | If argument is 0ℤ, return false; otherwise return true.                                 |
+// | Object        | Return true.                                                                            |
+// +---------------+-----------------------------------------------------------------------------------------+
+// NOTE     An alternate algorithm related to the [[IsHTMLDDA]] internal slot is mandated in section B.3.7.1.
+pub fn to_boolean(val: ECMAScriptValue) -> bool {
+    match val {
+        ECMAScriptValue::Undefined => false,
+        ECMAScriptValue::Null => false,
+        ECMAScriptValue::Boolean(b) => b,
+        ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
+        ECMAScriptValue::String(s) => s.len() > 0,
+        ECMAScriptValue::Symbol(_) => true,
+        ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
+        ECMAScriptValue::Object(_) => true,
+    }
+}
+
+// ToObject ( argument )
+//
+// The abstract operation ToObject takes argument argument. It converts argument to a value of type Object according to
+// Table 15:
+//
+// Table 15: ToObject Conversions
+// +---------------+-------------------------------------------------------------------------------------+
+// | Argument Type | Result                                                                              |
+// +---------------+-------------------------------------------------------------------------------------+
+// | Undefined     | Throw a TypeError exception.                                                        |
+// | Null          | Throw a TypeError exception.                                                        |
+// | Boolean       | Return a new Boolean object whose [[BooleanData]] internal slot is set to argument. |
+// | Number        | Return a new Number object whose [[NumberData]] internal slot is set to argument.   |
+// | String        | Return a new String object whose [[StringData]] internal slot is set to argument.   |
+// | Symbol        | Return a new Symbol object whose [[SymbolData]] internal slot is set to argument.   |
+// | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
+// | Object        | Return argument.                                                                    |
+// +---------------+-------------------------------------------------------------------------------------+
+pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> Result<Object, AbruptCompletion> {
+    match val {
+        ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
+        ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
+        ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
+        ECMAScriptValue::String(s) => Ok(create_string_object(agent, s)),
+        ECMAScriptValue::Symbol(s) => Ok(create_symbol_object(agent, s)),
+        ECMAScriptValue::BigInt(b) => Ok(create_bigint_object(agent, b)),
+        ECMAScriptValue::Object(o) => Ok(o),
     }
 }
 

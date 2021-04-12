@@ -4,6 +4,7 @@ use super::comparison::is_extensible;
 use super::cr::{AbruptCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
+use super::function_object::CallableObject;
 use super::realm::{get_function_realm, IntrinsicIdentifier};
 use super::values::{ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
@@ -12,31 +13,28 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Clone)]
-struct DataProperty {
+pub struct DataProperty {
     value: ECMAScriptValue,
     writable: bool,
 }
 
-#[derive(Clone, PartialEq)]
-struct FunctionObject {}
-
 #[derive(Clone)]
-struct AccessorProperty {
+pub struct AccessorProperty {
     get: ECMAScriptValue,
     set: ECMAScriptValue,
 }
 
 #[derive(Clone)]
-enum PropertyKind {
+pub enum PropertyKind {
     Data(DataProperty),
     Accessor(AccessorProperty),
 }
 
 #[derive(Clone)]
 pub struct PropertyDescriptor {
-    property: PropertyKind,
-    enumerable: bool,
-    configurable: bool,
+    pub property: PropertyKind,
+    pub enumerable: bool,
+    pub configurable: bool,
     spot: usize,
 }
 
@@ -44,6 +42,7 @@ pub trait DescriptorKind {
     fn is_data_descriptor(&self) -> bool;
     fn is_accessor_descriptor(&self) -> bool;
     fn is_generic_descriptor(&self) -> bool;
+    fn writable(&self) -> Option<bool>;
 }
 
 impl DescriptorKind for PropertyDescriptor {
@@ -61,6 +60,12 @@ impl DescriptorKind for PropertyDescriptor {
     }
     fn is_generic_descriptor(&self) -> bool {
         false
+    }
+    fn writable(&self) -> Option<bool> {
+        match &self.property {
+            PropertyKind::Data(d) => Some(d.writable),
+            PropertyKind::Accessor(_) => None
+        }
     }
 }
 
@@ -83,6 +88,9 @@ impl DescriptorKind for PotentialPropertyDescriptor {
     }
     fn is_generic_descriptor(&self) -> bool {
         !self.is_accessor_descriptor() && !self.is_data_descriptor()
+    }
+    fn writable(&self) -> Option<bool> {
+        self.writable
     }
 }
 
@@ -137,7 +145,11 @@ where
 // called:
 //
 //  1. Return O.[[Prototype]].
-pub fn ordinary_get_prototype_of(obj: &dyn ObjectInterface) -> Option<Object> {
+pub fn ordinary_get_prototype_of<'a, T>(o: T) -> Option<Object>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let cod_ref = obj.common_object_data().borrow();
     cod_ref.prototype.clone()
 }
@@ -165,7 +177,11 @@ pub fn ordinary_get_prototype_of(obj: &dyn ObjectInterface) -> Option<Object> {
 //
 // NOTE     The loop in step 8 guarantees that there will be no circularities in any prototype chain that only includes
 //          objects that use the ordinary object definitions for [[GetPrototypeOf]] and [[SetPrototypeOf]].
-pub fn ordinary_set_prototype_of(obj: &dyn ObjectInterface, val: Option<&Object>) -> bool {
+pub fn ordinary_set_prototype_of<'a, T>(o: T, val: Option<&Object>) -> bool
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let current = obj.common_object_data().borrow().prototype.clone();
     match (current, val) {
         (None, None) => {
@@ -202,7 +218,11 @@ pub fn ordinary_set_prototype_of(obj: &dyn ObjectInterface, val: Option<&Object>
 // called:
 //
 //  1. Return O.[[Extensible]].
-pub fn ordinary_is_extensible(obj: &dyn ObjectInterface) -> bool {
+pub fn ordinary_is_extensible<'a, T>(o: T) -> bool
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let cod_ref = obj.common_object_data().borrow();
     cod_ref.extensible
 }
@@ -214,7 +234,11 @@ pub fn ordinary_is_extensible(obj: &dyn ObjectInterface) -> bool {
 //
 //  1. Set O.[[Extensible]] to false.
 //  2. Return true.
-pub fn ordinary_prevent_extensions(obj: &dyn ObjectInterface) -> bool {
+pub fn ordinary_prevent_extensions<'a, T>(o: T) -> bool
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let mut cod_ref = obj.common_object_data().borrow_mut();
     cod_ref.extensible = false;
     true
@@ -239,7 +263,11 @@ pub fn ordinary_prevent_extensions(obj: &dyn ObjectInterface) -> bool {
 //  7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
 //  8. Set D.[[Configurable]] to the value of X's [[Configurable]] attribute.
 //  9. Return D.
-pub fn ordinary_get_own_property(obj: &dyn ObjectInterface, key: &PropertyKey) -> Option<PropertyDescriptor> {
+pub fn ordinary_get_own_property<'a, T>(o: T, key: &PropertyKey) -> Option<PropertyDescriptor>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let object_info = obj.common_object_data().borrow();
     object_info.properties.get(key).cloned()
 }
@@ -252,7 +280,11 @@ pub fn ordinary_get_own_property(obj: &dyn ObjectInterface, key: &PropertyKey) -
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property(obj: &dyn ObjectInterface, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+pub fn ordinary_define_own_property<'a, T>(o: T, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let current = obj.get_own_property(&p)?;
     let extensible = is_extensible(obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
@@ -313,20 +345,17 @@ pub fn ordinary_define_own_property(obj: &dyn ObjectInterface, p: &PropertyKey, 
 //      a. For each field of Desc that is present, set the corresponding attribute of the property named P of object O
 //         to the value of the field.
 //  10. Return true.
-fn validate_and_apply_property_descriptor(
-    obj: Option<&dyn ObjectInterface>,
-    p: Option<&PropertyKey>,
-    extensible: bool,
-    desc: &PotentialPropertyDescriptor,
-    current: Option<&PropertyDescriptor>,
-) -> bool {
+fn validate_and_apply_property_descriptor<'a, T>(oo: Option<T>, p: Option<&PropertyKey>, extensible: bool, desc: &PotentialPropertyDescriptor, current: Option<&PropertyDescriptor>) -> bool
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
     match current {
         None => {
             if !extensible {
                 false
             } else {
-                if let Some(o) = obj {
-                    let mut data = o.common_object_data().borrow_mut();
+                if let Some(o) = oo {
+                    let mut data = o.into().common_object_data().borrow_mut();
                     let property_descriptor = PropertyDescriptor {
                         enumerable: desc.enumerable.unwrap_or(false),
                         configurable: desc.configurable.unwrap_or(false),
@@ -389,8 +418,8 @@ fn validate_and_apply_property_descriptor(
                         }
                     }
                 }
-                if let Some(o) = obj {
-                    let mut data = o.common_object_data().borrow_mut();
+                if let Some(o) = oo {
+                    let mut data = o.into().common_object_data().borrow_mut();
                     let mut pd = data.properties.get_mut(&p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
@@ -444,7 +473,11 @@ fn validate_and_apply_property_descriptor(
 //  5. If parent is not null, then
 //      a. Return ? parent.[[HasProperty]](P).
 //  6. Return false.
-pub fn ordinary_has_property(obj: &dyn ObjectInterface, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let has_own = obj.get_own_property(p)?;
     match has_own {
         Some(_) => Ok(true),
@@ -474,7 +507,11 @@ pub fn ordinary_has_property(obj: &dyn ObjectInterface, p: &PropertyKey) -> Resu
 //  6. Let getter be desc.[[Get]].
 //  7. If getter is undefined, return undefined.
 //  8. Return ? Call(getter, Receiver).
-pub fn ordinary_get(obj: &dyn ObjectInterface, agent: &mut Agent, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+pub fn ordinary_get<'a, T>(o: T, agent: &mut Agent, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let pot_desc = obj.get_own_property(p)?;
     match pot_desc {
         None => {
@@ -505,7 +542,11 @@ pub fn ordinary_get(obj: &dyn ObjectInterface, agent: &mut Agent, p: &PropertyKe
 //  1. Assert: IsPropertyKey(P) is true.
 //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
 //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set(obj: &dyn ObjectInterface, agent: &mut Agent, p: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+pub fn ordinary_set<'a, T>(o: T, agent: &mut Agent, p: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let own_desc = obj.get_own_property(p)?;
     ordinary_set_with_own_descriptor(obj, agent, p, v, receiver, own_desc)
 }
@@ -540,14 +581,18 @@ pub fn ordinary_set(obj: &dyn ObjectInterface, agent: &mut Agent, p: &PropertyKe
 //  6. If setter is undefined, return false.
 //  7. Perform ? Call(setter, Receiver, « V »).
 //  8. Return true.
-pub fn ordinary_set_with_own_descriptor(
-    obj: &dyn ObjectInterface,
+pub fn ordinary_set_with_own_descriptor<'a, T>(
+    o: T,
     agent: &mut Agent,
     p: &PropertyKey,
     v: &ECMAScriptValue,
     receiver: &ECMAScriptValue,
     pot_own_desc: Option<PropertyDescriptor>,
-) -> Result<bool, AbruptCompletion> {
+) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let own_desc = match pot_own_desc {
         None => {
             let pot_parent = obj.get_prototype_of()?;
@@ -610,7 +655,11 @@ pub fn ordinary_set_with_own_descriptor(
 //      a. Remove the own property with name P from O.
 //      b. Return true.
 //  5. Return false.
-pub fn ordinary_delete(obj: &dyn ObjectInterface, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let desc = obj.get_own_property(p)?;
     match desc {
         None => Ok(true),
@@ -637,7 +686,11 @@ pub fn ordinary_delete(obj: &dyn ObjectInterface, p: &PropertyKey) -> Result<boo
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys(obj: &dyn ObjectInterface) -> Vec<PropertyKey> {
+pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let data = obj.common_object_data().borrow();
     let mut keys: Vec<PropertyKey> = Vec::with_capacity(data.properties.len());
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
@@ -684,6 +737,9 @@ pub trait ObjectInterface {
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
+    fn to_function_obj(&self) -> Option<&dyn CallableObject> {
+        None
+    }
 
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion>;
     fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion>;
@@ -720,6 +776,12 @@ struct OrdinaryObject {
     data: RefCell<CommonObjectData>,
 }
 
+impl<'a> From<&'a OrdinaryObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a OrdinaryObject) -> Self {
+        obj
+    }
+}
+
 impl ObjectInterface for OrdinaryObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.data
@@ -738,7 +800,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
-        Ok(ordinary_get_prototype_of(&*self))
+        Ok(ordinary_get_prototype_of(self))
     }
 
     // [[SetPrototypeOf]] ( V )
@@ -748,7 +810,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
     fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_set_prototype_of(&*self, obj))
+        Ok(ordinary_set_prototype_of(self, obj))
     }
 
     // [[IsExtensible]] ( )
@@ -758,7 +820,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ! OrdinaryIsExtensible(O).
     fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_is_extensible(&*self))
+        Ok(ordinary_is_extensible(self))
     }
 
     // [[PreventExtensions]] ( )
@@ -768,7 +830,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
     fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_prevent_extensions(&*self))
+        Ok(ordinary_prevent_extensions(self))
     }
 
     // [[GetOwnProperty]] ( P )
@@ -778,7 +840,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
     fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
-        Ok(ordinary_get_own_property(&*self, key))
+        Ok(ordinary_get_own_property(self, key))
     }
 
     // [[DefineOwnProperty]] ( P, Desc )
@@ -788,7 +850,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
-        ordinary_define_own_property(&*self, key, desc)
+        ordinary_define_own_property(self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -798,7 +860,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
     fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_has_property(&*self, key)
+        ordinary_has_property(self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -808,7 +870,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
-        ordinary_get(&*self, agent, key, receiver)
+        ordinary_get(self, agent, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -818,7 +880,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
     fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
-        ordinary_set(&*self, agent, key, v, receiver)
+        ordinary_set(self, agent, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -828,7 +890,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     //  1. Return ? OrdinaryDelete(O, P).
     fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_delete(&*self, key)
+        ordinary_delete(self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -838,7 +900,7 @@ impl ObjectInterface for OrdinaryObject {
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
     fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
-        Ok(ordinary_own_property_keys(&*self))
+        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -856,6 +918,12 @@ impl fmt::Debug for dyn ObjectInterface {
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
         self.o.id() == other.o.id()
+    }
+}
+
+impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
+    fn from(obj: &'a Object) -> Self {
+        obj.o.as_ref()
     }
 }
 
@@ -1008,6 +1076,35 @@ pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: &PropertyKey
     }
 }
 
+// HasProperty ( O, P )
+//
+// The abstract operation HasProperty takes arguments O (an Object) and P (a property key) and returns a completion
+// record which, if its [[Type]] is normal, has a [[Value]] which is a Boolean. It is used to determine whether an
+// object has a property with the specified property key. The property may be either an own or inherited. It performs
+// the following steps when called:
+//
+//  1. Assert: Type(O) is Object.
+//  2. Assert: IsPropertyKey(P) is true.
+//  3. Return ? O.[[HasProperty]](P).
+pub fn has_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    obj.o.has_property(p)
+}
+
+// HasOwnProperty ( O, P )
+//
+// The abstract operation HasOwnProperty takes arguments O (an Object) and P (a property key) and returns a completion
+// record which, if its [[Type]] is normal, has a [[Value]] which is a Boolean. It is used to determine whether an
+// object has an own property with the specified property key. It performs the following steps when called:
+//
+//  1. Assert: Type(O) is Object.
+//  2. Assert: IsPropertyKey(P) is true.
+//  3. Let desc be ? O.[[GetOwnProperty]](P).
+//  4. If desc is undefined, return false.
+//  5. Return true.
+pub fn has_own_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    Ok(obj.o.get_own_property(p)?.is_some())
+}
+
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )
 //
 // The abstract operation OrdinaryObjectCreate takes argument proto (an Object or null) and optional argument
@@ -1150,7 +1247,11 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype(obj: &dyn ObjectInterface, val: Option<&Object>) -> Result<bool, AbruptCompletion> {
+pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Result<bool, AbruptCompletion>
+where
+    T: Into<&'a dyn ObjectInterface>,
+{
+    let obj = o.into();
     let current = obj.get_prototype_of()?;
     Ok(match (current.as_ref(), val) {
         (None, None) => true,
@@ -1161,6 +1262,12 @@ pub fn set_immutable_prototype(obj: &dyn ObjectInterface, val: Option<&Object>) 
 
 pub struct ImmutablePrototypeExoticObject {
     data: RefCell<CommonObjectData>,
+}
+
+impl<'a> From<&'a ImmutablePrototypeExoticObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a ImmutablePrototypeExoticObject) -> Self {
+        obj
+    }
 }
 
 impl ObjectInterface for ImmutablePrototypeExoticObject {
@@ -1181,7 +1288,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
-        Ok(ordinary_get_prototype_of(&*self))
+        Ok(ordinary_get_prototype_of(self))
     }
 
     // [[SetPrototypeOf]] ( V )
@@ -1191,7 +1298,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? SetImmutablePrototype(O, V).
     fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
-        set_immutable_prototype(&*self, obj)
+        set_immutable_prototype(self, obj)
     }
 
     // [[IsExtensible]] ( )
@@ -1201,7 +1308,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ! OrdinaryIsExtensible(O).
     fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_is_extensible(&*self))
+        Ok(ordinary_is_extensible(self))
     }
 
     // [[PreventExtensions]] ( )
@@ -1211,7 +1318,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
     fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_prevent_extensions(&*self))
+        Ok(ordinary_prevent_extensions(self))
     }
 
     // [[GetOwnProperty]] ( P )
@@ -1221,7 +1328,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
     fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
-        Ok(ordinary_get_own_property(&*self, key))
+        Ok(ordinary_get_own_property(self, key))
     }
 
     // [[DefineOwnProperty]] ( P, Desc )
@@ -1231,7 +1338,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
-        ordinary_define_own_property(&*self, key, desc)
+        ordinary_define_own_property(self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -1241,7 +1348,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
     fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_has_property(&*self, key)
+        ordinary_has_property(self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -1251,7 +1358,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
-        ordinary_get(&*self, agent, key, receiver)
+        ordinary_get(self, agent, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -1261,7 +1368,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
     fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
-        ordinary_set(&*self, agent, key, v, receiver)
+        ordinary_set(self, agent, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -1271,7 +1378,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? OrdinaryDelete(O, P).
     fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_delete(&*self, key)
+        ordinary_delete(self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -1281,7 +1388,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
     fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
-        Ok(ordinary_own_property_keys(&*self))
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

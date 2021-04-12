@@ -20,6 +20,12 @@ pub struct BooleanObject {
     boolean_data: RefCell<bool>,
 }
 
+impl<'a> From<&'a BooleanObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a BooleanObject) -> Self {
+        obj
+    }
+}
+
 impl ObjectInterface for BooleanObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
@@ -35,7 +41,7 @@ impl ObjectInterface for BooleanObject {
     }
 
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
-        Ok(ordinary_get_prototype_of(&*self))
+        Ok(ordinary_get_prototype_of(self))
     }
 
     // [[SetPrototypeOf]] ( V )
@@ -45,7 +51,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
     fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_set_prototype_of(&*self, obj))
+        Ok(ordinary_set_prototype_of(self, obj))
     }
 
     // [[IsExtensible]] ( )
@@ -55,7 +61,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ! OrdinaryIsExtensible(O).
     fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_is_extensible(&*self))
+        Ok(ordinary_is_extensible(self))
     }
 
     // [[PreventExtensions]] ( )
@@ -65,7 +71,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
     fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
-        Ok(ordinary_prevent_extensions(&*self))
+        Ok(ordinary_prevent_extensions(self))
     }
 
     // [[GetOwnProperty]] ( P )
@@ -75,7 +81,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
     fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
-        Ok(ordinary_get_own_property(&*self, key))
+        Ok(ordinary_get_own_property(self, key))
     }
 
     // [[DefineOwnProperty]] ( P, Desc )
@@ -85,7 +91,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
     fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
-        ordinary_define_own_property(&*self, key, desc)
+        ordinary_define_own_property(self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -95,7 +101,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
     fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_has_property(&*self, key)
+        ordinary_has_property(self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -105,7 +111,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
-        ordinary_get(&*self, agent, key, receiver)
+        ordinary_get(self, agent, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -115,7 +121,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
     fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
-        ordinary_set(&*self, agent, key, v, receiver)
+        ordinary_set(self, agent, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -125,7 +131,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinaryDelete(O, P).
     fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
-        ordinary_delete(&*self, key)
+        ordinary_delete(self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -135,7 +141,7 @@ impl ObjectInterface for BooleanObject {
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
     fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
-        Ok(ordinary_own_property_keys(&*self))
+        Ok(ordinary_own_property_keys(self))
     }
 }
 

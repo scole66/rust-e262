@@ -21,9 +21,9 @@ pub fn unwind_type_error(agent: &mut Agent, completion: AbruptCompletion) -> Str
         if let ECMAScriptValue::String(message_value) = message {
             String::from(message_value)
         } else {
-            String::new()
+            unreachable!()
         }
     } else {
-        String::new()
+        unreachable!()
     }
 }

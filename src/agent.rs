@@ -1,4 +1,5 @@
-use super::realm::{create_realm, Realm};
+use super::execution_context::ExecutionContext;
+use super::realm::create_realm;
 use super::values::Symbol;
 use std::default::Default;
 
@@ -73,10 +74,6 @@ impl Agent {
         let new_context = ExecutionContext { realm };
         self.execution_context_stack.push(new_context);
     }
-}
-
-pub struct ExecutionContext {
-    pub realm: Realm,
 }
 
 pub struct WellKnownSymbols {

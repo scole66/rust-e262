@@ -5,17 +5,25 @@ use std::env;
 use std::io::{self, Write};
 
 mod agent;
+mod bigint_object;
 mod boolean_object;
 mod comparison;
 mod cr;
 mod dtoa_r;
+mod environment_record;
 mod errors;
+mod execution_context;
+mod function_object;
+mod number_object;
 mod object;
 mod parser;
 mod prettyprint;
 mod realm;
+mod reference;
 mod scanner;
+mod string_object;
 mod strings;
+mod symbol_object;
 mod values;
 
 use parser::block::StatementList;
