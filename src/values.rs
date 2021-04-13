@@ -5,7 +5,7 @@ use super::cr::{AbruptCompletion, Completion};
 use super::dtoa_r::dtoa;
 use super::errors::create_type_error;
 use super::number_object::create_number_object;
-use super::object::{call, get, get_method, Object};
+use super::object::{call, get, get_method, to_callable, Object};
 use super::string_object::create_string_object;
 use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
@@ -233,7 +233,7 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
     for name in method_names.iter() {
         let method = get(agent, obj, name)?;
         if is_callable(agent, &method) {
-            let result = call(agent, &method, &ECMAScriptValue::from(obj), None)?;
+            let result = call(agent, &method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
                 return Ok(result);
             }
@@ -277,7 +277,7 @@ pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: 
                 Some(ConversionHint::Number) => "number",
                 Some(ConversionHint::String) => "string",
             });
-            let result = call(agent, &exotic_to_prim, input, Some(vec![hint]))?;
+            let result = call(agent, &exotic_to_prim, input, &[hint])?;
             if !result.is_object() {
                 return Ok(result);
             }
@@ -361,11 +361,7 @@ pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> Result<Object, Abru
 //  2. If argument has a [[Call]] internal method, return true.
 //  3. Return false.
 pub fn is_callable(agent: &mut Agent, value: &ECMAScriptValue) -> bool {
-    if !value.is_object() {
-        false
-    } else {
-        todo!()
-    }
+    to_callable(value).is_some()
 }
 
 #[cfg(test)]

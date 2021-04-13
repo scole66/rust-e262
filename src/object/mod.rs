@@ -6,7 +6,7 @@ use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::CallableObject;
 use super::realm::{get_function_realm, IntrinsicIdentifier};
-use super::values::{ECMAScriptValue, PropertyKey};
+use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::fmt;
@@ -64,7 +64,7 @@ impl DescriptorKind for PropertyDescriptor {
     fn writable(&self) -> Option<bool> {
         match &self.property {
             PropertyKind::Data(d) => Some(d.writable),
-            PropertyKind::Accessor(_) => None
+            PropertyKind::Accessor(_) => None,
         }
     }
 }
@@ -527,7 +527,7 @@ where
                 let pot_getter = acc_methods.get;
                 match pot_getter {
                     ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined),
-                    getter => call(agent, &getter, &receiver, None),
+                    getter => call(agent, &getter, &receiver, &[]),
                 }
             }
         },
@@ -635,7 +635,7 @@ where
             match setter {
                 ECMAScriptValue::Undefined => Ok(false),
                 setter => {
-                    call(agent, &setter, receiver, Some(vec![v.clone()]))?;
+                    call(agent, &setter, receiver, &[v.clone()])?;
                     Ok(true)
                 }
             }
@@ -933,15 +933,6 @@ impl Object {
     }
 }
 
-// In "Operations on Object"
-pub fn call(agent: &mut Agent, func: &ECMAScriptValue, receiver: &ECMAScriptValue, args: Option<Vec<ECMAScriptValue>>) -> Completion {
-    todo!()
-}
-
-pub fn get_method(agent: &mut Agent, val: &ECMAScriptValue, key: &PropertyKey) -> Completion {
-    todo!()
-}
-
 // MakeBasicObject ( internalSlotsList )
 //
 // The abstract operation MakeBasicObject takes argument internalSlotsList. It is the source of all ECMAScript objects
@@ -1015,6 +1006,21 @@ pub fn get(agent: &mut Agent, obj: &Object, key: &PropertyKey) -> Completion {
     obj.o.get(agent, key, &val)
 }
 
+// GetV ( V, P )
+//
+// The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is used to
+// retrieve the value of a specific property of an ECMAScript language value. If the value is not an object, the
+// property lookup is performed using a wrapper object appropriate for the type of the value. It performs the following
+// steps when called:
+//
+//  1. Assert: IsPropertyKey(P) is true.
+//  2. Let O be ? ToObject(V).
+//  3. Return ? O.[[Get]](P, V).
+pub fn getv(agent: &mut Agent, v: &ECMAScriptValue, p: &PropertyKey) -> Completion {
+    let o = to_object(agent, v.clone())?;
+    o.o.get(agent, p, v)
+}
+
 // Set ( O, P, V, Throw )
 //
 // The abstract operation Set takes arguments O (an Object), P (a property key), V (an ECMAScript language value), and
@@ -1076,6 +1082,28 @@ pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: &PropertyKey
     }
 }
 
+// GetMethod ( V, P )
+//
+// The abstract operation GetMethod takes arguments V (an ECMAScript language value) and P (a property key). It is used
+// to get the value of a specific property of an ECMAScript language value when the value of the property is expected to
+// be a function. It performs the following steps when called:
+//
+//  1. Assert: IsPropertyKey(P) is true.
+//  2. Let func be ? GetV(V, P).
+//  3. If func is either undefined or null, return undefined.
+//  4. If IsCallable(func) is false, throw a TypeError exception.
+//  5. Return func.
+pub fn get_method(agent: &mut Agent, val: &ECMAScriptValue, key: &PropertyKey) -> Completion {
+    let func = getv(agent, val, key)?;
+    if func.is_undefined() || func.is_null() {
+        Ok(ECMAScriptValue::Undefined)
+    } else if !is_callable(agent, &func) {
+        Err(create_type_error(agent, "item is not callable"))
+    } else {
+        Ok(func)
+    }
+}
+
 // HasProperty ( O, P )
 //
 // The abstract operation HasProperty takes arguments O (an Object) and P (a property key) and returns a completion
@@ -1103,6 +1131,32 @@ pub fn has_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptComplet
 //  5. Return true.
 pub fn has_own_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
     Ok(obj.o.get_own_property(p)?.is_some())
+}
+
+// Call ( F, V [ , argumentsList ] )
+//
+// The abstract operation Call takes arguments F (an ECMAScript language value) and V (an ECMAScript language value) and
+// optional argument argumentsList (a List of ECMAScript language values). It is used to call the [[Call]] internal
+// method of a function object. F is the function object, V is an ECMAScript language value that is the this value of
+// the [[Call]], and argumentsList is the value passed to the corresponding argument of the internal method. If
+// argumentsList is not present, a new empty List is used as its value. It performs the following steps when called:
+//
+//  1. If argumentsList is not present, set argumentsList to a new empty List.
+//  2. If IsCallable(F) is false, throw a TypeError exception.
+//  3. Return ? F.[[Call]](V, argumentsList).
+pub fn to_callable(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
+    match val {
+        ECMAScriptValue::Object(obj) => obj.o.to_function_obj(),
+        _ => None,
+    }
+}
+
+pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptValue, args: &[ECMAScriptValue]) -> Completion {
+    let maybe_callable = to_callable(func);
+    match maybe_callable {
+        None => Err(create_type_error(agent, "Value not callable")),
+        Some(callable) => callable.call(agent, this_value, args),
+    }
 }
 
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )

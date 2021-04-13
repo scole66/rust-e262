@@ -64,11 +64,11 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
 
 pub trait CallableObject: ObjectInterface {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
-    fn call(&self, agent: &mut Agent, this_argument: ECMAScriptValue, arguments_list: Vec<ECMAScriptValue>) -> Completion;
+    fn call(&self, agent: &mut Agent, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion;
 }
 
 pub trait ConstructableObject: CallableObject {
-    fn construct(&self, agent: &mut Agent, arguments_list: Vec<ECMAScriptValue>, new_target: &dyn ConstructableObject) -> Completion;
+    fn construct(&self, agent: &mut Agent, arguments_list: &[ECMAScriptValue], new_target: &dyn ConstructableObject) -> Completion;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -124,7 +124,7 @@ impl CallableObject for FunctionObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData> {
         &self.function_data
     }
-    fn call(&self, agent: &mut Agent, this_argument: ECMAScriptValue, arguments_list: Vec<ECMAScriptValue>) -> Completion {
+    fn call(&self, agent: &mut Agent, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion {
         todo!()
     }
 }
