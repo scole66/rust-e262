@@ -2836,12 +2836,12 @@ mod tests {
     #[test]
     fn regular_expression_literal_test_02() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        assert_eq!(result, None);
+        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData{body:String::from("abcd"), flags: String::from("")}), Scanner { line: 1, column: 7, start_idx: 6})));
     }
     #[test]
     fn regular_expression_literal_test_03() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
-        assert!(result.is_none());
+        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData{body:String::from("abcd"), flags: String::from("")}), Scanner { line: 1, column: 7, start_idx: 6})));
     }
 
     #[test]
@@ -2863,7 +2863,7 @@ mod tests {
     }
     #[test]
     fn scan_token_panic_01() {
-        let (token, scanner) = scan_token(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
+        let (token, scanner) = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
         assert!(matches!(token, Token::Error(_)));
         assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     }
