@@ -13,6 +13,7 @@ pub enum IntrinsicIdentifier {
     FunctionPrototype,
     ThrowTypeError,
     TypeErrorPrototype,
+    ReferenceErrorPrototype,
 }
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
@@ -44,49 +45,50 @@ pub struct Intrinsics {
     pub float64_array: Object,                      // Float64Array	The Float64Array constructor (23.2)
     pub for_in_iterator_prototype: Object,          // The prototype of For-In iterator objects (14.7.5.10)
     pub function: Object,                           // Function	The Function constructor (20.2.1)
-    pub function_prototype: Object,
-    pub generator_function: Object,                // The constructor of generator objects (27.3.1)
-    pub int8_array: Object,                        // Int8Array	The Int8Array constructor (23.2)
-    pub int16_array: Object,                       // Int16Array	The Int16Array constructor (23.2)
-    pub int32_array: Object,                       // Int32Array	The Int32Array constructor (23.2)
-    pub is_finite: Object,                         // isFinite	The isFinite function (19.2.2)
-    pub is_nan: Object,                            // isNaN	The isNaN function (19.2.3)
-    pub iterator_prototype: Object,                // An object that all standard built-in iterator objects indirectly inherit from
-    pub json: Object,                              // JSON	The JSON object (25.5)
-    pub map: Object,                               // Map	The Map constructor (24.1.1)
-    pub map_iterator_prototype: Object,            // The prototype of Map iterator objects (24.1.5)
-    pub math: Object,                              // Math	The Math object (21.3)
-    pub number: Object,                            // Number	The Number constructor (21.1.1)
-    pub object: Object,                            // Object	The Object constructor (20.1.1)
-    pub object_prototype: Object,                  // The Object prototype object
-    pub parse_float: Object,                       // parseFloat	The parseFloat function (19.2.4)
-    pub parse_int: Object,                         // parseInt	The parseInt function (19.2.5)
-    pub promise: Object,                           // Promise	The Promise constructor (27.2.3)
-    pub proxy: Object,                             // Proxy	The Proxy constructor (28.2.1)
-    pub range_error: Object,                       // RangeError	The RangeError constructor (20.5.5.2)
-    pub reference_error: Object,                   // ReferenceError	The ReferenceError constructor (20.5.5.3)
-    pub reflect: Object,                           // Reflect	The Reflect object (28.1)
-    pub reg_exp: Object,                           // RegExp	The RegExp constructor (22.2.3)
-    pub reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
-    pub set: Object,                               // Set	The Set constructor (24.2.1)
-    pub set_iterator_prototype: Object,            // The prototype of Set iterator objects (24.2.5)
-    pub shared_array_buffer: Object,               // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
-    pub string: Object,                            // String	The String constructor (22.1.1)
-    pub string_iterator_prototype: Object,         // The prototype of String iterator objects (22.1.5)
-    pub symbol: Object,                            // Symbol	The Symbol constructor (20.4.1)
-    pub syntax_error: Object,                      // SyntaxError	The SyntaxError constructor (20.5.5.4)
-    pub throw_type_error: Object,                  // A function object that unconditionally throws a new instance of %TypeError%
-    pub typed_array: Object,                       // The super class of all typed Array constructors (23.2.1)
-    pub type_error: Object,                        // TypeError	The TypeError constructor (20.5.5.5)
-    pub type_error_prototype: Object,              //
-    pub uint8_array: Object,                       // Uint8Array	The Uint8Array constructor (23.2)
-    pub uint8_clampedarray: Object,                // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
-    pub uint16_array: Object,                      // Uint16Array	The Uint16Array constructor (23.2)
-    pub uint32_array: Object,                      // Uint32Array	The Uint32Array constructor (23.2)
-    pub uri_error: Object,                         // URIError	The URIError constructor (20.5.5.6)
-    pub weak_map: Object,                          // WeakMap	The WeakMap constructor (24.3.1)
-    pub weak_ref: Object,                          // WeakRef	The WeakRef constructor (26.1.1)
-    pub weak_set: Object,                          // WeakSet	The WeakSet constructor (24.4.1)
+    pub function_prototype: Object,                 //
+    pub generator_function: Object,                 // The constructor of generator objects (27.3.1)
+    pub int8_array: Object,                         // Int8Array	The Int8Array constructor (23.2)
+    pub int16_array: Object,                        // Int16Array	The Int16Array constructor (23.2)
+    pub int32_array: Object,                        // Int32Array	The Int32Array constructor (23.2)
+    pub is_finite: Object,                          // isFinite	The isFinite function (19.2.2)
+    pub is_nan: Object,                             // isNaN	The isNaN function (19.2.3)
+    pub iterator_prototype: Object,                 // An object that all standard built-in iterator objects indirectly inherit from
+    pub json: Object,                               // JSON	The JSON object (25.5)
+    pub map: Object,                                // Map	The Map constructor (24.1.1)
+    pub map_iterator_prototype: Object,             // The prototype of Map iterator objects (24.1.5)
+    pub math: Object,                               // Math	The Math object (21.3)
+    pub number: Object,                             // Number	The Number constructor (21.1.1)
+    pub object: Object,                             // Object	The Object constructor (20.1.1)
+    pub object_prototype: Object,                   // The Object prototype object
+    pub parse_float: Object,                        // parseFloat	The parseFloat function (19.2.4)
+    pub parse_int: Object,                          // parseInt	The parseInt function (19.2.5)
+    pub promise: Object,                            // Promise	The Promise constructor (27.2.3)
+    pub proxy: Object,                              // Proxy	The Proxy constructor (28.2.1)
+    pub range_error: Object,                        // RangeError	The RangeError constructor (20.5.5.2)
+    pub reference_error: Object,                    // ReferenceError	The ReferenceError constructor (20.5.5.3)
+    pub reference_error_prototype: Object,          //
+    pub reflect: Object,                            // Reflect	The Reflect object (28.1)
+    pub reg_exp: Object,                            // RegExp	The RegExp constructor (22.2.3)
+    pub reg_exp_string_iterator_prototype: Object,  // The prototype of RegExp String Iterator objects (22.2.7)
+    pub set: Object,                                // Set	The Set constructor (24.2.1)
+    pub set_iterator_prototype: Object,             // The prototype of Set iterator objects (24.2.5)
+    pub shared_array_buffer: Object,                // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
+    pub string: Object,                             // String	The String constructor (22.1.1)
+    pub string_iterator_prototype: Object,          // The prototype of String iterator objects (22.1.5)
+    pub symbol: Object,                             // Symbol	The Symbol constructor (20.4.1)
+    pub syntax_error: Object,                       // SyntaxError	The SyntaxError constructor (20.5.5.4)
+    pub throw_type_error: Object,                   // A function object that unconditionally throws a new instance of %TypeError%
+    pub typed_array: Object,                        // The super class of all typed Array constructors (23.2.1)
+    pub type_error: Object,                         // TypeError	The TypeError constructor (20.5.5.5)
+    pub type_error_prototype: Object,               //
+    pub uint8_array: Object,                        // Uint8Array	The Uint8Array constructor (23.2)
+    pub uint8_clampedarray: Object,                 // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
+    pub uint16_array: Object,                       // Uint16Array	The Uint16Array constructor (23.2)
+    pub uint32_array: Object,                       // Uint32Array	The Uint32Array constructor (23.2)
+    pub uri_error: Object,                          // URIError	The URIError constructor (20.5.5.6)
+    pub weak_map: Object,                           // WeakMap	The WeakMap constructor (24.3.1)
+    pub weak_ref: Object,                           // WeakRef	The WeakRef constructor (26.1.1)
+    pub weak_set: Object,                           // WeakSet	The WeakSet constructor (24.4.1)
 }
 
 impl Intrinsics {
@@ -98,6 +100,7 @@ impl Intrinsics {
             IntrinsicIdentifier::Boolean => &self.boolean,
             IntrinsicIdentifier::ErrorPrototype => &self.error_prototype,
             IntrinsicIdentifier::TypeErrorPrototype => &self.type_error_prototype,
+            IntrinsicIdentifier::ReferenceErrorPrototype => &self.reference_error_prototype,
         }
         .clone()
     }
@@ -183,6 +186,7 @@ fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
         proxy: dead.clone(),
         range_error: dead.clone(),
         reference_error: dead.clone(),
+        reference_error_prototype: dead.clone(),
         reflect: dead.clone(),
         reg_exp: dead.clone(),
         reg_exp_string_iterator_prototype: dead.clone(),
@@ -392,6 +396,77 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    ///////////////////////////////////////////////////////////////////
+    // %ReferenceError% and %ReferenceError.prototype%
+    let reference_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
+    realm_rec.intrinsics.reference_error_prototype = reference_error_proto;
+    let reference_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    define_property_or_throw(
+        agent,
+        &reference_error_constructor,
+        &PropertyKey::from("prototype"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.reference_error_prototype.clone())),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &reference_error_constructor,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    realm_rec.intrinsics.reference_error = reference_error_constructor;
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.reference_error_prototype,
+        &PropertyKey::from("constructor"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.reference_error_prototype,
+        &PropertyKey::from("message"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from(""))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.reference_error_prototype,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),

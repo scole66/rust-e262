@@ -11,9 +11,8 @@ use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
-    let error_constructor = agent.running_execution_context().unwrap().realm.intrinsics.type_error.clone();
-    let o = ordinary_create_from_constructor(agent, &error_constructor, IntrinsicIdentifier::TypeErrorPrototype, &[InternalSlotName::ErrorData]).unwrap();
+fn create_native_error_object(agent: &mut Agent, message: &str, error_constructor: Object, proto_id: IntrinsicIdentifier) -> Object {
+    let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::String(JSString::from(message))),
         writable: Some(true),
@@ -25,12 +24,21 @@ pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
     o
 }
 
+pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
+    let error_constructor = agent.running_execution_context().unwrap().realm.intrinsics.type_error.clone();
+    create_native_error_object(agent, message, error_constructor, IntrinsicIdentifier::TypeErrorPrototype)
+}
+
 pub fn create_type_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
     AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_type_error_object(agent, message))), target: None })
 }
 
+pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object {
+    let cstr = agent.running_execution_context().unwrap().realm.intrinsics.reference_error.clone();
+    create_native_error_object(agent, message, cstr, IntrinsicIdentifier::ReferenceErrorPrototype)
+}
 pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
-    todo!()
+    AbruptCompletion::Throw(CompletionInfo{ value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, message))), target: None})
 }
 
 pub struct ErrorObject {
