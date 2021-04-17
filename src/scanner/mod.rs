@@ -1,7 +1,9 @@
 pub mod ranges;
 use crate::strings::JSString;
 use crate::values::number_to_string;
+use lazy_static::lazy_static;
 use num::bigint::BigInt;
+use regex::Regex;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
@@ -1869,19 +1871,43 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
         None
     }
 }
+
 fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    //if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
-    //    let ch = source[scanner.start_idx..].chars().next();
-    //    if ch == Some('/') {
-    //        todo!();
-    //    } else {
-    //        None
-    //    }
-    //} else {
-    //    None
-    //}
-    None
+    if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
+        lazy_static! {
+            static ref ESREGEX: Regex = {
+                let regular_expression_flags = r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
+                let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
+                let regular_expression_backslash_sequence = format!(r"(?:\\{})", regular_expression_non_terminator);
+                let regular_expression_class_char = format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{})", regular_expression_backslash_sequence);
+                let regular_expression_class_chars = format!("(?:{}*)", regular_expression_class_char);
+                let regular_expression_class = format!(r"(?:\[{}\])", regular_expression_class_chars);
+                let regular_expression_char = format!(r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
+                let regular_expression_first_char = format!(r"(?:[^\u000A\u2028\u2029\u000D*/\[\]]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
+                let regular_expression_chars = format!("(?:{}*)", regular_expression_char);
+                let regular_expression_body = format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
+                let regular_expression_literal = format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
+                Regex::new(&regular_expression_literal).unwrap()
+            };
+        }
+        match ESREGEX.captures(&source[scanner.start_idx..]) {
+            None => None,
+            Some(captures) => {
+                let body = String::from(captures.name("body").unwrap().as_str());
+                let flag_cap = captures.name("flags").unwrap();
+                let flag_end = flag_cap.end();
+                let flags = String::from(flag_cap.as_str());
+                let chars_in_match = source[scanner.start_idx..scanner.start_idx+flag_end].chars().count();
+                let after_scanner = Scanner { line: scanner.line, column: scanner.column + chars_in_match as u32, start_idx: scanner.start_idx + flag_end };
+                let token = Token::RegularExpression(RegularExpressionData { body, flags });
+                Some((token, after_scanner))
+            }
+        }
+    } else {
+        None
+    }
 }
+
 fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementRegExpOrTemplateTail || goal == ScanGoal::InputElementTemplateTail {
         template_token(scanner, source, TemplateStyle::MiddleOrTail)
@@ -2991,5 +3017,29 @@ mod tests {
         assert_eq!(CharVal::try_from(0x10fffe), Ok(CharVal(0x10fffe)));
         assert!(CharVal::try_from(0x200000).is_err());
         assert_eq!(CharVal::from('\u{10ab32}'), CharVal(0x10ab32));
+    }
+
+    #[test]
+    fn regex_test_01() {
+        let r = scan_token(&Scanner::new(), "/a/", ScanGoal::InputElementRegExp);
+        let (token, scanner) = r;
+        assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3});
+        assert_eq!(token, Token::RegularExpression(RegularExpressionData{ body: String::from("a"), flags: String::new()}));
+    }
+
+    #[test]
+    fn regex_test_02() {
+        let r = scan_token(&Scanner::new(), "/blue/green", ScanGoal::InputElementRegExp);
+        let (token, scanner) = r;
+        assert_eq!(scanner, Scanner {line: 1, column: 12, start_idx: 11});
+        assert_eq!(token, Token::RegularExpression( RegularExpressionData{ body: String::from("blue"), flags: String::from("green")}));
+    }
+    #[test]
+    fn regex_test_03() {
+        let scanner = Scanner { line: 1, column: 5, start_idx: 4 };
+        let r = scan_token(&scanner, "####/blue/green", ScanGoal::InputElementRegExp);
+        let (token, scanner) = r;
+        assert_eq!(scanner, Scanner {line: 1, column: 16, start_idx: 15});
+        assert_eq!(token, Token::RegularExpression( RegularExpressionData{ body: String::from("blue"), flags: String::from("green")}));
     }
 }

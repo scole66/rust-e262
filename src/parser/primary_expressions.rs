@@ -118,7 +118,7 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpressionKind::Generator(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpressionKind::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::RegularExpression(_) => pprint_token(writer, "regular_expression", TokenType::RegularExpression, pad, state),
+            PrimaryExpressionKind::RegularExpression(item) => pprint_token(writer, item, TokenType::RegularExpression, pad, state),
         }
     }
 }
