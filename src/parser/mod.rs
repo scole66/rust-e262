@@ -224,7 +224,6 @@ use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElem
 use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::GeneratorBody;
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
-use if_statement::IfStatement;
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{
@@ -400,7 +399,7 @@ pub struct Parser<'a> {
     pub hoistable_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<HoistableDeclaration>, RandomState>,
     pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
     pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
-    pub if_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IfStatement>, RandomState>,
+    //pub if_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IfStatement>, RandomState>,
     pub import_call_cache: HashMap<YieldAwaitKey, ParseResult<ImportCall>, RandomState>,
     pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
     pub iteration_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IterationStatement>, RandomState>,

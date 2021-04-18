@@ -73,7 +73,7 @@ impl PrettyPrint for IfStatement {
 }
 
 impl IfStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_lead = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
         let after_open = scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -87,23 +87,77 @@ impl IfStatement {
             }
         }
     }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.if_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.if_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // IF STATEMENT
+    #[test]
+    fn if_statement_test_01() {
+        let (node, scanner) = check(IfStatement::parse(&mut newparser("if (true) { a; }"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 16);
+        pretty_check(&*node, "IfStatement: if ( true ) { a ; }", vec!["Expression: true", "Statement: { a ; }"]);
+        concise_check(&*node, "IfStatement: if ( true ) { a ; }", vec!["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn if_statement_test_02() {
+        let (node, scanner) = check(IfStatement::parse(&mut newparser("if (0) { a; } else { b; }"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 25);
+        pretty_check(&*node, "IfStatement: if ( 0 ) { a ; } else { b ; }", vec!["Expression: 0", "Statement: { a ; }", "Statement: { b ; }"]);
+        concise_check(
+            &*node,
+            "IfStatement: if ( 0 ) { a ; } else { b ; }",
+            vec!["Keyword: if", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Block: { a ; }", "Keyword: else", "Block: { b ; }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn if_statement_test_err_01() {
+        check_err(IfStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘if’ expected", 1, 1);
+    }
+    #[test]
+    fn if_statement_test_err_02() {
+        check_err(IfStatement::parse(&mut newparser("if"), Scanner::new(), false, false, true), "‘(’ expected", 1, 3);
+    }
+    #[test]
+    fn if_statement_test_err_03() {
+        check_err(IfStatement::parse(&mut newparser("if ("), Scanner::new(), false, false, true), "Expression expected", 1, 5);
+    }
+    #[test]
+    fn if_statement_test_err_04() {
+        check_err(IfStatement::parse(&mut newparser("if (0"), Scanner::new(), false, false, true), "‘)’ expected", 1, 6);
+    }
+    #[test]
+    fn if_statement_test_err_05() {
+        check_err(IfStatement::parse(&mut newparser("if (0)"), Scanner::new(), false, false, true), "Statement expected", 1, 7);
+    }
+    #[test]
+    fn if_statement_test_err_06() {
+        check_err(IfStatement::parse(&mut newparser("if (0) a; else"), Scanner::new(), false, false, true), "Statement expected", 1, 15);
+    }
+    #[test]
+    fn if_statement_test_prettyerrors_1() {
+        let (item, _) = IfStatement::parse(&mut newparser("if (false) b;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn if_statement_test_prettyerrors_2() {
+        let (item, _) = IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn if_statement_test_conciseerrors_1() {
+        let (item, _) = IfStatement::parse(&mut newparser("if (false) b;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn if_statement_test_conciseerrors_2() {
+        let (item, _) = IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+}

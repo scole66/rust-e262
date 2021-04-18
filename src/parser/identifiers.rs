@@ -1210,5 +1210,4 @@ mod tests {
         assert!(scanner == scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
-
 }
