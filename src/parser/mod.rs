@@ -222,7 +222,7 @@ use block::{Block, StatementList};
 use comma_operator::Expression;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
 use function_definitions::{FunctionBody, FunctionDeclaration};
-use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
+use generator_function_definitions::GeneratorBody;
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
 use if_statement::IfStatement;
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
@@ -394,9 +394,9 @@ pub struct Parser<'a> {
     pub function_rest_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FunctionRestParameter>, RandomState>,
     //pub function_statement_list_cache: HashMap<YieldAwaitKey, (Rc<FunctionStatementList>, Scanner), RandomState>,
     pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
-    pub generator_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<GeneratorDeclaration>, RandomState>,
-    pub generator_expression_cache: HashMap<Scanner, ParseResult<GeneratorExpression>, RandomState>,
-    pub generator_method_cache: HashMap<YieldAwaitKey, ParseResult<GeneratorMethod>, RandomState>,
+    //pub generator_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<GeneratorDeclaration>, RandomState>,
+    //pub generator_expression_cache: HashMap<Scanner, ParseResult<GeneratorExpression>, RandomState>,
+    //pub generator_method_cache: HashMap<YieldAwaitKey, ParseResult<GeneratorMethod>, RandomState>,
     pub hoistable_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<HoistableDeclaration>, RandomState>,
     pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
     pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
@@ -456,7 +456,7 @@ pub struct Parser<'a> {
     //pub variable_statement_cache: HashMap<YieldAwaitKey, ParseResult<VariableStatement>, RandomState>,
     pub while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WhileStatement>, RandomState>,
     pub with_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WithStatement>, RandomState>,
-    pub yield_expression_cache: HashMap<InAwaitKey, ParseResult<YieldExpression>, RandomState>,
+    //pub yield_expression_cache: HashMap<InAwaitKey, ParseResult<YieldExpression>, RandomState>,
 }
 
 impl<'a> Parser<'a> {
