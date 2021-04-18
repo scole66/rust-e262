@@ -44,7 +44,7 @@ impl PrettyPrint for ExpressionStatement {
 }
 
 impl ExpressionStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (first_token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let invalid = match first_token {
             Token::Punctuator(Punctuator::LeftBrace) => true,
@@ -71,18 +71,6 @@ impl ExpressionStatement {
             let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
             let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
             Ok((Rc::new(ExpressionStatement::Expression(exp)), after_semi))
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.expression_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.expression_statement_cache.insert(key, result.clone());
-                result
-            }
         }
     }
 }

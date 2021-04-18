@@ -221,7 +221,6 @@ use binary_logical_operators::CoalesceExpression;
 use block::{Block, StatementList};
 use comma_operator::Expression;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
-use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionDeclaration, FunctionExpression, FunctionStatementList};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
@@ -380,7 +379,7 @@ pub struct Parser<'a> {
     //pub exponentiation_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExponentiationExpression>, RandomState>,
     pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
     pub expression_cache: HashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
-    pub expression_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExpressionStatement>, RandomState>,
+    //pub expression_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExpressionStatement>, RandomState>,
     pub finally_cache: HashMap<YieldAwaitReturnKey, ParseResult<Finally>, RandomState>,
     pub for_binding_cache: HashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
     pub for_declaration_cache: HashMap<YieldAwaitKey, ParseResult<ForDeclaration>, RandomState>,
