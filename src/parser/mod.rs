@@ -221,7 +221,6 @@ use binary_logical_operators::CoalesceExpression;
 use block::{Block, StatementList};
 use comma_operator::Expression;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
-use empty_statement::EmptyStatement;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
@@ -378,7 +377,7 @@ pub struct Parser<'a> {
     pub do_while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<DoWhileStatement>, RandomState>,
     pub element_list_cache: HashMap<YieldAwaitKey, ParseResult<ElementList>, RandomState>,
     pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
-    pub empty_statement_cache: HashMap<Scanner, ParseResult<EmptyStatement>, RandomState>,
+    //pub empty_statement_cache: HashMap<Scanner, ParseResult<EmptyStatement>, RandomState>,
     pub equality_expression_cache: HashMap<InYieldAwaitKey, ParseResult<EqualityExpression>, RandomState>,
     pub exponentiation_statement_cache: HashMap<YieldAwaitKey, ParseResult<ExponentiationExpression>, RandomState>,
     pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,

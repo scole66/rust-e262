@@ -35,20 +35,9 @@ impl PrettyPrint for EmptyStatement {
 }
 
 impl EmptyStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_semi = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
         Ok((Rc::new(EmptyStatement), after_semi))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.empty_statement_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.empty_statement_cache.insert(scanner, result.clone());
-                result
-            }
-        }
     }
 }
 
