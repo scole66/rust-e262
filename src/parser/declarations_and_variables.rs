@@ -757,7 +757,7 @@ impl ArrayBindingPattern {
                         Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
                         _ => {
                             let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
-                                Err(err) => (None, after_next),
+                                Err(_) => (None, after_next),
                                 Ok((e, s)) => (Some(e), s),
                             };
                             let (bre, after_bre, err_bre) = match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
@@ -780,7 +780,7 @@ impl ArrayBindingPattern {
             })
             .otherwise(|| {
                 let (elisions, after_elisions) = match Elisions::parse(parser, after_first) {
-                    Err(err) => (None, after_first),
+                    Err(_) => (None, after_first),
                     Ok((e, s)) => (Some(e), s),
                 };
                 let (bre, after_bre, err_bre) = match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {

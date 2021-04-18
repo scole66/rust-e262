@@ -144,7 +144,7 @@ mod tests {
     }
     #[test]
     fn expression_test_03() {
-        let (node, scanner) = check(Expression::parse(&mut newparser("a,"), Scanner::new(), true, false, false));
+        let (_, scanner) = check(Expression::parse(&mut newparser("a,"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
     }
     #[test]

@@ -232,7 +232,7 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
     };
     for name in method_names.iter() {
         let method = get(agent, obj, name)?;
-        if is_callable(agent, &method) {
+        if is_callable(&method) {
             let result = call(agent, &method, &ECMAScriptValue::from(obj), &[])?;
             if !result.is_object() {
                 return Ok(result);
@@ -360,7 +360,7 @@ pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> Result<Object, Abru
 //  1. If Type(argument) is not Object, return false.
 //  2. If argument has a [[Call]] internal method, return true.
 //  3. Return false.
-pub fn is_callable(agent: &mut Agent, value: &ECMAScriptValue) -> bool {
+pub fn is_callable(value: &ECMAScriptValue) -> bool {
     to_callable(value).is_some()
 }
 

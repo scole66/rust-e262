@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code)]
 #![feature(cmp_min_max_by)]
 
 use std::env;

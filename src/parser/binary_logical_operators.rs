@@ -530,6 +530,7 @@ mod tests {
     #[test]
     fn coalesce_expression_head_test_01() {
         let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 4);
         let head = &*pn.head;
         pretty_check(&*head, "CoalesceExpressionHead: a", vec!["BitwiseORExpression: a"]);
         concise_check(&*head, "IdentifierName: a", vec![]);
@@ -538,6 +539,7 @@ mod tests {
     fn coalesce_expression_head_test_02() {
         let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false));
         let head = &*pn.head;
+        chk_scan(&scanner, 7);
         pretty_check(&*head, "CoalesceExpressionHead: z ?? a", vec!["CoalesceExpression: z ?? a"]);
         concise_check(&*head, "CoalesceExpression: z ?? a", vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"]);
     }

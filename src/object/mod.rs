@@ -1097,7 +1097,7 @@ pub fn get_method(agent: &mut Agent, val: &ECMAScriptValue, key: &PropertyKey) -
     let func = getv(agent, val, key)?;
     if func.is_undefined() || func.is_null() {
         Ok(ECMAScriptValue::Undefined)
-    } else if !is_callable(agent, &func) {
+    } else if !is_callable(&func) {
         Err(create_type_error(agent, "item is not callable"))
     } else {
         Ok(func)
@@ -1254,7 +1254,7 @@ impl ObjectInterface for DeadObject {
     fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
         unreachable!();
     }
-    fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
+    fn set_prototype_of(&self, _obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
     fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
@@ -1263,22 +1263,22 @@ impl ObjectInterface for DeadObject {
     fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
-    fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
+    fn get_own_property(&self, _key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
         unreachable!();
     }
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+    fn define_own_property(&self, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
-    fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn has_property(&self, _key: &PropertyKey) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, _agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion {
         unreachable!();
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    fn set(&self, _agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
-    fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn delete(&self, _key: &PropertyKey) -> Result<bool, AbruptCompletion> {
         unreachable!();
     }
     fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {

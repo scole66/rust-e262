@@ -113,7 +113,7 @@ pub struct Realm {
     // TemplateMap: later, when needed
 }
 
-pub fn get_function_realm<'a, 'b>(agent: &mut Agent, obj: &'b Object) -> Result<&'a Realm, AbruptCompletion> {
+pub fn get_function_realm<'a, 'b>(_agent: &mut Agent, _obj: &'b Object) -> Result<&'a Realm, AbruptCompletion> {
     todo!()
 }
 

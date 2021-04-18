@@ -107,7 +107,7 @@ impl ArrowParameters {
         Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
             .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
-                let (covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
+                let (_covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
 
                 // This is only a successful cover if the parsed production and its cover end at the same place. But

@@ -71,7 +71,7 @@ impl PrettyPrint for AsyncArrowFunction {
 
 impl AsyncArrowFunction {
     // AsyncArrowFunction's (only) parent is AssignmentExpression. It doesn't need caching.
-    fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (id, after_id) = AsyncArrowBindingIdentifier::parse(parser, after_async, yield_flag)?;
@@ -87,7 +87,7 @@ impl AsyncArrowFunction {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Rc<AsyncArrowHead>, Scanner, Rc<AsyncConciseBody>, Scanner), ParseError> {
-        let (cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
+        let (_cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
         no_line_terminator(after_params, parser.source)?;
@@ -97,11 +97,11 @@ impl AsyncArrowFunction {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag, await_flag);
+        let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
             (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError::compare)),
-            (Err(_), Ok((real_params, after_params, body, after_covered))) => Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
+            (Err(_), Ok((real_params, _, body, after_covered))) => Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
             // (Ok(norm), Ok(covered)) can never happen, given the particulars of the productions
             (norm, covered) => {
                 assert!(covered.is_err() && norm.is_ok());

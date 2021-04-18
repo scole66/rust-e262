@@ -124,7 +124,7 @@ impl CallableObject for FunctionObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData> {
         &self.function_data
     }
-    fn call(&self, agent: &mut Agent, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion {
+    fn call(&self, _agent: &mut Agent, _this_argument: &ECMAScriptValue, _arguments_list: &[ECMAScriptValue]) -> Completion {
         todo!()
     }
 }

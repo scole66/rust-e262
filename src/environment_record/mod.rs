@@ -294,7 +294,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     //  1. Assert: envRec has a binding for N.
     //  2. If the binding for N in envRec is an uninitialized binding, throw a ReferenceError exception.
     //  3. Return the value currently bound to N in envRec.
-    fn get_binding_value(&self, agent: &mut Agent, name: &JSString, strict: bool) -> Completion {
+    fn get_binding_value(&self, agent: &mut Agent, name: &JSString, _strict: bool) -> Completion {
         let bindings = self.bindings.borrow();
         let maybe_value = &bindings.get(name).unwrap().value;
         match maybe_value {
@@ -815,7 +815,7 @@ impl FunctionEnvironmentRecord {
         FunctionEnvironmentRecord {
             base: DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: outer },
             this_value: ECMAScriptValue::Undefined,
-            this_binding_status: BindingStatus::Uninitialized,
+            this_binding_status: tbs,
             function_object: f,
             new_target,
         }

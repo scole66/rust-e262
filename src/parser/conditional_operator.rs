@@ -129,17 +129,17 @@ mod tests {
     }
     #[test]
     fn conditional_expression_test_03() {
-        let (node, scanner) = check(ConditionalExpression::parse(&mut newparser("a?"), Scanner::new(), true, false, false));
+        let (_, scanner) = check(ConditionalExpression::parse(&mut newparser("a?"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
     }
     #[test]
     fn conditional_expression_test_04() {
-        let (node, scanner) = check(ConditionalExpression::parse(&mut newparser("a?b"), Scanner::new(), true, false, false));
+        let (_, scanner) = check(ConditionalExpression::parse(&mut newparser("a?b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
     }
     #[test]
     fn conditional_expression_test_05() {
-        let (node, scanner) = check(ConditionalExpression::parse(&mut newparser("a?b:"), Scanner::new(), true, false, false));
+        let (_, scanner) = check(ConditionalExpression::parse(&mut newparser("a?b:"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
     }
     #[test]

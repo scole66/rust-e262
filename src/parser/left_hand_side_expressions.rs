@@ -306,7 +306,7 @@ impl PrettyPrint for SuperProperty {
 }
 
 impl SuperProperty {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_super = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
         let (punct, after_punct) = scan_for_punct_set(after_super, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::Dot, Punctuator::LeftBracket])?;
         match punct {
@@ -318,18 +318,6 @@ impl SuperProperty {
             _ => {
                 let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementRegExp)?;
                 Ok((Rc::new(SuperProperty { kind: SuperPropertyKind::IdentifierName(id) }), after_id))
-            }
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.super_property_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.super_property_cache.insert(key, result.clone());
-                result
             }
         }
     }
@@ -403,22 +391,11 @@ impl MetaProperty {
         Ok((Rc::new(MetaProperty { kind }), after_kwd))
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (kwd, after_kwd) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
             Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaPropertyKind::NewTarget),
             _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta),
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.meta_property_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.meta_property_cache.insert(scanner, result.clone());
-                result
-            }
         }
     }
 }
@@ -745,7 +722,7 @@ impl AssignmentTargetType for NewExpression {
 }
 
 impl NewExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("‘new’ or MemberExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (me, after_me) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
@@ -756,18 +733,6 @@ impl NewExpression {
                 let (ne, after_ne) = Self::parse(parser, after_new, yield_flag, await_flag)?;
                 Ok((Rc::new(NewExpression { kind: NewExpressionKind::NewExpression(ne) }), after_ne))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.new_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.new_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -807,22 +772,10 @@ impl PrettyPrint for CallMemberExpression {
 }
 
 impl CallMemberExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (me, after_me) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let (args, after_args) = Arguments::parse(parser, after_me, yield_flag, await_flag)?;
         Ok((Rc::new(CallMemberExpression { member_expression: me, arguments: args }), after_args))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.call_member_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.call_member_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -860,22 +813,10 @@ impl PrettyPrint for SuperCall {
 }
 
 impl SuperCall {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_super = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
         let (args, after_args) = Arguments::parse(parser, after_super, yield_flag, await_flag)?;
         Ok((Rc::new(Self { arguments: args }), after_args))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.super_call_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.super_call_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -915,24 +856,12 @@ impl PrettyPrint for ImportCall {
 }
 
 impl ImportCall {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_import = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Import)?;
         let after_lp = scan_for_punct(after_import, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let after_rp = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
         Ok((Rc::new(Self { assignment_expression: ae }), after_rp))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.import_call_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.import_call_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1266,7 +1195,7 @@ impl PrettyPrint for OptionalExpression {
 }
 
 impl OptionalExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("OptionalExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 MemberExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(me, after_me)| {
@@ -1289,18 +1218,6 @@ impl OptionalExpression {
                 }
                 (current, current_scanner)
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.optional_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.optional_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1420,7 +1337,7 @@ impl PrettyPrint for OptionalChain {
 }
 
 impl OptionalChain {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_opt = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
         let (mut current, mut current_scan) = Err(ParseError::new("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)", after_opt.line, after_opt.column))
             .otherwise(|| {
@@ -1481,18 +1398,6 @@ impl OptionalChain {
             current_scan = scan;
         }
         Ok((current, current_scan))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.optional_chain_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.optional_chain_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

@@ -155,7 +155,7 @@ impl AsyncFunctionExpression {
         no_line_terminator(after_async, parser.source)?;
         let after_function = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, false, true) {
-            Err(e) => (None, after_function),
+            Err(_) => (None, after_function),
             Ok((node, scan)) => (Some(node), scan),
         };
         let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;

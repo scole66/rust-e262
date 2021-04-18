@@ -591,7 +591,7 @@ impl ElementList {
         let pot_elision = Elisions::parse(parser, scanner);
         let (elision, after_e_scanner) = match pot_elision {
             Ok((boxed, after_elision)) => (Some(boxed), after_elision),
-            Err(pe) => (None, scanner),
+            Err(_) => (None, scanner),
         };
         let pot_ae = AssignmentExpression::parse(parser, after_e_scanner, true, yield_flag, await_flag);
         match pot_ae {
@@ -1431,8 +1431,8 @@ impl PrettyPrint for Literal {
         match &self.kind {
             LiteralKind::NullLiteral => pprint_token(writer, "null", TokenType::Keyword, pad, state),
             LiteralKind::BooleanLiteral(_) => pprint_token(writer, self, TokenType::Keyword, pad, state),
-            LiteralKind::NumericLiteral(num) => pprint_token(writer, self, TokenType::Numeric, pad, state),
-            LiteralKind::StringLiteral(jsstring) => pprint_token(writer, self, TokenType::String, pad, state),
+            LiteralKind::NumericLiteral(_) => pprint_token(writer, self, TokenType::Numeric, pad, state),
+            LiteralKind::StringLiteral(_) => pprint_token(writer, self, TokenType::String, pad, state),
         }
     }
 }
