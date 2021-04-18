@@ -201,19 +201,8 @@ impl PrettyPrint for PropertySetParameterList {
 }
 
 impl PropertySetParameterList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
-    }
-
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.property_set_parameter_list_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.property_set_parameter_list_cache.insert(scanner, result.clone());
-                result
-            }
-        }
+        FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
     }
 }
 
@@ -443,5 +432,13 @@ mod tests {
     fn method_definition_test_conciseerrors_6() {
         let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
+    }
+    #[test]
+    fn method_definition_test_cache_01() {
+        let mut parser = newparser("a(b){c;}");
+        let (node, scanner) = check(MethodDefinition::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(MethodDefinition::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
 }

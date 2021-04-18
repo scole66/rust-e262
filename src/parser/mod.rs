@@ -227,7 +227,7 @@ use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdent
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
-use method_definitions::{MethodDefinition, PropertySetParameterList};
+use method_definitions::MethodDefinition;
 use multiplicative_operators::{MultiplicativeExpression, MultiplicativeOperator};
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
 use primary_expressions::{
@@ -425,7 +425,7 @@ pub struct Parser<'a> {
     pub primary_expression_cache: HashMap<YieldAwaitKey, ParseResult<PrimaryExpression>, RandomState>,
     pub property_def_cache: HashMap<YieldAwaitKey, ParseResult<PropertyDefinition>, RandomState>,
     pub property_name_cache: HashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
-    pub property_set_parameter_list_cache: HashMap<Scanner, ParseResult<PropertySetParameterList>, RandomState>,
+    //pub property_set_parameter_list_cache: HashMap<Scanner, ParseResult<PropertySetParameterList>, RandomState>,
     pub relational_expression_cache: HashMap<InYieldAwaitKey, ParseResult<RelationalExpression>, RandomState>,
     pub return_statement_cache: HashMap<YieldAwaitKey, ParseResult<ReturnStatement>, RandomState>,
     //pub shift_expression_cache: HashMap<YieldAwaitKey, ParseResult<ShiftExpression>, RandomState>,
