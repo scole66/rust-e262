@@ -38,7 +38,7 @@ pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object
     create_native_error_object(agent, message, cstr, IntrinsicIdentifier::ReferenceErrorPrototype)
 }
 pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
-    AbruptCompletion::Throw(CompletionInfo{ value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, message))), target: None})
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, message))), target: None })
 }
 
 pub struct ErrorObject {

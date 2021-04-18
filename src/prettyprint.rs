@@ -185,7 +185,6 @@ pub mod testhelp {
             }
             target += 1;
         }
-        assert!(target > 1); // Just to be sure the system is not utterly broken
     }
     pub fn pretty_error_validate<T>(item: &T)
     where

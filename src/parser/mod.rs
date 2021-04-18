@@ -221,7 +221,7 @@ use binary_logical_operators::CoalesceExpression;
 use block::{Block, StatementList};
 use comma_operator::Expression;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
-use function_definitions::{FunctionBody, FunctionDeclaration, FunctionExpression, FunctionStatementList};
+use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
 use if_statement::IfStatement;
@@ -390,9 +390,9 @@ pub struct Parser<'a> {
     pub formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
     pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
     pub function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
-    pub function_expression_cache: HashMap<Scanner, ParseResult<FunctionExpression>, RandomState>,
+    //pub function_expression_cache: HashMap<Scanner, ParseResult<FunctionExpression>, RandomState>,
     pub function_rest_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FunctionRestParameter>, RandomState>,
-    pub function_statement_list_cache: HashMap<YieldAwaitKey, (Rc<FunctionStatementList>, Scanner), RandomState>,
+    //pub function_statement_list_cache: HashMap<YieldAwaitKey, (Rc<FunctionStatementList>, Scanner), RandomState>,
     pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
     pub generator_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<GeneratorDeclaration>, RandomState>,
     pub generator_expression_cache: HashMap<Scanner, ParseResult<GeneratorExpression>, RandomState>,

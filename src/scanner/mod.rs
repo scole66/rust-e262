@@ -1897,7 +1897,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let flag_cap = captures.name("flags").unwrap();
                 let flag_end = flag_cap.end();
                 let flags = String::from(flag_cap.as_str());
-                let chars_in_match = source[scanner.start_idx..scanner.start_idx+flag_end].chars().count();
+                let chars_in_match = source[scanner.start_idx..scanner.start_idx + flag_end].chars().count();
                 let after_scanner = Scanner { line: scanner.line, column: scanner.column + chars_in_match as u32, start_idx: scanner.start_idx + flag_end };
                 let token = Token::RegularExpression(RegularExpressionData { body, flags });
                 Some((token, after_scanner))
@@ -2836,12 +2836,12 @@ mod tests {
     #[test]
     fn regular_expression_literal_test_02() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
-        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData{body:String::from("abcd"), flags: String::from("")}), Scanner { line: 1, column: 7, start_idx: 6})));
+        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::from("") }), Scanner { line: 1, column: 7, start_idx: 6 })));
     }
     #[test]
     fn regular_expression_literal_test_03() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
-        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData{body:String::from("abcd"), flags: String::from("")}), Scanner { line: 1, column: 7, start_idx: 6})));
+        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::from("") }), Scanner { line: 1, column: 7, start_idx: 6 })));
     }
 
     #[test]
@@ -3023,23 +3023,23 @@ mod tests {
     fn regex_test_01() {
         let r = scan_token(&Scanner::new(), "/a/", ScanGoal::InputElementRegExp);
         let (token, scanner) = r;
-        assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3});
-        assert_eq!(token, Token::RegularExpression(RegularExpressionData{ body: String::from("a"), flags: String::new()}));
+        assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
+        assert_eq!(token, Token::RegularExpression(RegularExpressionData { body: String::from("a"), flags: String::new() }));
     }
 
     #[test]
     fn regex_test_02() {
         let r = scan_token(&Scanner::new(), "/blue/green", ScanGoal::InputElementRegExp);
         let (token, scanner) = r;
-        assert_eq!(scanner, Scanner {line: 1, column: 12, start_idx: 11});
-        assert_eq!(token, Token::RegularExpression( RegularExpressionData{ body: String::from("blue"), flags: String::from("green")}));
+        assert_eq!(scanner, Scanner { line: 1, column: 12, start_idx: 11 });
+        assert_eq!(token, Token::RegularExpression(RegularExpressionData { body: String::from("blue"), flags: String::from("green") }));
     }
     #[test]
     fn regex_test_03() {
         let scanner = Scanner { line: 1, column: 5, start_idx: 4 };
         let r = scan_token(&scanner, "####/blue/green", ScanGoal::InputElementRegExp);
         let (token, scanner) = r;
-        assert_eq!(scanner, Scanner {line: 1, column: 16, start_idx: 15});
-        assert_eq!(token, Token::RegularExpression( RegularExpressionData{ body: String::from("blue"), flags: String::from("green")}));
+        assert_eq!(scanner, Scanner { line: 1, column: 16, start_idx: 15 });
+        assert_eq!(token, Token::RegularExpression(RegularExpressionData { body: String::from("blue"), flags: String::from("green") }));
     }
 }
