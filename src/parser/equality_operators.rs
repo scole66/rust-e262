@@ -91,7 +91,7 @@ impl AssignmentTargetType for EqualityExpression {
 }
 
 impl EqualityExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         let mut current = Rc::new(EqualityExpression::RelationalExpression(re1));
         let mut current_scanner = after_re1;
@@ -118,18 +118,6 @@ impl EqualityExpression {
             }
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.equality_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.equality_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 

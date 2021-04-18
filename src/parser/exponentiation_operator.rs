@@ -78,7 +78,7 @@ impl AssignmentTargetType for ExponentiationExpression {
 }
 
 impl ExponentiationExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ExponentiationExpression expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
@@ -90,18 +90,6 @@ impl ExponentiationExpression {
                 let (unary, after_unary) = UnaryExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::UnaryExpression(unary)), after_unary))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.exponentiation_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.exponentiation_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -161,7 +149,7 @@ mod tests {
     }
     #[test]
     fn exponentiation_expression_test_conciseerrors_1() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("3*4"), Scanner::new(), false, false).unwrap();
+        let (item, _) = ExponentiationExpression::parse(&mut newparser("3**4"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
     }
     #[test]
