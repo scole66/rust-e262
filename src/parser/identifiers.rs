@@ -1202,4 +1202,13 @@ mod tests {
         let (item, _) = LabelIdentifier::parse(&mut newparser("bob"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
     }
+    #[test]
+    fn label_identifier_test_cache_01() {
+        let mut parser = newparser("bob");
+        let (node, scanner) = LabelIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
+        let (node2, scanner2) = LabelIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+
 }
