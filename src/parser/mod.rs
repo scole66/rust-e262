@@ -228,7 +228,6 @@ use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOf
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
 use method_definitions::MethodDefinition;
-use multiplicative_operators::{MultiplicativeExpression, MultiplicativeOperator};
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
 use primary_expressions::{
     ComputedPropertyName, CoverInitializedName, CoverParenthesizedExpressionAndArrowParameterList, ElementList, Elisions, Initializer, Literal, LiteralPropertyName, ObjectLiteral,
@@ -413,8 +412,8 @@ pub struct Parser<'a> {
     pub member_expression_cache: HashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
     pub meta_property_cache: HashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
     pub method_definition_cache: HashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
-    pub multiplicative_expression_cache: HashMap<YieldAwaitKey, ParseResult<MultiplicativeExpression>, RandomState>,
-    pub multiplicative_operator_cache: HashMap<Scanner, ParseResult<MultiplicativeOperator>, RandomState>,
+    //pub multiplicative_expression_cache: HashMap<YieldAwaitKey, ParseResult<MultiplicativeExpression>, RandomState>,
+    //pub multiplicative_operator_cache: HashMap<Scanner, ParseResult<MultiplicativeOperator>, RandomState>,
     //pub new_expression_cache: HashMap<YieldAwaitKey, ParseResult<NewExpression>, RandomState>,
     //pub object_binding_pattern_cache: HashMap<YieldAwaitKey, ParseResult<ObjectBindingPattern>, RandomState>,
     pub object_literal_cache: HashMap<YieldAwaitKey, ParseResult<ObjectLiteral>, RandomState>,
