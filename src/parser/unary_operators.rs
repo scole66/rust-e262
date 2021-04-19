@@ -362,4 +362,13 @@ mod tests {
         let (item, _) = UnaryExpression::parse(&mut newparser("await a"), Scanner::new(), false, true).unwrap();
         concise_error_validate(&*item);
     }
+    #[test]
+    fn unary_expression_test_cache_01() {
+        let mut parser = newparser("void blue");
+        let (node, scanner) = check(UnaryExpression::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(UnaryExpression::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+
 }
