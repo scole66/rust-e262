@@ -234,7 +234,6 @@ use primary_expressions::{
     ParenthesizedExpression, PrimaryExpression, PropertyDefinition, PropertyDefinitionList, PropertyName, SpreadElement, SubstitutionTemplate, TemplateLiteral, TemplateMiddleList,
     TemplateSpans,
 };
-use relational_operators::RelationalExpression;
 use return_statement::ReturnStatement;
 use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
@@ -425,7 +424,7 @@ pub struct Parser<'a> {
     pub property_def_cache: HashMap<YieldAwaitKey, ParseResult<PropertyDefinition>, RandomState>,
     pub property_name_cache: HashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
     //pub property_set_parameter_list_cache: HashMap<Scanner, ParseResult<PropertySetParameterList>, RandomState>,
-    pub relational_expression_cache: HashMap<InYieldAwaitKey, ParseResult<RelationalExpression>, RandomState>,
+    //pub relational_expression_cache: HashMap<InYieldAwaitKey, ParseResult<RelationalExpression>, RandomState>,
     pub return_statement_cache: HashMap<YieldAwaitKey, ParseResult<ReturnStatement>, RandomState>,
     //pub shift_expression_cache: HashMap<YieldAwaitKey, ParseResult<ShiftExpression>, RandomState>,
     //pub short_circuit_expression_cache: HashMap<InYieldAwaitKey, ParseResult<ShortCircuitExpression>, RandomState>,

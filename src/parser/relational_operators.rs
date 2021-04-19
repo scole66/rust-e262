@@ -113,7 +113,7 @@ impl RelationalExpression {
             || (tok.matches_keyword(Keyword::In) && in_flag)
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (se, after_se) = ShiftExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
         let mut current_scanner = after_se;
@@ -142,18 +142,6 @@ impl RelationalExpression {
             }
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
-        match parser.relational_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, in_flag, yield_flag, await_flag);
-                parser.relational_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
