@@ -46,7 +46,7 @@ impl fmt::Display for TokenType {
             TokenType::Keyword => f.write_str("Keyword"),
             TokenType::Punctuator => f.write_str("Punctuator"),
             TokenType::IdentifierName => f.write_str("IdentifierName"),
-            TokenType::RegularExpression => f.write_str("RegularExpression"),
+            TokenType::RegularExpression => f.write_str("RegularExpressionLiteral"),
             TokenType::Numeric => f.write_str("Numeric"),
             TokenType::String => f.write_str("String"),
             TokenType::NoSubTemplate => f.write_str("NoSubTemplate"),

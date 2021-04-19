@@ -302,17 +302,6 @@ impl PrimaryExpression {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.primary_expression_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.primary_expression_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
@@ -432,22 +421,10 @@ impl PrettyPrint for SpreadElement {
 }
 
 impl SpreadElement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.spread_element_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.spread_element_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -614,7 +591,7 @@ impl ElementList {
         }
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let mut current_production;
         let mut current_scanner;
 
@@ -635,18 +612,6 @@ impl ElementList {
             current_scanner = after;
         }
         Ok((current_production, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.element_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.element_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -857,22 +822,10 @@ impl PrettyPrint for CoverInitializedName {
 }
 
 impl CoverInitializedName {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (idref, after_idref) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         let (izer, after_izer) = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
         Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.cin_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.cin_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -914,23 +867,11 @@ impl PrettyPrint for ComputedPropertyName {
 }
 
 impl ComputedPropertyName {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
         let after_rb = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
         Ok((Rc::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
-    }
-
-    fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.cpn_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.cpn_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -981,7 +922,7 @@ impl PrettyPrint for LiteralPropertyName {
 }
 
 impl LiteralPropertyName {
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
@@ -989,17 +930,6 @@ impl LiteralPropertyName {
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
             Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
             _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match parser.lpn_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.lpn_cache.insert(scanner, result.clone());
-                result
-            }
         }
     }
 }
@@ -1169,25 +1099,13 @@ impl PropertyDefinition {
         Ok((Rc::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_idref(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.property_def_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.property_def_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1242,7 +1160,7 @@ impl PrettyPrint for PropertyDefinitionList {
 }
 
 impl PropertyDefinitionList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (pd, after_pd) = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(PropertyDefinitionList::OneDef(pd));
         let mut current_scanner = after_pd;
@@ -1253,18 +1171,6 @@ impl PropertyDefinitionList {
             current_scanner = after_pd2;
         }
         Ok((current_production, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.pdl_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.pdl_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1323,7 +1229,7 @@ impl PrettyPrint for ObjectLiteral {
 }
 
 impl ObjectLiteral {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
             Err(_) => {
@@ -1339,18 +1245,6 @@ impl ObjectLiteral {
                         Ok((Rc::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))
                     }
                 }
-            }
-        }
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.object_literal_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.object_literal_cache.insert(key, result.clone());
-                result
             }
         }
     }
@@ -1439,17 +1333,6 @@ impl PrettyPrint for Literal {
 
 impl Literal {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
-        match parser.literal_cache.get(&scanner) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner);
-                parser.literal_cache.insert(scanner, result.clone());
-                result
-            }
-        }
-    }
-
-    fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
         let (token, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
             Token::Identifier(id) if id.matches(Keyword::Null) => Ok((Rc::new(Literal { kind: LiteralKind::NullLiteral }), newscanner)),
@@ -1578,7 +1461,7 @@ impl PrettyPrint for SubstitutionTemplate {
 }
 
 impl SubstitutionTemplate {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (head, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::TemplateHead(td) = head {
             let (exp_boxed, after_exp) = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
@@ -1586,17 +1469,6 @@ impl SubstitutionTemplate {
             Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
         } else {
             Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
-        }
-    }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
-        match parser.substitution_template_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
-                parser.substitution_template_cache.insert(key, result.clone());
-                result
-            }
         }
     }
 }
@@ -1669,21 +1541,10 @@ impl TemplateSpans {
             Err(ParseError::new("TemplateTail expected", after_tml.line, after_tml.column))
         }
     }
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
-    }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
-        match parser.template_spans_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
-                parser.template_spans_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1756,25 +1617,13 @@ impl TemplateMiddleList {
         Ok((Rc::new(TemplateMiddleList::ListHead(td, exp, tagged_flag)), after_exp))
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
         let (mut current_node, mut current_scanner) = Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
         while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag) {
             current_node = Rc::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
             current_scanner = after;
         }
         Ok((current_node, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
-        match parser.template_middle_list_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, tagged_flag);
-                parser.template_middle_list_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -1831,23 +1680,11 @@ impl AssignmentTargetType for ParenthesizedExpression {
 }
 
 impl ParenthesizedExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let after_rp = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
         Ok((Rc::new(ParenthesizedExpression::Expression(exp)), after_rp))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.parenthesized_exp_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.parenthesized_exp_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -2079,6 +1916,9 @@ mod tests {
         let (pe7, _) = check(PrimaryExpression::parse(&mut newparser("`rust`"), Scanner::new(), false, false));
         pretty_check(&*pe7, "PrimaryExpression: `rust`", vec!["TemplateLiteral: `rust`"]);
         concise_check(&*pe7, "NoSubTemplate: `rust`", vec![]);
+        let (pe8, _) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
+        pretty_check(&*pe8, "PrimaryExpression: /rust/", vec![]);
+        concise_check(&*pe8, "RegularExpressionLiteral: /rust/", vec![]);
     }
     #[test]
     fn primary_expression_test_idref() {
@@ -2223,6 +2063,15 @@ mod tests {
         );
     }
     #[test]
+    fn primary_expression_test_regexp() {
+        let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        assert!(matches!(node.kind, PrimaryExpressionKind::RegularExpression(..)));
+        assert_eq!(node.is_function_definition(), false);
+        assert_eq!(node.is_identifier_reference(), false);
+        assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
+    }
+    #[test]
     fn primary_expression_test_prettyerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         pretty_error_validate(&*item);
@@ -2278,6 +2127,11 @@ mod tests {
         pretty_error_validate(&*item);
     }
     #[test]
+    fn primary_expression_test_prettyerrors_12() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
     fn primary_expression_test_conciseerrors_1() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
@@ -2330,6 +2184,11 @@ mod tests {
     #[test]
     fn primary_expression_test_conciseerrors_11() {
         let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn primary_expression_test_conciseerrors_12() {
+        let (item, _) = PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
     }
 
@@ -2814,6 +2673,14 @@ mod tests {
     fn initializer_test_conciseerrors_1() {
         let (item, _) = Initializer::parse(&mut newparser("=2"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(&*item);
+    }
+    #[test]
+    fn initializer_test_cache_01() {
+        let mut parser = newparser("='ble'");
+        let (node, scanner) = check(Initializer::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(Initializer::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
 
     // COVER INITIALIZED NAME
@@ -3439,6 +3306,14 @@ mod tests {
         let (item, _) = TemplateLiteral::parse(&mut newparser("``"), Scanner::new(), false, false, false).unwrap();
         concise_error_validate(&*item);
     }
+    #[test]
+    fn template_literal_test_cache_01() {
+        let mut parser = newparser("`Name: ${name}; Phone: ${phone}.`");
+        let (node, scanner) = check(TemplateLiteral::parse(&mut parser, Scanner::new(), false, false, false));
+        let (node2, scanner2) = check(TemplateLiteral::parse(&mut parser, Scanner::new(), false, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
 
     // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
     #[test]
@@ -3613,5 +3488,13 @@ mod tests {
     fn cpeaapl_test_conciseerrors_7() {
         let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...{})"), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
+    }
+    #[test]
+    fn cpeaapl_test_cache_01() {
+        let mut parser = newparser("(a+b+c)");
+        let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+        let (node2, scanner2) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
     }
 }
