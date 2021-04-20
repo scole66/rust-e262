@@ -47,23 +47,11 @@ impl PrettyPrint for LabelledStatement {
 }
 
 impl LabelledStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.labelled_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.labelled_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -110,7 +98,7 @@ impl PrettyPrint for LabelledItem {
 }
 
 impl LabelledItem {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("LabelledItem expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -121,23 +109,89 @@ impl LabelledItem {
                 Ok((Rc::new(LabelledItem::Function(fcn)), after_fcn))
             })
     }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.labelled_item_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.labelled_item_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // LABELLED STATEMENT
+    #[test]
+    fn labelled_statement_test_01() {
+        let (node, scanner) = check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 13);
+        pretty_check(&*node, "LabelledStatement: blue : orange ;", vec!["LabelIdentifier: blue", "LabelledItem: orange ;"]);
+        concise_check(&*node, "LabelledStatement: blue : orange ;", vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn labelled_statement_test_err_01() {
+        check_err(LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "Not an identifier", 1, 1);
+    }
+    #[test]
+    fn labelled_statement_test_err_02() {
+        check_err(LabelledStatement::parse(&mut newparser("a"), Scanner::new(), false, false, true), "‘:’ expected", 1, 2);
+    }
+    #[test]
+    fn labelled_statement_test_err_03() {
+        check_err(LabelledStatement::parse(&mut newparser("a:"), Scanner::new(), false, false, true), "LabelledItem expected", 1, 3);
+    }
+    #[test]
+    fn labelled_statement_test_prettyerrors_1() {
+        let (item, _) = LabelledStatement::parse(&mut newparser("i:b;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn labelled_statement_test_conciseerrors_1() {
+        let (item, _) = LabelledStatement::parse(&mut newparser("i:b;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    // LABELLED ITEM
+    #[test]
+    fn labelled_item_test_01() {
+        let (node, scanner) = check(LabelledItem::parse(&mut newparser("orange;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 7);
+        pretty_check(&*node, "LabelledItem: orange ;", vec!["Statement: orange ;"]);
+        concise_check(&*node, "ExpressionStatement: orange ;", vec!["IdentifierName: orange", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn labelled_item_test_02() {
+        let (node, scanner) = check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 14);
+        pretty_check(&*node, "LabelledItem: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "FunctionDeclaration: function a (  ) {  }",
+            vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn labelled_item_test_err_01() {
+        check_err(LabelledItem::parse(&mut newparser(""), Scanner::new(), false, false, true), "LabelledItem expected", 1, 1);
+    }
+    #[test]
+    fn labelled_item_test_prettyerrors_1() {
+        let (item, _) = LabelledItem::parse(&mut newparser("a;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn labelled_item_test_prettyerrors_2() {
+        let (item, _) = LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn labelled_item_test_conciseerrors_1() {
+        let (item, _) = LabelledItem::parse(&mut newparser("a;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn labelled_item_test_conciseerrors_2() {
+        let (item, _) = LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+}

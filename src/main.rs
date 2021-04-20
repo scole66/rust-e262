@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-#![feature(cmp_min_max_by)]
+//#![feature(cmp_min_max_by)]
 
 use std::env;
 use std::io::{self, Write};

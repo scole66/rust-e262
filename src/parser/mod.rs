@@ -225,7 +225,6 @@ use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::GeneratorBody;
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
-use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
 use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
@@ -350,8 +349,6 @@ pub struct Parser<'a> {
     pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
     pub iteration_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IterationStatement>, RandomState>,
     pub label_identifier_cache: HashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
-    pub labelled_item_cache: HashMap<YieldAwaitReturnKey, ParseResult<LabelledItem>, RandomState>,
-    pub labelled_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<LabelledStatement>, RandomState>,
     pub lexical_declaration_cache: HashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
     pub lhs_cache: HashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
     pub lpn_cache: HashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
