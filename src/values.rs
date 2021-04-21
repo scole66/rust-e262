@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::bigint_object::create_bigint_object;
 use super::boolean_object::create_boolean_object;
-use super::cr::{AbruptCompletion, Completion};
+use super::cr::{AltCompletion, Completion};
 use super::dtoa_r::dtoa;
 use super::errors::create_type_error;
 use super::number_object::create_number_object;
@@ -340,7 +340,7 @@ pub fn to_boolean(val: ECMAScriptValue) -> bool {
 // | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
 // | Object        | Return argument.                                                                    |
 // +---------------+-------------------------------------------------------------------------------------+
-pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> Result<Object, AbruptCompletion> {
+pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<Object> {
     match val {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),

@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AbruptCompletion, Completion};
+use super::cr::{AltCompletion, Completion};
 use super::environment_record::EnvironmentRecord;
 use super::errors::{create_reference_error, create_type_error};
 use super::execution_context::get_global_object;
@@ -124,7 +124,7 @@ pub enum SuperValue {
     Value(ECMAScriptValue),
     Reference(Reference),
 }
-pub fn get_value(agent: &mut Agent, v_completion: Result<SuperValue, AbruptCompletion>) -> Completion {
+pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> Completion {
     let v = v_completion?;
     match v {
         SuperValue::Value(val) => Ok(val),
@@ -163,7 +163,7 @@ pub fn get_value(agent: &mut Agent, v_completion: Result<SuperValue, AbruptCompl
 // NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(agent: &mut Agent, v_completion: Result<SuperValue, AbruptCompletion>, w_completion: Completion) -> Result<(), AbruptCompletion> {
+pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
@@ -220,7 +220,7 @@ pub fn get_this_value(v: &Reference) -> ECMAScriptValue {
 //  5. Let base be V.[[Base]].
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
-pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: Result<SuperValue, AbruptCompletion>, w_completion: Completion) -> Result<(), AbruptCompletion> {
+pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {

@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::AbruptCompletion;
+use super::cr::AltCompletion;
 use super::object::{define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -113,7 +113,7 @@ pub struct Realm {
     // TemplateMap: later, when needed
 }
 
-pub fn get_function_realm<'a, 'b>(_agent: &mut Agent, _obj: &'b Object) -> Result<&'a Realm, AbruptCompletion> {
+pub fn get_function_realm<'a, 'b>(_agent: &mut Agent, _obj: &'b Object) -> AltCompletion<&'a Realm> {
     todo!()
 }
 

@@ -16,3 +16,7 @@ pub enum AbruptCompletion {
 }
 
 pub type Completion = Result<ECMAScriptValue, AbruptCompletion>;
+pub type AltCompletion<T> = Result<T, AbruptCompletion>;
+
+#[cfg(test)]
+mod tests;

@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
-use super::cr::{AbruptCompletion, Completion};
+use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::CallableObject;
@@ -280,7 +280,7 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(o: T, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion>
+pub fn ordinary_define_own_property<'a, T>(o: T, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -473,7 +473,7 @@ where
 //  5. If parent is not null, then
 //      a. Return ? parent.[[HasProperty]](P).
 //  6. Return false.
-pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Result<bool, AbruptCompletion>
+pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -542,7 +542,7 @@ where
 //  1. Assert: IsPropertyKey(P) is true.
 //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
 //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(o: T, agent: &mut Agent, p: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion>
+pub fn ordinary_set<'a, T>(o: T, agent: &mut Agent, p: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -588,7 +588,7 @@ pub fn ordinary_set_with_own_descriptor<'a, T>(
     v: &ECMAScriptValue,
     receiver: &ECMAScriptValue,
     pot_own_desc: Option<PropertyDescriptor>,
-) -> Result<bool, AbruptCompletion>
+) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -655,7 +655,7 @@ where
 //      a. Remove the own property with name P from O.
 //      b. Return true.
 //  5. Return false.
-pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Result<bool, AbruptCompletion>
+pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -741,17 +741,17 @@ pub trait ObjectInterface {
         None
     }
 
-    fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion>;
-    fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion>;
-    fn is_extensible(&self) -> Result<bool, AbruptCompletion>;
-    fn prevent_extensions(&self) -> Result<bool, AbruptCompletion>;
-    fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion>;
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion>;
-    fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion>;
+    fn get_prototype_of(&self) -> AltCompletion<Option<Object>>;
+    fn set_prototype_of(&self, obj: Option<&Object>) -> AltCompletion<bool>;
+    fn is_extensible(&self) -> AltCompletion<bool>;
+    fn prevent_extensions(&self) -> AltCompletion<bool>;
+    fn get_own_property(&self, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
+    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool>;
+    fn has_property(&self, key: &PropertyKey) -> AltCompletion<bool>;
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion>;
-    fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion>;
-    fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion>;
+    fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
+    fn delete(&self, key: &PropertyKey) -> AltCompletion<bool>;
+    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>>;
 }
 
 pub trait FunctionInterface {
@@ -799,7 +799,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
-    fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
+    fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -809,7 +809,7 @@ impl ObjectInterface for OrdinaryObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
+    fn set_prototype_of(&self, obj: Option<&Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -819,7 +819,7 @@ impl ObjectInterface for OrdinaryObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
+    fn is_extensible(&self) -> AltCompletion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -829,7 +829,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
+    fn prevent_extensions(&self) -> AltCompletion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -839,7 +839,7 @@ impl ObjectInterface for OrdinaryObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
+    fn get_own_property(&self, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -849,7 +849,7 @@ impl ObjectInterface for OrdinaryObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(self, key, desc)
     }
 
@@ -859,7 +859,7 @@ impl ObjectInterface for OrdinaryObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn has_property(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_has_property(self, key)
     }
 
@@ -879,7 +879,7 @@ impl ObjectInterface for OrdinaryObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(self, agent, key, v, receiver)
     }
 
@@ -889,7 +889,7 @@ impl ObjectInterface for OrdinaryObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn delete(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_delete(self, key)
     }
 
@@ -899,7 +899,7 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
+    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }
@@ -1033,7 +1033,7 @@ pub fn getv(agent: &mut Agent, v: &ECMAScriptValue, p: &PropertyKey) -> Completi
 //  4. Let success be ? O.[[Set]](P, V, O).
 //  5. If success is false and Throw is true, throw a TypeError exception.
 //  6. Return success.
-pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAScriptValue, throw: bool) -> Result<bool, AbruptCompletion> {
+pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAScriptValue, throw: bool) -> AltCompletion<bool> {
     let objval = ECMAScriptValue::Object(obj.clone());
     let success = obj.o.set(agent, propkey, value, &objval)?;
     if !success && throw {
@@ -1056,7 +1056,7 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAS
 // NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for properties
 //          created by the ECMAScript language assignment operator. Normally, the property will not already exist. If it
 //          does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]] will return false.
-pub fn create_data_property(obj: &Object, p: &PropertyKey, v: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+pub fn create_data_property(obj: &Object, p: &PropertyKey, v: &ECMAScriptValue) -> AltCompletion<bool> {
     let new_desc = PotentialPropertyDescriptor { value: Some(v.clone()), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     obj.o.define_own_property(p, &new_desc)
 }
@@ -1073,7 +1073,7 @@ pub fn create_data_property(obj: &Object, p: &PropertyKey, v: &ECMAScriptValue) 
 //  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
 //  4. If success is false, throw a TypeError exception.
 //  5. Return success.
-pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<(), AbruptCompletion> {
+pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<()> {
     let success = obj.o.define_own_property(p, desc)?;
     if !success {
         Err(create_type_error(agent, "Property cannot be assigned to"))
@@ -1114,7 +1114,7 @@ pub fn get_method(agent: &mut Agent, val: &ECMAScriptValue, key: &PropertyKey) -
 //  1. Assert: Type(O) is Object.
 //  2. Assert: IsPropertyKey(P) is true.
 //  3. Return ? O.[[HasProperty]](P).
-pub fn has_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+pub fn has_property(obj: &Object, p: &PropertyKey) -> AltCompletion<bool> {
     obj.o.has_property(p)
 }
 
@@ -1129,7 +1129,7 @@ pub fn has_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptComplet
 //  3. Let desc be ? O.[[GetOwnProperty]](P).
 //  4. If desc is undefined, return false.
 //  5. Return true.
-pub fn has_own_property(obj: &Object, p: &PropertyKey) -> Result<bool, AbruptCompletion> {
+pub fn has_own_property(obj: &Object, p: &PropertyKey) -> AltCompletion<bool> {
     Ok(obj.o.get_own_property(p)?.is_some())
 }
 
@@ -1203,7 +1203,7 @@ pub fn ordinary_create_from_constructor(
     constructor: &Object,
     intrinsic_default_proto: IntrinsicIdentifier,
     internal_slots_list: &[InternalSlotName],
-) -> Result<Object, AbruptCompletion> {
+) -> AltCompletion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
     Ok(ordinary_object_create(agent, Some(&proto), internal_slots_list))
 }
@@ -1226,7 +1226,7 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicIdentifier) -> Result<Object, AbruptCompletion> {
+fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicIdentifier) -> AltCompletion<Object> {
     let proto = get(agent, constructor, &PropertyKey::from("prototype"))?;
     match proto {
         ECMAScriptValue::Object(obj) => Ok(obj),
@@ -1251,37 +1251,37 @@ impl ObjectInterface for DeadObject {
         self.objid
     }
 
-    fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
+    fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         unreachable!();
     }
-    fn set_prototype_of(&self, _obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
+    fn set_prototype_of(&self, _obj: Option<&Object>) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
+    fn is_extensible(&self) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
+    fn prevent_extensions(&self) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn get_own_property(&self, _key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
+    fn get_own_property(&self, _key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         unreachable!();
     }
-    fn define_own_property(&self, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+    fn define_own_property(&self, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn has_property(&self, _key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn has_property(&self, _key: &PropertyKey) -> AltCompletion<bool> {
         unreachable!();
     }
     fn get(&self, _agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion {
         unreachable!();
     }
-    fn set(&self, _agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    fn set(&self, _agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn delete(&self, _key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn delete(&self, _key: &PropertyKey) -> AltCompletion<bool> {
         unreachable!();
     }
-    fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
+    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>> {
         unreachable!();
     }
 }
@@ -1301,7 +1301,7 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Result<bool, AbruptCompletion>
+pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -1341,7 +1341,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryGetPrototypeOf(O).
-    fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
+    fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -1351,7 +1351,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // null). It performs the following steps when called:
     //
     //  1. Return ? SetImmutablePrototype(O, V).
-    fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
+    fn set_prototype_of(&self, obj: Option<&Object>) -> AltCompletion<bool> {
         set_immutable_prototype(self, obj)
     }
 
@@ -1361,7 +1361,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
+    fn is_extensible(&self) -> AltCompletion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -1371,7 +1371,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
+    fn prevent_extensions(&self) -> AltCompletion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -1381,7 +1381,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
+    fn get_own_property(&self, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -1391,7 +1391,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(self, key, desc)
     }
 
@@ -1401,7 +1401,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn has_property(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_has_property(self, key)
     }
 
@@ -1421,7 +1421,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(self, agent, key, v, receiver)
     }
 
@@ -1431,7 +1431,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn delete(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_delete(self, key)
     }
 
@@ -1441,7 +1441,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
+    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }

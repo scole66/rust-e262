@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AbruptCompletion, Completion, CompletionInfo};
+use super::cr::{AbruptCompletion, AltCompletion, Completion, CompletionInfo};
 use super::object::{
     define_property_or_throw, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of,
     ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName,
@@ -71,37 +71,37 @@ impl ObjectInterface for ErrorObject {
         Some(self)
     }
 
-    fn get_prototype_of(&self) -> Result<Option<Object>, AbruptCompletion> {
+    fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(&*self))
     }
-    fn set_prototype_of(&self, obj: Option<&Object>) -> Result<bool, AbruptCompletion> {
+    fn set_prototype_of(&self, obj: Option<&Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(&*self, obj))
     }
-    fn is_extensible(&self) -> Result<bool, AbruptCompletion> {
+    fn is_extensible(&self) -> AltCompletion<bool> {
         Ok(ordinary_is_extensible(&*self))
     }
-    fn prevent_extensions(&self) -> Result<bool, AbruptCompletion> {
+    fn prevent_extensions(&self) -> AltCompletion<bool> {
         Ok(ordinary_prevent_extensions(&*self))
     }
-    fn get_own_property(&self, key: &PropertyKey) -> Result<Option<PropertyDescriptor>, AbruptCompletion> {
+    fn get_own_property(&self, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(&*self, key))
     }
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> Result<bool, AbruptCompletion> {
+    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(&*self, key, desc)
     }
-    fn has_property(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn has_property(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_has_property(&*self, key)
     }
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
         ordinary_get(&*self, agent, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> Result<bool, AbruptCompletion> {
+    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(&*self, agent, key, v, receiver)
     }
-    fn delete(&self, key: &PropertyKey) -> Result<bool, AbruptCompletion> {
+    fn delete(&self, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_delete(&*self, key)
     }
-    fn own_property_keys(&self) -> Result<Vec<PropertyKey>, AbruptCompletion> {
+    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }

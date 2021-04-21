@@ -1,4 +1,4 @@
-use crate::cr::AbruptCompletion;
+use crate::cr::AltCompletion;
 use crate::object::ObjectInterface;
 
 // IsExtensible ( O )
@@ -9,7 +9,7 @@ use crate::object::ObjectInterface;
 //
 //  1. Assert: Type(O) is Object.
 //  2. Return ? O.[[IsExtensible]]().
-pub fn is_extensible<'a, T>(obj: T) -> Result<bool, AbruptCompletion>
+pub fn is_extensible<'a, T>(obj: T) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
