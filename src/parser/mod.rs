@@ -227,7 +227,7 @@ use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdent
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
 use method_definitions::MethodDefinition;
-use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
+use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
 use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
 use return_statement::ReturnStatement;
 use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
@@ -337,11 +337,9 @@ pub struct Parser<'a> {
     pub for_in_of_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForInOfStatement>, RandomState>,
     pub for_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForStatement>, RandomState>,
     pub formal_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
-    pub formal_parameter_list_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameterList>, RandomState>,
     pub formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
     pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
     pub function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
-    pub function_rest_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FunctionRestParameter>, RandomState>,
     pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
     pub hoistable_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<HoistableDeclaration>, RandomState>,
     pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
