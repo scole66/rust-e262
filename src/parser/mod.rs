@@ -219,6 +219,7 @@ use async_generator_function_definitions::AsyncGeneratorBody;
 use binary_bitwise_operators::BitwiseORExpression;
 use binary_logical_operators::CoalesceExpression;
 use block::{Block, StatementList};
+use class_definitions::ClassTail;
 use comma_operator::Expression;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
 use function_definitions::{FunctionBody, FunctionDeclaration};
@@ -322,6 +323,7 @@ pub struct Parser<'a> {
     pub case_clauses_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClauses>, RandomState>,
     pub catch_cache: HashMap<YieldAwaitReturnKey, ParseResult<Catch>, RandomState>,
     pub catch_parameter_cache: HashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
+    pub class_tail_cache: HashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
     pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
     pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
     pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
