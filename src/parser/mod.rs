@@ -1,12 +1,38 @@
+use super::scanner;
+use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
+use super::strings::JSString;
 use ahash::RandomState;
+use arrow_function_definitions::{ArrowFormalParameters, ExpressionBody};
+use assignment_operators::AssignmentExpression;
+use async_arrow_function_definitions::CoverCallExpressionAndAsyncArrowHead;
+use async_function_definitions::AsyncFunctionBody;
+use async_generator_function_definitions::AsyncGeneratorBody;
+use binary_bitwise_operators::BitwiseORExpression;
+use binary_logical_operators::CoalesceExpression;
+use block::{Block, StatementList};
+use class_definitions::ClassTail;
+use comma_operator::Expression;
+use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
+use function_definitions::{FunctionBody, FunctionDeclaration};
+use generator_function_definitions::GeneratorBody;
+use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
+use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
+use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
+use method_definitions::MethodDefinition;
+use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
+use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
+use return_statement::ReturnStatement;
+use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-use super::scanner;
-use super::scanner::{scan_token, IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, Token};
-use crate::strings::JSString;
+use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
+use throw_statement::ThrowStatement;
+use try_statement::{Catch, CatchParameter, Finally, TryStatement};
+use unary_operators::UnaryExpression;
+use update_expressions::UpdateExpression;
+use with_statement::WithStatement;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ParseGoal {
@@ -210,34 +236,6 @@ pub enum ParseSymbol {
     ExportsList,
     ExportSpecifier,
 }
-
-use arrow_function_definitions::{ArrowFormalParameters, ExpressionBody};
-use assignment_operators::AssignmentExpression;
-use async_arrow_function_definitions::CoverCallExpressionAndAsyncArrowHead;
-use async_function_definitions::AsyncFunctionBody;
-use async_generator_function_definitions::AsyncGeneratorBody;
-use binary_bitwise_operators::BitwiseORExpression;
-use binary_logical_operators::CoalesceExpression;
-use block::{Block, StatementList};
-use class_definitions::ClassTail;
-use comma_operator::Expression;
-use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
-use function_definitions::{FunctionBody, FunctionDeclaration};
-use generator_function_definitions::GeneratorBody;
-use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
-use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
-use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
-use method_definitions::MethodDefinition;
-use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
-use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
-use return_statement::ReturnStatement;
-use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
-use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
-use throw_statement::ThrowStatement;
-use try_statement::{Catch, CatchParameter, Finally, TryStatement};
-use unary_operators::UnaryExpression;
-use update_expressions::UpdateExpression;
-use with_statement::WithStatement;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldAwaitKey {
@@ -587,6 +585,7 @@ pub mod parameter_lists;
 pub mod primary_expressions;
 pub mod relational_operators;
 pub mod return_statement;
+pub mod scripts;
 pub mod statements_and_declarations;
 pub mod switch_statement;
 pub mod throw_statement;

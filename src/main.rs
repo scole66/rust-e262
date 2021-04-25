@@ -26,7 +26,7 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use parser::block::StatementList;
+use parser::scripts::Script;
 use parser::Parser;
 use prettyprint::PrettyPrint;
 use scanner::Scanner;
@@ -52,7 +52,7 @@ impl VM {
 
 fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
-    let result = StatementList::parse(&mut parser, Scanner::new(), false, false, false);
+    let result = Script::parse(&mut parser, Scanner::new());
     match result {
         Ok((node, _)) => {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");

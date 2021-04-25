@@ -114,17 +114,7 @@ fn primary_expression_test_generator() {
     concise_check(
         &*node,
         "GeneratorExpression: function * a ( b ) { c ; }",
-        vec![
-            "Keyword: function",
-            "Punctuator: *",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "IdentifierName: b",
-            "Punctuator: )",
-            "Punctuator: {",
-            "ExpressionStatement: c ;",
-            "Punctuator: }",
-        ],
+        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
     );
 }
 #[test]
@@ -165,17 +155,7 @@ fn primary_expression_test_async_function() {
     concise_check(
         &*node,
         "AsyncFunctionExpression: async function a ( b ) { c ; }",
-        vec![
-            "Keyword: async",
-            "Keyword: function",
-            "IdentifierName: a",
-            "Punctuator: (",
-            "IdentifierName: b",
-            "Punctuator: )",
-            "Punctuator: {",
-            "ExpressionStatement: c ;",
-            "Punctuator: }",
-        ],
+        vec!["Keyword: async", "Keyword: function", "IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
     );
 }
 #[test]
@@ -1479,11 +1459,7 @@ fn cpeaapl_test_02() {
     chk_scan(&scanner, 14);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression(_)));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )", vec!["Expression: 8 in [ 1 , 2 , 3 ]"]);
-    concise_check(
-        &*node,
-        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
-        vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
-    );
+    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )", vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"]);
     format!("{:?}", node);
 }
 #[test]
