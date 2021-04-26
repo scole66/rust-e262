@@ -14,14 +14,14 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct DataProperty {
-    value: ECMAScriptValue,
-    writable: bool,
+    pub value: ECMAScriptValue,
+    pub writable: bool,
 }
 
 #[derive(Clone)]
 pub struct AccessorProperty {
-    get: ECMAScriptValue,
-    set: ECMAScriptValue,
+    pub get: ECMAScriptValue,
+    pub set: ECMAScriptValue,
 }
 
 #[derive(Clone)]
