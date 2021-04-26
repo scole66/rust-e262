@@ -21,7 +21,6 @@ use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpressi
 use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
 use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
-use return_statement::ReturnStatement;
 use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
 use std::cmp;
 use std::cmp::Ordering;
@@ -354,7 +353,6 @@ pub struct Parser<'a> {
     pub meta_property_cache: HashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
     pub method_definition_cache: HashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
     pub property_name_cache: HashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
-    pub return_statement_cache: HashMap<YieldAwaitKey, ParseResult<ReturnStatement>, RandomState>,
     pub single_name_binding_cache: HashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
     pub statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
     pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,

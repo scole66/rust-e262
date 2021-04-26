@@ -74,29 +74,71 @@ impl ReturnStatement {
         Ok((Rc::new(ReturnStatement::Bare), after_semi))
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_ret = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
         Err(ParseError::new("‘;’ or an Expression expected", after_ret.line, after_ret.column))
             .otherwise(|| Self::parse_exp(parser, after_ret, yield_flag, await_flag))
             .otherwise(|| Self::parse_semi(parser, after_ret))
     }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.return_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.return_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // RETURN STATEMENT
+    #[test]
+    fn return_statement_test_01() {
+        let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), false, false));
+        chk_scan(&scanner, 7);
+        pretty_check(&*node, "ReturnStatement: return ;", vec![]);
+        concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn return_statement_test_02() {
+        let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return null;"), Scanner::new(), false, false));
+        chk_scan(&scanner, 12);
+        pretty_check(&*node, "ReturnStatement: return null ;", vec!["Expression: null"]);
+        concise_check(&*node, "ReturnStatement: return null ;", vec!["Keyword: return", "Keyword: null", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn return_statement_test_err_01() {
+        check_err(ReturnStatement::parse(&mut newparser(""), Scanner::new(), false, false), "‘return’ expected", 1, 1);
+    }
+    #[test]
+    fn return_statement_test_err_02() {
+        check_err(ReturnStatement::parse(&mut newparser("return"), Scanner::new(), false, false), "‘;’ or an Expression expected", 1, 7);
+    }
+    #[test]
+    fn return_statement_test_err_03() {
+        check_err(ReturnStatement::parse(&mut newparser("return 0"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
+    }
+    #[test]
+    fn return_statement_test_err_04() {
+        check_err(ReturnStatement::parse(&mut newparser("return\n0;"), Scanner::new(), false, false), "‘;’ or an Expression expected", 1, 7);
+    }
+    #[test]
+    fn return_statement_test_prettyerrors_1() {
+        let (item, _) = ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn return_statement_test_prettyerrors_2() {
+        let (item, _) = ReturnStatement::parse(&mut newparser("return undefined;"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn return_statement_test_conciseerrors_1() {
+        let (item, _) = ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn return_statement_test_conciseerrors_2() {
+        let (item, _) = ReturnStatement::parse(&mut newparser("return undefined;"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+}
