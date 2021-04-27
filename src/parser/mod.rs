@@ -676,4 +676,50 @@ mod tests {
         let s1 = String::from(e1);
         assert_eq!(s1, "25:50: special message")
     }
+
+    #[test]
+    fn otherwise_01() {
+        let item: Result<i32, ParseError> = Ok(10);
+        let result = item.otherwise(|| Ok(1));
+        assert!(result.is_ok());
+        if let Ok(i) = result {
+            assert_eq!(i, 10);
+        }
+    }
+    #[test]
+    fn otherwise_02() {
+        let item: Result<i32, ParseError> = Err(ParseError::new("otherwise_02", 10, 20));
+        let result = item.otherwise(|| Ok(1));
+        assert!(result.is_ok());
+        if let Ok(i) = result {
+            assert_eq!(i, 1);
+        }
+    }
+    #[test]
+    fn otherwise_03() {
+        let item: Result<i32, ParseError> = Err(ParseError::new("otherwise_03", 10, 20));
+        let result = item.otherwise(|| Err(ParseError::new("otherwise_after", 20, 3)));
+        assert!(result.is_err());
+        if let Err(pe) = result {
+            assert_eq!(pe.msg, "otherwise_after");
+        }
+    }
+    #[test]
+    fn otherwise_04() {
+        let item: Result<i32, ParseError> = Err(ParseError::new("earlier in time", 10, 20));
+        let result = item.otherwise(|| Err(ParseError::new("earlier in position", 2, 3)));
+        assert!(result.is_err());
+        if let Err(pe) = result {
+            assert_eq!(pe.msg, "earlier in time");
+        }
+    }
+    #[test]
+    fn otherwise_05() {
+        let item: Result<i32, ParseError> = Err(ParseError::new("earlier in time", 10, 20));
+        let result = item.otherwise(|| Err(ParseError::new("later in time", 10, 20)));
+        assert!(result.is_err());
+        if let Err(pe) = result {
+            assert_eq!(pe.msg, "earlier in time");
+        }
+    }
 }
