@@ -224,14 +224,6 @@ impl ParseError {
             (Some(l), Some(r)) => Self::compare(l, r),
         }
     }
-
-    pub fn compare_opt(left: &&Option<ParseError>, right: &&Option<ParseError>) -> Ordering {
-        Self::compare_option(*left, *right)
-    }
-
-    pub fn compare_refopt(left: &&&Option<ParseError>, right: &&&Option<ParseError>) -> Ordering {
-        Self::compare_opt(*left, *right)
-    }
 }
 
 impl From<ParseError> for String {
@@ -453,14 +445,17 @@ mod tests {
     }
     #[test]
     fn parse_goal_02() {
-        assert_eq!(ParseGoal::Script, ParseGoal::Script);
-        assert_ne!(ParseGoal::Script, ParseGoal::Module);
+        let left = ParseGoal::Script;
+        let right_first = ParseGoal::Script;
+        let right_second = ParseGoal::Module;
+        assert_eq!(left, right_first);
+        assert_ne!(left, right_second);
     }
     #[test]
     fn parse_goal_03() {
-        let a = ParseGoal::Script;
+        let a = Box::new(ParseGoal::Script);
         let b = a.clone();
-        assert_eq!(a, b);
+        assert_eq!(*a, *b);
     }
     #[test]
     fn parse_goal_04() {
@@ -471,7 +466,7 @@ mod tests {
     #[test]
     fn yield_await_key_01() {
         let left = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false };
-        let right = left.clone();
+        let right = left;
         let third = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -482,7 +477,7 @@ mod tests {
     #[test]
     fn yield_await_tagged_key_01() {
         let left = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false, tagged_flag: false };
-        let right = left.clone();
+        let right = left;
         let third = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true, tagged_flag: false };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -493,7 +488,7 @@ mod tests {
     #[test]
     fn in_yield_await_key_01() {
         let left = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: false };
-        let right = left.clone();
+        let right = left;
         let third = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -504,7 +499,7 @@ mod tests {
     #[test]
     fn in_key_01() {
         let left = InKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true };
-        let right = left.clone();
+        let right = left;
         let third = InKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -515,7 +510,7 @@ mod tests {
     #[test]
     fn in_await_key_01() {
         let left = InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
-        let right = left.clone();
+        let right = left;
         let third = InAwaitKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true, await_flag: false };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -526,7 +521,7 @@ mod tests {
     #[test]
     fn yield_await_return_key_01() {
         let left = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
-        let right = left.clone();
+        let right = left;
         let third = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -537,7 +532,7 @@ mod tests {
     #[test]
     fn yield_key_01() {
         let left = YieldKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true };
-        let right = left.clone();
+        let right = left;
         let third = YieldKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -548,7 +543,7 @@ mod tests {
     #[test]
     fn yield_await_default_key_01() {
         let left = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
-        let right = left.clone();
+        let right = left;
         let third = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -645,5 +640,38 @@ mod tests {
         assert_eq!(e3.line, 20);
         assert_eq!(e3.column, 22);
         format!("{:?}", e1);
+    }
+    #[test]
+    fn parse_error_compare_01() {
+        let e1 = ParseError::new("&str style error", 10, 11);
+        let e2 = ParseError::new(String::from("String style error"), 20, 22);
+
+        assert_eq!(ParseError::compare(&e1, &e2), Ordering::Less);
+        assert_eq!(ParseError::compare(&e2, &e1), Ordering::Greater);
+
+        let e3 = ParseError::new("other", 10, 20);
+        assert_eq!(ParseError::compare(&e1, &e3), Ordering::Less);
+        assert_eq!(ParseError::compare(&e3, &e1), Ordering::Greater);
+
+        let e4 = ParseError::new("overlap", 10, 11);
+        assert_eq!(ParseError::compare(&e1, &e4), Ordering::Equal);
+        assert_eq!(ParseError::compare(&e4, &e1), Ordering::Equal);
+    }
+    #[test]
+    fn parse_error_compare_options_01() {
+        let e1 = None;
+        let e2 = None;
+        assert_eq!(ParseError::compare_option(&e1, &e2), Ordering::Equal);
+        let e3 = Some(ParseError::new("At (10, 10)", 10, 10));
+        assert_eq!(ParseError::compare_option(&e1, &e3), Ordering::Less);
+        assert_eq!(ParseError::compare_option(&e3, &e1), Ordering::Greater);
+        let e4 = Some(ParseError::new("At (10, 30)", 10, 30));
+        assert_eq!(ParseError::compare_option(&e3, &e4), Ordering::Less);
+    }
+    #[test]
+    fn parse_error_to_string() {
+        let e1 = ParseError::new("special message", 25, 50);
+        let s1 = String::from(e1);
+        assert_eq!(s1, "25:50: special message")
     }
 }
