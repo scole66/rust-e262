@@ -428,6 +428,8 @@ pub mod testhelp {
     }
 }
 
+#[cfg(test)]
+#[allow(clippy::clone_on_copy)]
 mod tests {
     use super::*;
     use ahash::AHasher;
@@ -453,9 +455,9 @@ mod tests {
     }
     #[test]
     fn parse_goal_03() {
-        let a = Box::new(ParseGoal::Script);
+        let a = ParseGoal::Script;
         let b = a.clone();
-        assert_eq!(*a, *b);
+        assert_eq!(a, b);
     }
     #[test]
     fn parse_goal_04() {
@@ -466,7 +468,7 @@ mod tests {
     #[test]
     fn yield_await_key_01() {
         let left = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false };
-        let right = left;
+        let right = left.clone();
         let third = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -477,7 +479,7 @@ mod tests {
     #[test]
     fn yield_await_tagged_key_01() {
         let left = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false, tagged_flag: false };
-        let right = left;
+        let right = left.clone();
         let third = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true, tagged_flag: false };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -488,7 +490,7 @@ mod tests {
     #[test]
     fn in_yield_await_key_01() {
         let left = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: false };
-        let right = left;
+        let right = left.clone();
         let third = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -499,7 +501,7 @@ mod tests {
     #[test]
     fn in_key_01() {
         let left = InKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true };
-        let right = left;
+        let right = left.clone();
         let third = InKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -510,7 +512,7 @@ mod tests {
     #[test]
     fn in_await_key_01() {
         let left = InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
-        let right = left;
+        let right = left.clone();
         let third = InAwaitKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true, await_flag: false };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -521,7 +523,7 @@ mod tests {
     #[test]
     fn yield_await_return_key_01() {
         let left = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
-        let right = left;
+        let right = left.clone();
         let third = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -532,7 +534,7 @@ mod tests {
     #[test]
     fn yield_key_01() {
         let left = YieldKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true };
-        let right = left;
+        let right = left.clone();
         let third = YieldKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
@@ -543,7 +545,7 @@ mod tests {
     #[test]
     fn yield_await_default_key_01() {
         let left = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
-        let right = left;
+        let right = left.clone();
         let third = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
         assert_eq!(left.eq(&right), true);
         assert_eq!(left.ne(&third), true);
