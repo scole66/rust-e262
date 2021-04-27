@@ -46,204 +46,13 @@ impl Default for ParseGoal {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum ParseSymbol {
-    IdentifierReference,
-    BindingIdentifier,
-    LabelIdentifier,
-    Identifier,
-    PrimaryExpression,
-    CoverParenthesizedExpressionAndArrowParameterList,
-    ParenthesizedExpression,
-    Literal,
-    ArrayLiteral,
-    ElementList,
-    Elision,
-    SpreadElement,
-    ObjectLiteral,
-    PropertyDefinitionList,
-    PropertyDefinition,
-    PropertyName,
-    LiteralPropertyName,
-    ComputedPropertyName,
-    CoverInitializedName,
-    Initializer,
-    TemplateLiteral,
-    SubstitutionTemplate,
-    TemplateSpans,
-    TemplateMiddleList,
-    MemberExpression,
-    SuperProperty,
-    MetaProperty,
-    NewTarget,
-    ImportMeta,
-    NewExpression,
-    CallExpression,
-    CallMemberExpression,
-    SuperCall,
-    ImportCall,
-    Arguments,
-    ArgumentList,
-    OptionalExpression,
-    OptionalChain,
-    LeftHandSideExpression,
-    UpdateExpression,
-    UnaryExpression,
-    ExponentiationExpression,
-    MultiplicativeExpression,
-    MultiplicativeOperator,
-    AdditiveExpression,
-    ShiftExpression,
-    RelationalExpression,
-    EqualityExpression,
-    BitwiseANDExpression,
-    BitwiseXORExpression,
-    BitwiseORExpression,
-    LogicalANDExpression,
-    LogicalORExpression,
-    CoalesceExpression,
-    CoalesceExpressionHead,
-    ShortCircuitExpression,
-    ConditionalExpression,
-    AssignmentExpression,
-    AssignmentOperator,
-    AssignmentPattern,
-    ObjectAssignmentPattern,
-    ArrayAssignmentPattern,
-    AssignmentRestProperty,
-    AssignmentPropertyList,
-    AssignmentElementList,
-    AssignmentElisionElement,
-    AssignmentProperty,
-    AssignmentElement,
-    AssignmentRestElement,
-    DestructuringAssignmentTarget,
-    Expression,
-    Statement,
-    Declaration,
-    HoistableDeclaration,
-    BreakableStatement,
-    BlockStatement,
-    Block,
-    StatementList,
-    StatementListItem,
-    LexicalDeclaration,
-    LetOrConst,
-    BindingList,
-    LexicalBinding,
-    VariableStatement,
-    VariableDeclarationList,
-    VariableDeclaration,
-    BindingPattern,
-    ObjectBindingPattern,
-    ArrayBindingPattern,
-    BindingRestProperty,
-    BindingPropertyList,
-    BindingElementList,
-    BindingElisionElement,
-    BindingProperty,
-    BindingElement,
-    SingleNameBinding,
-    BindingRestElement,
-    EmptyStatement,
-    ExpressionStatement,
-    IfStatement,
-    IterationStatement,
-    DoWhileStatement,
-    WhileStatement,
-    ForStatement,
-    ForInOfStatement,
-    ForDeclaration,
-    ForBinding,
-    ContinueStatement,
-    BreakStatement,
-    ReturnStatement,
-    WithStatement,
-    SwitchStatement,
-    CaseBlock,
-    CaseClauses,
-    CaseClause,
-    DefaultClause,
-    LabelledStatement,
-    LabelledItem,
-    ThrowStatement,
-    TryStatement,
-    Catch,
-    Finally,
-    CatchParameter,
-    DebuggerStatement,
-    UniqueFormalParameters,
-    FormalParameters,
-    FormalParameterList,
-    FunctionRestParameter,
-    FormalParameter,
-    FunctionDeclaration,
-    FunctionExpression,
-    FunctionBody,
-    FunctionStatementList,
-    ArrowFunction,
-    ArrowParameters,
-    ConciseBody,
-    ExpressionBody,
-    ArrowFormalParameters,
-    AsyncArrowFunction,
-    AsyncConciseBody,
-    AsyncArrowBindingIdentifier,
-    CoverCallExpressionAndAsyncArrowHead,
-    AsyncArrowHead,
-    MethodDefinition,
-    PropertySetParameterList,
-    GeneratorMethod,
-    GeneratorDeclaration,
-    GeneratorExpression,
-    GeneratorBody,
-    YieldExpression,
-    AsyncGeneratorMethod,
-    AsyncGeneratorDeclaration,
-    AsyncGeneratorExpression,
-    AsyncGeneratorBody,
-    AsyncFunctionDeclaration,
-    AsyncFunctionExpression,
-    AsyncMethod,
-    AsyncFunctionBody,
-    AwaitExpression,
-    ClassDeclaration,
-    ClassExpression,
-    ClassTail,
-    ClassHeritage,
-    ClassBody,
-    ClassElementList,
-    ClassElement,
-    Script,
-    ScriptBody,
-    Module,
-    ModuleBody,
-    ModuleItemList,
-    ModuleItem,
-    ImportDeclaration,
-    ImportClause,
-    ImportedDefaultBinding,
-    NameSpaceImport,
-    NamedImports,
-    FromClause,
-    ImportsList,
-    ImportSpecifier,
-    ModuleSpecifier,
-    ImportedBinding,
-    ExportDeclaration,
-    ExportFromClause,
-    NamedExports,
-    ExportsList,
-    ExportSpecifier,
-}
-
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldAwaitKey {
     scanner: Scanner,
     yield_flag: bool,
     await_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldAwaitTaggedKey {
     scanner: Scanner,
     yield_flag: bool,
@@ -251,7 +60,7 @@ pub struct YieldAwaitTaggedKey {
     tagged_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct InYieldAwaitKey {
     scanner: Scanner,
     in_flag: bool,
@@ -259,20 +68,20 @@ pub struct InYieldAwaitKey {
     await_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct InKey {
     scanner: Scanner,
     in_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct InAwaitKey {
     scanner: Scanner,
     in_flag: bool,
     await_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldAwaitReturnKey {
     scanner: Scanner,
     yield_flag: bool,
@@ -280,13 +89,13 @@ pub struct YieldAwaitReturnKey {
     return_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldKey {
     scanner: Scanner,
     yield_flag: bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct YieldAwaitDefaultKey {
     scanner: Scanner,
     yield_flag: bool,
@@ -624,5 +433,217 @@ pub mod testhelp {
         assert_eq!(pe.line, 1);
         assert_eq!(pe.column, 1);
         assert_eq!(pe.msg, msg.into());
+    }
+}
+
+mod tests {
+    use super::*;
+    use ahash::AHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = AHasher::new_with_keys(1234, 5678);
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    #[test]
+    fn parse_goal_01() {
+        format!("{:?} {:?}", ParseGoal::Script, ParseGoal::Module);
+    }
+    #[test]
+    fn parse_goal_02() {
+        assert_eq!(ParseGoal::Script, ParseGoal::Script);
+        assert_ne!(ParseGoal::Script, ParseGoal::Module);
+    }
+    #[test]
+    fn parse_goal_03() {
+        let a = ParseGoal::Script;
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+    #[test]
+    fn parse_goal_04() {
+        let a = ParseGoal::default();
+        assert_eq!(a, ParseGoal::Script);
+    }
+
+    #[test]
+    fn yield_await_key_01() {
+        let left = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false };
+        let right = left.clone();
+        let third = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn yield_await_tagged_key_01() {
+        let left = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false, tagged_flag: false };
+        let right = left.clone();
+        let third = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true, tagged_flag: false };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn in_yield_await_key_01() {
+        let left = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: false };
+        let right = left.clone();
+        let third = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn in_key_01() {
+        let left = InKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true };
+        let right = left.clone();
+        let third = InKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn in_await_key_01() {
+        let left = InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
+        let right = left.clone();
+        let third = InAwaitKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true, await_flag: false };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn yield_await_return_key_01() {
+        let left = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
+        let right = left.clone();
+        let third = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn yield_key_01() {
+        let left = YieldKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true };
+        let right = left.clone();
+        let third = YieldKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+    #[test]
+    fn yield_await_default_key_01() {
+        let left = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
+        let right = left.clone();
+        let third = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
+        assert_eq!(left.eq(&right), true);
+        assert_eq!(left.ne(&third), true);
+        assert_ne!(calculate_hash(&left), calculate_hash(&third));
+        assert_eq!(calculate_hash(&left), calculate_hash(&right));
+        format!("{:?}", left);
+    }
+
+    #[test]
+    fn parser_01() {
+        let p = Parser::new("program text", false, ParseGoal::Script);
+        assert_eq!(p.strict, false);
+        assert_eq!(p.source, "program text");
+        assert_eq!(p.goal, ParseGoal::Script);
+        assert!(p.arguments_cache.is_empty());
+        assert!(p.arrow_formal_parameters_cache.is_empty());
+        assert!(p.assignment_expression_cache.is_empty());
+        assert!(p.async_function_body_cache.is_empty());
+        assert!(p.async_generator_body_cache.is_empty());
+        assert!(p.binding_element_cache.is_empty());
+        assert!(p.binding_identifier_cache.is_empty());
+        assert!(p.binding_pattern_cache.is_empty());
+        assert!(p.binding_rest_element_cache.is_empty());
+        assert!(p.binding_rest_property_cache.is_empty());
+        assert!(p.bitwise_or_expression_cache.is_empty());
+        assert!(p.block_cache.is_empty());
+        assert!(p.breakable_statement_cache.is_empty());
+        assert!(p.call_expression_cache.is_empty());
+        assert!(p.case_block_cache.is_empty());
+        assert!(p.case_clause_cache.is_empty());
+        assert!(p.case_clauses_cache.is_empty());
+        assert!(p.catch_cache.is_empty());
+        assert!(p.catch_parameter_cache.is_empty());
+        assert!(p.class_tail_cache.is_empty());
+        assert!(p.coalesce_expression_cache.is_empty());
+        assert!(p.cover_call_expression_and_async_arrow_head_cache.is_empty());
+        assert!(p.cpeaapl_cache.is_empty());
+        assert!(p.declaration_cache.is_empty());
+        assert!(p.default_clause_cache.is_empty());
+        assert!(p.do_while_statement_cache.is_empty());
+        assert!(p.elision_cache.is_empty());
+        assert!(p.expression_body_cache.is_empty());
+        assert!(p.expression_cache.is_empty());
+        assert!(p.finally_cache.is_empty());
+        assert!(p.for_binding_cache.is_empty());
+        assert!(p.for_declaration_cache.is_empty());
+        assert!(p.for_in_of_statement_cache.is_empty());
+        assert!(p.for_statement_cache.is_empty());
+        assert!(p.formal_parameter_cache.is_empty());
+        assert!(p.formal_parameters_cache.is_empty());
+        assert!(p.function_body_cache.is_empty());
+        assert!(p.function_declaration_cache.is_empty());
+        assert!(p.generator_body_cache.is_empty());
+        assert!(p.hoistable_declaration_cache.is_empty());
+        assert!(p.identifier_cache.is_empty());
+        assert!(p.identifier_reference_cache.is_empty());
+        assert!(p.initializer_cache.is_empty());
+        assert!(p.iteration_statement_cache.is_empty());
+        assert!(p.label_identifier_cache.is_empty());
+        assert!(p.lexical_declaration_cache.is_empty());
+        assert!(p.lhs_cache.is_empty());
+        assert!(p.lpn_cache.is_empty());
+        assert!(p.member_expression_cache.is_empty());
+        assert!(p.meta_property_cache.is_empty());
+        assert!(p.method_definition_cache.is_empty());
+        assert!(p.property_name_cache.is_empty());
+        assert!(p.single_name_binding_cache.is_empty());
+        assert!(p.statement_cache.is_empty());
+        assert!(p.statement_list_cache.is_empty());
+        assert!(p.switch_statement_cache.is_empty());
+        assert!(p.template_literal_cache.is_empty());
+        assert!(p.throw_statement_cache.is_empty());
+        assert!(p.try_statement_cache.is_empty());
+        assert!(p.unary_expression_cache.is_empty());
+        assert!(p.unique_formal_parameters_cache.is_empty());
+        assert!(p.update_expression_cache.is_empty());
+        assert!(p.variable_declaration_list_cache.is_empty());
+        assert!(p.while_statement_cache.is_empty());
+        assert!(p.with_statement_cache.is_empty());
+    }
+
+    #[test]
+    fn parse_error_01() {
+        let e1 = ParseError::new("&str style error", 10, 11);
+        let e2 = ParseError::new(String::from("String style error"), 20, 22);
+        assert_eq!(e1.msg, "&str style error");
+        assert_eq!(e1.line, 10);
+        assert_eq!(e1.column, 11);
+        assert_eq!(e2.msg, "String style error");
+        assert_eq!(e2.line, 20);
+        assert_eq!(e2.column, 22);
+        let e3 = e2.clone();
+        assert_eq!(e3.msg, "String style error");
+        assert_eq!(e3.line, 20);
+        assert_eq!(e3.column, 22);
+        format!("{:?}", e1);
     }
 }
