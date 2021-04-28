@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 //#![feature(cmp_min_max_by)]
+#![allow(clippy::bool_assert_comparison)]
 
 use std::env;
 use std::io::{self, Write};
