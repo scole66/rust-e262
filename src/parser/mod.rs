@@ -31,7 +31,6 @@ use throw_statement::ThrowStatement;
 use try_statement::{Catch, CatchParameter, Finally, TryStatement};
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
-use with_statement::WithStatement;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ParseGoal {
@@ -174,7 +173,6 @@ pub struct Parser<'a> {
     pub update_expression_cache: HashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
     pub variable_declaration_list_cache: HashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
     pub while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WhileStatement>, RandomState>,
-    pub with_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WithStatement>, RandomState>,
 }
 
 impl<'a> Parser<'a> {

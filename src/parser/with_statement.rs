@@ -48,7 +48,7 @@ impl PrettyPrint for WithStatement {
 }
 
 impl WithStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_width = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
         let after_open = scan_for_punct(after_width, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -56,23 +56,55 @@ impl WithStatement {
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(WithStatement { expression: exp, statement: stmt }), after_stmt))
     }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.with_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.with_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // WITH STATEMENT
+    #[test]
+    fn with_statement_test_01() {
+        let (node, scanner) = check(WithStatement::parse(&mut newparser("with ( x in obj ) { x.used = true; }"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 36);
+        format!("{:?}", node);
+        pretty_check(&*node, "WithStatement: with ( x in obj ) { x . used = true ; }", vec!["Expression: x in obj", "Statement: { x . used = true ; }"]);
+        concise_check(
+            &*node,
+            "WithStatement: with ( x in obj ) { x . used = true ; }",
+            vec!["Keyword: with", "Punctuator: (", "RelationalExpression: x in obj", "Punctuator: )", "Block: { x . used = true ; }"],
+        );
+    }
+    #[test]
+    fn with_statement_test_err_01() {
+        check_err(WithStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘with’ expected", 1, 1);
+    }
+    #[test]
+    fn with_statement_test_err_02() {
+        check_err(WithStatement::parse(&mut newparser("with"), Scanner::new(), false, false, true), "‘(’ expected", 1, 5);
+    }
+    #[test]
+    fn with_statement_test_err_03() {
+        check_err(WithStatement::parse(&mut newparser("with("), Scanner::new(), false, false, true), "Expression expected", 1, 6);
+    }
+    #[test]
+    fn with_statement_test_err_04() {
+        check_err(WithStatement::parse(&mut newparser("with(a"), Scanner::new(), false, false, true), "‘)’ expected", 1, 7);
+    }
+    #[test]
+    fn with_statement_test_err_05() {
+        check_err(WithStatement::parse(&mut newparser("with(a)"), Scanner::new(), false, false, true), "Statement expected", 1, 8);
+    }
+    #[test]
+    fn with_statement_prettycheck_1() {
+        let (item, _) = WithStatement::parse(&mut newparser("with (returns_an_object()) { obj = 12; }"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn with_statement_concisecheck_1() {
+        let (item, _) = WithStatement::parse(&mut newparser("with (returns_an_object()) { obj = 12; }"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+}

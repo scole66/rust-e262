@@ -192,7 +192,6 @@ fn parser_01() {
     assert!(p.update_expression_cache.is_empty());
     assert!(p.variable_declaration_list_cache.is_empty());
     assert!(p.while_statement_cache.is_empty());
-    assert!(p.with_statement_cache.is_empty());
 }
 
 #[test]
