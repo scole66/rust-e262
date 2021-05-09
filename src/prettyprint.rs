@@ -42,18 +42,18 @@ pub enum TokenType {
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TokenType::Keyword => f.write_str("Keyword"),
-            TokenType::Punctuator => f.write_str("Punctuator"),
-            TokenType::IdentifierName => f.write_str("IdentifierName"),
-            TokenType::RegularExpression => f.write_str("RegularExpressionLiteral"),
-            TokenType::Numeric => f.write_str("Numeric"),
-            TokenType::String => f.write_str("String"),
-            TokenType::NoSubTemplate => f.write_str("NoSubTemplate"),
-            TokenType::TemplateHead => f.write_str("TemplateHead"),
-            TokenType::TemplateMiddle => f.write_str("TemplateMiddle"),
-            TokenType::TemplateTail => f.write_str("TemplateTail"),
-        }
+        f.write_str(match self {
+            TokenType::Keyword => "Keyword",
+            TokenType::Punctuator => "Punctuator",
+            TokenType::IdentifierName => "IdentifierName",
+            TokenType::RegularExpression => "RegularExpressionLiteral",
+            TokenType::Numeric => "Numeric",
+            TokenType::String => "String",
+            TokenType::NoSubTemplate => "NoSubTemplate",
+            TokenType::TemplateHead => "TemplateHead",
+            TokenType::TemplateMiddle => "TemplateMiddle",
+            TokenType::TemplateTail => "TemplateTail",
+        })
     }
 }
 
