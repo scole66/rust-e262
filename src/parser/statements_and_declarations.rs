@@ -163,8 +163,12 @@ impl Statement {
                 Ok((Rc::new(Statement::Break(break_node)), after_break))
             })
             .otherwise(|| {
-                let (return_node, after_return) = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Rc::new(Statement::Return(return_node)), after_return))
+                if return_flag {
+                    let (return_node, after_return) = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
+                    Ok((Rc::new(Statement::Return(return_node)), after_return))
+                } else {
+                    Err(ParseError::new(String::new(), scanner.line, scanner.column))
+                }
             })
             .otherwise(|| {
                 let (with_node, after_with) = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -249,7 +253,7 @@ impl PrettyPrint for Declaration {
 }
 
 impl Declaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("Declaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (hoist, after_hoist) = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
@@ -263,18 +267,6 @@ impl Declaration {
                 let (lex, after_lex) = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
                 Ok((Rc::new(Declaration::Lexical(lex)), after_lex))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.declaration_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.declaration_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -308,7 +300,7 @@ impl PrettyPrint for HoistableDeclaration {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Statement: {}", first, self)?;
+        writeln!(writer, "{}HoistableDeclaration: {}", first, self)?;
         match &self {
             HoistableDeclaration::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             HoistableDeclaration::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -331,7 +323,7 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("HoistableDeclaration expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
@@ -349,18 +341,6 @@ impl HoistableDeclaration {
                 let (agen, after_agen) = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
-        match parser.hoistable_declaration_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, default_flag);
-                parser.hoistable_declaration_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 }
 
@@ -388,7 +368,7 @@ impl PrettyPrint for BreakableStatement {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}Statement: {}", first, self)?;
+        writeln!(writer, "{}BreakableStatement: {}", first, self)?;
         match &self {
             BreakableStatement::Iteration(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             BreakableStatement::Switch(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -407,7 +387,7 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("BreakableStatement expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -418,23 +398,481 @@ impl BreakableStatement {
                 Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
     }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.breakable_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.breakable_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests {
+    use super::testhelp::{check, check_err, chk_scan, newparser};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
+    // STATEMENT
+    #[test]
+    fn statement_test_01() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("{ a=0; }"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 8);
+        pretty_check(&*node, "Statement: { a = 0 ; }", vec!["BlockStatement: { a = 0 ; }"]);
+        concise_check(&*node, "Block: { a = 0 ; }", vec!["Punctuator: {", "ExpressionStatement: a = 0 ;", "Punctuator: }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_02() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("var a=0;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 8);
+        pretty_check(&*node, "Statement: var a = 0 ;", vec!["VariableStatement: var a = 0 ;"]);
+        concise_check(&*node, "VariableStatement: var a = 0 ;", vec!["Keyword: var", "VariableDeclaration: a = 0", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_03() {
+        let (node, scanner) = check(Statement::parse(&mut newparser(";"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 1);
+        pretty_check(&*node, "Statement: ;", vec!["EmptyStatement: ;"]);
+        concise_check(&*node, "Punctuator: ;", vec![]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_04() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("a();"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 4);
+        pretty_check(&*node, "Statement: a ( ) ;", vec!["ExpressionStatement: a ( ) ;"]);
+        concise_check(&*node, "ExpressionStatement: a ( ) ;", vec!["CallMemberExpression: a ( )", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_05() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("if (a) {}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "Statement: if ( a ) { }", vec!["IfStatement: if ( a ) { }"]);
+        concise_check(&*node, "IfStatement: if ( a ) { }", vec!["Keyword: if", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Block: { }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_06() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("switch (a) {}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 13);
+        pretty_check(&*node, "Statement: switch ( a ) { }", vec!["BreakableStatement: switch ( a ) { }"]);
+        concise_check(&*node, "SwitchStatement: switch ( a ) { }", vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_07() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("continue;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "Statement: continue ;", vec!["ContinueStatement: continue ;"]);
+        concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_08() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("break;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 6);
+        pretty_check(&*node, "Statement: break ;", vec!["BreakStatement: break ;"]);
+        concise_check(&*node, "BreakStatement: break ;", vec!["Keyword: break", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_09() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("return;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 7);
+        pretty_check(&*node, "Statement: return ;", vec!["ReturnStatement: return ;"]);
+        concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_10() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("with(a)b;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "Statement: with ( a ) b ;", vec!["WithStatement: with ( a ) b ;"]);
+        concise_check(&*node, "WithStatement: with ( a ) b ;", vec!["Keyword: with", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "ExpressionStatement: b ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_11() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("a:b;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 4);
+        pretty_check(&*node, "Statement: a : b ;", vec!["LabelledStatement: a : b ;"]);
+        concise_check(&*node, "LabelledStatement: a : b ;", vec!["IdentifierName: a", "Punctuator: :", "ExpressionStatement: b ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_12() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("throw a;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 8);
+        pretty_check(&*node, "Statement: throw a ;", vec!["ThrowStatement: throw a ;"]);
+        concise_check(&*node, "ThrowStatement: throw a ;", vec!["Keyword: throw", "IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_13() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("try {} catch {}"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 15);
+        pretty_check(&*node, "Statement: try { } catch { }", vec!["TryStatement: try { } catch { }"]);
+        concise_check(&*node, "TryStatement: try { } catch { }", vec!["Keyword: try", "Block: { }", "Catch: catch { }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_14() {
+        let (node, scanner) = check(Statement::parse(&mut newparser("debugger;"), Scanner::new(), false, false, true));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "Statement: debugger ;", vec!["DebuggerStatement: debugger ;"]);
+        concise_check(&*node, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn statement_test_err_01() {
+        check_err(Statement::parse(&mut newparser(""), Scanner::new(), false, false, true), "Statement expected", 1, 1);
+    }
+    #[test]
+    fn statement_test_err_02() {
+        check_err(Statement::parse(&mut newparser("return;"), Scanner::new(), false, false, false), "Statement expected", 1, 1);
+    }
+    #[test]
+    fn statement_test_prettyerrors_1() {
+        let (item, _) = Statement::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_2() {
+        let (item, _) = Statement::parse(&mut newparser("var a;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_3() {
+        let (item, _) = Statement::parse(&mut newparser(";"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_4() {
+        let (item, _) = Statement::parse(&mut newparser("if(a)b;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_5() {
+        let (item, _) = Statement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_6() {
+        let (item, _) = Statement::parse(&mut newparser("continue;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_7() {
+        let (item, _) = Statement::parse(&mut newparser("break;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_8() {
+        let (item, _) = Statement::parse(&mut newparser("return;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_9() {
+        let (item, _) = Statement::parse(&mut newparser("with(a){};"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_10() {
+        let (item, _) = Statement::parse(&mut newparser("a:b;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_11() {
+        let (item, _) = Statement::parse(&mut newparser("throw a;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_12() {
+        let (item, _) = Statement::parse(&mut newparser("try{}catch{}"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_13() {
+        let (item, _) = Statement::parse(&mut newparser("debugger;"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_prettyerrors_14() {
+        let (item, _) = Statement::parse(&mut newparser("a();"), Scanner::new(), false, false, true).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_1() {
+        let (item, _) = Statement::parse(&mut newparser("{}"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_2() {
+        let (item, _) = Statement::parse(&mut newparser("var a;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_3() {
+        let (item, _) = Statement::parse(&mut newparser(";"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_4() {
+        let (item, _) = Statement::parse(&mut newparser("if(a)b;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_5() {
+        let (item, _) = Statement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_6() {
+        let (item, _) = Statement::parse(&mut newparser("continue;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_7() {
+        let (item, _) = Statement::parse(&mut newparser("break;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_8() {
+        let (item, _) = Statement::parse(&mut newparser("return;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_9() {
+        let (item, _) = Statement::parse(&mut newparser("with(a){};"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_10() {
+        let (item, _) = Statement::parse(&mut newparser("a:b;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_11() {
+        let (item, _) = Statement::parse(&mut newparser("throw a;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_12() {
+        let (item, _) = Statement::parse(&mut newparser("try{}catch{}"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_13() {
+        let (item, _) = Statement::parse(&mut newparser("debugger;"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_conciseerrors_14() {
+        let (item, _) = Statement::parse(&mut newparser("a();"), Scanner::new(), false, false, true).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn statement_test_cache_01() {
+        let mut parser = newparser("A += 34;");
+        let (node, scanner) = check(Statement::parse(&mut parser, Scanner::new(), true, false, false));
+        let (node2, scanner2) = check(Statement::parse(&mut parser, Scanner::new(), true, false, false));
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
+
+    // DECLARATION
+    #[test]
+    fn declaration_test_01() {
+        let (node, scanner) = check(Declaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 14);
+        pretty_check(&*node, "Declaration: function a (  ) {  }", vec!["HoistableDeclaration: function a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "FunctionDeclaration: function a (  ) {  }",
+            vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn declaration_test_02() {
+        let (node, scanner) = check(Declaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false));
+        chk_scan(&scanner, 9);
+        pretty_check(&*node, "Declaration: class a { }", vec!["ClassDeclaration: class a { }"]);
+        concise_check(&*node, "ClassDeclaration: class a { }", vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn declaration_test_03() {
+        let (node, scanner) = check(Declaration::parse(&mut newparser("let a;"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        pretty_check(&*node, "Declaration: let a ;", vec!["LexicalDeclaration: let a ;"]);
+        concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn declaration_test_err_01() {
+        check_err(Declaration::parse(&mut newparser(""), Scanner::new(), false, false), "Declaration expected", 1, 1);
+    }
+    #[test]
+    fn declaration_test_prettyerrors_1() {
+        let (item, _) = Declaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn declaration_test_prettyerrors_2() {
+        let (item, _) = Declaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn declaration_test_prettyerrors_3() {
+        let (item, _) = Declaration::parse(&mut newparser("let a;"), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn declaration_test_conciseerrors_1() {
+        let (item, _) = Declaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn declaration_test_conciseerrors_2() {
+        let (item, _) = Declaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn declaration_test_conciseerrors_3() {
+        let (item, _) = Declaration::parse(&mut newparser("let a;"), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    // HOISTABLE DECLARATION
+    #[test]
+    fn hoistable_declaration_test_01() {
+        let (node, scanner) = check(HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 14);
+        pretty_check(&*node, "HoistableDeclaration: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "FunctionDeclaration: function a (  ) {  }",
+            vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn hoistable_declaration_test_02() {
+        let (node, scanner) = check(HoistableDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 15);
+        pretty_check(&*node, "HoistableDeclaration: function * a (  ) {  }", vec!["GeneratorDeclaration: function * a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "GeneratorDeclaration: function * a (  ) {  }",
+            vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn hoistable_declaration_test_03() {
+        let (node, scanner) = check(HoistableDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 20);
+        pretty_check(&*node, "HoistableDeclaration: async function a (  ) {  }", vec!["AsyncFunctionDeclaration: async function a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "AsyncFunctionDeclaration: async function a (  ) {  }",
+            vec!["Keyword: async", "Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn hoistable_declaration_test_04() {
+        let (node, scanner) = check(HoistableDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 21);
+        pretty_check(&*node, "HoistableDeclaration: async function * a (  ) {  }", vec!["AsyncGeneratorDeclaration: async function * a (  ) {  }"]);
+        concise_check(
+            &*node,
+            "AsyncGeneratorDeclaration: async function * a (  ) {  }",
+            vec!["Keyword: async", "Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        );
+        format!("{:?}", node);
+    }
+    #[test]
+    fn hoistable_declaration_test_err_01() {
+        check_err(HoistableDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, false), "HoistableDeclaration expected", 1, 1);
+    }
+    #[test]
+    fn hoistable_declaration_test_prettyerrors_1() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_prettyerrors_2() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_prettyerrors_3() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_prettyerrors_4() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_conciseerrors_1() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_conciseerrors_2() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_conciseerrors_3() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn hoistable_declaration_test_conciseerrors_4() {
+        let (item, _) = HoistableDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    // BREAKABLE STATEMENT
+    #[test]
+    fn breakable_statement_test_01() {
+        let (node, scanner) = check(BreakableStatement::parse(&mut newparser("while (a);"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 10);
+        pretty_check(&*node, "BreakableStatement: while ( a ) ;", vec!["IterationStatement: while ( a ) ;"]);
+        concise_check(&*node, "WhileStatement: while ( a ) ;", vec!["Keyword: while", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn breakable_statement_test_02() {
+        let (node, scanner) = check(BreakableStatement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, false));
+        chk_scan(&scanner, 11);
+        pretty_check(&*node, "BreakableStatement: switch ( a ) { }", vec!["SwitchStatement: switch ( a ) { }"]);
+        concise_check(&*node, "SwitchStatement: switch ( a ) { }", vec!["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn breable_statement_test_err_01() {
+        check_err(BreakableStatement::parse(&mut newparser(""), Scanner::new(), false, false, false), "BreakableStatement expected", 1, 1);
+    }
+    #[test]
+    fn breakable_statement_test_prettyerrors_1() {
+        let (item, _) = BreakableStatement::parse(&mut newparser("while(a);"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn breakable_statement_test_prettyerrors_2() {
+        let (item, _) = BreakableStatement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn breakable_statement_test_conciseerrors_1() {
+        let (item, _) = BreakableStatement::parse(&mut newparser("while(a);"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+    #[test]
+    fn breakable_statement_test_conciseerrors_2() {
+        let (item, _) = BreakableStatement::parse(&mut newparser("switch(a){}"), Scanner::new(), false, false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+}

@@ -191,8 +191,7 @@ mod tests {
         let src: &[u16] = &[66, 111, 98]; // Bob
         let res = JSString::from(src);
         let display = format!("{}", res);
-        //assert_eq!(display, "Bob");
-        assert!(display == "Bob");
+        assert_eq!(display, "Bob");
     }
 
     #[test]

@@ -21,7 +21,7 @@ use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpressi
 use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
 use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
-use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
+use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -121,7 +121,6 @@ pub struct Parser<'a> {
     pub binding_rest_property_cache: HashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
     pub bitwise_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
     pub block_cache: HashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
-    pub breakable_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<BreakableStatement>, RandomState>,
     pub call_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
     pub case_block_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseBlock>, RandomState>,
     pub case_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClause>, RandomState>,
@@ -132,7 +131,6 @@ pub struct Parser<'a> {
     pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
     pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
     pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
-    pub declaration_cache: HashMap<YieldAwaitKey, ParseResult<Declaration>, RandomState>,
     pub default_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<DefaultClause>, RandomState>,
     pub do_while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<DoWhileStatement>, RandomState>,
     pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
@@ -148,7 +146,6 @@ pub struct Parser<'a> {
     pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
     pub function_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
     pub generator_body_cache: HashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
-    pub hoistable_declaration_cache: HashMap<YieldAwaitDefaultKey, ParseResult<HoistableDeclaration>, RandomState>,
     pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
     pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
     pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
