@@ -41,13 +41,13 @@ function objects() {
                 jq -r "select(.profile.test == true) | .filenames[]" | \
                 grep -v dSYM - \
             ); do 
-            echo -n "-object $file ";
+            /bin/echo -n "-object $file ";
     done
     echo
 }
 
 function z() {
-  pushd ~/rustplay/rust-e262 > /dev/null
+  pushd ~/*/rust-e262 > /dev/null
   rm -f res-*.profraw
   RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test -j 1 "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
