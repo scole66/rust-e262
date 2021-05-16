@@ -1883,7 +1883,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
                 let regular_expression_class_chars = format!("(?:{}*)", regular_expression_class_char);
                 let regular_expression_class = format!(r"(?:\[{}\])", regular_expression_class_chars);
                 let regular_expression_char = format!(r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
-                let regular_expression_first_char = format!(r"(?:[^\u000A\u2028\u2029\u000D*/\[\]]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
+                let regular_expression_first_char = format!(r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{}|{})", regular_expression_backslash_sequence, regular_expression_class);
                 let regular_expression_chars = format!("(?:{}*)", regular_expression_char);
                 let regular_expression_body = format!("(?:{}{})", regular_expression_first_char, regular_expression_chars);
                 let regular_expression_literal = format!("(?:^/(?P<body>{})/(?P<flags>{}))", regular_expression_body, regular_expression_flags);
@@ -2842,6 +2842,11 @@ mod tests {
     fn regular_expression_literal_test_03() {
         let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
         assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData { body: String::from("abcd"), flags: String::from("") }), Scanner { line: 1, column: 7, start_idx: 6 })));
+    }
+    #[test]
+    fn regular_expression_literal_test_04() {
+        let result = regular_expression_literal(&Scanner::new(), "/\\//", ScanGoal::InputElementRegExpOrTemplateTail);
+        assert_eq!(result, Some((Token::RegularExpression(RegularExpressionData { body: String::from("\\/"), flags: String::from("") }), Scanner { line: 1, column: 5, start_idx: 4 })));
     }
 
     #[test]
