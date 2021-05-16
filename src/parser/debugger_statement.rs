@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -41,7 +41,7 @@ impl DebuggerStatement {
     // no need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_deb = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
-        let after_semi = scan_for_punct(after_deb, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+        let after_semi = scan_for_auto_semi(after_deb, parser.source, ScanGoal::InputElementDiv)?;
         Ok((Rc::new(DebuggerStatement), after_semi))
     }
 }
@@ -62,12 +62,20 @@ mod tests {
         format!("{:?}", se);
     }
     #[test]
-    fn debugger_statement_test_02() {
+    fn debugger_statement_test_asi_01() {
+        let (se, scanner) = check(DebuggerStatement::parse(&mut newparser("debugger"), Scanner::new()));
+        chk_scan(&scanner, 8);
+        pretty_check(&*se, "DebuggerStatement: debugger ;", vec![]);
+        concise_check(&*se, "DebuggerStatement: debugger ;", vec!["Keyword: debugger", "Punctuator: ;"]);
+        format!("{:?}", se);
+    }
+    #[test]
+    fn debugger_statement_test_err_01() {
         check_err(DebuggerStatement::parse(&mut newparser(""), Scanner::new()), "‘debugger’ expected", 1, 1);
     }
     #[test]
-    fn debugger_statement_test_03() {
-        check_err(DebuggerStatement::parse(&mut newparser("debugger"), Scanner::new()), "‘;’ expected", 1, 9);
+    fn debugger_statement_test_err_02() {
+        check_err(DebuggerStatement::parse(&mut newparser("debugger for"), Scanner::new()), "‘;’ expected", 1, 9);
     }
     #[test]
     fn debugger_statement_test_prettyerrors_1() {

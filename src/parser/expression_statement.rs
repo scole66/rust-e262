@@ -69,7 +69,7 @@ impl ExpressionStatement {
             Err(ParseError::new("ExpressionStatement expected", scanner.line, scanner.column))
         } else {
             let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
-            let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+            let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
             Ok((Rc::new(ExpressionStatement::Expression(exp)), after_semi))
         }
     }
@@ -103,6 +103,16 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn expression_statement_test_asi_01() {
+        let (node, scanner) = check(ExpressionStatement::parse(&mut newparser("a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        pretty_check(&*node, "ExpressionStatement: a ;", vec!["Expression: a"]);
+        concise_check(&*node, "ExpressionStatement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+        pretty_error_validate(&*node);
+        concise_error_validate(&*node);
+    }
+    #[test]
     fn expression_statement_test_err_01() {
         check_err(ExpressionStatement::parse(&mut newparser(""), Scanner::new(), false, false), "Expression expected", 1, 1);
     }
@@ -128,6 +138,6 @@ mod tests {
     }
     #[test]
     fn expression_statement_test_err_07() {
-        check_err(ExpressionStatement::parse(&mut newparser("0"), Scanner::new(), false, false), "‘;’ expected", 1, 2);
+        check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 2);
     }
 }

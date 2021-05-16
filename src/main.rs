@@ -3,6 +3,7 @@
 #![allow(clippy::bool_assert_comparison)]
 
 use std::env;
+use std::fs;
 use std::io::{self, Write};
 
 mod agent;
@@ -84,8 +85,19 @@ fn repl(vm: &mut VM) {
     }
 }
 
-fn run_file(_vm: &mut VM, fname: &str) {
+fn run_file(vm: &mut VM, fname: &str) {
     println!("Running from the file {}", fname);
+    let potential_file_content = fs::read(fname);
+    match potential_file_content {
+        Err(e) => println!("{}", e),
+        Ok(file_content) => {
+            let script_source = String::from_utf8_lossy(&file_content);
+            match interpret(vm, &script_source) {
+                Ok(value) => println!("{}", value),
+                Err(err) => println!("{}", err),
+            }
+        }
+    }
 }
 
 fn run_app() -> Result<(), i32> {

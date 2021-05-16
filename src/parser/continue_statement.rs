@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::identifiers::LabelIdentifier;
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -56,17 +56,11 @@ impl ContinueStatement {
     // no need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_cont = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Continue)?;
-        Err(ParseError::new("Expected label or semicolon", after_cont.line, after_cont.column))
-            .otherwise(|| {
-                no_line_terminator(after_cont, parser.source)?;
-                let (li, after_li) = LabelIdentifier::parse(parser, after_cont, yield_flag, await_flag)?;
-                let after_semi = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
-                Ok((Rc::new(ContinueStatement::Labelled(li)), after_semi))
-            })
-            .otherwise(|| {
-                let after_semi = scan_for_punct(after_cont, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
-                Ok((Rc::new(ContinueStatement::Bare), after_semi))
-            })
+        scan_for_auto_semi(after_cont, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ContinueStatement::Bare), after_semi)).otherwise(|| {
+            let (li, after_li) = LabelIdentifier::parse(parser, after_cont, yield_flag, await_flag)?;
+            let after_semi = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
+            Ok((Rc::new(ContinueStatement::Labelled(li)), after_semi))
+        })
     }
 }
 
@@ -94,20 +88,40 @@ mod tests {
         format!("{:?}", node);
     }
     #[test]
+    fn continue_statement_test_03() {
+        let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue"), Scanner::new(), false, false));
+        chk_scan(&scanner, 8);
+        pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
+        concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn continue_statement_test_04() {
+        let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue label"), Scanner::new(), false, false));
+        chk_scan(&scanner, 14);
+        pretty_check(&*node, "ContinueStatement: continue label ;", vec!["LabelIdentifier: label"]);
+        concise_check(&*node, "ContinueStatement: continue label ;", vec!["Keyword: continue", "IdentifierName: label", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn continue_statement_test_05() {
+        let (node, scanner) = check(ContinueStatement::parse(&mut newparser("continue\nlabel"), Scanner::new(), false, false));
+        chk_scan(&scanner, 8);
+        pretty_check(&*node, "ContinueStatement: continue ;", vec![]);
+        concise_check(&*node, "ContinueStatement: continue ;", vec!["Keyword: continue", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
     fn continue_statement_test_err_01() {
         check_err(ContinueStatement::parse(&mut newparser(""), Scanner::new(), false, false), "‘continue’ expected", 1, 1);
     }
     #[test]
     fn continue_statement_test_err_02() {
-        check_err(ContinueStatement::parse(&mut newparser("continue\n"), Scanner::new(), false, false), "Expected label or semicolon", 1, 9);
+        check_err(ContinueStatement::parse(&mut newparser("continue for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
     }
     #[test]
     fn continue_statement_test_err_03() {
-        check_err(ContinueStatement::parse(&mut newparser("continue a"), Scanner::new(), false, false), "‘;’ expected", 1, 11);
-    }
-    #[test]
-    fn continue_statement_test_err_04() {
-        check_err(ContinueStatement::parse(&mut newparser("continue for"), Scanner::new(), false, false), "Expected label or semicolon", 1, 9);
+        check_err(ContinueStatement::parse(&mut newparser("continue a for"), Scanner::new(), false, false), "‘;’ expected", 1, 11);
     }
     #[test]
     fn continue_statement_test_prettyerrors_1() {

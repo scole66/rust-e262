@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -45,7 +45,7 @@ impl ThrowStatement {
         let after_throw = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
         no_line_terminator(after_throw, parser.source)?;
         let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
-        let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(ThrowStatement(exp)), after_semi))
     }
 

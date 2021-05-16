@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -53,32 +53,13 @@ impl PrettyPrint for ReturnStatement {
 }
 
 impl ReturnStatement {
-    // Given ‘return’
-    // See if we can parse ‘[no LineTerminator here] Expression ;’
-    fn parse_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (_, after_next) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        // The following check is broken for literals which span more than one line (strings can do this). Need to come up with a better way.
-        if scanner.line == after_next.line {
-            let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
-            let after_semi = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
-            Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
-        } else {
-            Err(ParseError::new("Expression expected", scanner.line, scanner.column))
-        }
-    }
-
-    // Given ‘return’
-    // See if we can parse ‘;’
-    fn parse_semi(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_semi = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Rc::new(ReturnStatement::Bare), after_semi))
-    }
-
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_ret = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
-        Err(ParseError::new("‘;’ or an Expression expected", after_ret.line, after_ret.column))
-            .otherwise(|| Self::parse_exp(parser, after_ret, yield_flag, await_flag))
-            .otherwise(|| Self::parse_semi(parser, after_ret))
+        scan_for_auto_semi(after_ret, parser.source, ScanGoal::InputElementRegExp).map(|after_semi| (Rc::new(ReturnStatement::Bare), after_semi)).otherwise(|| {
+            let (exp, after_exp) = Expression::parse(parser, after_ret, true, yield_flag, await_flag)?;
+            let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
+            Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
+        })
     }
 }
 
@@ -106,20 +87,32 @@ mod tests {
         format!("{:?}", node);
     }
     #[test]
+    fn return_statement_test_asi_01() {
+        let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return"), Scanner::new(), false, false));
+        chk_scan(&scanner, 6);
+        pretty_check(&*node, "ReturnStatement: return ;", vec![]);
+        concise_check(&*node, "ReturnStatement: return ;", vec!["Keyword: return", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
+    fn return_statement_test_asi_02() {
+        let (node, scanner) = check(ReturnStatement::parse(&mut newparser("return null"), Scanner::new(), false, false));
+        chk_scan(&scanner, 11);
+        pretty_check(&*node, "ReturnStatement: return null ;", vec!["Expression: null"]);
+        concise_check(&*node, "ReturnStatement: return null ;", vec!["Keyword: return", "Keyword: null", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
     fn return_statement_test_err_01() {
         check_err(ReturnStatement::parse(&mut newparser(""), Scanner::new(), false, false), "‘return’ expected", 1, 1);
     }
     #[test]
     fn return_statement_test_err_02() {
-        check_err(ReturnStatement::parse(&mut newparser("return"), Scanner::new(), false, false), "‘;’ or an Expression expected", 1, 7);
+        check_err(ReturnStatement::parse(&mut newparser("return ="), Scanner::new(), false, false), "‘;’ expected", 1, 7);
     }
     #[test]
     fn return_statement_test_err_03() {
-        check_err(ReturnStatement::parse(&mut newparser("return 0"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
-    }
-    #[test]
-    fn return_statement_test_err_04() {
-        check_err(ReturnStatement::parse(&mut newparser("return\n0;"), Scanner::new(), false, false), "‘;’ or an Expression expected", 1, 7);
+        check_err(ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
     }
     #[test]
     fn return_statement_test_prettyerrors_1() {

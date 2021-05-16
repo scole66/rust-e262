@@ -55,7 +55,7 @@ impl LexicalDeclaration {
             _ => LetOrConst::Const,
         };
         let (bl, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        let after_semi = scan_for_punct(after_bl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        let after_semi = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(LexicalDeclaration::List(loc, bl)), after_semi))
     }
 
@@ -300,7 +300,7 @@ impl VariableStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_var = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
         let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
-        let after_semi = scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        let after_semi = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
     }
 }
@@ -1379,6 +1379,14 @@ mod tests {
         assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]
+    fn lexical_declaration_test_asi_01() {
+        let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, false, false));
+        chk_scan(&scanner, 5);
+        pretty_check(&*node, "LexicalDeclaration: let a ;", vec!["LetOrConst: let", "BindingList: a"]);
+        concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+    }
+    #[test]
     fn lexical_declaration_test_err_01() {
         check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "One of [‘let’, ‘const’] expected", 1, 1);
     }
@@ -1388,7 +1396,7 @@ mod tests {
     }
     #[test]
     fn lexical_declaration_test_err_03() {
-        check_err(LexicalDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, false, false), "‘;’ expected", 1, 6);
+        check_err(LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false), "‘;’ expected", 1, 6);
     }
     #[test]
     fn lexical_declaration_test_prettyerrors_1() {
@@ -1504,6 +1512,16 @@ mod tests {
         concise_error_validate(&*node);
     }
     #[test]
+    fn variable_statement_test_asi_01() {
+        let (node, scanner) = check(VariableStatement::parse(&mut newparser("var a"), Scanner::new(), false, false));
+        chk_scan(&scanner, 5);
+        pretty_check(&*node, "VariableStatement: var a ;", vec!["VariableDeclarationList: a"]);
+        concise_check(&*node, "VariableStatement: var a ;", vec!["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
+        format!("{:?}", node);
+        pretty_error_validate(&*node);
+        concise_error_validate(&*node);
+    }
+    #[test]
     fn variable_statement_test_err_01() {
         check_err(VariableStatement::parse(&mut newparser(""), Scanner::new(), false, false), "‘var’ expected", 1, 1);
     }
@@ -1513,7 +1531,7 @@ mod tests {
     }
     #[test]
     fn variable_statement_test_err_03() {
-        check_err(VariableStatement::parse(&mut newparser("var a"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+        check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
     }
 
     // VARIABLE DECLARATION LIST

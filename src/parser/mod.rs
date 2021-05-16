@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use throw_statement::ThrowStatement;
-use try_statement::{CatchParameter};
+use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
 
@@ -300,6 +300,18 @@ pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set
     }
 }
 
+pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError> {
+    let (tok, after_tok) = scan_token(&scanner, src, goal);
+    if tok.matches_punct(Punctuator::Semicolon) {
+        Ok(after_tok)
+    } else if tok.matches_punct(Punctuator::RightBrace) || tok == Token::Eof || after_tok.line > scanner.line {
+        // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
+        Ok(scanner)
+    } else {
+        Err(ParseError::new("‘;’ expected", scanner.line, scanner.column))
+    }
+}
+
 pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_keyword(kwd) {
@@ -324,6 +336,15 @@ pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> R
         Ok((id, after_tok))
     } else {
         Err(ParseError::new("IdentifierName expected", scanner.line, scanner.column))
+    }
+}
+
+pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
+    let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+    if tok == Token::Eof {
+        Ok(after_tok)
+    } else {
+        Err(ParseError::new("EoF expected", scanner.line, scanner.column))
     }
 }
 

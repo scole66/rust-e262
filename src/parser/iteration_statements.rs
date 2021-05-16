@@ -148,7 +148,7 @@ impl DoWhileStatement {
         let after_open = scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_semi = scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        let after_semi = scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon).unwrap_or(after_close);
         Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
     }
 

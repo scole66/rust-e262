@@ -50,9 +50,17 @@ impl PrettyPrint for Script {
 
 impl Script {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        match ScriptBody::parse(parser, scanner) {
-            Ok((n, s)) => Ok((Rc::new(Script(Some(n))), s)),
-            Err(_) => Ok((Rc::new(Script(None)), scanner)),
+        let (script, after_script, err) = match ScriptBody::parse(parser, scanner) {
+            Ok((node, scan)) => (Some(node), scan, None),
+            Err(err) => (None, scanner, Some(err)),
+        };
+        let end = scan_for_eof(after_script, parser.source);
+        match end {
+            Ok(scan) => Ok((Rc::new(Script(script)), scan)),
+            Err(e) => match err {
+                Some(x) => Err(x),
+                None => Err(e),
+            },
         }
     }
 }
