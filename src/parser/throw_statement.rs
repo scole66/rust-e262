@@ -60,6 +60,10 @@ impl ThrowStatement {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.0.contains(kind)
+    }
 }
 
 //#[cfg(test)]

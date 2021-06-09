@@ -61,6 +61,13 @@ impl ReturnStatement {
             Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
         })
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ReturnStatement::Bare => false,
+            ReturnStatement::Expression(node) => node.contains(kind),
+        }
+    }
 }
 
 #[cfg(test)]

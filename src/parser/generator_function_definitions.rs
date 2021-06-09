@@ -67,6 +67,14 @@ impl GeneratorMethod {
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
+    }
+
+    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+        self.name.computed_property_contains(kind)
+    }
 }
 
 // GeneratorDeclaration[Yield, Await, Default] :
@@ -144,6 +152,17 @@ impl GeneratorDeclaration {
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorDeclaration { ident, params, body }), after_rb))
     }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match &self.ident {
+            None => vec![JSString::from("*default*")],
+            Some(node) => node.bound_names(),
+        }
+    }
+
+    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+        false
+    }
 }
 
 // GeneratorExpression :
@@ -220,6 +239,10 @@ impl GeneratorExpression {
         let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorExpression { ident, params, body }), after_rb))
     }
+
+    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+        false
+    }
 }
 
 // GeneratorBody :
@@ -266,6 +289,10 @@ impl GeneratorBody {
                 result
             }
         }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.0.contains(kind)
     }
 }
 
@@ -348,6 +375,14 @@ impl YieldExpression {
         no_line_terminator(after_yield, parser.source)
             .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag))
             .otherwise(|| Ok((Rc::new(YieldExpression::Simple), after_yield)))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            YieldExpression::Simple => false,
+            YieldExpression::Expression(node) => node.contains(kind),
+            YieldExpression::From(node) => node.contains(kind),
+        }
     }
 }
 

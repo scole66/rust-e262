@@ -53,7 +53,7 @@ impl VM {
 }
 
 fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
-    let mut parser = Parser::new(source, false, parser::ParseGoal::Script);
+    let mut parser = Parser::new(source, false, false, parser::ParseGoal::Script);
     let result = Script::parse(&mut parser, Scanner::new());
     match result {
         Ok((node, _)) => {

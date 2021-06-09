@@ -37,8 +37,19 @@ pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object
     let cstr = agent.running_execution_context().unwrap().realm.intrinsics.reference_error.clone();
     create_native_error_object(agent, message, cstr, IntrinsicIdentifier::ReferenceErrorPrototype)
 }
+
 pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
     AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, message))), target: None })
+}
+
+pub fn create_syntax_error_object(agent: &mut Agent, _message: &str) -> Object {
+    let _cstr = agent.running_execution_context().unwrap().realm.intrinsics.syntax_error.clone();
+    //create_native_error_object(agent, message, cstr, IntrinsicIdentifier::SyntaxErrorPrototype)
+    todo!()
+}
+
+pub fn create_syntax_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_syntax_error_object(agent, message))), target: None })
 }
 
 pub struct ErrorObject {

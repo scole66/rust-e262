@@ -55,6 +55,10 @@ impl UniqueFormalParameters {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.formals.contains(kind)
+    }
 }
 
 // FormalParameters[Yield, Await] :
@@ -166,6 +170,16 @@ impl FormalParameters {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            FormalParameters::Empty => false,
+            FormalParameters::Rest(node) => node.contains(kind),
+            FormalParameters::List(node) => node.contains(kind),
+            FormalParameters::ListComma(node) => node.contains(kind),
+            FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -232,6 +246,13 @@ impl FormalParameterList {
         }
         Ok((current, current_scanner))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            FormalParameterList::Item(node) => node.contains(kind),
+            FormalParameterList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -269,6 +290,10 @@ impl FunctionRestParameter {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (element, after_bre) = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
         Ok((Rc::new(FunctionRestParameter { element }), after_bre))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.element.contains(kind)
     }
 }
 
@@ -319,6 +344,10 @@ impl FormalParameter {
                 result
             }
         }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.element.contains(kind)
     }
 }
 

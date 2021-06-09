@@ -56,6 +56,18 @@ impl WithStatement {
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(WithStatement { expression: exp, statement: stmt }), after_stmt))
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        self.statement.var_declared_names()
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        self.statement.contains_undefined_break_target(label_set)
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.expression.contains(kind) || self.statement.contains(kind)
+    }
 }
 
 #[cfg(test)]

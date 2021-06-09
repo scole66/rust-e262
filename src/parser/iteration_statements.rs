@@ -96,6 +96,33 @@ impl IterationStatement {
             }
         }
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            IterationStatement::DoWhile(node) => node.var_declared_names(),
+            IterationStatement::While(node) => node.var_declared_names(),
+            IterationStatement::For(node) => node.var_declared_names(),
+            IterationStatement::ForInOf(node) => node.var_declared_names(),
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            IterationStatement::DoWhile(node) => node.contains_undefined_break_target(label_set),
+            IterationStatement::While(node) => node.contains_undefined_break_target(label_set),
+            IterationStatement::For(node) => node.contains_undefined_break_target(label_set),
+            IterationStatement::ForInOf(node) => node.contains_undefined_break_target(label_set),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            IterationStatement::DoWhile(node) => node.contains(kind),
+            IterationStatement::While(node) => node.contains(kind),
+            IterationStatement::For(node) => node.contains(kind),
+            IterationStatement::ForInOf(node) => node.contains(kind),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -163,6 +190,21 @@ impl DoWhileStatement {
             }
         }
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        let DoWhileStatement::Do(s, _) = self;
+        s.var_declared_names()
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        let DoWhileStatement::Do(s, _) = self;
+        s.contains_undefined_break_target(label_set)
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let DoWhileStatement::Do(s, e) = self;
+        s.contains(kind) || e.contains(kind)
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -225,6 +267,21 @@ impl WhileStatement {
                 result
             }
         }
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        let WhileStatement::While(_, s) = self;
+        s.var_declared_names()
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        let WhileStatement::While(_, s) = self;
+        s.contains_undefined_break_target(label_set)
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let WhileStatement::While(e, s) = self;
+        e.contains(kind) || s.contains(kind)
     }
 }
 
@@ -418,6 +475,41 @@ impl ForStatement {
                 let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
                 parser.for_statement_cache.insert(key, result.clone());
                 result
+            }
+        }
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            ForStatement::For(_, _, _, s) => s.var_declared_names(),
+            ForStatement::ForVar(v, _, _, s) => {
+                let mut names = v.bound_names();
+                names.extend(s.var_declared_names());
+                names
+            }
+            ForStatement::ForLex(_, _, _, s) => s.var_declared_names(),
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_break_target(label_set),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ForStatement::For(opt1, opt2, opt3, s) => {
+                opt1.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt3.as_ref().map_or(false, |n| n.contains(kind))
+                    || s.contains(kind)
+            }
+            ForStatement::ForVar(v, opt1, opt2, s) => {
+                v.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
+            }
+            ForStatement::ForLex(lex, opt1, opt2, s) => {
+                lex.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
             }
         }
     }
@@ -658,6 +750,47 @@ impl ForInOfStatement {
             }
         }
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            ForInOfStatement::ForIn(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForLexIn(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForLexOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForAwaitOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForAwaitLexOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::ForVarIn(v, _, s) | ForInOfStatement::ForVarOf(v, _, s) | ForInOfStatement::ForAwaitVarOf(v, _, s) => {
+                let mut names = v.bound_names();
+                names.extend(s.var_declared_names());
+                names
+            }
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            ForInOfStatement::ForIn(_, _, s)
+            | ForInOfStatement::ForLexIn(_, _, s)
+            | ForInOfStatement::ForOf(_, _, s)
+            | ForInOfStatement::ForLexOf(_, _, s)
+            | ForInOfStatement::ForAwaitOf(_, _, s)
+            | ForInOfStatement::ForAwaitLexOf(_, _, s)
+            | ForInOfStatement::ForVarIn(_, _, s)
+            | ForInOfStatement::ForVarOf(_, _, s)
+            | ForInOfStatement::ForAwaitVarOf(_, _, s) => s.contains_undefined_break_target(label_set),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ForInOfStatement::ForIn(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::ForVarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::ForLexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::ForOf(lhs, e, s) | ForInOfStatement::ForAwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::ForVarOf(v, e, s) | ForInOfStatement::ForAwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::ForLexOf(lex, e, s) | ForInOfStatement::ForAwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+        }
+    }
 }
 
 fn pp_two<T, U, UU, V, VV>(writer: &mut T, pad: &str, n1: &U, n2: &V) -> IoResult<()>
@@ -765,6 +898,11 @@ impl ForDeclaration {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let ForDeclaration::Binding(loc, node) = self;
+        loc.contains(kind) || node.contains(kind)
+    }
 }
 
 // ForBinding[Yield, Await] :
@@ -831,6 +969,20 @@ impl ForBinding {
                 parser.for_binding_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            ForBinding::Identifier(node) => node.bound_names(),
+            ForBinding::Pattern(node) => node.bound_names(),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ForBinding::Identifier(node) => node.contains(kind),
+            ForBinding::Pattern(node) => node.contains(kind),
         }
     }
 }

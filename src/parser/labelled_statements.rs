@@ -53,6 +53,26 @@ impl LabelledStatement {
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
     }
+
+    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+        self.item.top_level_var_declared_names()
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        self.item.var_declared_names()
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        let label = self.identifier.string_value();
+        let mut new_label_set: Vec<JSString> = Vec::new();
+        new_label_set.extend_from_slice(label_set);
+        new_label_set.push(label);
+        self.item.contains_undefined_break_target(&new_label_set)
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.identifier.contains(kind) || self.item.contains(kind)
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -108,6 +128,37 @@ impl LabelledItem {
                 let (fcn, after_fcn) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
                 Ok((Rc::new(LabelledItem::Function(fcn)), after_fcn))
             })
+    }
+
+    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            LabelledItem::Statement(node) => match &**node {
+                Statement::Labelled(stmt) => stmt.top_level_var_declared_names(),
+                _ => node.var_declared_names(),
+            },
+            LabelledItem::Function(node) => node.bound_names(),
+        }
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            LabelledItem::Statement(node) => node.var_declared_names(),
+            LabelledItem::Function(..) => vec![],
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            LabelledItem::Statement(node) => node.contains_undefined_break_target(label_set),
+            LabelledItem::Function(..) => false,
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            LabelledItem::Statement(node) => node.contains(kind),
+            LabelledItem::Function(node) => node.contains(kind),
+        }
     }
 }
 

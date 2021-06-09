@@ -203,6 +203,57 @@ impl Statement {
             }
         }
     }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match &self {
+            Statement::Block(node) => node.var_declared_names(),
+            Statement::Variable(node) => node.var_declared_names(),
+            Statement::Empty(_) => vec![],
+            Statement::Expression(_) => vec![],
+            Statement::If(node) => node.var_declared_names(),
+            Statement::Breakable(node) => node.var_declared_names(),
+            Statement::Continue(_) => vec![],
+            Statement::Break(_) => vec![],
+            Statement::Return(_) => vec![],
+            Statement::With(node) => node.var_declared_names(),
+            Statement::Labelled(node) => node.var_declared_names(),
+            Statement::Throw(_) => vec![],
+            Statement::Try(node) => node.var_declared_names(),
+            Statement::Debugger(_) => vec![],
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            Statement::Variable(_) | Statement::Empty(_) | Statement::Expression(_) | Statement::Continue(_) | Statement::Return(_) | Statement::Throw(_) | Statement::Debugger(_) => false,
+            Statement::Block(node) => node.contains_undefined_break_target(label_set),
+            Statement::If(node) => node.contains_undefined_break_target(label_set),
+            Statement::Breakable(node) => node.contains_undefined_break_target(label_set),
+            Statement::Break(node) => node.contains_undefined_break_target(label_set),
+            Statement::With(node) => node.contains_undefined_break_target(label_set),
+            Statement::Labelled(node) => node.contains_undefined_break_target(label_set),
+            Statement::Try(node) => node.contains_undefined_break_target(label_set),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            Statement::Block(n) => kind == ParseNodeKind::BlockStatement || n.contains(kind),
+            Statement::Variable(n) => kind == ParseNodeKind::VariableStatement || n.contains(kind),
+            Statement::Empty(n) => kind == ParseNodeKind::EmptyStatement || n.contains(kind),
+            Statement::Expression(n) => kind == ParseNodeKind::ExpressionStatement || n.contains(kind),
+            Statement::If(n) => kind == ParseNodeKind::IfStatement || n.contains(kind),
+            Statement::Breakable(n) => kind == ParseNodeKind::BreakableStatement || n.contains(kind),
+            Statement::Continue(n) => kind == ParseNodeKind::ContinueStatement || n.contains(kind),
+            Statement::Break(n) => kind == ParseNodeKind::BreakStatement || n.contains(kind),
+            Statement::With(n) => kind == ParseNodeKind::WithStatement || n.contains(kind),
+            Statement::Labelled(n) => kind == ParseNodeKind::LabelledStatement || n.contains(kind),
+            Statement::Throw(n) => kind == ParseNodeKind::ThrowStatement || n.contains(kind),
+            Statement::Try(n) => kind == ParseNodeKind::TryStatement || n.contains(kind),
+            Statement::Debugger(n) => kind == ParseNodeKind::DebuggerStatement || n.contains(kind),
+            Statement::Return(n) => kind == ParseNodeKind::ReturnStatement || n.contains(kind),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -267,6 +318,22 @@ impl Declaration {
                 let (lex, after_lex) = LexicalDeclaration::parse(parser, scanner, true, yield_flag, await_flag)?;
                 Ok((Rc::new(Declaration::Lexical(lex)), after_lex))
             })
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            Declaration::Hoistable(node) => node.bound_names(),
+            Declaration::Class(node) => node.bound_names(),
+            Declaration::Lexical(node) => node.bound_names(),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            Declaration::Hoistable(node) => node.contains(kind),
+            Declaration::Class(node) => node.contains(kind),
+            Declaration::Lexical(node) => node.contains(kind),
+        }
     }
 }
 
@@ -342,6 +409,24 @@ impl HoistableDeclaration {
                 Ok((Rc::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
             })
     }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            HoistableDeclaration::Function(node) => node.bound_names(),
+            HoistableDeclaration::Generator(node) => node.bound_names(),
+            HoistableDeclaration::AsyncFunction(node) => node.bound_names(),
+            HoistableDeclaration::AsyncGenerator(node) => node.bound_names(),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            HoistableDeclaration::Function(node) => node.contains(kind),
+            HoistableDeclaration::Generator(node) => node.contains(kind),
+            HoistableDeclaration::AsyncFunction(node) => node.contains(kind),
+            HoistableDeclaration::AsyncGenerator(node) => node.contains(kind),
+        }
+    }
 }
 
 // BreakableStatement[Yield, Await, Return] :
@@ -397,6 +482,27 @@ impl BreakableStatement {
                 let (switch, after_switch) = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        match self {
+            BreakableStatement::Iteration(node) => node.var_declared_names(),
+            BreakableStatement::Switch(node) => node.var_declared_names(),
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self {
+            BreakableStatement::Iteration(node) => node.contains_undefined_break_target(label_set),
+            BreakableStatement::Switch(node) => node.contains_undefined_break_target(label_set),
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            BreakableStatement::Iteration(node) => node.contains(kind),
+            BreakableStatement::Switch(node) => node.contains(kind),
+        }
     }
 }
 
