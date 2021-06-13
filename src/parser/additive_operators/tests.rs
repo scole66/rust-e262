@@ -18,7 +18,7 @@ fn additive_expression_test_01() {
 fn additive_expression_test_02() {
     let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a+b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*ae, AdditiveExpression::AdditiveExpressionAdd(..)));
+    assert!(matches!(&*ae, AdditiveExpression::Add(..)));
     pretty_check(&*ae, "AdditiveExpression: a + b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
     concise_check(&*ae, "AdditiveExpression: a + b", vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
     format!("{:?}", ae);
@@ -29,7 +29,7 @@ fn additive_expression_test_02() {
 fn additive_expression_test_03() {
     let (ae, scanner) = check(AdditiveExpression::parse(&mut newparser("a-b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*ae, AdditiveExpression::AdditiveExpressionSubtract(..)));
+    assert!(matches!(&*ae, AdditiveExpression::Subtract(..)));
     pretty_check(&*ae, "AdditiveExpression: a - b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
     concise_check(&*ae, "AdditiveExpression: a - b", vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
     format!("{:?}", ae);

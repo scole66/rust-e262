@@ -60,7 +60,7 @@ impl PrettyPrint for ClassDeclaration {
 
 impl ClassDeclaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        let after_class = scan_for_keyword(scanner, &parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+        let after_class = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -146,7 +146,7 @@ impl IsFunctionDefinition for ClassExpression {
 
 impl ClassExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_class = scan_for_keyword(scanner, &parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+        let after_class = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -292,7 +292,7 @@ impl PrettyPrint for ClassHeritage {
 
 impl ClassHeritage {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_extends = scan_for_keyword(scanner, &parser.source, ScanGoal::InputElementDiv, Keyword::Extends)?;
+        let after_extends = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Extends)?;
         let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, after_extends, yield_flag, await_flag)?;
         Ok((Rc::new(ClassHeritage(lhs)), after_lhs))
     }

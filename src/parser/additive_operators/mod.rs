@@ -14,18 +14,18 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 #[derive(Debug)]
 pub enum AdditiveExpression {
     MultiplicativeExpression(Rc<MultiplicativeExpression>),
-    AdditiveExpressionAdd(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
-    AdditiveExpressionSubtract(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
+    Add(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
+    Subtract(Rc<AdditiveExpression>, Rc<MultiplicativeExpression>),
 }
 
 impl fmt::Display for AdditiveExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             AdditiveExpression::MultiplicativeExpression(boxed) => write!(f, "{}", boxed),
-            AdditiveExpression::AdditiveExpressionAdd(ae, me) => {
+            AdditiveExpression::Add(ae, me) => {
                 write!(f, "{} + {}", ae, me)
             }
-            AdditiveExpression::AdditiveExpressionSubtract(ae, me) => {
+            AdditiveExpression::Subtract(ae, me) => {
                 write!(f, "{} - {}", ae, me)
             }
         }
@@ -41,7 +41,7 @@ impl PrettyPrint for AdditiveExpression {
         writeln!(writer, "{}AdditiveExpression: {}", first, self)?;
         match &self {
             AdditiveExpression::MultiplicativeExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            AdditiveExpression::AdditiveExpressionAdd(ae, me) | AdditiveExpression::AdditiveExpressionSubtract(ae, me) => {
+            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => {
                 ae.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 me.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -62,8 +62,8 @@ impl PrettyPrint for AdditiveExpression {
 
         match self {
             AdditiveExpression::MultiplicativeExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            AdditiveExpression::AdditiveExpressionAdd(left, right) => work(left, right, "+"),
-            AdditiveExpression::AdditiveExpressionSubtract(left, right) => work(left, right, "-"),
+            AdditiveExpression::Add(left, right) => work(left, right, "+"),
+            AdditiveExpression::Subtract(left, right) => work(left, right, "-"),
         }
     }
 }
@@ -71,7 +71,7 @@ impl PrettyPrint for AdditiveExpression {
 impl IsFunctionDefinition for AdditiveExpression {
     fn is_function_definition(&self) -> bool {
         match self {
-            AdditiveExpression::AdditiveExpressionAdd(..) | AdditiveExpression::AdditiveExpressionSubtract(..) => false,
+            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => false,
             AdditiveExpression::MultiplicativeExpression(me) => me.is_function_definition(),
         }
     }
@@ -80,7 +80,7 @@ impl IsFunctionDefinition for AdditiveExpression {
 impl AssignmentTargetType for AdditiveExpression {
     fn assignment_target_type(&self) -> ATTKind {
         match self {
-            AdditiveExpression::AdditiveExpressionAdd(..) | AdditiveExpression::AdditiveExpressionSubtract(..) => ATTKind::Invalid,
+            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
             AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(),
         }
     }
@@ -96,8 +96,8 @@ impl AdditiveExpression {
             .and_then(|(token, after_op)| MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag).map(|(node, after_node)| (token, node, after_node)))
         {
             current = Rc::new(match punct {
-                Punctuator::Plus => AdditiveExpression::AdditiveExpressionAdd(current, me),
-                _ => AdditiveExpression::AdditiveExpressionSubtract(current, me),
+                Punctuator::Plus => AdditiveExpression::Add(current, me),
+                _ => AdditiveExpression::Subtract(current, me),
             });
             current_scanner = after_me;
         }
@@ -107,8 +107,8 @@ impl AdditiveExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),
-            AdditiveExpression::AdditiveExpressionAdd(l, r) => l.contains(kind) || r.contains(kind),
-            AdditiveExpression::AdditiveExpressionSubtract(l, r) => l.contains(kind) || r.contains(kind),
+            AdditiveExpression::Add(l, r) => l.contains(kind) || r.contains(kind),
+            AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 }

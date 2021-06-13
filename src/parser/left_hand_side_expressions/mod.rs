@@ -531,17 +531,17 @@ impl Arguments {
 //      ArgumentList[?Yield, ?Await] , ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum ArgumentListKind {
-    AssignmentExpression(Rc<AssignmentExpression>),
-    DotsAssignmentExpression(Rc<AssignmentExpression>),
-    ArgumentListAssignmentExpression(Rc<ArgumentList>, Rc<AssignmentExpression>),
-    ArgumentListDotsAssignmentExpression(Rc<ArgumentList>, Rc<AssignmentExpression>),
+    FallThru(Rc<AssignmentExpression>),
+    Dots(Rc<AssignmentExpression>),
+    ArgumentList(Rc<ArgumentList>, Rc<AssignmentExpression>),
+    ArgumentListDots(Rc<ArgumentList>, Rc<AssignmentExpression>),
 }
 
 impl ArgumentListKind {
-    // Package the results of a successful assignment_expression into an ArgumentListKind::AssignmentExpression.
+    // Package the results of a successful assignment_expression into an ArgumentListKind::FallThru.
     fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError> {
         let (ae_boxed, scanner) = pair;
-        Ok((Self::AssignmentExpression(ae_boxed), scanner))
+        Ok((Self::FallThru(ae_boxed), scanner))
     }
 
     // Package the results of assignment_expression into an ArgumentListKind (or pass along a None)
@@ -567,7 +567,7 @@ impl ArgumentListKind {
     pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
         let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
-        Ok((Self::DotsAssignmentExpression(ae), after_ae))
+        Ok((Self::Dots(ae), after_ae))
     }
 
     // Parse the production
@@ -602,10 +602,10 @@ pub struct ArgumentList {
 impl fmt::Display for ArgumentList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
-            ArgumentListKind::AssignmentExpression(boxed) => write!(f, "{}", boxed),
-            ArgumentListKind::DotsAssignmentExpression(boxed) => write!(f, "... {}", boxed),
-            ArgumentListKind::ArgumentListAssignmentExpression(list, exp) => write!(f, "{} , {}", list, exp),
-            ArgumentListKind::ArgumentListDotsAssignmentExpression(list, exp) => write!(f, "{} , ... {}", list, exp),
+            ArgumentListKind::FallThru(boxed) => write!(f, "{}", boxed),
+            ArgumentListKind::Dots(boxed) => write!(f, "... {}", boxed),
+            ArgumentListKind::ArgumentList(list, exp) => write!(f, "{} , {}", list, exp),
+            ArgumentListKind::ArgumentListDots(list, exp) => write!(f, "{} , ... {}", list, exp),
         }
     }
 }
@@ -618,8 +618,8 @@ impl PrettyPrint for ArgumentList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArgumentList: {}", first, self)?;
         match &self.kind {
-            ArgumentListKind::AssignmentExpression(boxed) | ArgumentListKind::DotsAssignmentExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArgumentListKind::ArgumentListAssignmentExpression(list, exp) | ArgumentListKind::ArgumentListDotsAssignmentExpression(list, exp) => {
+            ArgumentListKind::FallThru(boxed) | ArgumentListKind::Dots(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArgumentListKind::ArgumentList(list, exp) | ArgumentListKind::ArgumentListDots(list, exp) => {
                 list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -634,19 +634,19 @@ impl PrettyPrint for ArgumentList {
             writeln!(writer, "{}ArgumentList: {}", first, self).and(Ok(successive))
         };
         match &self.kind {
-            ArgumentListKind::AssignmentExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            ArgumentListKind::DotsAssignmentExpression(node) => {
+            ArgumentListKind::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
+            ArgumentListKind::Dots(node) => {
                 let successive = head(pad, state)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArgumentListKind::ArgumentListAssignmentExpression(list, exp) => {
+            ArgumentListKind::ArgumentList(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArgumentListKind::ArgumentListDotsAssignmentExpression(list, exp) => {
+            ArgumentListKind::ArgumentListDots(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -675,8 +675,8 @@ impl ArgumentList {
                 {
                     top_box = Rc::new(ArgumentList {
                         kind: match dotstate {
-                            Dots::Dots => ArgumentListKind::ArgumentListDotsAssignmentExpression(top_box, ae),
-                            Dots::NoDots => ArgumentListKind::ArgumentListAssignmentExpression(top_box, ae),
+                            Dots::Dots => ArgumentListKind::ArgumentListDots(top_box, ae),
+                            Dots::NoDots => ArgumentListKind::ArgumentList(top_box, ae),
                         },
                     });
                     top_scanner = scan;
@@ -687,10 +687,10 @@ impl ArgumentList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match &self.kind {
-            ArgumentListKind::AssignmentExpression(boxed) => boxed.contains(kind),
-            ArgumentListKind::DotsAssignmentExpression(boxed) => boxed.contains(kind),
-            ArgumentListKind::ArgumentListAssignmentExpression(list, exp) => list.contains(kind) || exp.contains(kind),
-            ArgumentListKind::ArgumentListDotsAssignmentExpression(list, exp) => list.contains(kind) || exp.contains(kind),
+            ArgumentListKind::FallThru(boxed) => boxed.contains(kind),
+            ArgumentListKind::Dots(boxed) => boxed.contains(kind),
+            ArgumentListKind::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
+            ArgumentListKind::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
         }
     }
 }
@@ -1121,17 +1121,17 @@ impl CallExpression {
 //      OptionalExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum LeftHandSideExpression {
-    NewExpression(Rc<NewExpression>),
-    CallExpression(Rc<CallExpression>),
-    OptionalExpression(Rc<OptionalExpression>),
+    New(Rc<NewExpression>),
+    Call(Rc<CallExpression>),
+    Optional(Rc<OptionalExpression>),
 }
 
 impl fmt::Display for LeftHandSideExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LeftHandSideExpression::NewExpression(boxed) => write!(f, "{}", boxed),
-            LeftHandSideExpression::CallExpression(boxed) => write!(f, "{}", boxed),
-            LeftHandSideExpression::OptionalExpression(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::New(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::Call(boxed) => write!(f, "{}", boxed),
+            LeftHandSideExpression::Optional(boxed) => write!(f, "{}", boxed),
         }
     }
 }
@@ -1144,9 +1144,9 @@ impl PrettyPrint for LeftHandSideExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LeftHandSideExpression: {}", first, self)?;
         match &self {
-            LeftHandSideExpression::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            LeftHandSideExpression::CallExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            LeftHandSideExpression::OptionalExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LeftHandSideExpression::New(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LeftHandSideExpression::Call(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LeftHandSideExpression::Optional(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1154,9 +1154,9 @@ impl PrettyPrint for LeftHandSideExpression {
         T: Write,
     {
         match self {
-            LeftHandSideExpression::NewExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            LeftHandSideExpression::CallExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            LeftHandSideExpression::OptionalExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            LeftHandSideExpression::New(node) => node.concise_with_leftpad(writer, pad, state),
+            LeftHandSideExpression::Call(node) => node.concise_with_leftpad(writer, pad, state),
+            LeftHandSideExpression::Optional(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -1164,8 +1164,8 @@ impl PrettyPrint for LeftHandSideExpression {
 impl IsFunctionDefinition for LeftHandSideExpression {
     fn is_function_definition(&self) -> bool {
         match self {
-            LeftHandSideExpression::NewExpression(boxed) => boxed.is_function_definition(),
-            LeftHandSideExpression::OptionalExpression(_) | LeftHandSideExpression::CallExpression(_) => false,
+            LeftHandSideExpression::New(boxed) => boxed.is_function_definition(),
+            LeftHandSideExpression::Optional(_) | LeftHandSideExpression::Call(_) => false,
         }
     }
 }
@@ -1173,9 +1173,9 @@ impl IsFunctionDefinition for LeftHandSideExpression {
 impl AssignmentTargetType for LeftHandSideExpression {
     fn assignment_target_type(&self) -> ATTKind {
         match self {
-            LeftHandSideExpression::NewExpression(boxed) => boxed.assignment_target_type(),
-            LeftHandSideExpression::CallExpression(boxed) => boxed.assignment_target_type(),
-            LeftHandSideExpression::OptionalExpression(_) => ATTKind::Invalid,
+            LeftHandSideExpression::New(boxed) => boxed.assignment_target_type(),
+            LeftHandSideExpression::Call(boxed) => boxed.assignment_target_type(),
+            LeftHandSideExpression::Optional(_) => ATTKind::Invalid,
         }
     }
 }
@@ -1183,9 +1183,9 @@ impl AssignmentTargetType for LeftHandSideExpression {
 impl LeftHandSideExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
         Err(ParseError::new("LeftHandSideExpression expected", scanner.line, scanner.column))
-            .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Rc::new(Self::OptionalExpression(opt)), after_opt)))
-            .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Rc::new(Self::CallExpression(ce)), after_ce)))
-            .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Rc::new(Self::NewExpression(ne)), after_ne)))
+            .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Rc::new(Self::Optional(opt)), after_opt)))
+            .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Rc::new(Self::Call(ce)), after_ce)))
+            .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Rc::new(Self::New(ne)), after_ne)))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -1202,9 +1202,9 @@ impl LeftHandSideExpression {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            LeftHandSideExpression::NewExpression(boxed) => boxed.contains(kind),
-            LeftHandSideExpression::CallExpression(boxed) => boxed.contains(kind),
-            LeftHandSideExpression::OptionalExpression(boxed) => boxed.contains(kind),
+            LeftHandSideExpression::New(boxed) => boxed.contains(kind),
+            LeftHandSideExpression::Call(boxed) => boxed.contains(kind),
+            LeftHandSideExpression::Optional(boxed) => boxed.contains(kind),
         }
     }
 }

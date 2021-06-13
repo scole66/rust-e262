@@ -285,7 +285,7 @@ where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
-    let current = obj.get_own_property(&p)?;
+    let current = obj.get_own_property(p)?;
     let extensible = is_extensible(obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
 }
@@ -420,7 +420,7 @@ where
                 }
                 if let Some(o) = oo {
                     let mut data = o.into().common_object_data().borrow_mut();
-                    let mut pd = data.properties.get_mut(&p.unwrap()).unwrap();
+                    let mut pd = data.properties.get_mut(p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
                     }
@@ -527,7 +527,7 @@ where
                 let pot_getter = acc_methods.get;
                 match pot_getter {
                     ECMAScriptValue::Undefined => Ok(ECMAScriptValue::Undefined),
-                    getter => call(agent, &getter, &receiver, &[]),
+                    getter => call(agent, &getter, receiver, &[]),
                 }
             }
         },

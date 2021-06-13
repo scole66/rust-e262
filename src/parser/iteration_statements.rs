@@ -527,29 +527,29 @@ impl ForStatement {
 //      [+Await] for await ( ForDeclaration[?Yield, ?Await] of AssignmentExpression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub enum ForInOfStatement {
-    ForIn(Rc<LeftHandSideExpression>, Rc<Expression>, Rc<Statement>),
-    ForVarIn(Rc<ForBinding>, Rc<Expression>, Rc<Statement>),
-    ForLexIn(Rc<ForDeclaration>, Rc<Expression>, Rc<Statement>),
-    ForOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
-    ForVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
-    ForLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
-    ForAwaitOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
-    ForAwaitVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
-    ForAwaitLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
+    In(Rc<LeftHandSideExpression>, Rc<Expression>, Rc<Statement>),
+    VarIn(Rc<ForBinding>, Rc<Expression>, Rc<Statement>),
+    LexIn(Rc<ForDeclaration>, Rc<Expression>, Rc<Statement>),
+    Of(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    VarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
+    LexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
+    AwaitOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    AwaitVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
+    AwaitLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
 }
 
 impl fmt::Display for ForInOfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ForInOfStatement::ForIn(lhs, e, s) => write!(f, "for ( {} in {} ) {}", lhs, e, s),
-            ForInOfStatement::ForVarIn(v, e, s) => write!(f, "for ( var {} in {} ) {}", v, e, s),
-            ForInOfStatement::ForLexIn(lex, e, s) => write!(f, "for ( {} in {} ) {}", lex, e, s),
-            ForInOfStatement::ForOf(lhs, e, s) => write!(f, "for ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::ForVarOf(v, e, s) => write!(f, "for ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::ForLexOf(lex, e, s) => write!(f, "for ( {} of {} ) {}", lex, e, s),
-            ForInOfStatement::ForAwaitOf(lhs, e, s) => write!(f, "for await ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::ForAwaitVarOf(v, e, s) => write!(f, "for await ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::ForAwaitLexOf(lex, e, s) => write!(f, "for await ( {} of {} ) {}", lex, e, s),
+            ForInOfStatement::In(lhs, e, s) => write!(f, "for ( {} in {} ) {}", lhs, e, s),
+            ForInOfStatement::VarIn(v, e, s) => write!(f, "for ( var {} in {} ) {}", v, e, s),
+            ForInOfStatement::LexIn(lex, e, s) => write!(f, "for ( {} in {} ) {}", lex, e, s),
+            ForInOfStatement::Of(lhs, e, s) => write!(f, "for ( {} of {} ) {}", lhs, e, s),
+            ForInOfStatement::VarOf(v, e, s) => write!(f, "for ( var {} of {} ) {}", v, e, s),
+            ForInOfStatement::LexOf(lex, e, s) => write!(f, "for ( {} of {} ) {}", lex, e, s),
+            ForInOfStatement::AwaitOf(lhs, e, s) => write!(f, "for await ( {} of {} ) {}", lhs, e, s),
+            ForInOfStatement::AwaitVarOf(v, e, s) => write!(f, "for await ( var {} of {} ) {}", v, e, s),
+            ForInOfStatement::AwaitLexOf(lex, e, s) => write!(f, "for await ( {} of {} ) {}", lex, e, s),
         }
     }
 }
@@ -562,15 +562,15 @@ impl PrettyPrint for ForInOfStatement {
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
         match self {
-            ForInOfStatement::ForIn(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::ForVarIn(v, e, s) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::ForLexIn(lex, e, s) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::ForOf(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::ForVarOf(v, e, s) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::ForLexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
-            ForInOfStatement::ForAwaitOf(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
-            ForInOfStatement::ForAwaitVarOf(v, e, s) => pp_three(w, &suc, v, e, s),
-            ForInOfStatement::ForAwaitLexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
+            ForInOfStatement::In(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::VarIn(v, e, s) => pp_three(w, &suc, v, e, s),
+            ForInOfStatement::LexIn(lex, e, s) => pp_three(w, &suc, lex, e, s),
+            ForInOfStatement::Of(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::VarOf(v, e, s) => pp_three(w, &suc, v, e, s),
+            ForInOfStatement::LexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
+            ForInOfStatement::AwaitOf(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::AwaitVarOf(v, e, s) => pp_three(w, &suc, v, e, s),
+            ForInOfStatement::AwaitLexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
         }
     }
 
@@ -579,9 +579,8 @@ impl PrettyPrint for ForInOfStatement {
         T: Write,
     {
         let await_present =
-            matches!(self, ForInOfStatement::ForAwaitOf(_, _, _)) || matches!(self, ForInOfStatement::ForAwaitVarOf(_, _, _)) || matches!(self, ForInOfStatement::ForAwaitLexOf(_, _, _));
-        let var_present =
-            matches!(self, ForInOfStatement::ForVarIn(_, _, _)) || matches!(self, ForInOfStatement::ForVarOf(_, _, _)) || matches!(self, ForInOfStatement::ForAwaitVarOf(_, _, _));
+            matches!(self, ForInOfStatement::AwaitOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitVarOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitLexOf(_, _, _));
+        let var_present = matches!(self, ForInOfStatement::VarIn(_, _, _)) || matches!(self, ForInOfStatement::VarOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitVarOf(_, _, _));
 
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
@@ -598,22 +597,22 @@ impl PrettyPrint for ForInOfStatement {
         }
 
         match self {
-            ForInOfStatement::ForIn(lhs, _, _) | ForInOfStatement::ForOf(lhs, _, _) | ForInOfStatement::ForAwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
-            ForInOfStatement::ForVarIn(v, _, _) | ForInOfStatement::ForVarOf(v, _, _) | ForInOfStatement::ForAwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
-            ForInOfStatement::ForLexIn(lex, _, _) | ForInOfStatement::ForLexOf(lex, _, _) | ForInOfStatement::ForAwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::In(lhs, _, _) | ForInOfStatement::Of(lhs, _, _) | ForInOfStatement::AwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::VarIn(v, _, _) | ForInOfStatement::VarOf(v, _, _) | ForInOfStatement::AwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::LexIn(lex, _, _) | ForInOfStatement::LexOf(lex, _, _) | ForInOfStatement::AwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
         }?;
 
         match self {
-            ForInOfStatement::ForIn(_, e, _) | ForInOfStatement::ForLexIn(_, e, _) | ForInOfStatement::ForVarIn(_, e, _) => {
+            ForInOfStatement::In(_, e, _) | ForInOfStatement::LexIn(_, e, _) | ForInOfStatement::VarIn(_, e, _) => {
                 pprint_token(w, "in", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 e.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
-            ForInOfStatement::ForVarOf(_, ae, _)
-            | ForInOfStatement::ForOf(_, ae, _)
-            | ForInOfStatement::ForAwaitVarOf(_, ae, _)
-            | ForInOfStatement::ForLexOf(_, ae, _)
-            | ForInOfStatement::ForAwaitOf(_, ae, _)
-            | ForInOfStatement::ForAwaitLexOf(_, ae, _) => {
+            ForInOfStatement::VarOf(_, ae, _)
+            | ForInOfStatement::Of(_, ae, _)
+            | ForInOfStatement::AwaitVarOf(_, ae, _)
+            | ForInOfStatement::LexOf(_, ae, _)
+            | ForInOfStatement::AwaitOf(_, ae, _)
+            | ForInOfStatement::AwaitLexOf(_, ae, _) => {
                 pprint_token(w, "of", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 ae.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
@@ -622,15 +621,15 @@ impl PrettyPrint for ForInOfStatement {
         pprint_token(w, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
 
         match self {
-            ForInOfStatement::ForIn(_, _, s)
-            | ForInOfStatement::ForOf(_, _, s)
-            | ForInOfStatement::ForAwaitOf(_, _, s)
-            | ForInOfStatement::ForVarIn(_, _, s)
-            | ForInOfStatement::ForVarOf(_, _, s)
-            | ForInOfStatement::ForAwaitVarOf(_, _, s)
-            | ForInOfStatement::ForLexIn(_, _, s)
-            | ForInOfStatement::ForLexOf(_, _, s)
-            | ForInOfStatement::ForAwaitLexOf(_, _, s) => s.concise_with_leftpad(w, &suc, Spot::Final),
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::VarIn(_, _, s)
+            | ForInOfStatement::VarOf(_, _, s)
+            | ForInOfStatement::AwaitVarOf(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s) => s.concise_with_leftpad(w, &suc, Spot::Final),
         }
     }
 }
@@ -658,9 +657,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Rc::new(ForInOfStatement::ForAwaitVarOf(for_binding, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::AwaitVarOf(for_binding, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Rc::new(ForInOfStatement::ForVarOf(for_binding, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::VarOf(for_binding, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -670,7 +669,7 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Rc::new(ForInOfStatement::ForVarIn(for_binding, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::VarIn(for_binding, exp, stmt)), after_stmt))
                         }
                     }
                 }
@@ -685,9 +684,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Rc::new(ForInOfStatement::ForAwaitLexOf(decl, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::AwaitLexOf(decl, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Rc::new(ForInOfStatement::ForLexOf(decl, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::LexOf(decl, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -697,7 +696,7 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Rc::new(ForInOfStatement::ForLexIn(decl, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::LexIn(decl, exp, stmt)), after_stmt))
                         }
                     }
                 }
@@ -721,9 +720,9 @@ impl ForInOfStatement {
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
-                            Ok((Rc::new(ForInOfStatement::ForAwaitOf(lhs, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::AwaitOf(lhs, ae, stmt)), after_stmt))
                         } else {
-                            Ok((Rc::new(ForInOfStatement::ForOf(lhs, ae, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::Of(lhs, ae, stmt)), after_stmt))
                         }
                     }
                     _ => {
@@ -733,7 +732,7 @@ impl ForInOfStatement {
                             let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                             let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                             let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                            Ok((Rc::new(ForInOfStatement::ForIn(lhs, exp, stmt)), after_stmt))
+                            Ok((Rc::new(ForInOfStatement::In(lhs, exp, stmt)), after_stmt))
                         }
                     }
                 }
@@ -753,13 +752,13 @@ impl ForInOfStatement {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            ForInOfStatement::ForIn(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForLexIn(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForLexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForAwaitOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForAwaitLexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::ForVarIn(v, _, s) | ForInOfStatement::ForVarOf(v, _, s) | ForInOfStatement::ForAwaitVarOf(v, _, s) => {
+            ForInOfStatement::In(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::LexIn(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::Of(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::LexOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::AwaitOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::VarIn(v, _, s) | ForInOfStatement::VarOf(v, _, s) | ForInOfStatement::AwaitVarOf(v, _, s) => {
                 let mut names = v.bound_names();
                 names.extend(s.var_declared_names());
                 names
@@ -769,26 +768,26 @@ impl ForInOfStatement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            ForInOfStatement::ForIn(_, _, s)
-            | ForInOfStatement::ForLexIn(_, _, s)
-            | ForInOfStatement::ForOf(_, _, s)
-            | ForInOfStatement::ForLexOf(_, _, s)
-            | ForInOfStatement::ForAwaitOf(_, _, s)
-            | ForInOfStatement::ForAwaitLexOf(_, _, s)
-            | ForInOfStatement::ForVarIn(_, _, s)
-            | ForInOfStatement::ForVarOf(_, _, s)
-            | ForInOfStatement::ForAwaitVarOf(_, _, s) => s.contains_undefined_break_target(label_set),
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s)
+            | ForInOfStatement::VarIn(_, _, s)
+            | ForInOfStatement::VarOf(_, _, s)
+            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_break_target(label_set),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ForInOfStatement::ForIn(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::ForVarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::ForLexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::ForOf(lhs, e, s) | ForInOfStatement::ForAwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::ForVarOf(v, e, s) | ForInOfStatement::ForAwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::ForLexOf(lex, e, s) | ForInOfStatement::ForAwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::In(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::VarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::LexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
         }
     }
 }

@@ -92,6 +92,21 @@ fn function_declaration_test_cache_01() {
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
+#[test]
+fn function_declaration_test_bound_names_01() {
+    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.bound_names(), &["a"]);
+}
+#[test]
+fn function_declaration_test_bound_names_02() {
+    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (){}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.bound_names(), &["*default*"]);
+}
+#[test]
+fn function_declaration_test_contains_01() {
+    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
 
 // FUNCTION EXPRESSION
 #[test]
@@ -173,6 +188,11 @@ fn function_expression_test_conciseerrors_2() {
     let (item, _) = FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn function_expression_test_contains_01() {
+    let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a=0) { 0; }"), Scanner::new()).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
 
 // FUNCTION BODY
 #[test]
@@ -200,6 +220,16 @@ fn function_body_test_cache_01() {
     let (node2, scanner2) = FunctionBody::parse(&mut parser, Scanner::new(), false, false);
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
+}
+#[test]
+fn function_body_test_contains_01() {
+    let (item, _) = FunctionBody::parse(&mut newparser("0;"), Scanner::new(), true, true);
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn function_body_test_contains_02() {
+    let (item, _) = FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true);
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 
 // FUNCTION STATEMENT LIST
@@ -230,4 +260,19 @@ fn function_statement_list_test_conciseeerrors_1() {
 fn function_statement_list_test_conciseerrors_2() {
     let (item, _) = FunctionStatementList::parse(&mut newparser(""), Scanner::new(), false, false);
     concise_error_validate(&*item);
+}
+#[test]
+fn function_statement_list_test_contains_01() {
+    let (item, _) = FunctionStatementList::parse(&mut newparser(""), Scanner::new(), true, true);
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn function_statement_list_test_contains_02() {
+    let (item, _) = FunctionStatementList::parse(&mut newparser("0;"), Scanner::new(), true, true);
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn function_statement_list_test_contains_03() {
+    let (item, _) = FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true);
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }

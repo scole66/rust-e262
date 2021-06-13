@@ -521,7 +521,7 @@ fn arguments_test_contains_05() {
 fn argument_list_test_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: aba", vec!["AssignmentExpression: aba"]);
     concise_check(&*al, "IdentifierName: aba", vec![]);
@@ -530,7 +530,7 @@ fn argument_list_test_ae() {
 fn argument_list_test_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(al.kind, ArgumentListKind::DotsAssignmentExpression(_)));
+    assert!(matches!(al.kind, ArgumentListKind::Dots(_)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ... aba", vec!["AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ... aba", vec!["Punctuator: ...", "IdentifierName: aba"]);
@@ -539,7 +539,7 @@ fn argument_list_test_dots_ae() {
 fn argument_list_test_al_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(al.kind, ArgumentListKind::ArgumentListAssignmentExpression(..)));
+    assert!(matches!(al.kind, ArgumentListKind::ArgumentList(..)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ab , aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ab , aba", vec!["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
@@ -548,7 +548,7 @@ fn argument_list_test_al_ae() {
 fn argument_list_test_al_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(al.kind, ArgumentListKind::ArgumentListDotsAssignmentExpression(..)));
+    assert!(matches!(al.kind, ArgumentListKind::ArgumentListDots(..)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ab , ... aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ab , ... aba", vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"]);
@@ -565,13 +565,13 @@ fn argument_list_test_dotsonly() {
 fn argument_list_test_dots_term() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,..."), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
 }
 #[test]
 fn argument_list_test_commas() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("10,,10"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(al.kind, ArgumentListKind::AssignmentExpression(_)));
+    assert!(matches!(al.kind, ArgumentListKind::FallThru(_)));
 }
 #[test]
 fn argument_list_test_prettyerrors_1() {
@@ -1534,7 +1534,7 @@ fn optional_chain_test_contains_18() {
 fn left_hand_side_expression_test_01() {
     let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(*lhs, LeftHandSideExpression::NewExpression(_)));
+    assert!(matches!(*lhs, LeftHandSideExpression::New(_)));
     format!("{:?}", lhs);
     pretty_check(&*lhs, "LeftHandSideExpression: a", vec!["NewExpression: a"]);
     concise_check(&*lhs, "IdentifierName: a", vec![]);
@@ -1545,7 +1545,7 @@ fn left_hand_side_expression_test_01() {
 fn left_hand_side_expression_test_02() {
     let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(*lhs, LeftHandSideExpression::CallExpression(_)));
+    assert!(matches!(*lhs, LeftHandSideExpression::Call(_)));
     pretty_check(&*lhs, "LeftHandSideExpression: a ( )", vec!["CallExpression: a ( )"]);
     concise_check(&*lhs, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
     assert_eq!(lhs.is_function_definition(), false);
@@ -1555,7 +1555,7 @@ fn left_hand_side_expression_test_02() {
 fn left_hand_side_expression_test_03() {
     let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(*lhs, LeftHandSideExpression::OptionalExpression(_)));
+    assert!(matches!(*lhs, LeftHandSideExpression::Optional(_)));
     pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", vec!["OptionalExpression: a ( ) ?. b"]);
     concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
     assert_eq!(lhs.is_function_definition(), false);
