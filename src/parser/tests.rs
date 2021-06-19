@@ -151,14 +151,10 @@ fn parser_01() {
     assert!(p.cover_call_expression_and_async_arrow_head_cache.is_empty());
     assert!(p.cpeaapl_cache.is_empty());
     assert!(p.default_clause_cache.is_empty());
-    assert!(p.do_while_statement_cache.is_empty());
     assert!(p.elision_cache.is_empty());
     assert!(p.expression_body_cache.is_empty());
     assert!(p.expression_cache.is_empty());
     assert!(p.for_binding_cache.is_empty());
-    assert!(p.for_declaration_cache.is_empty());
-    assert!(p.for_in_of_statement_cache.is_empty());
-    assert!(p.for_statement_cache.is_empty());
     assert!(p.formal_parameter_cache.is_empty());
     assert!(p.formal_parameters_cache.is_empty());
     assert!(p.function_body_cache.is_empty());
@@ -167,7 +163,6 @@ fn parser_01() {
     assert!(p.identifier_cache.is_empty());
     assert!(p.identifier_reference_cache.is_empty());
     assert!(p.initializer_cache.is_empty());
-    assert!(p.iteration_statement_cache.is_empty());
     assert!(p.label_identifier_cache.is_empty());
     assert!(p.lexical_declaration_cache.is_empty());
     assert!(p.lhs_cache.is_empty());
@@ -186,7 +181,6 @@ fn parser_01() {
     assert!(p.unique_formal_parameters_cache.is_empty());
     assert!(p.update_expression_cache.is_empty());
     assert!(p.variable_declaration_list_cache.is_empty());
-    assert!(p.while_statement_cache.is_empty());
 }
 
 #[test]
