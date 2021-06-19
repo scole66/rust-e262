@@ -444,3 +444,28 @@ fn no_line_terminator_02() {
     let res = no_line_terminator(Scanner::new(), "for");
     assert!(res.is_ok());
 }
+
+#[test]
+fn scan_for_eof_01() {
+    let res = scan_for_eof(Scanner::new(), "rust");
+    let pe = res.unwrap_err();
+    assert_eq!(pe.msg, "EoF expected");
+    assert_eq!(pe.line, 1);
+    assert_eq!(pe.column, 1);
+}
+#[test]
+fn scan_for_eof_02() {
+    let res = scan_for_eof(Scanner::new(), "").unwrap();
+    assert_eq!(res.line, 1);
+    assert_eq!(res.column, 1);
+    assert_eq!(res.start_idx, 0);
+}
+
+#[test]
+fn parse_node_kind_01() {
+    let p1 = ParseNodeKind::Literal;
+    let p2 = p1;
+    assert_eq!(p1, p2);
+    format!("{:?}", p1);
+    assert_eq!(p1, p1.clone());
+}
