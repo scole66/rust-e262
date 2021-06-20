@@ -41,7 +41,7 @@ impl PrettyPrint for ThrowStatement {
 }
 
 impl ThrowStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_throw = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
         no_line_terminator(after_throw, parser.source)?;
         let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
@@ -49,26 +49,10 @@ impl ThrowStatement {
         Ok((Rc::new(ThrowStatement(exp)), after_semi))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitKey { scanner, yield_flag, await_flag };
-        match parser.throw_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
-                parser.throw_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
-    }
-
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests;

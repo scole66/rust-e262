@@ -27,7 +27,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
-use throw_statement::ThrowStatement;
 use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
@@ -189,7 +188,6 @@ pub struct Parser<'a> {
     pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
     pub switch_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<SwitchStatement>, RandomState>,
     pub template_literal_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
-    pub throw_statement_cache: HashMap<YieldAwaitKey, ParseResult<ThrowStatement>, RandomState>,
     pub unary_expression_cache: HashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
     pub unique_formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
     pub update_expression_cache: HashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,

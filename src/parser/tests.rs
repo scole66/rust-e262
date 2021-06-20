@@ -176,7 +176,6 @@ fn parser_01() {
     assert!(p.statement_list_cache.is_empty());
     assert!(p.switch_statement_cache.is_empty());
     assert!(p.template_literal_cache.is_empty());
-    assert!(p.throw_statement_cache.is_empty());
     assert!(p.unary_expression_cache.is_empty());
     assert!(p.unique_formal_parameters_cache.is_empty());
     assert!(p.update_expression_cache.is_empty());
