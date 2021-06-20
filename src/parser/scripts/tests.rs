@@ -196,3 +196,7 @@ fn script_body_test_early_errors_04() {
 fn script_body_test_early_errors_05() {
     script_body_ee_check_direct("a=new.target;", None);
 }
+#[test]
+fn script_body_test_early_errors_06() {
+    script_body_ee_check(";", None);
+}
