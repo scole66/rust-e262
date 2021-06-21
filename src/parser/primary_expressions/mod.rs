@@ -317,6 +317,24 @@ impl PrimaryExpression {
             .otherwise(|| Self::parse_generator_exp(parser, scanner))
             .otherwise(|| Self::parse_regex(parser, scanner))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match &self.kind {
+            PrimaryExpressionKind::This => kind == ParseNodeKind::This,
+            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.contains(kind),
+            PrimaryExpressionKind::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.contains(kind),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpressionKind::Function(node) => node.contains(kind),
+            PrimaryExpressionKind::Class(node) => node.contains(kind),
+            PrimaryExpressionKind::Generator(node) => node.contains(kind),
+            PrimaryExpressionKind::AsyncFunction(node) => node.contains(kind),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.contains(kind),
+            PrimaryExpressionKind::RegularExpression(..) => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -382,6 +400,10 @@ impl Elisions {
             }
         }
     }
+
+    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+        false
+    }
 }
 
 // SpreadElement[Yield, Await] :
@@ -425,6 +447,11 @@ impl SpreadElement {
         let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let SpreadElement::AssignmentExpression(boxed) = self;
+        boxed.contains(kind)
     }
 }
 
@@ -613,6 +640,15 @@ impl ElementList {
         }
         Ok((current_production, current_scanner))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ElementList::AssignmentExpression((elisions, ae)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
+            ElementList::SpreadElement((elisions, se)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
+            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
+            ElementList::ElementListSpreadElement((el, elisions, se)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
+        }
+    }
 }
 
 // ArrayLiteral[Yield, Await] :
@@ -726,6 +762,14 @@ impl ArrayLiteral {
                 Ok((Rc::new(ArrayLiteral::Empty(elisions)), end_scan))
             })
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
+            ArrayLiteral::ElementList(boxed) => boxed.contains(kind),
+            ArrayLiteral::ElementListElision(boxed, pot_elision) => boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
+        }
+    }
 }
 
 // Initializer[In, Yield, Await] :
@@ -782,6 +826,11 @@ impl Initializer {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let Initializer::AssignmentExpression(node) = self;
+        node.contains(kind)
+    }
 }
 
 // CoverInitializedName[Yield, Await] :
@@ -826,6 +875,11 @@ impl CoverInitializedName {
         let (idref, after_idref) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         let (izer, after_izer) = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
         Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let CoverInitializedName::InitializedName(idref, izer) = self;
+        idref.contains(kind) || izer.contains(kind)
     }
 }
 
@@ -872,6 +926,11 @@ impl ComputedPropertyName {
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
         let after_rb = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
         Ok((Rc::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let ComputedPropertyName::AssignmentExpression(n) = self;
+        n.contains(kind)
     }
 }
 
@@ -932,6 +991,10 @@ impl LiteralPropertyName {
             _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
         }
     }
+
+    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+        false
+    }
 }
 
 // PropertyName[Yield, Await] :
@@ -991,6 +1054,20 @@ impl PropertyName {
                 parser.property_name_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            PropertyName::LiteralPropertyName(n) => n.contains(kind),
+            PropertyName::ComputedPropertyName(n) => n.contains(kind),
+        }
+    }
+
+    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            PropertyName::LiteralPropertyName(..) => false,
+            PropertyName::ComputedPropertyName(n) => n.contains(kind),
         }
     }
 }
@@ -1107,6 +1184,16 @@ impl PropertyDefinition {
             .otherwise(|| Self::parse_idref(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
+            PropertyDefinition::CoverInitializedName(cin) => cin.contains(kind),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains(kind) || ae.contains(kind),
+            PropertyDefinition::MethodDefinition(md) => kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind),
+            PropertyDefinition::AssignmentExpression(ae) => ae.contains(kind),
+        }
+    }
 }
 
 // PropertyDefinitionList[Yield, Await] :
@@ -1171,6 +1258,13 @@ impl PropertyDefinitionList {
             current_scanner = after_pd2;
         }
         Ok((current_production, current_scanner))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.contains(kind),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains(kind) || pd.contains(kind),
+        }
     }
 }
 
@@ -1246,6 +1340,14 @@ impl ObjectLiteral {
                     }
                 }
             }
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ObjectLiteral::Empty => false,
+            ObjectLiteral::Normal(pdl) => pdl.contains(kind),
+            ObjectLiteral::TrailingComma(pdl) => pdl.contains(kind),
         }
     }
 }
@@ -1344,6 +1446,10 @@ impl Literal {
             _ => Err(ParseError::new("Literal expected", scanner.line, scanner.column)),
         }
     }
+
+    pub fn contains(&self, _: ParseNodeKind) -> bool {
+        false
+    }
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
@@ -1420,6 +1526,13 @@ impl TemplateLiteral {
             }
         }
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(..) => false,
+            TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
+        }
+    }
 }
 
 // SubstitutionTemplate[Yield, Await, Tagged] :
@@ -1470,6 +1583,10 @@ impl SubstitutionTemplate {
         } else {
             Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
         }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.expression.contains(kind) || self.template_spans.contains(kind)
     }
 }
 
@@ -1545,6 +1662,13 @@ impl TemplateSpans {
         Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            TemplateSpans::Tail(..) => false,
+            TemplateSpans::List(tml, _, _) => tml.contains(kind),
+        }
     }
 }
 
@@ -1625,6 +1749,13 @@ impl TemplateMiddleList {
         }
         Ok((current_node, current_scanner))
     }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            TemplateMiddleList::ListHead(_, exp, _) => exp.contains(kind),
+            TemplateMiddleList::ListMid(tml, _, exp, _) => tml.contains(kind) || exp.contains(kind),
+        }
+    }
 }
 
 // ParenthesizedExpression[Yield, Await] :
@@ -1685,6 +1816,11 @@ impl ParenthesizedExpression {
         let (exp, after_exp) = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let after_rp = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
         Ok((Rc::new(ParenthesizedExpression::Expression(exp)), after_rp))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.contains(kind)
     }
 }
 
@@ -1876,6 +2012,18 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 parser.cpeaapl_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => false,
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => exp.contains(kind) || id.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => exp.contains(kind) || pat.contains(kind),
         }
     }
 }

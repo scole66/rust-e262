@@ -14,6 +14,7 @@ pub enum IntrinsicIdentifier {
     ThrowTypeError,
     TypeErrorPrototype,
     ReferenceErrorPrototype,
+    SyntaxErrorPrototype,
 }
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
@@ -77,6 +78,7 @@ pub struct Intrinsics {
     pub string_iterator_prototype: Object,          // The prototype of String iterator objects (22.1.5)
     pub symbol: Object,                             // Symbol	The Symbol constructor (20.4.1)
     pub syntax_error: Object,                       // SyntaxError	The SyntaxError constructor (20.5.5.4)
+    pub syntax_error_prototype: Object,             //
     pub throw_type_error: Object,                   // A function object that unconditionally throws a new instance of %TypeError%
     pub typed_array: Object,                        // The super class of all typed Array constructors (23.2.1)
     pub type_error: Object,                         // TypeError	The TypeError constructor (20.5.5.5)
@@ -101,6 +103,7 @@ impl Intrinsics {
             IntrinsicIdentifier::ErrorPrototype => &self.error_prototype,
             IntrinsicIdentifier::TypeErrorPrototype => &self.type_error_prototype,
             IntrinsicIdentifier::ReferenceErrorPrototype => &self.reference_error_prototype,
+            IntrinsicIdentifier::SyntaxErrorPrototype => &self.syntax_error_prototype,
         }
         .clone()
     }
@@ -197,6 +200,7 @@ fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
         string_iterator_prototype: dead.clone(),
         symbol: dead.clone(),
         syntax_error: dead.clone(),
+        syntax_error_prototype: dead.clone(),
         throw_type_error: dead.clone(),
         typed_array: dead.clone(),
         type_error: dead.clone(),
@@ -467,6 +471,77 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    ///////////////////////////////////////////////////////////////////
+    // %SyntaxError% and %SyntaxError.prototype%
+    let syntax_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
+    realm_rec.intrinsics.syntax_error_prototype = syntax_error_proto;
+    let syntax_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    define_property_or_throw(
+        agent,
+        &syntax_error_constructor,
+        &PropertyKey::from("prototype"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.syntax_error_prototype.clone())),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &syntax_error_constructor,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("SyntaxError"))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    realm_rec.intrinsics.syntax_error = syntax_error_constructor;
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.syntax_error_prototype,
+        &PropertyKey::from("constructor"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.syntax_error_prototype,
+        &PropertyKey::from("message"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from(""))),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    define_property_or_throw(
+        agent,
+        &realm_rec.intrinsics.syntax_error_prototype,
+        &PropertyKey::from("name"),
+        &PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::String(JSString::from("SyntaxError"))),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),

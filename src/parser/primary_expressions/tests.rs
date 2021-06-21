@@ -308,6 +308,101 @@ fn primary_expression_test_conciseerrors_13() {
     let (item, _) = PrimaryExpression::parse(&mut newparser("class rust{}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn primary_expression_test_contains_01() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_02() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_03() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_04() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("[this]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_05() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_06() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("{a: this}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_07() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("{a: 0}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_08() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("(this)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_09() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_10() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("`${this}`"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_11() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("`${0}`"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_12() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("function a(){this;}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_13() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("class a{[this.name](){}}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn primary_expression_test_contains_14() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("class a{[b.name](){this;}}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_15() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){this;}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_16() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){this;}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_17() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){this;}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_18() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("/abcd/"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn primary_expression_test_contains_19() {
+    let (item, _) = PrimaryExpression::parse(&mut newparser("2048"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
 
 // LITERAL
 #[test]
@@ -373,42 +468,42 @@ fn literal_test_punct() {
 }
 #[test]
 fn literal_test_prettyerrors_1() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("null"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn literal_test_prettyerrors_2() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("true"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("true"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn literal_test_prettyerrors_3() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("0"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn literal_test_prettyerrors_4() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("'a'"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn literal_test_conciseerrors_1() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("null"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("null"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn literal_test_conciseerrors_2() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("true"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("true"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn literal_test_conciseerrors_3() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("0"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn literal_test_conciseerrors_4() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("'a'"), Scanner::new(), false, false).unwrap();
+    let (item, _) = Literal::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -421,6 +516,11 @@ fn literal_kind_ne() {
     assert!(lk1 != lk2);
     assert!(lk1 != lk3);
     assert!(lk3 == lk4);
+}
+#[test]
+fn literal_test_contains_01() {
+    let (item, _) = Literal::parse(&mut newparser("10"), Scanner::new()).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // ELISION
@@ -460,6 +560,11 @@ fn elision_test_conciseerrors_1() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn elision_test_contains_01() {
+    let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // SPREAD ELEMENT
 #[test]
@@ -489,6 +594,16 @@ fn spread_element_test_prettyerrors_1() {
 fn spread_element_test_conciseerrors_1() {
     let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn spread_element_test_contains_01() {
+    let (item, _) = SpreadElement::parse(&mut newparser("...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn spread_element_test_contains_02() {
+    let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // ELEMENT LIST
@@ -659,6 +774,106 @@ fn element_list_test_conciseerrors_8() {
     let (item, _) = ElementList::parse(&mut newparser("a,,,...b"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn element_list_test_contains_01() {
+    let (item, _) = ElementList::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_02() {
+    let (item, _) = ElementList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_03() {
+    let (item, _) = ElementList::parse(&mut newparser(",,,this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_04() {
+    let (item, _) = ElementList::parse(&mut newparser(",,,a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_05() {
+    let (item, _) = ElementList::parse(&mut newparser("...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_06() {
+    let (item, _) = ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_07() {
+    let (item, _) = ElementList::parse(&mut newparser(",,,...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_08() {
+    let (item, _) = ElementList::parse(&mut newparser(",,,...a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_09() {
+    let (item, _) = ElementList::parse(&mut newparser("c,this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_10() {
+    let (item, _) = ElementList::parse(&mut newparser("c,a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_11() {
+    let (item, _) = ElementList::parse(&mut newparser("c,,,this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_12() {
+    let (item, _) = ElementList::parse(&mut newparser("c,,,a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_13() {
+    let (item, _) = ElementList::parse(&mut newparser("c,...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_14() {
+    let (item, _) = ElementList::parse(&mut newparser("c,...a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_15() {
+    let (item, _) = ElementList::parse(&mut newparser("c,,,...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_16() {
+    let (item, _) = ElementList::parse(&mut newparser("c,,,...a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn element_list_test_contains_17() {
+    let (item, _) = ElementList::parse(&mut newparser("this,c"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_18() {
+    let (item, _) = ElementList::parse(&mut newparser("this,,,c"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_19() {
+    let (item, _) = ElementList::parse(&mut newparser("this,...c"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn element_list_test_contains_20() {
+    let (item, _) = ElementList::parse(&mut newparser("this,,,...c"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
 
 // ARRAY LITERAL
 #[test]
@@ -776,6 +991,46 @@ fn array_literal_test_conciseerrors_5() {
     let (item, _) = ArrayLiteral::parse(&mut newparser("[a,,,,]"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn array_literal_test_contains_01() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn array_literal_test_contains_02() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[,,,]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn array_literal_test_contains_03() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[this]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn array_literal_test_contains_04() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn array_literal_test_contains_05() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[this,]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn array_literal_test_contains_06() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[0,]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn array_literal_test_contains_07() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[this,,,,]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn array_literal_test_contains_08() {
+    let (item, _) = ArrayLiteral::parse(&mut newparser("[0,,,,]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // INITIALIZER
 #[test]
@@ -810,6 +1065,16 @@ fn initializer_test_cache_01() {
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
+#[test]
+fn initializer_test_contains_01() {
+    let (item, _) = Initializer::parse(&mut newparser("=this"), Scanner::new(), true, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn initializer_test_contains_02() {
+    let (item, _) = Initializer::parse(&mut newparser("=0"), Scanner::new(), true, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // COVER INITIALIZED NAME
 #[test]
@@ -838,6 +1103,16 @@ fn cover_initialized_name_test_prettyerrors_1() {
 fn cover_initialized_name_test_conciseerrors_1() {
     let (item, _) = CoverInitializedName::parse(&mut newparser("a=2"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn cover_initialized_name_test_contains_01() {
+    let (item, _) = CoverInitializedName::parse(&mut newparser("a=this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn cover_initialized_name_test_contains_02() {
+    let (item, _) = CoverInitializedName::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // COMPUTED PROPERTY NAME
@@ -871,6 +1146,16 @@ fn computed_property_name_test_prettyerrors_1() {
 fn computed_property_name_test_conciseerrors_1() {
     let (item, _) = ComputedPropertyName::parse(&mut newparser("[4]"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn computed_property_name_test_contains_01() {
+    let (item, _) = ComputedPropertyName::parse(&mut newparser("[this]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn computed_property_name_test_contains_02() {
+    let (item, _) = ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // LITERAL PROPERTY NAME
@@ -941,6 +1226,11 @@ fn literal_property_name_test_conciseerrors_3() {
     let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn literal_property_name_test_contains_01() {
+    let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // PROPERTY NAME
 #[test]
@@ -984,6 +1274,36 @@ fn property_name_test_conciseerrors_1() {
 fn property_name_test_conciseerrors_2() {
     let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn property_name_test_contains_01() {
+    let (item, _) = PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_name_test_contains_02() {
+    let (item, _) = PropertyName::parse(&mut newparser("[this]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_name_test_contains_03() {
+    let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_name_test_computed_property_contains_01() {
+    let (item, _) = PropertyName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_name_test_computed_property_contains_02() {
+    let (item, _) = PropertyName::parse(&mut newparser("[this]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_name_test_computed_property_contains_03() {
+    let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::This), false);
 }
 
 // PROPERTY DEFINITION
@@ -1094,6 +1414,56 @@ fn property_definition_test_conciseerrors_5() {
     let (item, _) = PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn property_definition_test_contains_01() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_definition_test_contains_02() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a=this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_test_contains_03() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_definition_test_contains_04() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("[this]: 10"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_test_contains_05() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a: this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_test_contains_06() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a: 0"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_definition_test_contains_07() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("[this](){}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_test_contains_08() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("a(){this;}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_definition_test_contains_09() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("...this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_test_contains_10() {
+    let (item, _) = PropertyDefinition::parse(&mut newparser("...obj"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // PROPERTY DEFINITION LIST
 #[test]
@@ -1144,6 +1514,31 @@ fn property_definition_list_test_conciseerrors_1() {
 fn property_definition_list_test_conciseerrors_2() {
     let (item, _) = PropertyDefinitionList::parse(&mut newparser("a,b"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn property_definition_list_test_contains_01() {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_list_test_contains_02() {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn property_definition_list_test_contains_03() {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=this,b=2"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_list_test_contains_04() {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=0,b=this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn property_definition_list_test_contains_05() {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=0,b=2"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // OBJECT LITERAL
@@ -1218,6 +1613,31 @@ fn object_literal_test_conciseerrors_3() {
     let (item, _) = ObjectLiteral::parse(&mut newparser("{A:B,}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn object_literal_test_contains_01() {
+    let (item, _) = ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn object_literal_test_contains_02() {
+    let (item, _) = ObjectLiteral::parse(&mut newparser("{a=this}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn object_literal_test_contains_03() {
+    let (item, _) = ObjectLiteral::parse(&mut newparser("{a=2}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn object_literal_test_contains_04() {
+    let (item, _) = ObjectLiteral::parse(&mut newparser("{a=this,}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn object_literal_test_contains_05() {
+    let (item, _) = ObjectLiteral::parse(&mut newparser("{a=0,}"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // PARENTHESIZED EXPRESSION
 #[test]
@@ -1252,6 +1672,16 @@ fn parenthesized_expression_test_prettyerrors_1() {
 fn parenthesized_expression_test_conciseerrors_1() {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn parenthesized_expression_test_contains_01() {
+    let (item, _) = ParenthesizedExpression::parse(&mut newparser("(this)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn parenthesized_expression_test_contains_02() {
+    let (item, _) = ParenthesizedExpression::parse(&mut newparser("(1)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // TEMPLATE MIDDLE LIST
@@ -1308,6 +1738,31 @@ fn template_middle_list_test_conciseerrors_2() {
     let (item, _) = TemplateMiddleList::parse(&mut newparser("}${0}${1"), Scanner::new(), false, false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn template_middle_list_test_contains_01() {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn template_middle_list_test_contains_02() {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${this"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn template_middle_list_test_contains_03() {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${this}${a"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn template_middle_list_test_contains_04() {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${this"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn template_middle_list_test_contains_05() {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${a"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // TEMPLATE SPANS
 #[test]
@@ -1353,6 +1808,21 @@ fn template_spans_test_conciseerrors_2() {
     let (item, _) = TemplateSpans::parse(&mut newparser("}${0}`"), Scanner::new(), false, false, false).unwrap();
     concise_error_validate(&*item);
 }
+#[test]
+fn template_spans_test_contains_01() {
+    let (item, _) = TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn template_spans_test_contains_02() {
+    let (item, _) = TemplateSpans::parse(&mut newparser("} ${ this }`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn template_spans_test_contains_03() {
+    let (item, _) = TemplateSpans::parse(&mut newparser("} ${ a }`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
 
 // SUBSTITUTION TEMPLATE
 #[test]
@@ -1385,6 +1855,21 @@ fn substitution_template_test_prettyerrors_1() {
 fn substitution_template_test_conciseerrors_1() {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${0}`"), Scanner::new(), false, false, false).unwrap();
     concise_error_validate(&*item);
+}
+#[test]
+fn substitution_template_test_contains_01() {
+    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${this}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn substitution_template_test_contains_02() {
+    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}${this}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn substitution_template_test_contains_03() {
+    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // TEMPLATE LITERAL
@@ -1441,6 +1926,21 @@ fn template_literal_test_cache_01() {
     let (node2, scanner2) = check(TemplateLiteral::parse(&mut parser, Scanner::new(), false, false, false));
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
+}
+#[test]
+fn template_literal_test_contains_01() {
+    let (item, _) = TemplateLiteral::parse(&mut newparser("`nope`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn template_literal_test_contains_02() {
+    let (item, _) = TemplateLiteral::parse(&mut newparser("`${this}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn template_literal_test_contains_03() {
+    let (item, _) = TemplateLiteral::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
@@ -1620,4 +2120,60 @@ fn cpeaapl_test_cache_01() {
     let (node2, scanner2) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
+}
+
+#[test]
+fn cpeaapl_test_contains_01() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn cpeaapl_test_contains_02() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_03() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this,)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn cpeaapl_test_contains_04() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_05() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_06() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...blue)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_07() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...[a,b,c])"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_08() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this, ...thing)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn cpeaapl_test_contains_09() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a, ...thing)"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn cpeaapl_test_contains_10() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this, ...[a])"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn cpeaapl_test_contains_11() {
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(b, ...[a])"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
 }

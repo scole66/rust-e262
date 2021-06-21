@@ -16,7 +16,7 @@ use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElem
 use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::GeneratorBody;
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
-use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
+use iteration_statements::ForBinding;
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
 use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
@@ -26,8 +26,6 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
-use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
-use throw_statement::ThrowStatement;
 use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
@@ -42,6 +40,38 @@ impl Default for ParseGoal {
     fn default() -> Self {
         ParseGoal::Script
     }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum ParseNodeKind {
+    ScriptBody,
+    StatementList,
+    StatementListItem,
+    Statement,
+    Declaration,
+    BlockStatement,
+    VariableStatement,
+    EmptyStatement,
+    ExpressionStatement,
+    IfStatement,
+    BreakableStatement,
+    ContinueStatement,
+    BreakStatement,
+    WithStatement,
+    LabelledStatement,
+    ThrowStatement,
+    TryStatement,
+    DebuggerStatement,
+    ReturnStatement,
+    MethodDefinition,
+    SuperProperty,
+    SuperCall,
+    Super,
+    This,
+    NewTarget,
+    ClassHeritage,
+    ClassBody,
+    Literal,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -108,6 +138,7 @@ type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
 pub struct Parser<'a> {
     pub source: &'a str,
     pub strict: bool,
+    pub direct: bool,
     pub goal: ParseGoal,
     pub arguments_cache: HashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
     pub arrow_formal_parameters_cache: HashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
@@ -122,23 +153,15 @@ pub struct Parser<'a> {
     pub bitwise_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
     pub block_cache: HashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
     pub call_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
-    pub case_block_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseBlock>, RandomState>,
-    pub case_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClause>, RandomState>,
-    pub case_clauses_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClauses>, RandomState>,
     pub catch_parameter_cache: HashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
     pub class_tail_cache: HashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
     pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
     pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
     pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
-    pub default_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<DefaultClause>, RandomState>,
-    pub do_while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<DoWhileStatement>, RandomState>,
     pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
     pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
     pub expression_cache: HashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
     pub for_binding_cache: HashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
-    pub for_declaration_cache: HashMap<YieldAwaitKey, ParseResult<ForDeclaration>, RandomState>,
-    pub for_in_of_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForInOfStatement>, RandomState>,
-    pub for_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<ForStatement>, RandomState>,
     pub formal_parameter_cache: HashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
     pub formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
     pub function_body_cache: HashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
@@ -147,7 +170,6 @@ pub struct Parser<'a> {
     pub identifier_cache: HashMap<Scanner, ParseResult<Identifier>, RandomState>,
     pub identifier_reference_cache: HashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
     pub initializer_cache: HashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
-    pub iteration_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<IterationStatement>, RandomState>,
     pub label_identifier_cache: HashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
     pub lexical_declaration_cache: HashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
     pub lhs_cache: HashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
@@ -159,19 +181,16 @@ pub struct Parser<'a> {
     pub single_name_binding_cache: HashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
     pub statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
     pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
-    pub switch_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<SwitchStatement>, RandomState>,
     pub template_literal_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
-    pub throw_statement_cache: HashMap<YieldAwaitKey, ParseResult<ThrowStatement>, RandomState>,
     pub unary_expression_cache: HashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
     pub unique_formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
     pub update_expression_cache: HashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
     pub variable_declaration_list_cache: HashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
-    pub while_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<WhileStatement>, RandomState>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, strict: bool, goal: ParseGoal) -> Self {
-        Self { source, strict, goal, ..Default::default() }
+    pub fn new(source: &'a str, strict: bool, direct: bool, goal: ParseGoal) -> Self {
+        Self { source, strict, direct, goal, ..Default::default() }
     }
 }
 
@@ -363,6 +382,53 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
     }
 }
 
+// 11.1.6 Static Semantics: ParseText ( sourceText, goalSymbol )
+//
+// The abstract operation ParseText takes arguments sourceText (a sequence of Unicode code points) and goalSymbol (a
+// nonterminal in one of the ECMAScript gramma =rs). It performs the following steps when called:
+//
+// 1. Attempt to parse sourceText using goalSymbol as the goal symbol, and analyse the parse result for any early error
+//    conditions. Parsing and early error detection may be interleaved in an implementation-defined manner.
+// 2. If the parse succeeded and no early errors were found, return the Parse Node (an instance of goalSymbol) at the
+//    root of the parse tree resulting from the parse.
+// 3. Otherwise, return a List of one or more SyntaxError objects representing the parsing errors and/or early errors.
+//    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
+//    implementation-defined, but at least one must be present.
+use super::agent::Agent;
+use super::errors::create_syntax_error_object;
+use super::object::Object;
+use scripts::Script;
+
+pub enum ParsedText {
+    Errors(Vec<Object>),
+    Script(Rc<Script>),
+    // ... more to come
+}
+
+pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
+    let mut parser = Parser::new(src, false, false, goal_symbol);
+    match goal_symbol {
+        ParseGoal::Script => {
+            let potential_script = Script::parse(&mut parser, Scanner::new());
+            match potential_script {
+                Err(pe) => {
+                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.line, pe.column, pe.msg).as_str());
+                    ParsedText::Errors(vec![syntax_error])
+                }
+                Ok((node, _)) => {
+                    let errs = node.early_errors(agent);
+                    if errs.is_empty() {
+                        ParsedText::Script(node)
+                    } else {
+                        ParsedText::Errors(errs)
+                    }
+                }
+            }
+        }
+        _ => todo!(),
+    }
+}
+
 pub mod additive_operators;
 pub mod arrow_function_definitions;
 pub mod assignment_operators;
@@ -426,7 +492,7 @@ pub mod testhelp {
         assert_eq!(*scanner, Scanner { line: 1, column: count + 1, start_idx: count as usize });
     }
     pub fn newparser(text: &str) -> Parser {
-        Parser::new(text, false, ParseGoal::Script)
+        Parser::new(text, false, false, ParseGoal::Script)
     }
     pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U)
     where

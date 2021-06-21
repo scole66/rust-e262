@@ -124,8 +124,9 @@ fn yield_await_default_key_01() {
 
 #[test]
 fn parser_01() {
-    let p = Parser::new("program text", false, ParseGoal::Script);
+    let p = Parser::new("program text", false, false, ParseGoal::Script);
     assert_eq!(p.strict, false);
+    assert_eq!(p.direct, false);
     assert_eq!(p.source, "program text");
     assert_eq!(p.goal, ParseGoal::Script);
     assert!(p.arguments_cache.is_empty());
@@ -141,23 +142,15 @@ fn parser_01() {
     assert!(p.bitwise_or_expression_cache.is_empty());
     assert!(p.block_cache.is_empty());
     assert!(p.call_expression_cache.is_empty());
-    assert!(p.case_block_cache.is_empty());
-    assert!(p.case_clause_cache.is_empty());
-    assert!(p.case_clauses_cache.is_empty());
     assert!(p.catch_parameter_cache.is_empty());
     assert!(p.class_tail_cache.is_empty());
     assert!(p.coalesce_expression_cache.is_empty());
     assert!(p.cover_call_expression_and_async_arrow_head_cache.is_empty());
     assert!(p.cpeaapl_cache.is_empty());
-    assert!(p.default_clause_cache.is_empty());
-    assert!(p.do_while_statement_cache.is_empty());
     assert!(p.elision_cache.is_empty());
     assert!(p.expression_body_cache.is_empty());
     assert!(p.expression_cache.is_empty());
     assert!(p.for_binding_cache.is_empty());
-    assert!(p.for_declaration_cache.is_empty());
-    assert!(p.for_in_of_statement_cache.is_empty());
-    assert!(p.for_statement_cache.is_empty());
     assert!(p.formal_parameter_cache.is_empty());
     assert!(p.formal_parameters_cache.is_empty());
     assert!(p.function_body_cache.is_empty());
@@ -166,7 +159,6 @@ fn parser_01() {
     assert!(p.identifier_cache.is_empty());
     assert!(p.identifier_reference_cache.is_empty());
     assert!(p.initializer_cache.is_empty());
-    assert!(p.iteration_statement_cache.is_empty());
     assert!(p.label_identifier_cache.is_empty());
     assert!(p.lexical_declaration_cache.is_empty());
     assert!(p.lhs_cache.is_empty());
@@ -178,14 +170,11 @@ fn parser_01() {
     assert!(p.single_name_binding_cache.is_empty());
     assert!(p.statement_cache.is_empty());
     assert!(p.statement_list_cache.is_empty());
-    assert!(p.switch_statement_cache.is_empty());
     assert!(p.template_literal_cache.is_empty());
-    assert!(p.throw_statement_cache.is_empty());
     assert!(p.unary_expression_cache.is_empty());
     assert!(p.unique_formal_parameters_cache.is_empty());
     assert!(p.update_expression_cache.is_empty());
     assert!(p.variable_declaration_list_cache.is_empty());
-    assert!(p.while_statement_cache.is_empty());
 }
 
 #[test]
@@ -448,4 +437,29 @@ fn no_line_terminator_01() {
 fn no_line_terminator_02() {
     let res = no_line_terminator(Scanner::new(), "for");
     assert!(res.is_ok());
+}
+
+#[test]
+fn scan_for_eof_01() {
+    let res = scan_for_eof(Scanner::new(), "rust");
+    let pe = res.unwrap_err();
+    assert_eq!(pe.msg, "EoF expected");
+    assert_eq!(pe.line, 1);
+    assert_eq!(pe.column, 1);
+}
+#[test]
+fn scan_for_eof_02() {
+    let res = scan_for_eof(Scanner::new(), "").unwrap();
+    assert_eq!(res.line, 1);
+    assert_eq!(res.column, 1);
+    assert_eq!(res.start_idx, 0);
+}
+
+#[test]
+fn parse_node_kind_01() {
+    let p1 = ParseNodeKind::Literal;
+    let p2 = p1;
+    assert_eq!(p1, p2);
+    format!("{:?}", p1);
+    assert_eq!(p1, p1.clone());
 }
