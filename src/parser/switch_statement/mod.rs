@@ -48,25 +48,13 @@ impl PrettyPrint for SwitchStatement {
 }
 
 impl SwitchStatement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_switch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
         let after_open = scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb }), after_cases))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.switch_statement_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.switch_statement_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -161,20 +149,16 @@ impl PrettyPrint for CaseBlock {
 }
 
 impl CaseBlock {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (pre, after_pre) = match CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_open),
         };
-        enum Post {
-            Empty,
-            Stuff(Rc<DefaultClause>, Option<Rc<CaseClauses>>),
-        }
-        Err(ParseError::new("CaseBlock confused", after_pre.line, after_pre.column))
+        Err(ParseError::new("‘}’, ‘case’, or ‘default’ expected", after_pre.line, after_pre.column))
             .otherwise(|| {
                 let after_close = scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Post::Empty, after_close))
+                Ok((None, after_close))
             })
             .otherwise(|| {
                 let (def, after_def) = DefaultClause::parse(parser, after_pre, yield_flag, await_flag, return_flag)?;
@@ -183,29 +167,17 @@ impl CaseBlock {
                     Err(_) => (None, after_def),
                 };
                 let after_close = scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Post::Stuff(def, post), after_close))
+                Ok((Some((def, post)), after_close))
             })
             .map(|(post, scan)| {
                 (
                     Rc::new(match post {
-                        Post::Empty => CaseBlock::NoDefault(pre),
-                        Post::Stuff(def, after) => CaseBlock::HasDefault(pre, def, after),
+                        None => CaseBlock::NoDefault(pre),
+                        Some((def, after)) => CaseBlock::HasDefault(pre, def, after),
                     }),
                     scan,
                 )
             })
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.case_block_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.case_block_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -297,7 +269,7 @@ impl PrettyPrint for CaseClauses {
 }
 
 impl CaseClauses {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let (item, after_item) = CaseClause::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         let mut current = Rc::new(CaseClauses::Item(item));
         let mut current_scanner = after_item;
@@ -306,18 +278,6 @@ impl CaseClauses {
             current_scanner = after_next;
         }
         Ok((current, current_scanner))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.case_clauses_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.case_clauses_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -398,7 +358,7 @@ impl PrettyPrint for CaseClause {
 }
 
 impl CaseClause {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_case = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
@@ -407,18 +367,6 @@ impl CaseClause {
             Ok((stmt, s)) => (Some(stmt), s),
         };
         Ok((Rc::new(CaseClause { expression: exp, statements: stmt }), after_stmt))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.case_clause_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.case_clause_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -485,7 +433,7 @@ impl PrettyPrint for DefaultClause {
 }
 
 impl DefaultClause {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_def = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
         let after_colon = scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
@@ -493,18 +441,6 @@ impl DefaultClause {
             Ok((lst, scan)) => (Some(lst), scan),
         };
         Ok((Rc::new(DefaultClause(sl)), after_sl))
-    }
-
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
-        match parser.default_clause_cache.get(&key) {
-            Some(result) => result.clone(),
-            None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, return_flag);
-                parser.default_clause_cache.insert(key, result.clone());
-                result
-            }
-        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -527,9 +463,5 @@ impl DefaultClause {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::testhelp::{check, check_none, chk_scan, newparser};
-//    use super::*;
-//    use crate::prettyprint::testhelp::{pretty_check, pretty_error_validate};
-//}
+#[cfg(test)]
+mod tests;

@@ -26,7 +26,6 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
-use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
@@ -154,15 +153,11 @@ pub struct Parser<'a> {
     pub bitwise_or_expression_cache: HashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
     pub block_cache: HashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
     pub call_expression_cache: HashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
-    pub case_block_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseBlock>, RandomState>,
-    pub case_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClause>, RandomState>,
-    pub case_clauses_cache: HashMap<YieldAwaitReturnKey, ParseResult<CaseClauses>, RandomState>,
     pub catch_parameter_cache: HashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
     pub class_tail_cache: HashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
     pub coalesce_expression_cache: HashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
     pub cover_call_expression_and_async_arrow_head_cache: HashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
     pub cpeaapl_cache: HashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
-    pub default_clause_cache: HashMap<YieldAwaitReturnKey, ParseResult<DefaultClause>, RandomState>,
     pub elision_cache: HashMap<Scanner, ParseResult<Elisions>, RandomState>,
     pub expression_body_cache: HashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
     pub expression_cache: HashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
@@ -186,7 +181,6 @@ pub struct Parser<'a> {
     pub single_name_binding_cache: HashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
     pub statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
     pub statement_list_cache: HashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
-    pub switch_statement_cache: HashMap<YieldAwaitReturnKey, ParseResult<SwitchStatement>, RandomState>,
     pub template_literal_cache: HashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
     pub unary_expression_cache: HashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
     pub unique_formal_parameters_cache: HashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,

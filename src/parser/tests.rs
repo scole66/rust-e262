@@ -142,15 +142,11 @@ fn parser_01() {
     assert!(p.bitwise_or_expression_cache.is_empty());
     assert!(p.block_cache.is_empty());
     assert!(p.call_expression_cache.is_empty());
-    assert!(p.case_block_cache.is_empty());
-    assert!(p.case_clause_cache.is_empty());
-    assert!(p.case_clauses_cache.is_empty());
     assert!(p.catch_parameter_cache.is_empty());
     assert!(p.class_tail_cache.is_empty());
     assert!(p.coalesce_expression_cache.is_empty());
     assert!(p.cover_call_expression_and_async_arrow_head_cache.is_empty());
     assert!(p.cpeaapl_cache.is_empty());
-    assert!(p.default_clause_cache.is_empty());
     assert!(p.elision_cache.is_empty());
     assert!(p.expression_body_cache.is_empty());
     assert!(p.expression_cache.is_empty());
@@ -174,7 +170,6 @@ fn parser_01() {
     assert!(p.single_name_binding_cache.is_empty());
     assert!(p.statement_cache.is_empty());
     assert!(p.statement_list_cache.is_empty());
-    assert!(p.switch_statement_cache.is_empty());
     assert!(p.template_literal_cache.is_empty());
     assert!(p.unary_expression_cache.is_empty());
     assert!(p.unique_formal_parameters_cache.is_empty());
