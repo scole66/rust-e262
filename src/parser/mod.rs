@@ -194,7 +194,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     pub msg: String,
     pub line: u32,

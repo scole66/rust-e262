@@ -343,6 +343,32 @@ fn scan_for_punct_set_04() {
 }
 
 #[test]
+fn scan_for_auto_semi_01() {
+    let res = scan_for_auto_semi(Scanner::new(), "", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
+}
+#[test]
+fn scan_for_auto_semi_02() {
+    let res = scan_for_auto_semi(Scanner::new(), ";", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(res, Scanner { line: 1, column: 2, start_idx: 1 });
+}
+#[test]
+fn scan_for_auto_semi_03() {
+    let res = scan_for_auto_semi(Scanner::new(), "}", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
+}
+#[test]
+fn scan_for_auto_semi_04() {
+    let res = scan_for_auto_semi(Scanner::new(), "\n0", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
+}
+#[test]
+fn scan_for_auto_semi_05() {
+    let res = scan_for_auto_semi(Scanner::new(), "0", ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
+}
+
+#[test]
 fn scan_for_keyword_01() {
     let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::Class);
     assert!(res.is_ok());
@@ -462,4 +488,32 @@ fn parse_node_kind_01() {
     assert_eq!(p1, p2);
     format!("{:?}", p1);
     assert_eq!(p1, p1.clone());
+}
+#[test]
+fn parse_text_01() {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    let res = parse_text(&mut agent, "0;", ParseGoal::Script);
+    assert!(matches!(res, ParsedText::Script(_)));
+}
+#[test]
+fn parse_text_02() {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    let res = parse_text(&mut agent, "for", ParseGoal::Script);
+    assert!(matches!(res, ParsedText::Errors(_)));
+}
+#[test]
+fn parse_text_03() {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    let res = parse_text(&mut agent, "let x; let x;", ParseGoal::Script);
+    assert!(matches!(res, ParsedText::Errors(_)));
+}
+#[test]
+#[should_panic]
+fn parse_text_04() {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    parse_text(&mut agent, "let x; let x;", ParseGoal::Module);
 }
