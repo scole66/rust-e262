@@ -367,6 +367,12 @@ fn scan_for_auto_semi_05() {
     let res = scan_for_auto_semi(Scanner::new(), "0", ScanGoal::InputElementDiv).unwrap_err();
     assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
 }
+#[test]
+#[should_panic] // This is an XFAIL -- it _should_ work, but the code's not there yet.
+fn scan_for_auto_semi_06() {
+    let res = scan_for_auto_semi(Scanner::new(), "'\\\n0'", ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
+}
 
 #[test]
 fn scan_for_keyword_01() {
