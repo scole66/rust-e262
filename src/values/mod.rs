@@ -62,13 +62,76 @@ impl From<&Object> for ECMAScriptValue {
     }
 }
 
+impl From<Object> for ECMAScriptValue {
+    fn from(source: Object) -> Self {
+        // Consumes the input object, transforming it into a value.
+        Self::Object(source)
+    }
+}
+
 impl From<&str> for ECMAScriptValue {
     fn from(source: &str) -> Self {
         Self::String(JSString::from(source))
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl From<bool> for ECMAScriptValue {
+    fn from(source: bool) -> Self {
+        Self::Boolean(source)
+    }
+}
+
+impl From<f64> for ECMAScriptValue {
+    fn from(source: f64) -> Self {
+        Self::Number(source)
+    }
+}
+
+impl From<u32> for ECMAScriptValue {
+    fn from(source: u32) -> Self {
+        Self::Number(source as f64)
+    }
+}
+
+impl From<i32> for ECMAScriptValue {
+    fn from(source: i32) -> Self {
+        Self::Number(source as f64)
+    }
+}
+
+impl From<u64> for ECMAScriptValue {
+    fn from(val: u64) -> Self {
+        if val <= 1 << 53 {
+            Self::from(val as f64)
+        } else {
+            Self::from(BigInt::from(val))
+        }
+    }
+}
+
+impl From<i64> for ECMAScriptValue {
+    fn from(val: i64) -> Self {
+        if -(1 << 53) <= val && val <= 1 << 53 {
+            Self::from(val as f64)
+        } else {
+            Self::from(BigInt::from(val))
+        }
+    }
+}
+
+impl From<BigInt> for ECMAScriptValue {
+    fn from(source: BigInt) -> Self {
+        Self::BigInt(Rc::new(source))
+    }
+}
+
+impl From<Symbol> for ECMAScriptValue {
+    fn from(source: Symbol) -> Self {
+        Self::Symbol(source)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PropertyKey {
     String(JSString),
     Symbol(Symbol),
@@ -79,20 +142,22 @@ impl PropertyKey {
         // An array index is an integer index whose numeric value i is in the range +0𝔽 ≤ i < 𝔽(2^32 - 1).
         match self {
             PropertyKey::Symbol(_) => false,
-            PropertyKey::String(s) => String::from_utf16(s.as_slice()).map(|sss| sss.parse::<u32>().is_ok()).unwrap_or(false),
+            PropertyKey::String(s) => {
+                String::from_utf16(s.as_slice()).map(|sss| sss.parse::<u32>().map(|int_val| (int_val == 0 && sss.len() == 1) || !sss.starts_with('0')).unwrap_or(false)).unwrap_or(false)
+            }
         }
     }
 }
 
 impl From<&str> for PropertyKey {
     fn from(source: &str) -> Self {
-        Self::String(JSString::from(source))
+        Self::from(JSString::from(source))
     }
 }
 
 impl From<&JSString> for PropertyKey {
     fn from(source: &JSString) -> Self {
-        Self::String(source.clone())
+        Self::from(source.clone())
     }
 }
 
@@ -309,17 +374,22 @@ pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: 
 // | Object        | Return true.                                                                            |
 // +---------------+-----------------------------------------------------------------------------------------+
 // NOTE     An alternate algorithm related to the [[IsHTMLDDA]] internal slot is mandated in section B.3.7.1.
-pub fn to_boolean(val: ECMAScriptValue) -> bool {
-    match val {
-        ECMAScriptValue::Undefined => false,
-        ECMAScriptValue::Null => false,
-        ECMAScriptValue::Boolean(b) => b,
-        ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
-        ECMAScriptValue::String(s) => s.len() > 0,
-        ECMAScriptValue::Symbol(_) => true,
-        ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
-        ECMAScriptValue::Object(_) => true,
+impl From<ECMAScriptValue> for bool {
+    fn from(val: ECMAScriptValue) -> bool {
+        match val {
+            ECMAScriptValue::Undefined => false,
+            ECMAScriptValue::Null => false,
+            ECMAScriptValue::Boolean(b) => b,
+            ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
+            ECMAScriptValue::String(s) => s.len() > 0,
+            ECMAScriptValue::Symbol(_) => true,
+            ECMAScriptValue::BigInt(b) => *b != BigInt::from(0),
+            ECMAScriptValue::Object(_) => true,
+        }
     }
+}
+pub fn to_boolean(val: ECMAScriptValue) -> bool {
+    bool::from(val)
 }
 
 // ToObject ( argument )
@@ -365,67 +435,4 @@ pub fn is_callable(value: &ECMAScriptValue) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn nts_test_nan() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, f64::NAN).unwrap();
-        assert_eq!(s, "NaN".as_bytes());
-    }
-    #[test]
-    fn nts_test_zero() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 0.0).unwrap();
-        assert_eq!(s, "0".as_bytes());
-    }
-    #[test]
-    fn nts_test_infinity() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, f64::INFINITY).unwrap();
-        assert_eq!(s, "Infinity".as_bytes());
-    }
-    #[test]
-    fn nts_test_negatives() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, -6.0).unwrap();
-        assert_eq!(s, "-6".as_bytes());
-    }
-    #[test]
-    fn nts_test_ends_with_zeroes() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 98000000.0).unwrap();
-        assert_eq!(s, "98000000".as_bytes());
-    }
-    #[test]
-    fn nts_test_leading_zeroes() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 0.00125).unwrap();
-        assert_eq!(s, "0.00125".as_bytes());
-    }
-    #[test]
-    fn nts_test_decimal_mid() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 104.5024).unwrap();
-        assert_eq!(s, "104.5024".as_bytes());
-    }
-    #[test]
-    fn nts_test_pos_exponent() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 6.02e23).unwrap();
-        assert_eq!(s, "6.02e+23".as_bytes());
-    }
-    #[test]
-    fn nts_test_neg_exponent() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 3.441e-10).unwrap();
-        assert_eq!(s, "3.441e-10".as_bytes());
-    }
-    #[test]
-    fn nts_test_1dig_exponent() {
-        let mut s = Vec::new();
-        number_to_string(&mut s, 3e-10).unwrap();
-        assert_eq!(s, "3e-10".as_bytes());
-    }
-}
+mod tests;

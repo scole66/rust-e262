@@ -921,6 +921,29 @@ impl PartialEq for Object {
     }
 }
 
+use std::convert::TryFrom;
+impl TryFrom<ECMAScriptValue> for Object {
+    type Error = &'static str;
+    fn try_from(source: ECMAScriptValue) -> Result<Self, Self::Error> {
+        if let ECMAScriptValue::Object(o) = source {
+            Ok(o)
+        } else {
+            Err("Only object values may be converted to true objects")
+        }
+    }
+}
+
+impl TryFrom<&ECMAScriptValue> for Object {
+    type Error = &'static str;
+    fn try_from(source: &ECMAScriptValue) -> Result<Self, Self::Error> {
+        if let ECMAScriptValue::Object(o) = source {
+            Ok(o.clone())
+        } else {
+            Err("Only object values may be converted to true objects")
+        }
+    }
+}
+
 impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
     fn from(obj: &'a Object) -> Self {
         obj.o.as_ref()
