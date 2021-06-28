@@ -1,5 +1,6 @@
 use super::*;
 use crate::object::ordinary_object_create;
+use crate::tests::unwind_type_error;
 use ahash::RandomState;
 use std::convert::TryInto;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -8,6 +9,11 @@ fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
     let mut s = factory.build_hasher();
     t.hash(&mut s);
     s.finish()
+}
+fn test_agent() -> Agent {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    agent
 }
 
 #[test]
@@ -292,4 +298,78 @@ fn property_key_try_from() {
     assert_eq!(JSString::try_from(&pk).unwrap(), "key");
     let pk = PropertyKey::from(Symbol::ToPrimitive);
     assert_eq!(JSString::try_from(&pk).unwrap_err(), "Expected String-valued property key");
+}
+
+#[test]
+fn to_object_01() {
+    let mut agent = test_agent();
+    let err = to_object(&mut agent, ECMAScriptValue::Undefined).unwrap_err();
+    let msg = unwind_type_error(&mut agent, err);
+    assert_eq!(msg, "Undefined and null cannot be converted to objects");
+}
+#[test]
+fn to_object_02() {
+    let mut agent = test_agent();
+    let err = to_object(&mut agent, ECMAScriptValue::Null).unwrap_err();
+    let msg = unwind_type_error(&mut agent, err);
+    assert_eq!(msg, "Undefined and null cannot be converted to objects");
+}
+#[test]
+fn to_object_03() {
+    let mut agent = test_agent();
+    let test_value = true;
+    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+
+    let boolean_obj = result.o.to_boolean_obj().unwrap();
+    assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
+}
+#[test]
+#[should_panic] // An XFAIL. Number objects not yet implemented.
+fn to_object_04() {
+    let mut agent = test_agent();
+    let test_value = 1337;
+    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+}
+#[test]
+#[should_panic] // An XFAIL. String objects not yet implemented.
+fn to_object_05() {
+    let mut agent = test_agent();
+    let test_value = "orange";
+    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+}
+#[test]
+#[should_panic] // An XFAIL. Symbol objects not yet implemented.
+fn to_object_06() {
+    let mut agent = test_agent();
+    let test_value = Symbol::ToPrimitive;
+    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+}
+#[test]
+#[should_panic] // An XFAIL. BigInt objects not yet implemented.
+fn to_object_07() {
+    let mut agent = test_agent();
+    let test_value = BigInt::from(10);
+    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+}
+#[test]
+fn to_object_08() {
+    let mut agent = test_agent();
+    let test_value = ordinary_object_create(&mut agent, None, &[]);
+    let id = test_value.o.id();
+    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    assert_eq!(result.o.id(), id);
+}
+
+#[test]
+fn ordinary_to_primitive_01() {
+    let mut agent = test_agent();
+    let test_value = ordinary_object_create(&mut agent, None, &[]);
+    for hint in vec![ConversionHint::Number, ConversionHint::String] {
+        let result = ordinary_to_primitive(&mut agent, &test_value, hint);
+        // Since default objects don't have toString or valueOf methods (yet), this returns a type error.
+        // (When those objects finally _do_ get those methods, this test will need a rewrite.)
+        let err = result.unwrap_err();
+        let msg = unwind_type_error(&mut agent, err);
+        assert_eq!(msg, "Cannot convert object to primitive value");
+    }
 }

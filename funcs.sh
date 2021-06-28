@@ -12,7 +12,7 @@ function objects() {
 function z() {
   pushd ~/*/rust-e262 > /dev/null
   rm -f res-*.profraw
-  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test -j 1 "$@"
+  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
   cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' --instr-profile=res.profdata $(objects)
   popd > /dev/null

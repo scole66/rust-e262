@@ -10,7 +10,7 @@ use super::object::{
 use super::parser::parameter_lists::FormalParameters;
 use super::realm::Realm;
 use super::values::{ECMAScriptValue, PropertyKey};
-//use super::parser::script::Script;
+use super::parser::scripts::Script;
 use super::environment_record::EnvironmentRecord;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -34,8 +34,6 @@ pub enum ThisMode {
     Strict,
     Global,
 }
-
-struct Script {} // should be in the parser
 
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
