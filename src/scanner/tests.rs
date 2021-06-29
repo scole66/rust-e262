@@ -1413,6 +1413,7 @@ fn token_display() {
     assert_eq!(format!("{}", Token::TemplateTail(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::RegularExpression(RegularExpressionData { body: String::from("rust"), flags: String::from("ng") })), "/rust/ng");
     assert_eq!(format!("{}", Token::Error(String::from("syntax error"))), "\u{26a0}");
+    assert_eq!(format!("{}", Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None, line: 1, column: 1 })), "#bob");
 }
 #[test]
 fn token_ne() {
@@ -1539,4 +1540,36 @@ fn scan_goal_clone() {
     let sg2 = sg1.clone();
 
     assert_eq!(sg1, sg2);
+}
+
+#[test]
+fn private_identifier_01() {
+    let (tok, scan) = scan_token(&Scanner::new(), "#bobo", ScanGoal::InputElementRegExp);
+    assert_eq!(scan, Scanner { line: 1, column: 6, start_idx: 5 });
+    assert!(matches!(tok, Token::PrivateIdentifier(_)));
+    if let Token::PrivateIdentifier(data) = tok {
+        assert_eq!(data.column, 2);
+        assert_eq!(data.keyword_id, None);
+        assert_eq!(data.line, 1);
+        assert_eq!(data.string_value, JSString::from("bobo"));
+    }
+}
+#[test]
+fn private_identifier_02() {
+    let (tok, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
+    assert_eq!(scan, Scanner { line: 1, column: 1, start_idx: 0 });
+    println!("{:?}", tok);
+    assert!(matches!(tok, Token::Error(_)));
+    if let Token::Error(msg) = tok {
+        assert_eq!(msg, "Unrecognized Token");
+    }
+}
+#[test]
+fn private_identifier_03() {
+    let (tok, scan) = scan_token(&Scanner::new(), "#ident\\u{20}aa", ScanGoal::InputElementRegExp);
+    assert_eq!(scan, Scanner { line: 1, column: 7, start_idx: 6 });
+    assert!(matches!(tok, Token::Error(_)));
+    if let Token::Error(msg) = tok {
+        assert_eq!(msg, "1:7: Invalid Identifier Continuation Character ' '");
+    }
 }

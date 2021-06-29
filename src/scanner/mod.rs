@@ -230,6 +230,7 @@ pub enum Token {
     TemplateMiddle(TemplateData),
     TemplateTail(TemplateData),
     RegularExpression(RegularExpressionData),
+    PrivateIdentifier(IdentifierData),
     Error(String),
 }
 
@@ -317,6 +318,7 @@ impl fmt::Display for Token {
             Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
+            Token::PrivateIdentifier(id) => write!(f, "#{}", id),
         }
     }
 }
@@ -934,48 +936,49 @@ fn identifier_name_keyword(source: &str) -> Option<Keyword> {
     }
 }
 
-pub fn identifier_name(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+fn identifier_internal(scanner: &Scanner, source: &str) -> Result<Option<(IdentifierData, Scanner)>, (String, Scanner)> {
     // IdentifierName ::
     //    IdentifierStart
     //    IdentifierName IdentifierPart
     // (I.e.: An IdentifierStart followed by any number of IdentifierParts)
 
-    let is_result = identifier_start(scanner, source);
-    let mut scanner_1;
-    match is_result {
-        Err(msg) => {
-            return Some((Token::Error(msg), *scanner));
+    let is_result = identifier_start(scanner, source).map_err(|errmsg| (errmsg, *scanner))?;
+    let mut scanner_1 = match is_result {
+        None => {
+            return Ok(None);
         }
-        Ok(None) => {
-            return None;
-        }
-        Ok(Some(scanner)) => scanner_1 = scanner,
+        Some(scanner) => scanner,
     };
 
     loop {
-        let ip_result = identifier_part(&scanner_1, source);
+        let ip_result = identifier_part(&scanner_1, source).map_err(|errmsg| (errmsg, scanner_1))?;
         match ip_result {
-            Err(msg) => {
-                return Some((Token::Error(msg), scanner_1));
-            }
-            Ok(None) => {
+            None => {
                 break;
             }
-            Ok(Some(after)) => {
+            Some(after) => {
                 scanner_1 = after;
             }
         }
     }
 
-    Some((
-        Token::Identifier(IdentifierData {
+    Ok(Some((
+        IdentifierData {
             string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
             line: scanner.line,
             column: scanner.column,
-        }),
+        },
         scanner_1,
-    ))
+    )))
+}
+
+pub fn identifier_name(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+    match identifier_internal(scanner, source) {
+        Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
+        Ok(Some((data, scan))) => Some((Token::Identifier(data), scan)),
+        Ok(None) => None,
+    }
 }
 
 fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
@@ -1826,22 +1829,19 @@ fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     template_token(scanner, source, TemplateStyle::NoSubOrHead)
 }
 
+fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+    match_char(scanner, source, '#').and_then(|s| match identifier_internal(&s, source) {
+        Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
+        Ok(Some((data, scan))) => Some((Token::PrivateIdentifier(data), scan)),
+        Ok(None) => None,
+    })
+}
+
 fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    let mut r;
-    r = identifier_name(scanner, source);
-    if r.is_none() {
-        r = numeric_literal(scanner, source);
-        if r.is_none() {
-            r = punctuator(scanner, source);
-            if r.is_none() {
-                r = string_literal(scanner, source);
-                if r.is_none() {
-                    r = template(scanner, source);
-                }
-            }
-        }
-    }
-    r
+    private_identifier(scanner, source).or_else(|| {
+        identifier_name(scanner, source)
+            .or_else(|| numeric_literal(scanner, source).or_else(|| punctuator(scanner, source).or_else(|| string_literal(scanner, source).or_else(|| template(scanner, source)))))
+    })
 }
 
 fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
