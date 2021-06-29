@@ -461,7 +461,7 @@ fn scan_for_private_identifier_01() {
     assert!(res.is_ok());
     if let Ok((id, after)) = res {
         assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
-        assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 1 });
+        assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 2 });
     }
 }
 #[test]
