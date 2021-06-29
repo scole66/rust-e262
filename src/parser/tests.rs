@@ -456,6 +456,26 @@ fn scan_for_identifiername_02() {
 }
 
 #[test]
+fn scan_for_private_identifier_01() {
+    let res = scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv);
+    assert!(res.is_ok());
+    if let Ok((id, after)) = res {
+        assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
+        assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 1 });
+    }
+}
+#[test]
+fn scan_for_private_identifier_02() {
+    let res = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv);
+    assert!(res.is_err());
+    if let Err(pe) = res {
+        assert_eq!(pe.msg, "Private Identifier expected");
+        assert_eq!(pe.line, 1);
+        assert_eq!(pe.column, 1);
+    }
+}
+
+#[test]
 fn no_line_terminator_01() {
     let res = no_line_terminator(Scanner::new(), "\n\nfor");
     assert!(res.is_err());

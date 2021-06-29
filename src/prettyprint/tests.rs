@@ -24,6 +24,7 @@ fn token_type_display() {
         (TokenType::TemplateHead, "TemplateHead"),
         (TokenType::TemplateMiddle, "TemplateMiddle"),
         (TokenType::TemplateTail, "TemplateTail"),
+        (TokenType::PrivateIdentifier, "PrivateIdentifier"),
     ] {
         assert_eq!(format!("{}", tt), disp);
     }

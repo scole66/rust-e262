@@ -38,6 +38,7 @@ pub enum TokenType {
     TemplateHead,
     TemplateMiddle,
     TemplateTail,
+    PrivateIdentifier,
 }
 
 impl fmt::Display for TokenType {
@@ -53,6 +54,7 @@ impl fmt::Display for TokenType {
             TokenType::TemplateHead => "TemplateHead",
             TokenType::TemplateMiddle => "TemplateMiddle",
             TokenType::TemplateTail => "TemplateTail",
+            TokenType::PrivateIdentifier => "PrivateIdentifier",
         })
     }
 }

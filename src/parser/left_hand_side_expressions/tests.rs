@@ -946,6 +946,16 @@ fn call_expression_test_ce_ident() {
     assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
+fn call_expression_test_ce_pid() {
+    let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
+    chk_scan(&scanner, 15);
+    assert!(matches!(ce.kind, CallExpressionKind::CallExpressionPrivateId(..)));
+    format!("{:?}", ce);
+    pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallExpression: blue ( pop )"]);
+    concise_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"]);
+    assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
+}
+#[test]
 fn call_expression_test_ce_template() {
     let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
     chk_scan(&scanner, 15);
@@ -1013,6 +1023,11 @@ fn call_expression_test_prettyerrors_7() {
     pretty_error_validate(&*item);
 }
 #[test]
+fn call_expression_test_prettyerrors_8() {
+    let (item, _) = CallExpression::parse(&mut newparser("a(b).#c"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
 fn call_expression_test_conciseerrors_1() {
     let (item, _) = CallExpression::parse(&mut newparser("a(b)"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
@@ -1045,6 +1060,11 @@ fn call_expression_test_conciseerrors_6() {
 #[test]
 fn call_expression_test_conciseerrors_7() {
     let (item, _) = CallExpression::parse(&mut newparser("a(b)`c`"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn call_expression_test_conciseerrors_8() {
+    let (item, _) = CallExpression::parse(&mut newparser("a(b).#c"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -1132,6 +1152,11 @@ fn call_expression_test_contains_16() {
 #[test]
 fn call_expression_test_contains_17() {
     let (item, _) = CallExpression::parse(&mut newparser("a(0)`${1}`"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn call_expression_test_contains_18() {
+    let (item, _) = CallExpression::parse(&mut newparser("a(0).#b"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 

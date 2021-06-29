@@ -935,6 +935,7 @@ impl ImportCall {
 //      CallExpression[?Yield, ?Await] [ Expression[+In, ?Yield, ?Await] ]
 //      CallExpression[?Yield, ?Await] . IdentifierName
 //      CallExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+//      CallExpression[?Yield, ?Await] . PrivateIdentifier
 #[derive(Debug)]
 pub enum CallExpressionKind {
     CallMemberExpression(Rc<CallMemberExpression>),
@@ -944,6 +945,7 @@ pub enum CallExpressionKind {
     CallExpressionExpression(Rc<CallExpression>, Rc<Expression>),
     CallExpressionIdentifierName(Rc<CallExpression>, IdentifierData),
     CallExpressionTemplateLiteral(Rc<CallExpression>, Rc<TemplateLiteral>),
+    CallExpressionPrivateId(Rc<CallExpression>, IdentifierData),
 }
 
 #[derive(Debug)]
@@ -961,6 +963,7 @@ impl fmt::Display for CallExpression {
             CallExpressionKind::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
             CallExpressionKind::CallExpressionIdentifierName(ce, int) => write!(f, "{} . {}", ce, int),
             CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
+            CallExpressionKind::CallExpressionPrivateId(ce, id) => write!(f, "{} . #{}", ce, id),
         }
     }
 }
@@ -989,6 +992,7 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+            CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -1024,6 +1028,11 @@ impl PrettyPrint for CallExpression {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
+            CallExpressionKind::CallExpressionPrivateId(ce, id) => {
+                let successive = head(writer, ce)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::Final)
+            }
         }
     }
 }
@@ -1036,7 +1045,7 @@ impl AssignmentTargetType for CallExpression {
             | CallExpressionKind::ImportCall(_)
             | CallExpressionKind::CallExpressionArguments(..)
             | CallExpressionKind::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
-            CallExpressionKind::CallExpressionExpression(..) | CallExpressionKind::CallExpressionIdentifierName(..) => ATTKind::Simple,
+            CallExpressionKind::CallExpressionExpression(..) | CallExpressionKind::CallExpressionIdentifierName(..) | CallExpressionKind::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
 }
@@ -1055,6 +1064,7 @@ impl CallExpression {
                     Exp(Rc<Expression>),
                     Id(IdentifierData),
                     TLit(Rc<TemplateLiteral>),
+                    Pid(IdentifierData),
                 }
                 let mut top_box = ce;
                 let mut top_scanner = after_ce;
@@ -1064,10 +1074,9 @@ impl CallExpression {
                     .otherwise(|| {
                         let (punct, after_punct) = scan_for_punct_set(top_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
                         match punct {
-                            Punctuator::Dot => {
-                                let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)?;
-                                Ok((Follow::Id(id), after_id))
-                            }
+                            Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
+                                .map(|(id, after_id)| (Follow::Id(id), after_id))
+                                .otherwise(|| scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv).map(|(pid, after_pid)| (Follow::Pid(pid), after_pid))),
                             _ => {
                                 let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
                                 let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
@@ -1082,6 +1091,7 @@ impl CallExpression {
                             Follow::Id(id) => CallExpressionKind::CallExpressionIdentifierName(top_box, id),
                             Follow::TLit(tl) => CallExpressionKind::CallExpressionTemplateLiteral(top_box, tl),
                             Follow::Args(args) => CallExpressionKind::CallExpressionArguments(top_box, args),
+                            Follow::Pid(id) => CallExpressionKind::CallExpressionPrivateId(top_box, id),
                         },
                     });
                     top_scanner = scan;
@@ -1109,7 +1119,7 @@ impl CallExpression {
             CallExpressionKind::ImportCall(boxed) => boxed.contains(kind),
             CallExpressionKind::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
             CallExpressionKind::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) => ce.contains(kind),
+            CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains(kind),
             CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }

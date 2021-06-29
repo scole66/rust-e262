@@ -358,6 +358,15 @@ pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> R
     }
 }
 
+pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
+    let (tok, after_tok) = scan_token(&scanner, src, goal);
+    if let Token::PrivateIdentifier(id) = tok {
+        Ok((id, after_tok))
+    } else {
+        Err(ParseError::new("Private Identifier expected", scanner.line, scanner.column))
+    }
+}
+
 pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok == Token::Eof {
