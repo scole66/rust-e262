@@ -20,6 +20,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      SuperProperty[?Yield, ?Await]
 //      MetaProperty
 //      new MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await]
+//      MemberExpression[?Yield, ?Await] . PrivateIdentifier
 
 // How to parse:
 // if PrimaryExpression, SuperProperty, or MetaProperty is detected,
@@ -38,6 +39,7 @@ pub enum MemberExpressionKind {
     SuperProperty(Rc<SuperProperty>),
     MetaProperty(Rc<MetaProperty>),
     NewArguments(Rc<MemberExpression>, Rc<Arguments>),
+    PrivateId(Rc<MemberExpression>, IdentifierData),
 }
 
 #[derive(Debug)]
@@ -59,6 +61,7 @@ impl fmt::Display for MemberExpression {
             MemberExpressionKind::SuperProperty(boxed) => write!(f, "{}", boxed),
             MemberExpressionKind::MetaProperty(boxed) => write!(f, "{}", boxed),
             MemberExpressionKind::NewArguments(me, args) => write!(f, "new {} {}", me, args),
+            MemberExpressionKind::PrivateId(me, id) => write!(f, "{} . #{}", me, id),
         }
     }
 }
@@ -76,7 +79,7 @@ impl PrettyPrint for MemberExpression {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::IdentifierName(me, _) => me.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpressionKind::IdentifierName(me, _) | MemberExpressionKind::PrivateId(me, _) => me.pprint_with_leftpad(writer, &successive, Spot::Final),
             MemberExpressionKind::TemplateLiteral(me, tl) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -115,6 +118,12 @@ impl PrettyPrint for MemberExpression {
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::IdentifierName, &successive, Spot::Final)
             }
+            MemberExpressionKind::PrivateId(me, id) => {
+                let successive = head(pad, state)?;
+                me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::Final)
+            }
             MemberExpressionKind::TemplateLiteral(me, tl) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -139,7 +148,8 @@ impl IsFunctionDefinition for MemberExpression {
             | MemberExpressionKind::TemplateLiteral(..)
             | MemberExpressionKind::SuperProperty(_)
             | MemberExpressionKind::MetaProperty(_)
-            | MemberExpressionKind::NewArguments(..) => false,
+            | MemberExpressionKind::NewArguments(..)
+            | MemberExpressionKind::PrivateId(..) => false,
         }
     }
 }
@@ -149,7 +159,7 @@ impl AssignmentTargetType for MemberExpression {
         match &self.kind {
             MemberExpressionKind::PrimaryExpression(boxed) => boxed.assignment_target_type(),
             MemberExpressionKind::Expression(..) => ATTKind::Simple,
-            MemberExpressionKind::IdentifierName(..) => ATTKind::Simple,
+            MemberExpressionKind::IdentifierName(..) | MemberExpressionKind::PrivateId(..) => ATTKind::Simple,
             MemberExpressionKind::TemplateLiteral(..) => ATTKind::Invalid,
             MemberExpressionKind::SuperProperty(..) => ATTKind::Simple,
             MemberExpressionKind::MetaProperty(boxed) => boxed.assignment_target_type(),
@@ -193,12 +203,15 @@ fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await
         Exp(Rc<Expression>),
         Id(IdentifierData),
         TLit(Rc<TemplateLiteral>),
+        Pid(IdentifierData),
     }
     let mut current_me = me;
     let mut after_scan = scan;
     while let Ok((parts, after_production)) = TemplateLiteral::parse(parser, after_scan, yield_flag, await_flag, true).map(|(tl, after_tl)| (After::TLit(tl), after_tl)).otherwise(|| {
         scan_for_punct_set(after_scan, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::Dot, Punctuator::LeftBracket]).and_then(|(punct, after)| match punct {
-            Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp).map(|(id, after_id)| (After::Id(id), after_id)),
+            Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp)
+                .map(|(id, after_id)| (After::Id(id), after_id))
+                .otherwise(|| scan_for_private_identifier(after, parser.source, ScanGoal::InputElementRegExp).map(|(id, after_id)| (After::Pid(id), after_id))),
             _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(|(expression, after_exp)| {
                 scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket).map(|after_bracket| (After::Exp(expression), after_bracket))
             }),
@@ -208,6 +221,7 @@ fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await
             After::TLit(tl) => Rc::new(MemberExpression { kind: MemberExpressionKind::TemplateLiteral(current_me, tl) }),
             After::Exp(exp) => Rc::new(MemberExpression { kind: MemberExpressionKind::Expression(current_me, exp) }),
             After::Id(id) => Rc::new(MemberExpression { kind: MemberExpressionKind::IdentifierName(current_me, id) }),
+            After::Pid(id) => Rc::new(MemberExpression { kind: MemberExpressionKind::PrivateId(current_me, id) }),
         };
         after_scan = after_production;
     }
@@ -251,7 +265,7 @@ impl MemberExpression {
         match &self.kind {
             MemberExpressionKind::PrimaryExpression(n) => n.contains(kind),
             MemberExpressionKind::Expression(l, r) => l.contains(kind) || r.contains(kind),
-            MemberExpressionKind::IdentifierName(n, _) => n.contains(kind),
+            MemberExpressionKind::IdentifierName(n, _) | MemberExpressionKind::PrivateId(n, _) => n.contains(kind),
             MemberExpressionKind::TemplateLiteral(l, r) => l.contains(kind) || r.contains(kind),
             MemberExpressionKind::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
             MemberExpressionKind::MetaProperty(n) => n.contains(kind),

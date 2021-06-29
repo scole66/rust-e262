@@ -76,6 +76,18 @@ fn member_expression_test_me_ident() {
     assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
+fn member_expression_test_me_private() {
+    let (me, scanner) = check(MemberExpression::parse(&mut newparser("alice.#name"), Scanner::new(), false, false));
+    chk_scan(&scanner, 11);
+    assert!(matches!(me.kind, MemberExpressionKind::PrivateId(..)));
+    // Excersize the Debug formatter, for code coverage
+    format!("{:?}", me);
+    pretty_check(&*me, "MemberExpression: alice . #name", vec!["MemberExpression: alice"]);
+    concise_check(&*me, "MemberExpression: alice . #name", vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"]);
+    assert_eq!(me.is_function_definition(), false);
+    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
+}
+#[test]
 fn member_expression_test_me_template() {
     let (me, scanner) = check(MemberExpression::parse(&mut newparser("alice`${a}`"), Scanner::new(), false, false));
     chk_scan(&scanner, 11);
@@ -143,6 +155,12 @@ fn member_expression_test_prettyerrors_7() {
     pretty_error_validate(&*item);
 }
 #[test]
+fn member_expression_test_prettyerrors_8() {
+    let (item, _) = MemberExpression::parse(&mut newparser("a.#b"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+
+#[test]
 fn member_expression_test_conciseerrors_1() {
     let (item, _) = MemberExpression::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
@@ -175,6 +193,11 @@ fn member_expression_test_conciseerrors_6() {
 #[test]
 fn member_expression_test_conciseerrors_7() {
     let (item, _) = MemberExpression::parse(&mut newparser("new a()"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn member_expression_test_conciseerrors_8() {
+    let (item, _) = MemberExpression::parse(&mut newparser("a.#b"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -259,6 +282,12 @@ fn member_expression_test_contains_15() {
 fn member_expression_test_contains_16() {
     let (item, _) = MemberExpression::parse(&mut newparser("new a(0)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn member_expression_test_contains_17() {
+    let (item, _) = MemberExpression::parse(&mut newparser("this.#blue"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::NewTarget), false);
 }
 
 // SUPER PROPERTY
