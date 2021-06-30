@@ -1379,6 +1379,24 @@ fn optional_chain_test_08() {
     concise_check(&*lhs, "OptionalChain: ?. a `b`", vec!["OptionalChain: ?. a", "NoSubTemplate: `b`"]);
 }
 #[test]
+fn optional_chain_test_09() {
+    let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.#a"), Scanner::new(), false, false));
+    chk_scan(&scanner, 4);
+    assert!(matches!(*lhs, OptionalChain::PrivateId(..)));
+    format!("{:?}", lhs);
+    pretty_check(&*lhs, "OptionalChain: ?. #a", vec!["PrivateIdentifier: #a"]);
+    concise_check(&*lhs, "OptionalChain: ?. #a", vec!["Punctuator: ?.", "PrivateIdentifier: #a"]);
+}
+#[test]
+fn optional_chain_test_10() {
+    let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a.#b"), Scanner::new(), false, false));
+    chk_scan(&scanner, 6);
+    assert!(matches!(*lhs, OptionalChain::PlusPrivateId(..)));
+    format!("{:?}", lhs);
+    pretty_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
+    concise_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"]);
+}
+#[test]
 fn optional_chain_test_err_1() {
     check_err(OptionalChain::parse(&mut newparser(""), Scanner::new(), false, false), "‘?.’ expected", 1, 1);
 }
@@ -1453,6 +1471,16 @@ fn optional_chain_test_prettyerrors_8() {
     pretty_error_validate(&*item);
 }
 #[test]
+fn optional_chain_test_prettyerrors_9() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.#a"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn optional_chain_test_prettyerrors_10() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.a.#b"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
 fn optional_chain_test_conciseerrors_1() {
     let (item, _) = OptionalChain::parse(&mut newparser("?.()"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
@@ -1490,6 +1518,16 @@ fn optional_chain_test_conciseerrors_7() {
 #[test]
 fn optional_chain_test_conciseerrors_8() {
     let (item, _) = OptionalChain::parse(&mut newparser("?.a`b`"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn optional_chain_test_conciseerrors_9() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.#a"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn optional_chain_test_conciseerrors_10() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.a.#b"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -1582,6 +1620,22 @@ fn optional_chain_test_contains_18() {
     let (item, _) = OptionalChain::parse(&mut newparser("?.(0)`a`"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test]
+fn optional_chain_test_contains_19() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.#this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn optional_chain_test_contains_20() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.(this).#a"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test]
+fn optional_chain_test_contains_21() {
+    let (item, _) = OptionalChain::parse(&mut newparser("?.(0).#this"), Scanner::new(), false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+
 
 // LEFT-HAND-SIDE EXPRESSION
 #[test]

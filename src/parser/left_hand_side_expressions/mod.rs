@@ -1340,20 +1340,24 @@ impl OptionalExpression {
 //      ?. [ Expression[+In, ?Yield, ?Await] ]
 //      ?. IdentifierName
 //      ?. TemplateLiteral[?Yield, ?Await, +Tagged]
+//      ?. PrivateIdentifier
 //      OptionalChain[?Yield, ?Await] Arguments[?Yield, ?Await]
 //      OptionalChain[?Yield, ?Await] [ Expression[+In, ?Yield, ?Await] ]
 //      OptionalChain[?Yield, ?Await] . IdentifierName
 //      OptionalChain[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+//      OptionalChain[?Yield, ?Await] . PrivateIdentifier
 #[derive(Debug)]
 pub enum OptionalChain {
     Args(Rc<Arguments>),
     Exp(Rc<Expression>),
     Ident(IdentifierData),
     Template(Rc<TemplateLiteral>),
+    PrivateId(IdentifierData),
     PlusArgs(Rc<OptionalChain>, Rc<Arguments>),
     PlusExp(Rc<OptionalChain>, Rc<Expression>),
     PlusIdent(Rc<OptionalChain>, IdentifierData),
     PlusTemplate(Rc<OptionalChain>, Rc<TemplateLiteral>),
+    PlusPrivateId(Rc<OptionalChain>, IdentifierData),
 }
 
 impl fmt::Display for OptionalChain {
@@ -1363,10 +1367,12 @@ impl fmt::Display for OptionalChain {
             OptionalChain::Exp(node) => write!(f, "?. [ {} ]", node),
             OptionalChain::Ident(node) => write!(f, "?. {}", node),
             OptionalChain::Template(node) => write!(f, "?. {}", node),
+            OptionalChain::PrivateId(node) => write!(f, "?. #{}", node),
             OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
             OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),
             OptionalChain::PlusIdent(lst, item) => write!(f, "{} . {}", lst, item),
             OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
+            OptionalChain::PlusPrivateId(lst, item) => write!(f, "{} . #{}", lst, item),
         }
     }
 }
@@ -1383,6 +1389,7 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Ident(node) => pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final),
             OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::PrivateId(node) => pprint_token(writer, format!("#{}", node), TokenType::PrivateIdentifier, &successive, Spot::Final),
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1398,6 +1405,10 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusPrivateId(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("#{}", item), TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
         }
     }
@@ -1427,6 +1438,10 @@ impl PrettyPrint for OptionalChain {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
+            OptionalChain::PrivateId(node) => {
+                pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("#{}", node), TokenType::PrivateIdentifier, &successive, Spot::Final)
+            }
             OptionalChain::PlusArgs(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1445,6 +1460,11 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            OptionalChain::PlusPrivateId(lst, item) => {
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("#{}", item), TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
         }
     }
@@ -1471,13 +1491,15 @@ impl OptionalChain {
             .otherwise(|| {
                 let (id, after_id) = scan_for_identifiername(after_opt, parser.source, ScanGoal::InputElementDiv)?;
                 Ok((Rc::new(OptionalChain::Ident(id)), after_id))
-            })?;
+            })
+            .otherwise(|| scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv).map(|(id, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id)))?;
 
         enum Follow {
             Args(Rc<Arguments>),
             TLit(Rc<TemplateLiteral>),
             Exp(Rc<Expression>),
             Id(IdentifierData),
+            Pid(IdentifierData),
         }
         while let Ok((follow, scan)) = Err(ParseError::new(String::new(), current_scan.line, current_scan.column))
             .otherwise(|| {
@@ -1491,10 +1513,9 @@ impl OptionalChain {
             .otherwise(|| {
                 let (punct, after_punct) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
                 match punct {
-                    Punctuator::Dot => {
-                        let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)?;
-                        Ok((Follow::Id(id), after_id))
-                    }
+                    Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
+                        .map(|(id, after_id)| (Follow::Id(id), after_id))
+                        .otherwise(|| scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv).map(|(id, after_id)| (Follow::Pid(id), after_id))),
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
                         let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
@@ -1508,6 +1529,7 @@ impl OptionalChain {
                 Follow::Id(id) => OptionalChain::PlusIdent(current, id),
                 Follow::Exp(exp) => OptionalChain::PlusExp(current, exp),
                 Follow::TLit(tl) => OptionalChain::PlusTemplate(current, tl),
+                Follow::Pid(id) => OptionalChain::PlusPrivateId(current, id),
             });
             current_scan = scan;
         }
@@ -1520,10 +1542,12 @@ impl OptionalChain {
             OptionalChain::Exp(node) => node.contains(kind),
             OptionalChain::Ident(_) => false,
             OptionalChain::Template(node) => node.contains(kind),
+            OptionalChain::PrivateId(_) => false,
             OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
             OptionalChain::PlusExp(lst, item) => lst.contains(kind) || item.contains(kind),
             OptionalChain::PlusIdent(lst, _) => lst.contains(kind),
             OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
+            OptionalChain::PlusPrivateId(lst, _) => lst.contains(kind),
         }
     }
 }
