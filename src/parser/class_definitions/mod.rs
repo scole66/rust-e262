@@ -427,11 +427,15 @@ impl ClassElementList {
 // ClassElement[Yield, Await] :
 //      MethodDefinition[?Yield, ?Await]
 //      static MethodDefinition[?Yield, ?Await]
+//      FieldDefinition[?Yield, ?Await] ;
+//      static FieldDefinition[?Yield, ?Await] ;
 //      ;
 #[derive(Debug)]
 pub enum ClassElement {
     Standard(Rc<MethodDefinition>),
     Static(Rc<MethodDefinition>),
+    Field(Rc<FieldDefinition>),
+    StaticField(Rc<FieldDefinition>),
     Empty,
 }
 
@@ -440,6 +444,8 @@ impl fmt::Display for ClassElement {
         match self {
             ClassElement::Standard(n) => n.fmt(f),
             ClassElement::Static(n) => write!(f, "static {}", n),
+            ClassElement::Field(n) => write!(f, "{} ;", n),
+            ClassElement::StaticField(n) => write!(f, "static {} ;", n),
             ClassElement::Empty => f.write_str(";"),
         }
     }
@@ -456,6 +462,8 @@ impl PrettyPrint for ClassElement {
             ClassElement::Standard(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElement::Static(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElement::Empty => Ok(()),
+            ClassElement::Field(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ClassElement::StaticField(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -463,15 +471,33 @@ impl PrettyPrint for ClassElement {
     where
         T: Write,
     {
+        let head = |f: &mut T| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(f, "{}ClassElement: {}", first, self)?;
+            Ok(successive) as IoResult<String>
+        };
+        let head_n_static = |f: &mut T| {
+            let successive = head(f)?;
+            pprint_token(f, "static", TokenType::Keyword, &successive, Spot::NotFinal)?;
+            Ok(successive) as IoResult<String>
+        };
         match self {
             ClassElement::Static(n) => {
-                let (first, successive) = prettypad(pad, state);
-                writeln!(writer, "{}ClassElement: {}", first, self)?;
-                pprint_token(writer, "static", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                let successive = head_n_static(writer)?;
                 n.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             ClassElement::Standard(n) => n.concise_with_leftpad(writer, pad, state),
             ClassElement::Empty => pprint_token(writer, ";", TokenType::Punctuator, pad, state),
+            ClassElement::StaticField(n) => {
+                let successive = head_n_static(writer)?;
+                n.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
+            }
+            ClassElement::Field(n) => {
+                let successive = head(writer)?;
+                n.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
+            }
         }
     }
 }
@@ -480,9 +506,19 @@ impl ClassElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("ClassElement expected", scanner.line, scanner.column)).otherwise(|| {
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
-                .and_then(|after_static| MethodDefinition::parse(parser, after_static, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md)))
+                .and_then(|after_static| {
+                    MethodDefinition::parse(parser, after_static, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md)).otherwise(|| {
+                        FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(|(fd, after_fd)| {
+                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+                        })
+                    })
+                })
                 .otherwise(|| scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(ClassElement::Empty), after_semi)))
                 .otherwise(|| MethodDefinition::parse(parser, scanner, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Standard(md)), after_md)))
+                .otherwise(|| {
+                    FieldDefinition::parse(parser, scanner, yield_flag, await_flag)
+                        .and_then(|(fd, after_fd)| scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi)))
+                })
         })
     }
 
@@ -490,6 +526,7 @@ impl ClassElement {
         match self {
             ClassElement::Standard(n) | ClassElement::Static(n) => kind == ParseNodeKind::MethodDefinition || n.contains(kind),
             ClassElement::Empty => false,
+            ClassElement::Field(n) | ClassElement::StaticField(n) => n.contains(kind),
         }
     }
 
@@ -497,6 +534,142 @@ impl ClassElement {
         match self {
             ClassElement::Standard(n) | ClassElement::Static(n) => n.computed_property_contains(kind),
             ClassElement::Empty => false,
+            ClassElement::Field(n) | ClassElement::StaticField(n) => n.computed_property_contains(kind),
+        }
+    }
+}
+
+// FieldDefinition[Yield, Await] :
+//      ClassElementName[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
+#[derive(Debug)]
+pub struct FieldDefinition {
+    name: Rc<ClassElementName>,
+    init: Option<Rc<Initializer>>,
+}
+
+impl fmt::Display for FieldDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.init {
+            None => self.name.fmt(f),
+            Some(init) => write!(f, "{} {}", self.name, init),
+        }
+    }
+}
+
+impl PrettyPrint for FieldDefinition {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}FieldDefinition: {}", first, self)?;
+        match &self.init {
+            None => self.name.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Some(init) => {
+                self.name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match &self.init {
+            None => self.name.concise_with_leftpad(writer, pad, state),
+            Some(init) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}FieldDefinition: {}", first, self)?;
+                self.name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl FieldDefinition {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        ClassElementName::parse(parser, scanner, yield_flag, await_flag).map(|(cen, after_cen)| {
+            let (init, after_init) = match Initializer::parse(parser, after_cen, true, yield_flag, await_flag) {
+                Err(_) => (None, after_cen),
+                Ok((id, after_id)) => (Some(id), after_id),
+            };
+            (Rc::new(FieldDefinition { name: cen, init }), after_init)
+        })
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.name.contains(kind) || self.init.as_ref().map_or(false, |n| n.contains(kind))
+    }
+
+    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+        self.name.computed_property_contains(kind)
+    }
+}
+
+// ClassElementName[Yield, Await] :
+//      PropertyName[?Yield, ?Await]
+//      PrivateIdentifier
+#[derive(Debug)]
+pub enum ClassElementName {
+    PropertyName(Rc<PropertyName>),
+    PrivateIdentifier(IdentifierData),
+}
+
+impl fmt::Display for ClassElementName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ClassElementName::PropertyName(n) => n.fmt(f),
+            ClassElementName::PrivateIdentifier(n) => write!(f, "#{}", n),
+        }
+    }
+}
+
+impl PrettyPrint for ClassElementName {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassElementName: {}", first, self)?;
+        match self {
+            ClassElementName::PropertyName(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ClassElementName::PrivateIdentifier(n) => pprint_token(writer, format!("#{}", n), TokenType::PrivateIdentifier, &successive, Spot::Final),
+        }
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            ClassElementName::PropertyName(n) => n.concise_with_leftpad(writer, pad, state),
+            ClassElementName::PrivateIdentifier(id) => pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, pad, state),
+        }
+    }
+}
+
+impl ClassElementName {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        Err(ParseError::new("ClassElementName expected", scanner.line, scanner.column)).otherwise(|| {
+            PropertyName::parse(parser, scanner, yield_flag, await_flag)
+                .map(|(item, scan)| (Rc::new(ClassElementName::PropertyName(item)), scan))
+                .otherwise(|| scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv).map(|(item, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan)))
+        })
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ClassElementName::PropertyName(n) => n.contains(kind),
+            ClassElementName::PrivateIdentifier(_) => false,
+        }
+    }
+
+    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
+            ClassElementName::PrivateIdentifier(_) => false,
         }
     }
 }

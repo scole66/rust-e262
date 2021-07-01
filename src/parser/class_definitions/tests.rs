@@ -427,7 +427,7 @@ fn class_element_test_01() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ClassElement: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
     concise_check(&*node, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", node);
+    assert_ne!(format!("{:?}", node), "");
 }
 #[test]
 fn class_element_test_02() {
@@ -435,7 +435,7 @@ fn class_element_test_02() {
     chk_scan(&scanner, 12);
     pretty_check(&*node, "ClassElement: static a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
     concise_check(&*node, "ClassElement: static a (  ) {  }", vec!["Keyword: static", "MethodDefinition: a (  ) {  }"]);
-    format!("{:?}", node);
+    assert_ne!(format!("{:?}", node), "");
 }
 #[test]
 fn class_element_test_03() {
@@ -443,40 +443,85 @@ fn class_element_test_03() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ClassElement: ;", vec![]);
     concise_check(&*node, "Punctuator: ;", vec![]);
-    format!("{:?}", node);
+    assert_ne!(format!("{:?}", node), "");
 }
+#[test]
+fn class_element_test_04() {
+    let (node, scanner) = check(ClassElement::parse(&mut newparser("a;"), Scanner::new(), false, false));
+    chk_scan(&scanner, 2);
+    pretty_check(&*node, "ClassElement: a ;", vec!["FieldDefinition: a"]);
+    concise_check(&*node, "ClassElement: a ;", vec!["IdentifierName: a", "Punctuator: ;"]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn class_element_test_05() {
+    let (node, scanner) = check(ClassElement::parse(&mut newparser("static a;"), Scanner::new(), false, false));
+    chk_scan(&scanner, 9);
+    pretty_check(&*node, "ClassElement: static a ;", vec!["FieldDefinition: a"]);
+    concise_check(&*node, "ClassElement: static a ;", vec!["Keyword: static", "IdentifierName: a", "Punctuator: ;"]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn class_element_test_06() {
+    let (node, scanner) = check(ClassElement::parse(&mut newparser("static;"), Scanner::new(), false, false));
+    chk_scan(&scanner, 7);
+    pretty_check(&*node, "ClassElement: static ;", vec!["FieldDefinition: static"]);
+    concise_check(&*node, "ClassElement: static ;", vec!["IdentifierName: static", "Punctuator: ;"]);
+    assert_ne!(format!("{:?}", node), "");
+}
+
 #[test]
 fn class_element_test_err_01() {
     check_err(ClassElement::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElement expected", 1, 1);
 }
 #[test]
 fn class_element_test_prettyerrors_1() {
-    let (item, _) = ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn class_element_test_prettyerrors_2() {
-    let (item, _) = ClassElementList::parse(&mut newparser("static a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser("static a(){}"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn class_element_test_prettyerrors_3() {
-    let (item, _) = ClassElementList::parse(&mut newparser(";"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser(";"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn class_element_test_prettyerrors_4() {
+    let (item, _) = ClassElement::parse(&mut newparser("a;"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn class_element_test_prettyerrors_5() {
+    let (item, _) = ClassElement::parse(&mut newparser("static a;"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn class_element_test_conciseerrors_1() {
-    let (item, _) = ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn class_element_test_conciseerrors_2() {
-    let (item, _) = ClassElementList::parse(&mut newparser("static a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser("static a(){}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn class_element_test_conciseerrors_3() {
-    let (item, _) = ClassElementList::parse(&mut newparser(";"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassElement::parse(&mut newparser(";"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn class_element_test_conciseerrors_4() {
+    let (item, _) = ClassElement::parse(&mut newparser("a;"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn class_element_test_conciseerrors_5() {
+    let (item, _) = ClassElement::parse(&mut newparser("static a;"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -505,6 +550,26 @@ fn class_element_test_contains_05() {
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
+fn class_element_test_contains_06() {
+    let (item, _) = ClassElement::parse(&mut newparser("a;"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_test_contains_07() {
+    let (item, _) = ClassElement::parse(&mut newparser("[0];"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn class_element_test_contains_08() {
+    let (item, _) = ClassElement::parse(&mut newparser("static a;"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_test_contains_09() {
+    let (item, _) = ClassElement::parse(&mut newparser("static a=0;"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
 fn class_element_test_computed_property_contains_01() {
     let (item, _) = ClassElement::parse(&mut newparser("[0](){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
@@ -527,5 +592,180 @@ fn class_element_test_computed_property_contains_04() {
 #[test]
 fn class_element_test_computed_property_contains_05() {
     let (item, _) = ClassElement::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_test_computed_property_contains_06() {
+    let (item, _) = ClassElement::parse(&mut newparser("a;"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_test_computed_property_contains_07() {
+    let (item, _) = ClassElement::parse(&mut newparser("[0];"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn class_element_test_computed_property_contains_08() {
+    let (item, _) = ClassElement::parse(&mut newparser("static a;"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_test_computed_property_contains_09() {
+    let (item, _) = ClassElement::parse(&mut newparser("static [0];"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+
+// FIELD DEFINITION
+#[test]
+fn field_definition_test_01() {
+    let (node, scanner) = check(FieldDefinition::parse(&mut newparser("a"), Scanner::new(), false, false));
+    chk_scan(&scanner, 1);
+    pretty_check(&*node, "FieldDefinition: a", vec!["ClassElementName: a"]);
+    concise_check(&*node, "IdentifierName: a", vec![]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn field_definition_test_02() {
+    let (node, scanner) = check(FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), false, false));
+    chk_scan(&scanner, 3);
+    pretty_check(&*node, "FieldDefinition: a = 0", vec!["ClassElementName: a", "Initializer: = 0"]);
+    concise_check(&*node, "FieldDefinition: a = 0", vec!["IdentifierName: a", "Initializer: = 0"]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn field_definition_test_err_01() {
+    check_err(FieldDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+}
+#[test]
+fn field_definition_test_prettyerrors_1() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn field_definition_test_prettyerrors_2() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn field_definition_test_conciseerrors_1() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn field_definition_test_conciseerrors_2() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn field_definition_test_contains_01() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("[0]"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn field_definition_test_contains_02() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn field_definition_test_contains_03() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("[0]=a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn field_definition_test_contains_04() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn field_definition_test_contains_05() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a=b"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn field_definition_test_computed_property_contains_01() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("[0]"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn field_definition_test_computed_property_contains_02() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn field_definition_test_computed_property_contains_03() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+
+
+// CLASS ELEMENT NAME
+#[test]
+fn class_element_name_test_01() {
+    let (node, scanner) = check(ClassElementName::parse(&mut newparser("a"), Scanner::new(), false, false));
+    chk_scan(&scanner, 1);
+    pretty_check(&*node, "ClassElementName: a", vec!["PropertyName: a"]);
+    concise_check(&*node, "IdentifierName: a", vec![]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn class_element_name_test_02() {
+    let (node, scanner) = check(ClassElementName::parse(&mut newparser("#a"), Scanner::new(), false, false));
+    chk_scan(&scanner, 2);
+    pretty_check(&*node, "ClassElementName: #a", vec!["PrivateIdentifier: #a"]);
+    concise_check(&*node, "PrivateIdentifier: #a", vec![]);
+    assert_ne!(format!("{:?}", node), "");
+}
+#[test]
+fn class_element_name_test_err_01() {
+    check_err(ClassElementName::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+}
+#[test]
+fn class_element_name_test_prettyerrors_1() {
+    let (item, _) = ClassElementName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn class_element_name_test_prettyerrors_2() {
+    let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn class_element_name_test_conciseerrors_1() {
+    let (item, _) = ClassElementName::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn class_element_name_test_conciseerrors_2() {
+    let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn class_element_name_test_contains_01() {
+    let (item, _) = ClassElementName::parse(&mut newparser("[0]"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn class_element_name_test_contains_02() {
+    let (item, _) = ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_name_test_contains_03() {
+    let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_name_test_computed_property_contains_01() {
+    let (item, _) = ClassElementName::parse(&mut newparser("[0]"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn class_element_name_test_computed_property_contains_02() {
+    let (item, _) = ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn class_element_name_test_computed_property_contains_03() {
+    let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
