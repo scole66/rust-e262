@@ -697,7 +697,6 @@ fn field_definition_test_computed_property_contains_03() {
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 
-
 // CLASS ELEMENT NAME
 #[test]
 fn class_element_name_test_01() {

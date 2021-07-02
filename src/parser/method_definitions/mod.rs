@@ -4,29 +4,29 @@ use std::io::Write;
 
 use super::async_function_definitions::AsyncMethod;
 use super::async_generator_function_definitions::AsyncGeneratorMethod;
+use super::class_definitions::ClassElementName;
 use super::function_definitions::FunctionBody;
 use super::generator_function_definitions::GeneratorMethod;
 use super::parameter_lists::{FormalParameter, UniqueFormalParameters};
-use super::primary_expressions::PropertyName;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // MethodDefinition[Yield, Await] :
-//      PropertyName[?Yield, ?Await] ( UniqueFormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
+//      ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 //      GeneratorMethod[?Yield, ?Await]
 //      AsyncMethod[?Yield, ?Await]
 //      AsyncGeneratorMethod[?Yield, ?Await]
-//      get PropertyName[?Yield, ?Await] ( ) { FunctionBody[~Yield, ~Await] }
-//      set PropertyName[?Yield, ?Await] ( PropertySetParameterList ) { FunctionBody[~Yield, ~Await] }
+//      get ClassElementName[?Yield, ?Await] ( ) { FunctionBody[~Yield, ~Await] }
+//      set ClassElementName[?Yield, ?Await] ( PropertySetParameterList ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
 pub enum MethodDefinition {
-    NamedFunction(Rc<PropertyName>, Rc<UniqueFormalParameters>, Rc<FunctionBody>),
+    NamedFunction(Rc<ClassElementName>, Rc<UniqueFormalParameters>, Rc<FunctionBody>),
     Generator(Rc<GeneratorMethod>),
     Async(Rc<AsyncMethod>),
     AsyncGenerator(Rc<AsyncGeneratorMethod>),
-    Getter(Rc<PropertyName>, Rc<FunctionBody>),
-    Setter(Rc<PropertyName>, Rc<PropertySetParameterList>, Rc<FunctionBody>),
+    Getter(Rc<ClassElementName>, Rc<FunctionBody>),
+    Setter(Rc<ClassElementName>, Rc<PropertySetParameterList>, Rc<FunctionBody>),
 }
 
 impl fmt::Display for MethodDefinition {
@@ -122,7 +122,7 @@ impl MethodDefinition {
         Err(ParseError::new("MethodDefinition expected", scanner.line, scanner.column))
             .otherwise(|| {
                 let after_get = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
-                let (pn, after_pn) = PropertyName::parse(parser, after_get, yield_flag, await_flag)?;
+                let (pn, after_pn) = ClassElementName::parse(parser, after_get, yield_flag, await_flag)?;
                 let after_open = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let after_close = scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let after_lb = scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
@@ -132,7 +132,7 @@ impl MethodDefinition {
             })
             .otherwise(|| {
                 let after_set = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
-                let (pn, after_pn) = PropertyName::parse(parser, after_set, yield_flag, await_flag)?;
+                let (pn, after_pn) = ClassElementName::parse(parser, after_set, yield_flag, await_flag)?;
                 let after_open = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (args, after_args) = PropertySetParameterList::parse(parser, after_open)?;
                 let after_close = scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
@@ -145,7 +145,7 @@ impl MethodDefinition {
             .otherwise(|| AsyncGeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::AsyncGenerator(node)), scan)))
             .otherwise(|| GeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::Generator(node)), scan)))
             .otherwise(|| {
-                let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
+                let (name, after_name) = ClassElementName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (ufp, after_ufp) = UniqueFormalParameters::parse(parser, after_lp, false, false);
                 let after_rp = scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;

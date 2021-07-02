@@ -1636,7 +1636,6 @@ fn optional_chain_test_contains_21() {
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
-
 // LEFT-HAND-SIDE EXPRESSION
 #[test]
 fn left_hand_side_expression_test_01() {

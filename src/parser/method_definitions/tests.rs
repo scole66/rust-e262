@@ -8,7 +8,7 @@ fn method_definition_test_01() {
     let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*pn, MethodDefinition::NamedFunction(..)));
-    pretty_check(&*pn, "MethodDefinition: a ( b ) { c ; }", vec!["PropertyName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"]);
+    pretty_check(&*pn, "MethodDefinition: a ( b ) { c ; }", vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"]);
     concise_check(
         &*pn,
         "MethodDefinition: a ( b ) { c ; }",
@@ -21,7 +21,7 @@ fn method_definition_test_02() {
     let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 21);
     assert!(matches!(&*pn, MethodDefinition::Getter(..)));
-    pretty_check(&*pn, "MethodDefinition: get a ( ) { return 1 ; }", vec!["PropertyName: a", "FunctionBody: return 1 ;"]);
+    pretty_check(&*pn, "MethodDefinition: get a ( ) { return 1 ; }", vec!["ClassElementName: a", "FunctionBody: return 1 ;"]);
     concise_check(
         &*pn,
         "MethodDefinition: get a ( ) { return 1 ; }",
@@ -34,7 +34,7 @@ fn method_definition_test_03() {
     let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 28);
     assert!(matches!(&*pn, MethodDefinition::Setter(..)));
-    pretty_check(&*pn, "MethodDefinition: set a ( blue ) { this . a = blue ; }", vec!["PropertyName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"]);
+    pretty_check(&*pn, "MethodDefinition: set a ( blue ) { this . a = blue ; }", vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"]);
     concise_check(
         &*pn,
         "MethodDefinition: set a ( blue ) { this . a = blue ; }",
@@ -117,7 +117,7 @@ fn method_definition_test_errs_06() {
 }
 #[test]
 fn method_definition_test_errs_07() {
-    check_err(MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false), "PropertyName expected", 1, 4);
+    check_err(MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
 }
 #[test]
 fn method_definition_test_errs_08() {
@@ -137,7 +137,7 @@ fn method_definition_test_errs_11() {
 }
 #[test]
 fn method_definition_test_errs_12() {
-    check_err(MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false), "PropertyName expected", 1, 4);
+    check_err(MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
 }
 #[test]
 fn method_definition_test_errs_13() {
