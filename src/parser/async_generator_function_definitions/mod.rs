@@ -2,19 +2,19 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
+use super::class_definitions::ClassElementName;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
-use super::primary_expressions::PropertyName;
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // AsyncGeneratorMethod[Yield, Await] :
-//      async [no LineTerminator here] * PropertyName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
+//      async [no LineTerminator here] * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub struct AsyncGeneratorMethod {
-    name: Rc<PropertyName>,
+    name: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncGeneratorBody>,
 }
@@ -60,7 +60,7 @@ impl AsyncGeneratorMethod {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         let after_star = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
-        let (name, after_name) = PropertyName::parse(parser, after_star, yield_flag, await_flag)?;
+        let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
         let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, true);
         let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;

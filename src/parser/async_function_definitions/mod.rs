@@ -2,10 +2,10 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
+use super::class_definitions::ClassElementName;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
-use super::primary_expressions::PropertyName;
 use super::scanner::Scanner;
 use super::unary_operators::UnaryExpression;
 use super::*;
@@ -184,10 +184,10 @@ impl AsyncFunctionExpression {
 }
 
 // AsyncMethod[Yield, Await] :
-//      async [no LineTerminator here] PropertyName[?Yield, ?Await] ( UniqueFormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
+//      async [no LineTerminator here] ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
 #[derive(Debug)]
 pub struct AsyncMethod {
-    ident: Rc<PropertyName>,
+    ident: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncFunctionBody>,
 }
@@ -232,7 +232,7 @@ impl AsyncMethod {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let (ident, after_ident) = PropertyName::parse(parser, after_async, yield_flag, await_flag)?;
+        let (ident, after_ident) = ClassElementName::parse(parser, after_async, yield_flag, await_flag)?;
         let after_lp = scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, false, true);
         let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;

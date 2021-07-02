@@ -7,7 +7,7 @@ use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty
 fn async_generator_method_test_01() {
     let (node, scanner) = check(AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6 + 6);
-    pretty_check(&*node, "AsyncGeneratorMethod: async * a (  ) {  }", vec!["PropertyName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(&*node, "AsyncGeneratorMethod: async * a (  ) {  }", vec!["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "]);
     concise_check(
         &*node,
         "AsyncGeneratorMethod: async * a (  ) {  }",
@@ -25,7 +25,7 @@ fn async_generator_method_test_02() {
 }
 #[test]
 fn async_generator_method_test_03() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *"), Scanner::new(), false, false), "PropertyName expected", 1, 2 + 6);
+    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *"), Scanner::new(), false, false), "ClassElementName expected", 1, 2 + 6);
 }
 #[test]
 fn async_generator_method_test_04() {

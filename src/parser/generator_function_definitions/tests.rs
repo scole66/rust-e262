@@ -7,7 +7,7 @@ use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty
 fn generator_method_test_01() {
     let (node, scanner) = check(GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["PropertyName: a", "UniqueFormalParameters: ", "GeneratorBody: "]);
+    pretty_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "]);
     concise_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
     format!("{:?}", node);
 }
@@ -17,7 +17,7 @@ fn generator_method_test_02() {
 }
 #[test]
 fn generator_method_test_03() {
-    check_err(GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false), "PropertyName expected", 1, 2);
+    check_err(GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false), "ClassElementName expected", 1, 2);
 }
 #[test]
 fn generator_method_test_04() {

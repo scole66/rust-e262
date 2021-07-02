@@ -248,7 +248,7 @@ fn async_method_test_01() {
     pretty_check(
         &*node,
         "AsyncMethod: async bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["PropertyName: bob", "UniqueFormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        vec!["ClassElementName: bob", "UniqueFormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
     );
     concise_check(
         &*node,
@@ -276,7 +276,7 @@ fn async_method_test_err_02() {
 }
 #[test]
 fn async_method_test_err_03() {
-    check_err(AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false), "PropertyName expected", 1, 6);
+    check_err(AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false), "ClassElementName expected", 1, 6);
 }
 #[test]
 fn async_method_test_err_04() {
