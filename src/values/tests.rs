@@ -207,21 +207,21 @@ fn ecmascript_value_is_numeric() {
 #[test]
 fn symbol_debug() {
     let agent = test_agent();
-    assert_ne!(format!("{:?}", agent.symbols.to_primitive_), "");
+    assert_ne!(format!("{:?}", agent.wks(WksId::ToPrimitive)), "");
 }
 #[test]
 fn symbol_clone() {
     let agent = test_agent();
-    let s1 = agent.symbols.to_primitive_;
+    let s1 = agent.wks(WksId::ToPrimitive);
     let s2 = s1.clone();
     assert_eq!(s1, s2);
 }
 #[test]
 fn symbol_hash() {
     let agent = test_agent();
-    let s1 = agent.symbols.to_primitive_;
+    let s1 = agent.wks(WksId::ToPrimitive);
     let s2 = s1.clone();
-    let s3 = agent.symbols.unscopables_;
+    let s3 = agent.wks(WksId::Unscopables);
 
     let factory = RandomState::new();
 
@@ -285,7 +285,7 @@ fn to_boolean_01() {
     assert_eq!(to_boolean(ECMAScriptValue::from(BigInt::from(0))), false);
 
     let mut agent = test_agent();
-    assert_eq!(to_boolean(ECMAScriptValue::from(agent.symbols.to_primitive_.clone())), true);
+    assert_eq!(to_boolean(ECMAScriptValue::from(agent.wks(WksId::ToPrimitive))), true);
     let o = ordinary_object_create(&mut agent, None, &[]);
     assert_eq!(to_boolean(ECMAScriptValue::from(o)), true);
 }
@@ -308,8 +308,8 @@ fn property_key_from() {
     let pk = PropertyKey::from(&JSString::from("c"));
     assert_eq!(pk, PropertyKey::String(JSString::from("c")));
     let agent = test_agent();
-    let pk = PropertyKey::from(agent.symbols.to_primitive_.clone());
-    assert_eq!(pk, PropertyKey::Symbol(agent.symbols.to_primitive_.clone()));
+    let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
+    assert_eq!(pk, PropertyKey::Symbol(agent.wks(WksId::ToPrimitive)));
 }
 #[test]
 fn property_key_debug() {
@@ -334,18 +334,18 @@ fn property_key_is_array_index() {
     assert_eq!(PropertyKey::from("010").is_array_index(), false);
     assert_eq!(PropertyKey::from("000").is_array_index(), false);
     let agent = test_agent();
-    assert_eq!(PropertyKey::from(agent.symbols.to_primitive_.clone()).is_array_index(), false);
+    assert_eq!(PropertyKey::from(agent.wks(WksId::ToPrimitive)).is_array_index(), false);
 }
 #[test]
 fn property_key_try_from() {
     let agent = test_agent();
     let pk = PropertyKey::from("key");
     assert_eq!(JSString::try_from(pk).unwrap(), "key");
-    let pk = PropertyKey::from(agent.symbols.to_primitive_.clone());
+    let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     assert_eq!(JSString::try_from(pk).unwrap_err(), "Expected String-valued property key");
     let pk = PropertyKey::from("key");
     assert_eq!(JSString::try_from(&pk).unwrap(), "key");
-    let pk = PropertyKey::from(agent.symbols.to_primitive_.clone());
+    let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     assert_eq!(JSString::try_from(&pk).unwrap_err(), "Expected String-valued property key");
 }
 
@@ -390,7 +390,7 @@ fn to_object_05() {
 #[should_panic] // An XFAIL. Symbol objects not yet implemented.
 fn to_object_06() {
     let mut agent = test_agent();
-    let test_value = agent.symbols.to_primitive_.clone();
+    let test_value = agent.wks(WksId::ToPrimitive);
     let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
 }
 #[test]
@@ -652,7 +652,7 @@ fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
-    let key = PropertyKey::from(agent.symbols.to_primitive_.clone());
+    let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     let fcn = create_builtin_function(agent, steps, 1_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
     define_property_or_throw(
         agent,
@@ -710,7 +710,7 @@ fn to_primitive_exotic_getter_throws() {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-    let key = PropertyKey::from(agent.symbols.to_primitive_.clone());
+    let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     let toprim_getter =
         create_builtin_function(&mut agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), Some(JSString::from("get")));
     define_property_or_throw(

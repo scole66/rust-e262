@@ -94,6 +94,25 @@ impl Agent {
         self.execution_context_stack.pop();
     }
 
+    pub fn wks(&self, sym_id: WksId) -> Symbol {
+        match sym_id {
+            WksId::AsyncIterator => &self.symbols.async_iterator_,
+            WksId::HasInstance => &self.symbols.has_instance_,
+            WksId::IsConcatSpreadable => &self.symbols.is_concat_spreadable_,
+            WksId::Iterator => &self.symbols.iterator_,
+            WksId::Match => &self.symbols.match_,
+            WksId::MatchAll => &self.symbols.match_all_,
+            WksId::Replace => &self.symbols.replace_,
+            WksId::Search => &self.symbols.search_,
+            WksId::Species => &self.symbols.species_,
+            WksId::Split => &self.symbols.split_,
+            WksId::ToPrimitive => &self.symbols.to_primitive_,
+            WksId::ToStringTag => &self.symbols.to_string_tag_,
+            WksId::Unscopables => &self.symbols.unscopables_,
+        }
+        .clone()
+    }
+
     // InitializeHostDefinedRealm ( )
     //
     // The abstract operation InitializeHostDefinedRealm takes no arguments. It performs the following steps when
@@ -120,6 +139,23 @@ impl Agent {
         let new_context = ExecutionContext::new(None, realm, None);
         self.push_execution_context(new_context);
     }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum WksId {
+    AsyncIterator,
+    HasInstance,
+    IsConcatSpreadable,
+    Iterator,
+    Match,
+    MatchAll,
+    Replace,
+    Search,
+    Species,
+    Split,
+    ToPrimitive,
+    ToStringTag,
+    Unscopables,
 }
 
 #[derive(Debug)]

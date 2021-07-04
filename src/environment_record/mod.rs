@@ -1,4 +1,4 @@
-use super::agent::Agent;
+use super::agent::{Agent, WksId};
 use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
 use super::errors::{create_reference_error, create_type_error};
@@ -437,7 +437,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         } else if !self.is_with_environment {
             Ok(true)
         } else {
-            let unscopables = get(agent, binding_object, &PropertyKey::from(agent.symbols.unscopables_.clone()))?;
+            let unscopables = get(agent, binding_object, &PropertyKey::from(agent.wks(WksId::Unscopables)))?;
             match &unscopables {
                 ECMAScriptValue::Object(unscopables_obj) => {
                     let blocked = to_boolean(get(agent, unscopables_obj, &name_key)?);

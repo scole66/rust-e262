@@ -1,4 +1,4 @@
-use super::agent::Agent;
+use super::agent::{Agent, WksId};
 use super::bigint_object::create_bigint_object;
 use super::boolean_object::create_boolean_object;
 use super::cr::{AltCompletion, Completion};
@@ -372,7 +372,7 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion {
     if let ECMAScriptValue::Object(obj) = input {
-        let exotic_to_prim = get_method(agent, input, &PropertyKey::from(agent.symbols.to_primitive_.clone()))?;
+        let exotic_to_prim = get_method(agent, input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",

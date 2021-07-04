@@ -1,4 +1,4 @@
-use crate::agent::Agent;
+use crate::agent::{Agent, WksId};
 use crate::cr::Completion;
 use crate::function_object::create_builtin_function;
 use crate::object::{define_property_or_throw, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
@@ -76,7 +76,7 @@ fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
     } else {
         "Object"
     };
-    let to_string_tag_symbol = agent.symbols.to_string_tag_.clone();
+    let to_string_tag_symbol = agent.wks(WksId::ToStringTag);
     let tag = get(agent, &o, &PropertyKey::from(to_string_tag_symbol))?;
     let tag_string = match tag {
         ECMAScriptValue::String(s) => s,
