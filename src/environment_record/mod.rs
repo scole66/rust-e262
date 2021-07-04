@@ -6,7 +6,7 @@ use super::function_object::ThisMode;
 use super::object::{define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object, PotentialPropertyDescriptor};
 use super::reference::{Base, Reference};
 use super::strings::JSString;
-use super::values::{to_boolean, ECMAScriptValue, PropertyKey, Symbol};
+use super::values::{to_boolean, ECMAScriptValue, PropertyKey};
 use ahash::{AHashSet, RandomState};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -437,7 +437,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         } else if !self.is_with_environment {
             Ok(true)
         } else {
-            let unscopables = get(agent, binding_object, &PropertyKey::from(Symbol::Unscopables))?;
+            let unscopables = get(agent, binding_object, &PropertyKey::from(agent.symbols.unscopables_.clone()))?;
             match &unscopables {
                 ECMAScriptValue::Object(unscopables_obj) => {
                     let blocked = to_boolean(get(agent, unscopables_obj, &name_key)?);

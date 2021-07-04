@@ -86,13 +86,13 @@ fn ordinary_object_create_03c() {
 #[should_panic]
 fn make_basic_object_01() {
     let mut agent = Agent::new();
-    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense]);
+    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense], None);
 }
 #[test]
 #[should_panic]
 fn make_basic_object_02() {
     let mut agent = Agent::new();
-    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible]);
+    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible], None);
 }
 
 #[test]

@@ -11,6 +11,7 @@ use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
 use num::bigint::BigInt;
 use std::convert::TryFrom;
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::rc::Rc;
 
@@ -69,9 +70,18 @@ impl From<Object> for ECMAScriptValue {
     }
 }
 
-impl From<&str> for ECMAScriptValue {
-    fn from(source: &str) -> Self {
-        Self::String(JSString::from(source))
+impl From<&JSString> for ECMAScriptValue {
+    fn from(source: &JSString) -> Self {
+        Self::String(source.clone())
+    }
+}
+
+impl<T> From<T> for ECMAScriptValue
+where
+    T: Into<JSString>,
+{
+    fn from(source: T) -> Self {
+        Self::String(source.into())
     }
 }
 
@@ -193,11 +203,38 @@ impl TryFrom<&PropertyKey> for JSString {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Symbol {
-    ToPrimitive,
-    Unscopables,
+#[derive(Debug, Clone)]
+pub struct SymbolInternals {
+    pub id: usize,
+    pub description: Option<JSString>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Symbol(pub Rc<SymbolInternals>);
+
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Symbol) -> bool {
+        self.0.id == other.0.id
+    }
+}
+impl Eq for Symbol {}
+impl Hash for Symbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.id.hash(state);
+    }
+}
+
+impl Symbol {
+    pub fn new(agent: &mut Agent, description: JSString) -> Self {
+        Self(Rc::new(SymbolInternals { id: agent.next_symbol_id(), description: Some(description) }))
+    }
+    pub fn description(&self) -> Option<JSString> {
+        self.0.description.as_ref().cloned()
+    }
+}
+
+#[derive(Debug)]
+pub struct PrivateName {}
 
 pub fn number_to_string<T>(writer: &mut T, value: f64) -> io::Result<()>
 where
@@ -335,7 +372,7 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion {
     if let ECMAScriptValue::Object(obj) = input {
-        let exotic_to_prim = get_method(agent, input, &PropertyKey::from(agent.symbols.to_primitive))?;
+        let exotic_to_prim = get_method(agent, input, &PropertyKey::from(agent.symbols.to_primitive_.clone()))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
@@ -346,7 +383,7 @@ pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: 
             if !result.is_object() {
                 return Ok(result);
             }
-            return Err(create_type_error(agent, "Cannot covert object to primitive value"));
+            return Err(create_type_error(agent, "Cannot convert object to primitive value"));
         }
         let pt = preferred_type.unwrap_or(ConversionHint::Number);
         ordinary_to_primitive(agent, obj, pt)

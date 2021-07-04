@@ -25,7 +25,7 @@ fn create_native_error_object(agent: &mut Agent, message: &str, error_constructo
 }
 
 pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
-    let error_constructor = agent.running_execution_context().unwrap().realm.intrinsics.type_error.clone();
+    let error_constructor = agent.running_execution_context().unwrap().realm.borrow().intrinsics.type_error.clone();
     create_native_error_object(agent, message, error_constructor, IntrinsicIdentifier::TypeErrorPrototype)
 }
 
@@ -34,7 +34,7 @@ pub fn create_type_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
 }
 
 pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object {
-    let cstr = agent.running_execution_context().unwrap().realm.intrinsics.reference_error.clone();
+    let cstr = agent.running_execution_context().unwrap().realm.borrow().intrinsics.reference_error.clone();
     create_native_error_object(agent, message, cstr, IntrinsicIdentifier::ReferenceErrorPrototype)
 }
 
@@ -43,7 +43,7 @@ pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptComplet
 }
 
 pub fn create_syntax_error_object(agent: &mut Agent, message: &str) -> Object {
-    let cstr = agent.running_execution_context().unwrap().realm.intrinsics.syntax_error.clone();
+    let cstr = agent.running_execution_context().unwrap().realm.borrow().intrinsics.syntax_error.clone();
     create_native_error_object(agent, message, cstr, IntrinsicIdentifier::SyntaxErrorPrototype)
 }
 
@@ -56,8 +56,8 @@ pub struct ErrorObject {
 }
 
 impl ErrorObject {
-    pub fn object(agent: &mut Agent) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent)) }) }
+    pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true)) }) }
     }
 }
 
@@ -79,6 +79,9 @@ impl ObjectInterface for ErrorObject {
     }
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         Some(self)
+    }
+    fn is_error_object(&self) -> bool {
+        true
     }
 
     fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {

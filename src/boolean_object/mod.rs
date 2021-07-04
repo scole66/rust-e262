@@ -39,6 +39,9 @@ impl ObjectInterface for BooleanObject {
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         Some(self)
     }
+    fn is_boolean_object(&self) -> bool {
+        true
+    }
 
     fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
@@ -152,8 +155,8 @@ impl BooleanObjectInterface for BooleanObject {
 }
 
 impl BooleanObject {
-    pub fn object(agent: &mut Agent) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent)), boolean_data: RefCell::new(false) }) }
+    pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true)), boolean_data: RefCell::new(false) }) }
     }
 }
 
@@ -165,7 +168,7 @@ impl BooleanObject {
 //  4. Set O.[[BooleanData]] to b.
 //  5. Return O.
 pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
-    let constructor = agent.running_execution_context().unwrap().realm.intrinsics.boolean.clone();
+    let constructor = agent.running_execution_context().unwrap().realm.borrow().intrinsics.boolean.clone();
     let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicIdentifier::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
     *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
     o

@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{self, Write};
 
 mod agent;
+mod arrays;
 mod bigint_object;
 mod boolean_object;
 mod comparison;
@@ -18,6 +19,7 @@ mod execution_context;
 mod function_object;
 mod number_object;
 mod object;
+mod object_object;
 mod parser;
 mod prettyprint;
 mod realm;

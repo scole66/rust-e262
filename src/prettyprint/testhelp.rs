@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::printer_validate;
 use std::str;
 
 fn check_message(msg: &str, selfstring: &str, childstrings: Vec<&str>) {
@@ -45,55 +46,6 @@ where
     testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
-struct MockWriter<T>
-where
-    T: Write,
-{
-    writer: T,
-    pub count: usize,
-    target: usize,
-    pub error_generated: bool,
-}
-impl<T> std::io::Write for MockWriter<T>
-where
-    T: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.count += 1;
-        if self.count >= self.target {
-            self.error_generated = true;
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
-        } else {
-            self.writer.write(buf)
-        }
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
-    }
-}
-impl<T> MockWriter<T>
-where
-    T: Write,
-{
-    fn new(writer: T, errat: usize) -> Self {
-        MockWriter { writer, count: 0, target: errat, error_generated: false }
-    }
-}
-fn printer_validate<U>(func: U)
-where
-    U: Fn(&mut MockWriter<Vec<u8>>) -> IoResult<()>,
-{
-    let mut target = 1;
-    loop {
-        let mut writer = MockWriter::new(Vec::new(), target);
-        let result = func(&mut writer);
-        assert!(result.is_err() || !writer.error_generated);
-        if !writer.error_generated {
-            break;
-        }
-        target += 1;
-    }
-}
 pub fn pretty_error_validate<T>(item: &T)
 where
     T: PrettyPrint,

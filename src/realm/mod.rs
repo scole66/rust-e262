@@ -1,11 +1,15 @@
 use super::agent::Agent;
 use super::cr::AltCompletion;
 use super::object::{define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor};
+use super::object_object::attach_object_prototype_properties;
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
+use std::cell::RefCell;
+use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct GlobalEnvironmentRecord {}
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum IntrinsicIdentifier {
     Boolean,
     BooleanPrototype,
@@ -16,6 +20,7 @@ pub enum IntrinsicIdentifier {
     ReferenceErrorPrototype,
     SyntaxErrorPrototype,
 }
+#[derive(Debug)]
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
     pub array: Object,                              // aka "Array", The Array constructor
@@ -109,6 +114,7 @@ impl Intrinsics {
     }
 }
 
+#[derive(Debug)]
 pub struct Realm {
     pub intrinsics: Intrinsics,
     pub global_object: Option<Object>,
@@ -130,9 +136,9 @@ pub fn get_function_realm<'a, 'b>(_agent: &mut Agent, _obj: &'b Object) -> AltCo
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm(agent: &mut Agent) -> Realm {
-    let mut r = Realm { intrinsics: dead_intrinsics(agent), global_object: None, global_env: None };
-    create_intrinsics(agent, &mut r);
+pub fn create_realm(agent: &mut Agent) -> Rc<RefCell<Realm>> {
+    let r = Rc::new(RefCell::new(Realm { intrinsics: dead_intrinsics(agent), global_object: None, global_env: None }));
+    create_intrinsics(agent, r.clone());
     r
 }
 
@@ -234,29 +240,29 @@ fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
+pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
-    realm_rec.intrinsics.object_prototype = immutable_prototype_exotic_object_create(agent, None);
+    realm_rec.borrow_mut().intrinsics.object_prototype = immutable_prototype_exotic_object_create(agent, None);
     // %Function.prototype%
-    let fp = ordinary_object_create(agent, Some(&realm_rec.intrinsics.object_prototype), &[]);
-    realm_rec.intrinsics.function_prototype = fp;
+    let fp = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.function_prototype = fp;
     // %ThrowTypeError%
-    let tte = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let tte = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     tte.o.prevent_extensions().unwrap();
-    realm_rec.intrinsics.throw_type_error = tte;
+    realm_rec.borrow_mut().intrinsics.throw_type_error = tte;
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
-    let boolproto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.object_prototype), &[InternalSlotName::BooleanData]);
-    realm_rec.intrinsics.boolean_prototype = boolproto;
-    let bool_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let boolproto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[InternalSlotName::BooleanData]);
+    realm_rec.borrow_mut().intrinsics.boolean_prototype = boolproto;
+    let bool_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
         &bool_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.boolean_prototype.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.boolean_prototype.clone())),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -264,13 +270,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.boolean = bool_constructor;
+    realm_rec.borrow_mut().intrinsics.boolean = bool_constructor;
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.boolean_prototype,
+        &realm_rec.borrow().intrinsics.boolean_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.boolean.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.boolean.clone())),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -280,15 +286,15 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %Error% and %Error.prototype%
-    let error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.object_prototype), &[]);
-    realm_rec.intrinsics.error_prototype = error_proto;
-    let error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.error_prototype = error_proto;
+    let error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
         &error_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error_prototype.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error_prototype.clone())),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -296,13 +302,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.error = error_constructor;
+    realm_rec.borrow_mut().intrinsics.error = error_constructor;
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.error_prototype,
+        &realm_rec.borrow().intrinsics.error_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -312,7 +318,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.error_prototype,
+        &realm_rec.borrow().intrinsics.error_prototype,
         &PropertyKey::from("message"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
@@ -325,7 +331,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.error_prototype,
+        &realm_rec.borrow().intrinsics.error_prototype,
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("Error"))),
@@ -338,15 +344,15 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %TypeError% and %TypeError.prototype%
-    let type_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
-    realm_rec.intrinsics.type_error_prototype = type_error_proto;
-    let type_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let type_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.type_error_prototype = type_error_proto;
+    let type_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
         &type_error_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.type_error_prototype.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.type_error_prototype.clone())),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -367,13 +373,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.type_error = type_error_constructor;
+    realm_rec.borrow_mut().intrinsics.type_error = type_error_constructor;
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.type_error_prototype,
+        &realm_rec.borrow().intrinsics.type_error_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -383,7 +389,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.type_error_prototype,
+        &realm_rec.borrow().intrinsics.type_error_prototype,
         &PropertyKey::from("message"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
@@ -396,7 +402,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.type_error_prototype,
+        &realm_rec.borrow().intrinsics.type_error_prototype,
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
@@ -409,15 +415,15 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %ReferenceError% and %ReferenceError.prototype%
-    let reference_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
-    realm_rec.intrinsics.reference_error_prototype = reference_error_proto;
-    let reference_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let reference_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.reference_error_prototype = reference_error_proto;
+    let reference_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
         &reference_error_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.reference_error_prototype.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.reference_error_prototype.clone())),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -438,13 +444,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.reference_error = reference_error_constructor;
+    realm_rec.borrow_mut().intrinsics.reference_error = reference_error_constructor;
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.reference_error_prototype,
+        &realm_rec.borrow().intrinsics.reference_error_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -454,7 +460,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.reference_error_prototype,
+        &realm_rec.borrow().intrinsics.reference_error_prototype,
         &PropertyKey::from("message"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
@@ -467,7 +473,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.reference_error_prototype,
+        &realm_rec.borrow().intrinsics.reference_error_prototype,
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
@@ -480,15 +486,15 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %SyntaxError% and %SyntaxError.prototype%
-    let syntax_error_proto = ordinary_object_create(agent, Some(&realm_rec.intrinsics.error_prototype), &[]);
-    realm_rec.intrinsics.syntax_error_prototype = syntax_error_proto;
-    let syntax_error_constructor = ordinary_object_create(agent, Some(&realm_rec.intrinsics.function_prototype), &[]);
+    let syntax_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.syntax_error_prototype = syntax_error_proto;
+    let syntax_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
     define_property_or_throw(
         agent,
         &syntax_error_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.syntax_error_prototype.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.syntax_error_prototype.clone())),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -509,13 +515,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
         },
     )
     .unwrap();
-    realm_rec.intrinsics.syntax_error = syntax_error_constructor;
+    realm_rec.borrow_mut().intrinsics.syntax_error = syntax_error_constructor;
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.syntax_error_prototype,
+        &realm_rec.borrow().intrinsics.syntax_error_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.intrinsics.error.clone())),
+            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -525,7 +531,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.syntax_error_prototype,
+        &realm_rec.borrow().intrinsics.syntax_error_prototype,
         &PropertyKey::from("message"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
@@ -538,7 +544,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.intrinsics.syntax_error_prototype,
+        &realm_rec.borrow().intrinsics.syntax_error_prototype,
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("SyntaxError"))),
@@ -550,7 +556,9 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
     )
     .unwrap();
 
-    add_restricted_function_properties(agent, &realm_rec.intrinsics.function_prototype, realm_rec);
+    add_restricted_function_properties(agent, &realm_rec.borrow().intrinsics.function_prototype, realm_rec.clone());
+
+    attach_object_prototype_properties(agent, realm_rec.clone(), &realm_rec.borrow().intrinsics.object_prototype);
 }
 
 // From function objects...
@@ -565,8 +573,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: &mut Realm) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: &Realm) {
-    let thrower = ECMAScriptValue::Object(realm.intrinsics.throw_type_error.clone());
+pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
+    let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.throw_type_error.clone());
     define_property_or_throw(
         agent,
         f,

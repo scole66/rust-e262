@@ -4,7 +4,7 @@ use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
-use super::function_object::CallableObject;
+use super::function_object::{BuiltinFunctionInterface, CallableObject, FunctionObjectData};
 use super::realm::{get_function_realm, IntrinsicIdentifier};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
@@ -12,25 +12,25 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DataProperty {
     pub value: ECMAScriptValue,
     pub writable: bool,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AccessorProperty {
     pub get: ECMAScriptValue,
     pub set: ECMAScriptValue,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum PropertyKind {
     Data(DataProperty),
     Accessor(AccessorProperty),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PropertyDescriptor {
     pub property: PropertyKind,
     pub enumerable: bool,
@@ -737,8 +737,40 @@ pub trait ObjectInterface {
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
-    fn to_function_obj(&self) -> Option<&dyn CallableObject> {
+    fn to_function_obj(&self) -> Option<&dyn FunctionInterface> {
+        // This is a standard ECMAScript Function Object --- in particular, not a exotic Built-In Function object
         None
+    }
+    fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
+        // Whereas this is anything that implements [[Call]]
+        None
+    }
+    fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
+        None
+    }
+    fn is_arguments_object(&self) -> bool {
+        false
+    }
+    fn is_callable_obj(&self) -> bool {
+        false
+    }
+    fn is_error_object(&self) -> bool {
+        false
+    }
+    fn is_boolean_object(&self) -> bool {
+        false
+    }
+    fn is_number_object(&self) -> bool {
+        false
+    }
+    fn is_string_object(&self) -> bool {
+        false
+    }
+    fn is_date_object(&self) -> bool {
+        false
+    }
+    fn is_regexp_object(&self) -> bool {
+        false
     }
 
     fn get_prototype_of(&self) -> AltCompletion<Option<Object>>;
@@ -754,10 +786,11 @@ pub trait ObjectInterface {
     fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>>;
 }
 
-pub trait FunctionInterface {
-    fn call(&self, this_argument: ECMAScriptValue, arguments_list: Vec<ECMAScriptValue>) -> Completion;
+pub trait FunctionInterface: CallableObject {
+    fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
+#[derive(Debug)]
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -767,8 +800,8 @@ pub struct CommonObjectData {
 }
 
 impl CommonObjectData {
-    pub fn new(agent: &mut Agent) -> Self {
-        Self { properties: Default::default(), prototype: None, extensible: true, next_spot: 0, objid: agent.next_object_id() }
+    pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
+        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id() }
     }
 }
 
@@ -951,8 +984,8 @@ impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
 }
 
 impl Object {
-    fn new(agent: &mut Agent) -> Self {
-        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent)) }) }
+    fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
+        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible)) }) }
     }
 }
 
@@ -980,12 +1013,16 @@ pub enum InternalSlotName {
     Extensible,
     BooleanData,
     ErrorData,
+    InitialName,
+    Realm,
     Nonsense, // For testing purposes, for the time being.
 }
-const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
-const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
-const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
-fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
+pub const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
+pub const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
+pub const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
+pub const BUILTIN_FUNCTION_SLOTS: [InternalSlotName; 4] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
+
+pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
         return false;
     }
@@ -997,7 +1034,7 @@ fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotN
     true
 }
 
-pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotName]) -> Object {
+pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
     let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
     for slot in internal_slots_list.iter() {
         slot_set.insert(slot);
@@ -1005,11 +1042,11 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
 
     if slot_match(&ORDINARY_OBJECT_SLOTS, &slot_set) {
         // Ordinary Objects
-        Object::new(agent)
+        Object::new(agent, prototype, true)
     } else if slot_match(&BOOLEAN_OBJECT_SLOTS, &slot_set) {
-        BooleanObject::object(agent)
+        BooleanObject::object(agent, prototype)
     } else if slot_match(&ERROR_OBJECT_SLOTS, &slot_set) {
-        ErrorObject::object(agent)
+        ErrorObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
@@ -1169,7 +1206,7 @@ pub fn has_own_property(obj: &Object, p: &PropertyKey) -> AltCompletion<bool> {
 //  3. Return ? F.[[Call]](V, argumentsList).
 pub fn to_callable(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
     match val {
-        ECMAScriptValue::Object(obj) => obj.o.to_function_obj(),
+        ECMAScriptValue::Object(obj) => obj.o.to_callable_obj(),
         _ => None,
     }
 }
@@ -1178,7 +1215,10 @@ pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptVa
     let maybe_callable = to_callable(func);
     match maybe_callable {
         None => Err(create_type_error(agent, "Value not callable")),
-        Some(callable) => callable.call(agent, this_value, args),
+        Some(callable) => {
+            let self_obj = to_object(agent, func.clone()).unwrap();
+            callable.call(agent, &self_obj, this_value, args)
+        }
     }
 }
 
@@ -1203,8 +1243,7 @@ pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptVa
 pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
     let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
     slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(agent, slots.as_slice());
-    o.o.common_object_data().borrow_mut().prototype = proto.cloned();
+    let o = make_basic_object(agent, slots.as_slice(), proto.cloned());
     o
 }
 
@@ -1470,9 +1509,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 }
 
 pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option<&Object>) -> Object {
-    let obj = Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent)) }) };
-    obj.o.common_object_data().borrow_mut().prototype = proto.cloned();
-    obj
+    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true)) }) }
 }
 
 #[cfg(test)]

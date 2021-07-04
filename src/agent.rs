@@ -1,7 +1,7 @@
 use super::execution_context::ExecutionContext;
 use super::realm::create_realm;
 use super::values::Symbol;
-use std::default::Default;
+use std::rc::Rc;
 
 // Agents
 //
@@ -20,16 +20,39 @@ use std::default::Default;
 // code uses the surrounding agent to access the specification level execution objects held within the agent: the
 // running execution context, the execution context stack, and the Agent Record's fields.
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct Agent {
     execution_context_stack: Vec<ExecutionContext>,
     pub symbols: WellKnownSymbols,
     pub obj_id: usize,
+    pub symbol_id: usize,
 }
+use super::strings::JSString;
+use super::values::SymbolInternals;
 
+#[allow(clippy::new_without_default)]
 impl Agent {
     pub fn new() -> Self {
-        Agent { ..Default::default() }
+        Agent {
+            obj_id: 0,
+            execution_context_stack: vec![],
+            symbols: WellKnownSymbols {
+                async_iterator_: Symbol(Rc::new(SymbolInternals { id: 1, description: Some(JSString::from("Symbol.asyncIterator")) })),
+                has_instance_: Symbol(Rc::new(SymbolInternals { id: 2, description: Some(JSString::from("Symbol.hasInst")) })),
+                is_concat_spreadable_: Symbol(Rc::new(SymbolInternals { id: 3, description: Some(JSString::from("Symbol.isConcatSpreadable")) })),
+                iterator_: Symbol(Rc::new(SymbolInternals { id: 4, description: Some(JSString::from("Symbol.itertools")) })),
+                match_: Symbol(Rc::new(SymbolInternals { id: 5, description: Some(JSString::from("Symbol.match")) })),
+                match_all_: Symbol(Rc::new(SymbolInternals { id: 6, description: Some(JSString::from("Symbol.matchAll")) })),
+                replace_: Symbol(Rc::new(SymbolInternals { id: 7, description: Some(JSString::from("Symbol.replace")) })),
+                search_: Symbol(Rc::new(SymbolInternals { id: 8, description: Some(JSString::from("Symbol.search")) })),
+                species_: Symbol(Rc::new(SymbolInternals { id: 9, description: Some(JSString::from("Symbol.species")) })),
+                split_: Symbol(Rc::new(SymbolInternals { id: 10, description: Some(JSString::from("Symbol.split")) })),
+                to_primitive_: Symbol(Rc::new(SymbolInternals { id: 11, description: Some(JSString::from("Symbol.toPrimitive")) })),
+                to_string_tag_: Symbol(Rc::new(SymbolInternals { id: 12, description: Some(JSString::from("Symbol.toStringTag")) })),
+                unscopables_: Symbol(Rc::new(SymbolInternals { id: 13, description: Some(JSString::from("Symbol.unscopables")) })),
+            },
+            symbol_id: 14,
+        }
     }
 
     pub fn running_execution_context(&self) -> Option<&ExecutionContext> {
@@ -40,12 +63,35 @@ impl Agent {
             None
         }
     }
+    pub fn running_execution_context_mut(&mut self) -> Option<&mut ExecutionContext> {
+        let len = self.execution_context_stack.len();
+        if len > 0 {
+            Some(&mut self.execution_context_stack[len - 1])
+        } else {
+            None
+        }
+    }
 
     pub fn next_object_id(&mut self) -> usize {
         assert!(self.obj_id < usize::MAX);
         let result = self.obj_id;
         self.obj_id += 1;
         result
+    }
+
+    pub fn next_symbol_id(&mut self) -> usize {
+        assert!(self.symbol_id < usize::MAX);
+        let result = self.symbol_id;
+        self.symbol_id += 1;
+        result
+    }
+
+    pub fn push_execution_context(&mut self, context: ExecutionContext) {
+        self.execution_context_stack.push(context)
+    }
+
+    pub fn pop_execution_context(&mut self) {
+        self.execution_context_stack.pop();
     }
 
     // InitializeHostDefinedRealm ( )
@@ -71,17 +117,24 @@ impl Agent {
     //  12. Return NormalCompletion(empty).
     pub fn initialize_host_defined_realm(&mut self) {
         let realm = create_realm(self);
-        let new_context = ExecutionContext { realm };
-        self.execution_context_stack.push(new_context);
+        let new_context = ExecutionContext::new(None, realm, None);
+        self.push_execution_context(new_context);
     }
 }
 
+#[derive(Debug)]
 pub struct WellKnownSymbols {
-    pub to_primitive: Symbol,
-}
-
-impl Default for WellKnownSymbols {
-    fn default() -> Self {
-        WellKnownSymbols { to_primitive: Symbol::ToPrimitive }
-    }
+    pub async_iterator_: Symbol,
+    pub has_instance_: Symbol,
+    pub is_concat_spreadable_: Symbol,
+    pub iterator_: Symbol,
+    pub match_: Symbol,
+    pub match_all_: Symbol,
+    pub replace_: Symbol,
+    pub search_: Symbol,
+    pub species_: Symbol,
+    pub split_: Symbol,
+    pub to_primitive_: Symbol,
+    pub to_string_tag_: Symbol,
+    pub unscopables_: Symbol,
 }
