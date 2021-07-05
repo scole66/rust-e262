@@ -1,5 +1,11 @@
 use super::agent::Agent;
-use super::object::{define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor};
+use super::cr::{AltCompletion, Completion};
+use super::errors::create_type_error;
+use super::function_object::create_builtin_function;
+use super::object::{
+    define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
+    BUILTIN_FUNCTION_SLOTS,
+};
 use super::object_object::attach_object_prototype_properties;
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -254,8 +260,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     let fp = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
     realm_rec.borrow_mut().intrinsics.function_prototype = fp;
     // %ThrowTypeError%
-    let tte = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
-    tte.o.prevent_extensions().unwrap();
+    let tte = create_throw_type_error_builtin(agent, realm_rec.clone()).unwrap();
     realm_rec.borrow_mut().intrinsics.throw_type_error = tte;
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
@@ -579,7 +584,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
-    let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.throw_type_error.clone());
+    let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
         agent,
         f,
@@ -594,4 +599,48 @@ pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: 
         &PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
+}
+
+// %ThrowTypeError% ( )
+//
+// The %ThrowTypeError% intrinsic is an anonymous built-in function object that is defined once for each realm. When
+// %ThrowTypeError% is called it performs the following steps:
+//
+//      1. Throw a TypeError exception.
+//
+// The value of the [[Extensible]] internal slot of a %ThrowTypeError% function is false.
+//
+// The "length" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
+// [[Configurable]]: false }.
+//
+// The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
+// [[Configurable]]: false }.
+fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+    Err(create_type_error(agent, ""))
+}
+
+fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> AltCompletion<Object> {
+    let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
+    let fcn = create_builtin_function(agent, throw_type_error, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto), None);
+    fcn.o.prevent_extensions()?;
+    let key = PropertyKey::from("length");
+    let length = get(agent, &fcn, &key)?;
+    define_property_or_throw(
+        agent,
+        &fcn,
+        &key,
+        &PotentialPropertyDescriptor { value: Some(length), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+    )
+    .unwrap();
+    let key = PropertyKey::from("name");
+    let name = get(agent, &fcn, &key)?;
+    define_property_or_throw(
+        agent,
+        &fcn,
+        &key,
+        &PotentialPropertyDescriptor { value: Some(name), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+    )
+    .unwrap();
+
+    Ok(fcn)
 }
