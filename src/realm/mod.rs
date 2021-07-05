@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AltCompletion, Completion};
+use super::cr::Completion;
 use super::errors::create_type_error;
 use super::function_object::create_builtin_function;
 use super::object::{
@@ -260,7 +260,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     let fp = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
     realm_rec.borrow_mut().intrinsics.function_prototype = fp;
     // %ThrowTypeError%
-    let tte = create_throw_type_error_builtin(agent, realm_rec.clone()).unwrap();
+    let tte = create_throw_type_error_builtin(agent, realm_rec.clone());
     realm_rec.borrow_mut().intrinsics.throw_type_error = tte;
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
@@ -619,12 +619,12 @@ fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target
     Err(create_type_error(agent, ""))
 }
 
-fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> AltCompletion<Object> {
+fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(agent, throw_type_error, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto), None);
-    fcn.o.prevent_extensions()?;
+    fcn.o.prevent_extensions().unwrap();
     let key = PropertyKey::from("length");
-    let length = get(agent, &fcn, &key)?;
+    let length = get(agent, &fcn, &key).unwrap();
     define_property_or_throw(
         agent,
         &fcn,
@@ -633,7 +633,7 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     )
     .unwrap();
     let key = PropertyKey::from("name");
-    let name = get(agent, &fcn, &key)?;
+    let name = get(agent, &fcn, &key).unwrap();
     define_property_or_throw(
         agent,
         &fcn,
@@ -642,5 +642,5 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     )
     .unwrap();
 
-    Ok(fcn)
+    fcn
 }
