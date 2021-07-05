@@ -1,6 +1,7 @@
 use super::execution_context::ExecutionContext;
 use super::realm::create_realm;
-use super::values::Symbol;
+use super::strings::JSString;
+use super::values::{Symbol, SymbolInternals};
 use std::rc::Rc;
 
 // Agents
@@ -27,14 +28,12 @@ pub struct Agent {
     pub obj_id: usize,
     pub symbol_id: usize,
 }
-use super::strings::JSString;
-use super::values::SymbolInternals;
 
 #[allow(clippy::new_without_default)]
 impl Agent {
     pub fn new() -> Self {
         Agent {
-            obj_id: 0,
+            obj_id: 1,
             execution_context_stack: vec![],
             symbols: WellKnownSymbols {
                 async_iterator_: Symbol(Rc::new(SymbolInternals { id: 1, description: Some(JSString::from("Symbol.asyncIterator")) })),
@@ -174,3 +173,6 @@ pub struct WellKnownSymbols {
     pub to_string_tag_: Symbol,
     pub unscopables_: Symbol,
 }
+
+#[cfg(test)]
+mod tests;
