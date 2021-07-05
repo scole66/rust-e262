@@ -1,5 +1,6 @@
 use super::agent::Agent;
 use super::cr::Completion;
+use super::environment_record::GlobalEnvironmentRecord;
 use super::errors::create_type_error;
 use super::function_object::create_builtin_function;
 use super::object::{
@@ -12,8 +13,6 @@ use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug)]
-pub struct GlobalEnvironmentRecord {}
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum IntrinsicId {
     Boolean,

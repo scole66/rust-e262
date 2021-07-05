@@ -10,6 +10,7 @@ use super::values::{to_boolean, ECMAScriptValue, PropertyKey};
 use ahash::{AHashSet, RandomState};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 // Environment Records
@@ -111,7 +112,7 @@ use std::rc::Rc;
 // |                              | object. Otherwise, return undefined.                                               |
 // +------------------------------+------------------------------------------------------------------------------------+
 
-pub trait EnvironmentRecord {
+pub trait EnvironmentRecord: Debug {
     fn has_binding(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool>;
     fn create_mutable_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> AltCompletion<()>;
     fn create_immutable_binding(&self, agent: &mut Agent, name: JSString, strict: bool) -> AltCompletion<()>;
@@ -134,28 +135,31 @@ pub trait EnvironmentRecord {
 // The behaviour of the concrete specification methods for declarative Environment Records is defined by the following
 // algorithms.
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Removability {
     Deletable,
     Permanent,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Strictness {
     Strict,
     Loose,
 }
 
+#[derive(Debug)]
 enum Mutability {
     Mutable(Removability),
     Immutable(Strictness),
 }
 
+#[derive(Debug)]
 struct Binding {
     value: Option<ECMAScriptValue>,
     mutability: Mutability,
 }
 
+#[derive(Debug)]
 pub struct DeclarativeEnvironmentRecord {
     bindings: RefCell<HashMap<JSString, Binding, RandomState>>,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
@@ -405,7 +409,7 @@ impl DeclarativeEnvironmentRecord {
 //
 // The behaviour of the concrete specification methods for object Environment Records is defined by the following
 // algorithms.
-
+#[derive(Debug)]
 pub struct ObjectEnvironmentRecord {
     binding_object: Object,
     is_with_environment: bool,
@@ -648,6 +652,7 @@ pub enum BindingStatus {
     Uninitialized,
 }
 
+#[derive(Debug)]
 pub struct FunctionEnvironmentRecord {
     base: DeclarativeEnvironmentRecord,
     this_value: ECMAScriptValue,
@@ -869,6 +874,7 @@ impl FunctionEnvironmentRecord {
 // |                       | String      | AsyncFunctionDeclaration, AsyncGeneratorDeclaration, and                    |
 // |                       |             | VariableDeclaration declarations in global code for the associated realm.   |
 // +-----------------------+-------------+-----------------------------------------------------------------------------+
+#[derive(Debug)]
 pub struct GlobalEnvironmentRecord {
     object_record: ObjectEnvironmentRecord,
     global_this_value: Object,
