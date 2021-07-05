@@ -1,5 +1,6 @@
 use super::execution_context::ExecutionContext;
-use super::realm::create_realm;
+use super::object::Object;
+use super::realm::{create_realm, IntrinsicId};
 use super::strings::JSString;
 use super::values::{Symbol, SymbolInternals};
 use std::rc::Rc;
@@ -110,6 +111,10 @@ impl Agent {
             WksId::Unscopables => &self.symbols.unscopables_,
         }
         .clone()
+    }
+
+    pub fn intrinsic(&self, id: IntrinsicId) -> Object {
+        self.running_execution_context().unwrap().realm.borrow().intrinsics.get(id)
     }
 
     // InitializeHostDefinedRealm ( )

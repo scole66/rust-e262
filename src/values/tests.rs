@@ -2,6 +2,7 @@ use super::*;
 use crate::errors::create_type_error;
 use crate::function_object::create_builtin_function;
 use crate::object::{define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::realm::IntrinsicId;
 use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_type_error};
 use ahash::RandomState;
 use num::bigint::BigInt;
@@ -425,7 +426,7 @@ fn faux_makes_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_targ
 }
 // object value
 fn faux_makes_obj(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
-    let object_prototype = agent.running_execution_context().unwrap().realm.borrow().intrinsics.object_prototype.clone();
+    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(agent, Some(&object_prototype), &[]);
     Ok(ECMAScriptValue::from(obj))
 }

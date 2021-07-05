@@ -1,6 +1,7 @@
 use super::super::object::{ordinary_object_create, PropertyKind};
 use super::super::tests::{test_agent, unwind_type_error};
 use super::*;
+use crate::realm::IntrinsicId;
 
 #[test]
 fn create_boolean_object_01() {
@@ -68,7 +69,7 @@ fn this_boolean_value_05() {
 #[test]
 fn this_boolean_value_06() {
     let mut agent = test_agent();
-    let proto = agent.running_execution_context().unwrap().realm.borrow().intrinsics.object_prototype.clone();
+    let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let other_obj = ordinary_object_create(&mut agent, Some(&proto), &[]);
     let result = this_boolean_value(&mut agent, &ECMAScriptValue::Object(other_obj));
     assert!(result.is_err());
@@ -81,7 +82,7 @@ fn get_prototype_of_01() {
     let mut agent = test_agent();
     let bool_obj = create_boolean_object(&mut agent, true);
     let proto = bool_obj.o.get_prototype_of().unwrap().unwrap();
-    assert_eq!(proto, agent.running_execution_context().unwrap().realm.borrow().intrinsics.boolean_prototype);
+    assert_eq!(proto, agent.intrinsic(IntrinsicId::BooleanPrototype));
 }
 
 #[test]
@@ -146,7 +147,7 @@ fn get_01() {
     let res2 = bool_obj.o.get(&mut agent, &PropertyKey::from("constructor"), &ECMAScriptValue::Undefined).unwrap();
     assert!(matches!(res2, ECMAScriptValue::Object(..)));
     if let ECMAScriptValue::Object(obj) = res2 {
-        assert_eq!(obj, agent.running_execution_context().unwrap().realm.borrow().intrinsics.boolean);
+        assert_eq!(obj, agent.intrinsic(IntrinsicId::Boolean));
     }
 }
 

@@ -5,7 +5,7 @@ use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, FunctionObjectData};
-use super::realm::{get_function_realm, IntrinsicIdentifier};
+use super::realm::{get_function_realm, IntrinsicId};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
@@ -1263,7 +1263,7 @@ pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additio
 pub fn ordinary_create_from_constructor(
     agent: &mut Agent,
     constructor: &Object,
-    intrinsic_default_proto: IntrinsicIdentifier,
+    intrinsic_default_proto: IntrinsicId,
     internal_slots_list: &[InternalSlotName],
 ) -> AltCompletion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
@@ -1288,7 +1288,7 @@ pub fn ordinary_create_from_constructor(
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicIdentifier) -> AltCompletion<Object> {
+fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId) -> AltCompletion<Object> {
     let proto = get(agent, constructor, &PropertyKey::from("prototype"))?;
     match proto {
         ECMAScriptValue::Object(obj) => Ok(obj),

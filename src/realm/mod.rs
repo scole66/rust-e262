@@ -10,15 +10,20 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct GlobalEnvironmentRecord {}
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum IntrinsicIdentifier {
+pub enum IntrinsicId {
     Boolean,
     BooleanPrototype,
     ErrorPrototype,
     FunctionPrototype,
-    ThrowTypeError,
-    TypeErrorPrototype,
+    Object,
+    ObjectPrototype,
+    ReferenceError,
     ReferenceErrorPrototype,
+    SyntaxError,
     SyntaxErrorPrototype,
+    ThrowTypeError,
+    TypeError,
+    TypeErrorPrototype,
 }
 #[derive(Debug)]
 pub struct Intrinsics {
@@ -99,16 +104,21 @@ pub struct Intrinsics {
 }
 
 impl Intrinsics {
-    pub fn get(&self, id: IntrinsicIdentifier) -> Object {
+    pub fn get(&self, id: IntrinsicId) -> Object {
         match id {
-            IntrinsicIdentifier::FunctionPrototype => &self.function_prototype,
-            IntrinsicIdentifier::ThrowTypeError => &self.throw_type_error,
-            IntrinsicIdentifier::BooleanPrototype => &self.boolean_prototype,
-            IntrinsicIdentifier::Boolean => &self.boolean,
-            IntrinsicIdentifier::ErrorPrototype => &self.error_prototype,
-            IntrinsicIdentifier::TypeErrorPrototype => &self.type_error_prototype,
-            IntrinsicIdentifier::ReferenceErrorPrototype => &self.reference_error_prototype,
-            IntrinsicIdentifier::SyntaxErrorPrototype => &self.syntax_error_prototype,
+            IntrinsicId::Boolean => &self.boolean,
+            IntrinsicId::BooleanPrototype => &self.boolean_prototype,
+            IntrinsicId::ErrorPrototype => &self.error_prototype,
+            IntrinsicId::FunctionPrototype => &self.function_prototype,
+            IntrinsicId::Object => &self.object,
+            IntrinsicId::ObjectPrototype => &self.object_prototype,
+            IntrinsicId::ReferenceError => &self.reference_error,
+            IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
+            IntrinsicId::SyntaxError => &self.syntax_error,
+            IntrinsicId::SyntaxErrorPrototype => &self.syntax_error_prototype,
+            IntrinsicId::ThrowTypeError => &self.throw_type_error,
+            IntrinsicId::TypeError => &self.type_error,
+            IntrinsicId::TypeErrorPrototype => &self.type_error_prototype,
         }
         .clone()
     }

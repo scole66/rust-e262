@@ -6,7 +6,7 @@ use super::object::{
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
     PotentialPropertyDescriptor, PropertyDescriptor,
 };
-use super::realm::IntrinsicIdentifier;
+use super::realm::IntrinsicId;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -168,8 +168,8 @@ impl BooleanObject {
 //  4. Set O.[[BooleanData]] to b.
 //  5. Return O.
 pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
-    let constructor = agent.running_execution_context().unwrap().realm.borrow().intrinsics.boolean.clone();
-    let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicIdentifier::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
+    let constructor = agent.intrinsic(IntrinsicId::Boolean);
+    let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
     *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
     o
 }

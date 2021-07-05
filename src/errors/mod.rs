@@ -5,13 +5,13 @@ use super::object::{
     ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName,
     Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor,
 };
-use super::realm::IntrinsicIdentifier;
+use super::realm::IntrinsicId;
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn create_native_error_object(agent: &mut Agent, message: &str, error_constructor: Object, proto_id: IntrinsicIdentifier) -> Object {
+fn create_native_error_object(agent: &mut Agent, message: &str, error_constructor: Object, proto_id: IntrinsicId) -> Object {
     let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::String(JSString::from(message))),
@@ -25,8 +25,8 @@ fn create_native_error_object(agent: &mut Agent, message: &str, error_constructo
 }
 
 pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
-    let error_constructor = agent.running_execution_context().unwrap().realm.borrow().intrinsics.type_error.clone();
-    create_native_error_object(agent, message, error_constructor, IntrinsicIdentifier::TypeErrorPrototype)
+    let error_constructor = agent.intrinsic(IntrinsicId::TypeError);
+    create_native_error_object(agent, message, error_constructor, IntrinsicId::TypeErrorPrototype)
 }
 
 pub fn create_type_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
@@ -34,8 +34,8 @@ pub fn create_type_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
 }
 
 pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object {
-    let cstr = agent.running_execution_context().unwrap().realm.borrow().intrinsics.reference_error.clone();
-    create_native_error_object(agent, message, cstr, IntrinsicIdentifier::ReferenceErrorPrototype)
+    let cstr = agent.intrinsic(IntrinsicId::ReferenceError);
+    create_native_error_object(agent, message, cstr, IntrinsicId::ReferenceErrorPrototype)
 }
 
 pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
@@ -43,8 +43,8 @@ pub fn create_reference_error(agent: &mut Agent, message: &str) -> AbruptComplet
 }
 
 pub fn create_syntax_error_object(agent: &mut Agent, message: &str) -> Object {
-    let cstr = agent.running_execution_context().unwrap().realm.borrow().intrinsics.syntax_error.clone();
-    create_native_error_object(agent, message, cstr, IntrinsicIdentifier::SyntaxErrorPrototype)
+    let cstr = agent.intrinsic(IntrinsicId::SyntaxError);
+    create_native_error_object(agent, message, cstr, IntrinsicId::SyntaxErrorPrototype)
 }
 
 pub fn create_syntax_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
