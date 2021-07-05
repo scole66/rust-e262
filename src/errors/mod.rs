@@ -3,7 +3,7 @@ use super::cr::{AbruptCompletion, AltCompletion, Completion, CompletionInfo};
 use super::object::{
     define_property_or_throw, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of,
     ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName,
-    Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor,
+    Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, ERROR_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::strings::JSString;
@@ -57,7 +57,7 @@ pub struct ErrorObject {
 
 impl ErrorObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true)) }) }
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, &ERROR_OBJECT_SLOTS)) }) }
     }
 }
 

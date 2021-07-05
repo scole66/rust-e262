@@ -4,7 +4,7 @@ use super::errors::create_type_error;
 use super::object::{
     ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor,
+    PotentialPropertyDescriptor, PropertyDescriptor, BOOLEAN_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -156,7 +156,7 @@ impl BooleanObjectInterface for BooleanObject {
 
 impl BooleanObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true)), boolean_data: RefCell::new(false) }) }
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, &BOOLEAN_OBJECT_SLOTS)), boolean_data: RefCell::new(false) }) }
     }
 }
 

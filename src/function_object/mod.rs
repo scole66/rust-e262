@@ -5,7 +5,7 @@ use super::execution_context::ExecutionContext;
 use super::object::{
     define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface, InternalSlotName, Object,
-    ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor,
+    ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::parser::parameter_lists::FormalParameters;
 use super::parser::scripts::Script;
@@ -41,7 +41,7 @@ pub struct FunctionObjectData {
     formal_parameters: Rc<FormalParameters>,
     ecmascript_code: Rc<Script>,
     constructor_kind: ConstructorKind,
-    realm: Rc<Realm>,
+    pub realm: Rc<RefCell<Realm>>,
     script_or_module: Option<SorM>,
     pub this_mode: ThisMode,
     strict: bool,
@@ -292,7 +292,10 @@ impl BuiltInFunctionObject {
         initial_name: Option<FunctionName>,
         steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion,
     ) -> Rc<Self> {
-        Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, extensible)), builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps)) })
+        Rc::new(Self {
+            common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &BUILTIN_FUNCTION_SLOTS)),
+            builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps)),
+        })
     }
 
     pub fn object(

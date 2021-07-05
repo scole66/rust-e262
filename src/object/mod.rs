@@ -797,11 +797,12 @@ pub struct CommonObjectData {
     pub extensible: bool,
     pub next_spot: usize,
     pub objid: usize,
+    pub slots: Vec<InternalSlotName>,
 }
 
 impl CommonObjectData {
-    pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
-        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id() }
+    pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
+        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots) }
     }
 }
 
@@ -985,7 +986,7 @@ impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
 
 impl Object {
     fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
-        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible)) }) }
+        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &ORDINARY_OBJECT_SLOTS)) }) }
     }
 }
 
@@ -1260,12 +1261,7 @@ pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additio
 //     corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 //  2. Let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
-pub fn ordinary_create_from_constructor(
-    agent: &mut Agent,
-    constructor: &Object,
-    intrinsic_default_proto: IntrinsicId,
-    internal_slots_list: &[InternalSlotName],
-) -> AltCompletion<Object> {
+pub fn ordinary_create_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId, internal_slots_list: &[InternalSlotName]) -> AltCompletion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
     Ok(ordinary_object_create(agent, Some(&proto), internal_slots_list))
 }
@@ -1509,7 +1505,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 }
 
 pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option<&Object>) -> Object {
-    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true)) }) }
+    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, &ORDINARY_OBJECT_SLOTS)) }) }
 }
 
 #[cfg(test)]
