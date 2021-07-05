@@ -5,7 +5,7 @@ use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, FunctionObjectData};
-use super::realm::{get_function_realm, IntrinsicId};
+use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
@@ -1290,7 +1290,8 @@ fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intri
         ECMAScriptValue::Object(obj) => Ok(obj),
         _ => {
             let realm = get_function_realm(agent, constructor)?;
-            Ok(realm.intrinsics.get(intrinsic_default_proto))
+            let proto = realm.borrow().intrinsics.get(intrinsic_default_proto);
+            Ok(proto)
         }
     }
 }
@@ -1506,6 +1507,43 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 
 pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option<&Object>) -> Object {
     Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, &ORDINARY_OBJECT_SLOTS)) }) }
+}
+
+// GetFunctionRealm ( obj )
+//
+// The abstract operation GetFunctionRealm takes argument obj. It performs the following steps when called:
+//
+//      1. Assert: ! IsCallable(obj) is true.
+//      2. If obj has a [[Realm]] internal slot, then
+//          a. Return obj.[[Realm]].
+//      3. If obj is a bound function exotic object, then
+//          a. Let target be obj.[[BoundTargetFunction]].
+//          b. Return ? GetFunctionRealm(target).
+//      4. If obj is a Proxy exotic object, then
+//          a. If obj.[[ProxyHandler]] is null, throw a TypeError exception.
+//          b. Let proxyTarget be obj.[[ProxyTarget]].
+//          c. Return ? GetFunctionRealm(proxyTarget).
+//      5. Return the current Realm Record.
+//
+// NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
+//          internal slot.
+#[allow(unreachable_code)]
+pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<RefCell<Realm>>> {
+    if let Some(f) = obj.o.to_function_obj() {
+        Ok(f.function_data().borrow().realm.clone())
+    } else if let Some(b) = obj.o.to_builtin_function_obj() {
+        Ok(b.builtin_function_data().borrow().realm.clone())
+    } else {
+        // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
+        // a realm slot was _not_ present.
+        assert!(!obj.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
+
+        // Add the bound-function check
+        // Add the proxy check
+        todo!();
+
+        Ok(_agent.running_execution_context().unwrap().realm.clone())
+    }
 }
 
 #[cfg(test)]

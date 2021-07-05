@@ -1,5 +1,4 @@
 use super::agent::Agent;
-use super::cr::AltCompletion;
 use super::object::{define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor};
 use super::object_object::attach_object_prototype_properties;
 use super::strings::JSString;
@@ -130,10 +129,6 @@ pub struct Realm {
     pub global_object: Option<Object>,
     pub global_env: Option<GlobalEnvironmentRecord>,
     // TemplateMap: later, when needed
-}
-
-pub fn get_function_realm<'a, 'b>(_agent: &mut Agent, _obj: &'b Object) -> AltCompletion<&'a Realm> {
-    todo!()
 }
 
 // CreateRealm ( )
