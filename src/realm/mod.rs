@@ -11,6 +11,7 @@ use super::object_object::attach_object_prototype_properties;
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -29,7 +30,7 @@ pub enum IntrinsicId {
     TypeError,
     TypeErrorPrototype,
 }
-#[derive(Debug)]
+
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
     pub array: Object,                              // aka "Array", The Array constructor
@@ -125,6 +126,12 @@ impl Intrinsics {
             IntrinsicId::TypeErrorPrototype => &self.type_error_prototype,
         }
         .clone()
+    }
+}
+
+impl fmt::Debug for Intrinsics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Intrinsics").finish_non_exhaustive()
     }
 }
 

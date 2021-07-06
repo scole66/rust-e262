@@ -15,6 +15,7 @@ pub trait BooleanObjectInterface: ObjectInterface {
     fn boolean_data(&self) -> &RefCell<bool>;
 }
 
+#[derive(Debug)]
 pub struct BooleanObject {
     common: RefCell<CommonObjectData>,
     boolean_data: RefCell<bool>,

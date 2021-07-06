@@ -11,6 +11,7 @@ use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
 use num::bigint::BigInt;
 use std::convert::TryFrom;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::rc::Rc;
@@ -54,6 +55,19 @@ impl ECMAScriptValue {
     }
     pub fn is_numeric(&self) -> bool {
         self.is_number() || self.is_bigint()
+    }
+
+    pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ECMAScriptValue::Undefined => write!(f, "undefined"),
+            ECMAScriptValue::Null => write!(f, "null"),
+            ECMAScriptValue::Boolean(x) => write!(f, "{}", x),
+            ECMAScriptValue::String(s) => write!(f, "{:?}", format!("{}", s)),
+            ECMAScriptValue::Number(n) => write!(f, "{:?}", n),
+            ECMAScriptValue::BigInt(b) => write!(f, "{:?}", b),
+            ECMAScriptValue::Symbol(sym) => write!(f, "{}", sym),
+            ECMAScriptValue::Object(o) => o.concise(f),
+        }
     }
 }
 
@@ -159,6 +173,15 @@ impl PropertyKey {
     }
 }
 
+impl fmt::Display for PropertyKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PropertyKey::String(string) => string.fmt(f),
+            PropertyKey::Symbol(sym) => sym.fmt(f),
+        }
+    }
+}
+
 impl From<&str> for PropertyKey {
     fn from(source: &str) -> Self {
         Self::from(JSString::from(source))
@@ -230,6 +253,12 @@ impl Symbol {
     }
     pub fn description(&self) -> Option<JSString> {
         self.0.description.as_ref().cloned()
+    }
+}
+
+impl fmt::Display for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Symbol({})", self.description().unwrap_or_else(|| JSString::from("")))
     }
 }
 

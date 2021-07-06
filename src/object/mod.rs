@@ -9,7 +9,7 @@ use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
-use std::fmt;
+use std::fmt::{self, Debug};
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -36,6 +36,33 @@ pub struct PropertyDescriptor {
     pub enumerable: bool,
     pub configurable: bool,
     spot: usize,
+}
+
+struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
+impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{ ")?;
+        match &self.0.property {
+            PropertyKind::Data(data) => {
+                data.value.concise(f)?;
+                write!(f, " {}", if data.writable { 'w' } else { '-' })?;
+            }
+            PropertyKind::Accessor(funcs) => {
+                write!(f, "[[Get]]: ")?;
+                funcs.get.concise(f)?;
+                write!(f, " [[Set]]: ")?;
+                funcs.set.concise(f)?;
+                write!(f, " ")?;
+            }
+        }
+        write!(f, "{}{} }}", if self.0.enumerable { 'e' } else { '-' }, if self.0.configurable { 'c' } else { '-' })
+    }
+}
+
+impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
+    fn from(source: &'a PropertyDescriptor) -> Self {
+        Self(source)
+    }
 }
 
 pub trait DescriptorKind {
@@ -727,7 +754,7 @@ fn array_index_compare(item: &PropertyKey) -> u32 {
     }
 }
 
-pub trait ObjectInterface {
+pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn is_ordinary(&self) -> bool; // True if implements ordinary defintions of Get/SetPrototypeOf
     fn id(&self) -> usize; // Unique object id. Used for object "is_same" detection.
@@ -790,7 +817,6 @@ pub trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
-#[derive(Debug)]
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -806,6 +832,63 @@ impl CommonObjectData {
     }
 }
 
+impl fmt::Debug for CommonObjectData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("CommonObjectData")
+            .field("properties", &ConciseProperties::from(&self.properties))
+            .field("[[Prototype]]", &ConciseOptionalObject::from(&self.prototype))
+            .field("[[Extensible]]", &self.extensible)
+            .field("next_spot", &self.next_spot)
+            .field("objid", &self.objid)
+            .field("slots", &self.slots)
+            .finish()
+    }
+}
+
+struct ConciseObject<'a>(&'a Object);
+impl<'a> fmt::Debug for ConciseObject<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.concise(f)
+    }
+}
+impl<'a> From<&'a Object> for ConciseObject<'a> {
+    fn from(source: &'a Object) -> Self {
+        Self(source)
+    }
+}
+struct ConciseOptionalObject<'a>(&'a Option<Object>);
+impl<'a> fmt::Debug for ConciseOptionalObject<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0.as_ref() {
+            None => write!(f, "None"),
+            Some(o) => ConciseObject::from(o).fmt(f),
+        }
+    }
+}
+impl<'a> From<&'a Option<Object>> for ConciseOptionalObject<'a> {
+    fn from(source: &'a Option<Object>) -> Self {
+        Self(source)
+    }
+}
+
+struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
+impl<'a> fmt::Debug for ConciseProperties<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut work = f.debug_struct("");
+        for (key, value) in self.0.iter() {
+            work.field(format!("{}", key).as_str(), &ConcisePropertyDescriptor::from(value));
+        }
+        work.finish()
+    }
+}
+
+impl<'a> From<&'a AHashMap<PropertyKey, PropertyDescriptor>> for ConciseProperties<'a> {
+    fn from(source: &'a AHashMap<PropertyKey, PropertyDescriptor>) -> Self {
+        Self(source)
+    }
+}
+
+#[derive(Debug)]
 struct OrdinaryObject {
     data: RefCell<CommonObjectData>,
 }
@@ -943,12 +1026,6 @@ pub struct Object {
     pub o: Rc<dyn ObjectInterface>,
 }
 
-impl fmt::Debug for dyn ObjectInterface {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Object {}>", self.id())
-    }
-}
-
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
         self.o.id() == other.o.id()
@@ -987,6 +1064,9 @@ impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
 impl Object {
     fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
         Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &ORDINARY_OBJECT_SLOTS)) }) }
+    }
+    pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
     }
 }
 
@@ -1296,6 +1376,7 @@ fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intri
     }
 }
 
+#[derive(Debug)]
 pub struct DeadObject {
     objid: usize,
 }
@@ -1373,6 +1454,7 @@ where
     })
 }
 
+#[derive(Debug)]
 pub struct ImmutablePrototypeExoticObject {
     data: RefCell<CommonObjectData>,
 }

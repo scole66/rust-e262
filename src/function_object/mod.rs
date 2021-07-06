@@ -16,26 +16,31 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
+#[derive(Debug)]
 enum ScriptRecord {}
+#[derive(Debug)]
 enum ModuleRecord {}
 
+#[derive(Debug)]
 enum ConstructorKind {
     Base,
     Derived,
 }
 
+#[derive(Debug)]
 enum SorM {
     Script(ScriptRecord),
     Module(ModuleRecord),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ThisMode {
     Lexical,
     Strict,
     Global,
 }
 
+#[derive(Debug)]
 pub struct FunctionObjectData {
     pub environment: Rc<dyn EnvironmentRecord>,
     formal_parameters: Rc<FormalParameters>,
@@ -50,6 +55,7 @@ pub struct FunctionObjectData {
     is_class_constructor: bool,
 }
 
+#[derive(Debug)]
 pub struct FunctionObject {
     common: RefCell<CommonObjectData>,
     function_data: RefCell<FunctionObjectData>,
