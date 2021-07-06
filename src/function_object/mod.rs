@@ -92,6 +92,9 @@ impl ObjectInterface for FunctionObject {
         // Whereas this is _anything_ that implements [[Call]]
         Some(self)
     }
+    fn is_callable_obj(&self) -> bool {
+        true
+    }
 
     fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
@@ -338,6 +341,9 @@ impl ObjectInterface for BuiltInFunctionObject {
     }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         Some(self)
+    }
+    fn is_callable_obj(&self) -> bool {
+        true
     }
 
     fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {

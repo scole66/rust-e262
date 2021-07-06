@@ -109,6 +109,91 @@ pub struct Intrinsics {
 }
 
 impl Intrinsics {
+    fn new(agent: &mut Agent) -> Self {
+        // Since an intrinsics struct needs to be populated in a particular order and then fixed up, RAII doesn't work
+        // so grand. Therefore, a "dead object" is placed in each field instead. This quickly gives us an initialized
+        // struct, and also generates run-time panics if any "un-initialized" members are actually used. (Option<Object>
+        // could have done a similar thing, except that then the check would be made for _every_ access of the field
+        // itself, rather than when the data the field references is manipulated. In other words, this is actually far
+        // less overhead.)
+        let dead = DeadObject::object(agent);
+        Intrinsics {
+            aggregate_error: dead.clone(),
+            array: dead.clone(),
+            array_buffer: dead.clone(),
+            array_iterator_prototype: dead.clone(),
+            async_from_sync_iterator_prototype: dead.clone(),
+            async_function: dead.clone(),
+            async_generator_function: dead.clone(),
+            async_iterator_prototype: dead.clone(),
+            atomics: dead.clone(),
+            big_int: dead.clone(),
+            big_int64_array: dead.clone(),
+            big_uint64_array: dead.clone(),
+            boolean: dead.clone(),
+            boolean_prototype: dead.clone(),
+            data_view: dead.clone(),
+            date: dead.clone(),
+            decode_uri: dead.clone(),
+            decode_uri_component: dead.clone(),
+            encode_uri: dead.clone(),
+            encode_uri_component: dead.clone(),
+            error: dead.clone(),
+            error_prototype: dead.clone(),
+            eval: dead.clone(),
+            eval_error: dead.clone(),
+            finalization_registry: dead.clone(),
+            float32_array: dead.clone(),
+            float64_array: dead.clone(),
+            for_in_iterator_prototype: dead.clone(),
+            function: dead.clone(),
+            function_prototype: dead.clone(),
+            generator_function: dead.clone(),
+            int8_array: dead.clone(),
+            int16_array: dead.clone(),
+            int32_array: dead.clone(),
+            is_finite: dead.clone(),
+            is_nan: dead.clone(),
+            iterator_prototype: dead.clone(),
+            json: dead.clone(),
+            map: dead.clone(),
+            map_iterator_prototype: dead.clone(),
+            math: dead.clone(),
+            number: dead.clone(),
+            object: dead.clone(),
+            object_prototype: dead.clone(),
+            parse_float: dead.clone(),
+            parse_int: dead.clone(),
+            promise: dead.clone(),
+            proxy: dead.clone(),
+            range_error: dead.clone(),
+            reference_error: dead.clone(),
+            reference_error_prototype: dead.clone(),
+            reflect: dead.clone(),
+            reg_exp: dead.clone(),
+            reg_exp_string_iterator_prototype: dead.clone(),
+            set: dead.clone(),
+            set_iterator_prototype: dead.clone(),
+            shared_array_buffer: dead.clone(),
+            string: dead.clone(),
+            string_iterator_prototype: dead.clone(),
+            symbol: dead.clone(),
+            syntax_error: dead.clone(),
+            syntax_error_prototype: dead.clone(),
+            throw_type_error: dead.clone(),
+            typed_array: dead.clone(),
+            type_error: dead.clone(),
+            type_error_prototype: dead.clone(),
+            uint8_array: dead.clone(),
+            uint8_clampedarray: dead.clone(),
+            uint16_array: dead.clone(),
+            uint32_array: dead.clone(),
+            uri_error: dead.clone(),
+            weak_map: dead.clone(),
+            weak_ref: dead.clone(),
+            weak_set: dead,
+        }
+    }
     pub fn get(&self, id: IntrinsicId) -> Object {
         match id {
             IntrinsicId::Boolean => &self.boolean,
@@ -137,6 +222,15 @@ impl fmt::Debug for Intrinsics {
 
 #[derive(Debug)]
 pub struct Realm {
+    // NOTE NOTE NOTE NOTE: Realm is a circular structure. The function objects in the Intrinsics field each have their
+    // own Realm pointer, which points back to this structure. They _should_ be weak pointers, because of that, except
+    // that anything can duplicate an intrinsic, and doing so should mean that the pointer is no longer weak.
+    //
+    // In addition, any objects within the global_env, or reachable via the global_env may be functions which have a
+    // realm pointer that points back to here, again making cycles.
+    //
+    // Until I figure out a solution for that, once a realm is created, it can never be dropped. (Currently, aside from
+    // testing, only one realm is ever made, so it's not a huge issue.)
     pub intrinsics: Intrinsics,
     pub global_object: Option<Object>,
     pub global_env: Option<GlobalEnvironmentRecord>,
@@ -154,89 +248,9 @@ pub struct Realm {
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
 pub fn create_realm(agent: &mut Agent) -> Rc<RefCell<Realm>> {
-    let r = Rc::new(RefCell::new(Realm { intrinsics: dead_intrinsics(agent), global_object: None, global_env: None }));
+    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(agent), global_object: None, global_env: None }));
     create_intrinsics(agent, r.clone());
     r
-}
-
-fn dead_intrinsics(agent: &mut Agent) -> Intrinsics {
-    let dead = DeadObject::object(agent);
-    Intrinsics {
-        aggregate_error: dead.clone(),
-        array: dead.clone(),
-        array_buffer: dead.clone(),
-        array_iterator_prototype: dead.clone(),
-        async_from_sync_iterator_prototype: dead.clone(),
-        async_function: dead.clone(),
-        async_generator_function: dead.clone(),
-        async_iterator_prototype: dead.clone(),
-        atomics: dead.clone(),
-        big_int: dead.clone(),
-        big_int64_array: dead.clone(),
-        big_uint64_array: dead.clone(),
-        boolean: dead.clone(),
-        boolean_prototype: dead.clone(),
-        data_view: dead.clone(),
-        date: dead.clone(),
-        decode_uri: dead.clone(),
-        decode_uri_component: dead.clone(),
-        encode_uri: dead.clone(),
-        encode_uri_component: dead.clone(),
-        error: dead.clone(),
-        error_prototype: dead.clone(),
-        eval: dead.clone(),
-        eval_error: dead.clone(),
-        finalization_registry: dead.clone(),
-        float32_array: dead.clone(),
-        float64_array: dead.clone(),
-        for_in_iterator_prototype: dead.clone(),
-        function: dead.clone(),
-        function_prototype: dead.clone(),
-        generator_function: dead.clone(),
-        int8_array: dead.clone(),
-        int16_array: dead.clone(),
-        int32_array: dead.clone(),
-        is_finite: dead.clone(),
-        is_nan: dead.clone(),
-        iterator_prototype: dead.clone(),
-        json: dead.clone(),
-        map: dead.clone(),
-        map_iterator_prototype: dead.clone(),
-        math: dead.clone(),
-        number: dead.clone(),
-        object: dead.clone(),
-        object_prototype: dead.clone(),
-        parse_float: dead.clone(),
-        parse_int: dead.clone(),
-        promise: dead.clone(),
-        proxy: dead.clone(),
-        range_error: dead.clone(),
-        reference_error: dead.clone(),
-        reference_error_prototype: dead.clone(),
-        reflect: dead.clone(),
-        reg_exp: dead.clone(),
-        reg_exp_string_iterator_prototype: dead.clone(),
-        set: dead.clone(),
-        set_iterator_prototype: dead.clone(),
-        shared_array_buffer: dead.clone(),
-        string: dead.clone(),
-        string_iterator_prototype: dead.clone(),
-        symbol: dead.clone(),
-        syntax_error: dead.clone(),
-        syntax_error_prototype: dead.clone(),
-        throw_type_error: dead.clone(),
-        typed_array: dead.clone(),
-        type_error: dead.clone(),
-        type_error_prototype: dead.clone(),
-        uint8_array: dead.clone(),
-        uint8_clampedarray: dead.clone(),
-        uint16_array: dead.clone(),
-        uint32_array: dead.clone(),
-        uri_error: dead.clone(),
-        weak_map: dead.clone(),
-        weak_ref: dead.clone(),
-        weak_set: dead,
-    }
 }
 
 // CreateIntrinsics ( realmRec )
@@ -261,24 +275,25 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
-    realm_rec.borrow_mut().intrinsics.object_prototype = immutable_prototype_exotic_object_create(agent, None);
+    let object_prototype = immutable_prototype_exotic_object_create(agent, None);
+    realm_rec.borrow_mut().intrinsics.object_prototype = object_prototype.clone();
     // %Function.prototype%
-    let fp = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
-    realm_rec.borrow_mut().intrinsics.function_prototype = fp;
+    let function_prototype = ordinary_object_create(agent, Some(&object_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.function_prototype = function_prototype.clone();
     // %ThrowTypeError%
-    let tte = create_throw_type_error_builtin(agent, realm_rec.clone());
-    realm_rec.borrow_mut().intrinsics.throw_type_error = tte;
+    realm_rec.borrow_mut().intrinsics.throw_type_error = create_throw_type_error_builtin(agent, realm_rec.clone());
     ///////////////////////////////////////////////////////////////////
     // %Boolean% and %Boolean.prototype%
-    let boolproto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[InternalSlotName::BooleanData]);
-    realm_rec.borrow_mut().intrinsics.boolean_prototype = boolproto;
-    let bool_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
+    let boolean_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::BooleanData]);
+    realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
+    let bool_constructor =
+        create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from("Boolean"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
     define_property_or_throw(
         agent,
         &bool_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.boolean_prototype.clone())),
+            value: Some(ECMAScriptValue::from(&boolean_prototype)),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -286,13 +301,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         },
     )
     .unwrap();
-    realm_rec.borrow_mut().intrinsics.boolean = bool_constructor;
+    realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
     define_property_or_throw(
         agent,
-        &realm_rec.borrow().intrinsics.boolean_prototype,
+        &boolean_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.boolean.clone())),
+            value: Some(ECMAScriptValue::from(bool_constructor)), // consumes bool_constructor
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -302,15 +317,16 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     .unwrap();
     ///////////////////////////////////////////////////////////////////
     // %Error% and %Error.prototype%
-    let error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.object_prototype), &[]);
-    realm_rec.borrow_mut().intrinsics.error_prototype = error_proto;
-    let error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
+    let error_prototype = ordinary_object_create(agent, Some(&object_prototype), &[]);
+    realm_rec.borrow_mut().intrinsics.error_prototype = error_prototype.clone();
+    let error_constructor =
+        create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from("Error"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
     define_property_or_throw(
         agent,
         &error_constructor,
         &PropertyKey::from("prototype"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error_prototype.clone())),
+            value: Some(ECMAScriptValue::from(&error_prototype)),
             writable: Some(false),
             enumerable: Some(false),
             configurable: Some(false),
@@ -318,13 +334,13 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         },
     )
     .unwrap();
-    realm_rec.borrow_mut().intrinsics.error = error_constructor;
+    realm_rec.borrow_mut().intrinsics.error = error_constructor.clone();
     define_property_or_throw(
         agent,
         &realm_rec.borrow().intrinsics.error_prototype,
         &PropertyKey::from("constructor"),
         &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
+            value: Some(ECMAScriptValue::from(error_constructor)), // consumes error_constructor
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
@@ -334,7 +350,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.borrow().intrinsics.error_prototype,
+        &error_prototype,
         &PropertyKey::from("message"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
@@ -347,7 +363,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     .unwrap();
     define_property_or_throw(
         agent,
-        &realm_rec.borrow().intrinsics.error_prototype,
+        &error_prototype,
         &PropertyKey::from("name"),
         &PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("Error"))),
@@ -358,223 +374,92 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         },
     )
     .unwrap();
+
+    let set_up_native_error = |agent: &mut Agent, name: &str| {
+        let proto = ordinary_object_create(agent, Some(&error_prototype), &[]);
+        let constructor =
+            create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from(name), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
+        // constructor.prototype = proto
+        define_property_or_throw(
+            agent,
+            &constructor,
+            &PropertyKey::from("prototype"),
+            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&proto)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+        )
+        .unwrap();
+        // constructor.name = name
+        define_property_or_throw(
+            agent,
+            &constructor,
+            &PropertyKey::from("name"),
+            &PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::String(JSString::from(name))),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        // proto.constructor = constructor
+        define_property_or_throw(
+            agent,
+            &proto,
+            &PropertyKey::from("constructor"),
+            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&constructor)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        )
+        .unwrap();
+        // proto.message = ""
+        define_property_or_throw(
+            agent,
+            &proto,
+            &PropertyKey::from("message"),
+            &PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::String(JSString::from(""))),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        // proto.name = name
+        define_property_or_throw(
+            agent,
+            &proto,
+            &PropertyKey::from("name"),
+            &PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::String(JSString::from(name))),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        (constructor, proto)
+    };
     ///////////////////////////////////////////////////////////////////
     // %TypeError% and %TypeError.prototype%
-    let type_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    let (type_error_constructor, type_error_proto) = set_up_native_error(agent, "TypeError");
     realm_rec.borrow_mut().intrinsics.type_error_prototype = type_error_proto;
-    let type_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
-    define_property_or_throw(
-        agent,
-        &type_error_constructor,
-        &PropertyKey::from("prototype"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.type_error_prototype.clone())),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &type_error_constructor,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
     realm_rec.borrow_mut().intrinsics.type_error = type_error_constructor;
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.type_error_prototype,
-        &PropertyKey::from("constructor"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.type_error_prototype,
-        &PropertyKey::from("message"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from(""))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.type_error_prototype,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("TypeError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+
     ///////////////////////////////////////////////////////////////////
     // %ReferenceError% and %ReferenceError.prototype%
-    let reference_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    let (reference_error_constructor, reference_error_proto) = set_up_native_error(agent, "ReferenceError");
     realm_rec.borrow_mut().intrinsics.reference_error_prototype = reference_error_proto;
-    let reference_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
-    define_property_or_throw(
-        agent,
-        &reference_error_constructor,
-        &PropertyKey::from("prototype"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.reference_error_prototype.clone())),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &reference_error_constructor,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
     realm_rec.borrow_mut().intrinsics.reference_error = reference_error_constructor;
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.reference_error_prototype,
-        &PropertyKey::from("constructor"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.reference_error_prototype,
-        &PropertyKey::from("message"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from(""))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.reference_error_prototype,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("ReferenceError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+
     ///////////////////////////////////////////////////////////////////
     // %SyntaxError% and %SyntaxError.prototype%
-    let syntax_error_proto = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.error_prototype), &[]);
+    let (syntax_error_constructor, syntax_error_proto) = set_up_native_error(agent, "SyntaxError");
     realm_rec.borrow_mut().intrinsics.syntax_error_prototype = syntax_error_proto;
-    let syntax_error_constructor = ordinary_object_create(agent, Some(&realm_rec.borrow().intrinsics.function_prototype), &[]);
-    define_property_or_throw(
-        agent,
-        &syntax_error_constructor,
-        &PropertyKey::from("prototype"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.syntax_error_prototype.clone())),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &syntax_error_constructor,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("SyntaxError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
     realm_rec.borrow_mut().intrinsics.syntax_error = syntax_error_constructor;
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.syntax_error_prototype,
-        &PropertyKey::from("constructor"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::Object(realm_rec.borrow().intrinsics.error.clone())),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.syntax_error_prototype,
-        &PropertyKey::from("message"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from(""))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.syntax_error_prototype,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("SyntaxError"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
 
-    add_restricted_function_properties(agent, &realm_rec.borrow().intrinsics.function_prototype, realm_rec.clone());
+    add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 
-    attach_object_prototype_properties(agent, realm_rec.clone(), &realm_rec.borrow().intrinsics.object_prototype);
+    attach_object_prototype_properties(agent, realm_rec.clone(), &object_prototype);
 }
 
 // From function objects...
@@ -650,3 +535,6 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
 
     fcn
 }
+
+#[cfg(test)]
+mod tests;
