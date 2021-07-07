@@ -33,3 +33,38 @@ function s() {
   | less -R
   popd > /dev/null
 }
+
+function report() {
+  pushd ~/*/rust-e262 > /dev/null
+
+  extra_args=
+  pager=cat
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --uncovered)
+        extra_args="$extra_args --region-coverage-lt=100"
+        ;;
+      --demangled)
+        extra_args="$extra_args -Xdemangler=rustfilt"
+        ;;
+      --name=*)
+        extra_args="$extra_args $1"
+        ;;
+      --pager)
+        pager="less -R"
+        ;;
+    esac
+    shift
+  done
+
+  cargo cov -- show \
+    --use-color \
+    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
+    --instr-profile=res.profdata $(objects) \
+    --show-instantiations \
+    --show-line-counts-or-regions \
+    --show-expansions \
+    $extra_args | $pager
+
+  popd > /dev/null
+}
