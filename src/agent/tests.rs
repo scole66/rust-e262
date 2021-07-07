@@ -1,6 +1,7 @@
 use super::*;
 use crate::execution_context::{ScriptOrModule, ScriptRecord};
 use ahash::AHashSet;
+use crate::tests::test_agent;
 
 #[test]
 fn agent_new() {
@@ -137,4 +138,43 @@ fn wksid_clone() {
     let w2 = w1.clone();
 
     assert_eq!(w1, w2);
+}
+
+#[test]
+fn wks_descriptions() {
+    let agent = test_agent();
+    let symbols = vec![
+        WksId::AsyncIterator,
+        WksId::HasInstance,
+        WksId::IsConcatSpreadable,
+        WksId::Iterator,
+        WksId::Match,
+        WksId::MatchAll,
+        WksId::Replace,
+        WksId::Search,
+        WksId::Species,
+        WksId::Split,
+        WksId::ToPrimitive,
+        WksId::ToStringTag,
+        WksId::Unscopables,
+    ];
+    let descriptions = vec![
+        "Symbol.asyncIterator",
+        "Symbol.hasInstance",
+        "Symbol.isConcatSpreadable",
+        "Symbol.iterator",
+        "Symbol.match",
+        "Symbol.matchAll",
+        "Symbol.replace",
+        "Symbol.search",
+        "Symbol.species",
+        "Symbol.split",
+        "Symbol.toPrimitive",
+        "Symbol.toStringTag",
+        "Symbol.unscopables",
+    ];
+    for (id, expected) in symbols.iter().zip(descriptions) {
+        let desc = agent.wks(*id).description().unwrap();
+        assert_eq!(desc, JSString::from(expected));
+    }
 }
