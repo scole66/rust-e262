@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
-
+phooey
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -66,7 +66,35 @@ fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
     }
 }
 
+use agent::Agent;
+use errors::create_syntax_error_object;
+use object::get;
+use realm::IntrinsicId;
+use values::{to_object, PropertyKey};
+
 fn repl(vm: &mut VM) {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    let e = create_syntax_error_object(&mut agent, "Test Message");
+    println!("e: {:#?}", e);
+    let syntax_error_proto = e.o.get_prototype_of().unwrap().unwrap();
+    println!("e.[[Prototype]]: {:#?}", syntax_error_proto);
+    if syntax_error_proto == agent.intrinsic(IntrinsicId::SyntaxErrorPrototype) {
+        println!("    (aka %SyntaxError.Prototype%)")
+    }
+    let syntax_error_constructor_val = get(&mut agent, &syntax_error_proto, &PropertyKey::from("constructor")).unwrap();
+    let syntax_error_constructor = to_object(&mut agent, syntax_error_constructor_val).unwrap();
+    println!("e.[[Prototype]].constructor: {:#?}", syntax_error_constructor);
+    if syntax_error_constructor == agent.intrinsic(IntrinsicId::SyntaxError) {
+        println!("    (aka %SyntaxError%)");
+    }
+    let syntax_error_other_proto_val = get(&mut agent, &syntax_error_constructor, &PropertyKey::from("prototype")).unwrap();
+    let syntax_error_other_proto = to_object(&mut agent, syntax_error_other_proto_val).unwrap();
+    println!("e.[[Prototype]].constructor.prototype: {:#?}", syntax_error_other_proto);
+    if syntax_error_other_proto == agent.intrinsic(IntrinsicId::SyntaxErrorPrototype) {
+        println!("    (aka %SyntaxError.Prototype%)");
+    }
+
     loop {
         print!("> ");
         io::stdout().flush().unwrap();
