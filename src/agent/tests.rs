@@ -1,7 +1,7 @@
 use super::*;
 use crate::execution_context::{ScriptOrModule, ScriptRecord};
-use ahash::AHashSet;
 use crate::tests::test_agent;
+use ahash::AHashSet;
 
 #[test]
 fn agent_new() {

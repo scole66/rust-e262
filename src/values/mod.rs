@@ -248,8 +248,8 @@ impl Hash for Symbol {
 }
 
 impl Symbol {
-    pub fn new(agent: &mut Agent, description: JSString) -> Self {
-        Self(Rc::new(SymbolInternals { id: agent.next_symbol_id(), description: Some(description) }))
+    pub fn new(agent: &mut Agent, description: Option<JSString>) -> Self {
+        Self(Rc::new(SymbolInternals { id: agent.next_symbol_id(), description }))
     }
     pub fn description(&self) -> Option<JSString> {
         self.0.description.as_ref().cloned()

@@ -179,7 +179,7 @@ fn ecmascript_value_is_string() {
 fn ecmascript_value_is_symbol() {
     let mut agent = test_agent();
     assert_eq!(ECMAScriptValue::Undefined.is_symbol(), false);
-    assert_eq!(ECMAScriptValue::from(Symbol::new(&mut agent, JSString::from("Test Symbol"))).is_symbol(), true);
+    assert_eq!(ECMAScriptValue::from(Symbol::new(&mut agent, Some(JSString::from("Test Symbol")))).is_symbol(), true);
     assert_eq!(ECMAScriptValue::Null.is_symbol(), false);
 }
 #[test]
@@ -204,11 +204,43 @@ fn ecmascript_value_is_numeric() {
     assert_eq!(ECMAScriptValue::Null.is_numeric(), false);
     assert_eq!(ECMAScriptValue::from(BigInt::from(10)).is_numeric(), true);
 }
+#[test]
+fn ecmascript_value_concise() {
+    // Calling this on our own isn't really do-able; we need to get there via Display or Debug.
+    let mut agent = test_agent();
+    let obj_proto = &agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Undefined"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Null"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Number"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("String"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Boolean"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("BigInt"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() })
+        .unwrap();
+    let sym = Symbol::new(&mut agent, Some(JSString::from("San Francisco")));
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Symbol"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() }).unwrap();
+    let propobj = &agent.intrinsic(IntrinsicId::Boolean);
+    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Object"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() }).unwrap();
+
+    assert_ne!(format!("{:?}", obj), "");
+}
 
 #[test]
 fn symbol_debug() {
     let agent = test_agent();
     assert_ne!(format!("{:?}", agent.wks(WksId::ToPrimitive)), "");
+}
+#[test]
+fn symbol_display_normal() {
+    let mut agent = test_agent();
+    let symbol = Symbol::new(&mut agent, Some(JSString::from("Normal")));
+    assert_eq!(format!("{}", symbol), "Symbol(Normal)");
+}
+#[test]
+fn symbol_display_empty() {
+    let mut agent = test_agent();
+    let symbol = Symbol::new(&mut agent, None);
+    assert_eq!(format!("{}", symbol), "Symbol()");
 }
 #[test]
 fn symbol_clone() {
@@ -234,9 +266,9 @@ fn symbol_hash() {
 #[test]
 fn symbol_new() {
     let mut agent = test_agent();
-    let s1 = Symbol::new(&mut agent, JSString::from("Symbol #1"));
-    let s2 = Symbol::new(&mut agent, JSString::from("Symbol #2"));
-    let s3 = Symbol::new(&mut agent, JSString::from("Symbol #1"));
+    let s1 = Symbol::new(&mut agent, Some(JSString::from("Symbol #1")));
+    let s2 = Symbol::new(&mut agent, Some(JSString::from("Symbol #2")));
+    let s3 = Symbol::new(&mut agent, Some(JSString::from("Symbol #1")));
     let s4 = s1.clone();
 
     assert_ne!(s1, s2);
@@ -249,7 +281,7 @@ fn symbol_new() {
 #[test]
 fn symbol_description() {
     let mut agent = test_agent();
-    let s1 = Symbol::new(&mut agent, JSString::from("Test Symbol"));
+    let s1 = Symbol::new(&mut agent, Some(JSString::from("Test Symbol")));
     assert_eq!(s1.description(), Some(JSString::from("Test Symbol")));
 }
 #[test]
@@ -315,6 +347,13 @@ fn property_key_from() {
 #[test]
 fn property_key_debug() {
     assert_ne!(format!("{:?}", PropertyKey::from("a")), "");
+}
+#[test]
+fn property_key_display() {
+    let agent = test_agent();
+    let sym = agent.wks(WksId::HasInstance);
+    assert_eq!(format!("{}", PropertyKey::from("tangerine")), "tangerine");
+    assert_eq!(format!("{}", PropertyKey::from(sym)), "Symbol(Symbol.hasInstance)");
 }
 #[test]
 fn property_key_clone() {
@@ -616,7 +655,7 @@ fn to_primitive_no_change() {
     let result = to_primitive(&mut agent, &ECMAScriptValue::from("test"), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test"));
     // Symbol
-    let sym = Symbol::new(&mut agent, JSString::from("Symbolic"));
+    let sym = Symbol::new(&mut agent, Some(JSString::from("Symbolic")));
     let result = to_primitive(&mut agent, &ECMAScriptValue::from(sym.clone()), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(sym.clone()));
     // BigInt
