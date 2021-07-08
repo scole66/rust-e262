@@ -200,3 +200,9 @@ fn bool_object_checks() {
     assert!(bool_obj.o.to_error_obj().is_none());
     assert!(bool_obj.o.to_callable_obj().is_none());
 }
+#[test]
+fn bool_object_debug() {
+    let mut agent = test_agent();
+    let bool_obj = create_boolean_object(&mut agent, true);
+    assert_ne!(format!("{:?}", bool_obj), "");
+}
