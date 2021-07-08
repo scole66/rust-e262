@@ -10,6 +10,7 @@ fn token_type_clone() {
     let t1 = TokenType::Numeric;
     let t2 = t1.clone();
     assert!(matches!(t2, TokenType::Numeric));
+    assert!(false);
 }
 #[test]
 fn token_type_display() {
