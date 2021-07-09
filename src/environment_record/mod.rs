@@ -435,7 +435,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn has_binding(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
-        let found_binding = has_property(binding_object, &name_key)?;
+        let found_binding = has_property(agent, binding_object, &name_key)?;
         if !found_binding {
             Ok(false)
         } else if !self.is_with_environment {
@@ -511,7 +511,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> AltCompletion<()> {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
-        let still_exists = has_property(binding_object, &name_key)?;
+        let still_exists = has_property(agent, binding_object, &name_key)?;
         if !still_exists && strict {
             Err(create_reference_error(agent, "Reference no longer exists"))
         } else {
@@ -535,7 +535,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn get_binding_value(&self, agent: &mut Agent, name: &JSString, strict: bool) -> Completion {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
-        let has_prop = has_property(binding_object, &name_key)?;
+        let has_prop = has_property(agent, binding_object, &name_key)?;
         if !has_prop {
             if !strict {
                 Ok(ECMAScriptValue::Undefined)
@@ -555,10 +555,10 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //
     //  1. Let bindingObject be envRec.[[BindingObject]].
     //  2. Return ? bindingObject.[[Delete]](N).
-    fn delete_binding(&self, _agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
+    fn delete_binding(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
-        binding_object.o.delete(&name_key)
+        binding_object.o.delete(agent, &name_key)
     }
 
     // HasThisBinding ( )
@@ -787,11 +787,11 @@ impl FunctionEnvironmentRecord {
     //  2. If home has the value undefined, return undefined.
     //  3. Assert: Type(home) is Object.
     //  4. Return ? home.[[GetPrototypeOf]]().
-    pub fn get_super_base(&self) -> AltCompletion<Option<Object>> {
+    pub fn get_super_base(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
         let fo = self.function_object.o.to_function_obj().unwrap();
         let home = &fo.function_data().borrow().home_object;
         match home {
-            Some(obj) => obj.o.get_prototype_of(),
+            Some(obj) => obj.o.get_prototype_of(agent),
             None => Ok(None),
         }
     }
@@ -1062,7 +1062,7 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
             self.declarative_record.delete_binding(agent, name)
         } else {
             let global_object = &self.object_record.binding_object;
-            if has_own_property(global_object, &name.clone().into())? {
+            if has_own_property(agent, global_object, &name.clone().into())? {
                 let status = self.object_record.delete_binding(agent, name)?;
                 if status {
                     self.var_names.borrow_mut().remove(name);
@@ -1166,9 +1166,9 @@ impl GlobalEnvironmentRecord {
     //          var or function declaration. A global lexical binding may not be created that has the same name as a
     //          non-configurable property of the global object. The global property "undefined" is an example of such a
     //          property.
-    pub fn has_restricted_global_property(&self, name: &JSString) -> AltCompletion<bool> {
+    pub fn has_restricted_global_property(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let global_object = &self.object_record.binding_object;
-        let existing_prop = global_object.o.get_own_property(&name.clone().into())?;
+        let existing_prop = global_object.o.get_own_property(agent, &name.clone().into())?;
         match existing_prop {
             None => Ok(false),
             Some(prop) => Ok(!prop.configurable),
@@ -1187,9 +1187,9 @@ impl GlobalEnvironmentRecord {
     //  3. Let hasProperty be ? HasOwnProperty(globalObject, N).
     //  4. If hasProperty is true, return true.
     //  5. Return ? IsExtensible(globalObject).
-    pub fn can_declare_global_var(&self, name: &JSString) -> AltCompletion<bool> {
+    pub fn can_declare_global_var(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let global_object = &self.object_record.binding_object;
-        Ok(has_own_property(global_object, &name.clone().into())? || is_extensible(global_object)?)
+        Ok(has_own_property(agent, global_object, &name.clone().into())? || is_extensible(agent, global_object)?)
     }
 
     // CanDeclareGlobalFunction ( N )
@@ -1205,11 +1205,11 @@ impl GlobalEnvironmentRecord {
     //  5. If existingProp.[[Configurable]] is true, return true.
     //  6. If IsDataDescriptor(existingProp) is true and existingProp has attribute values { [[Writable]]: true, [[Enumerable]]: true }, return true.
     //  7. Return false.
-    pub fn can_declare_global_function(&self, name: &JSString) -> AltCompletion<bool> {
+    pub fn can_declare_global_function(&self, agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let global_object = &self.object_record.binding_object;
-        let existing_prop = global_object.o.get_own_property(&name.clone().into())?;
+        let existing_prop = global_object.o.get_own_property(agent, &name.clone().into())?;
         match existing_prop {
-            None => is_extensible(global_object),
+            None => is_extensible(agent, global_object),
             Some(prop) => Ok(prop.configurable || (prop.is_data_descriptor() && prop.writable() == Some(true) && prop.enumerable)),
         }
     }
@@ -1234,8 +1234,8 @@ impl GlobalEnvironmentRecord {
     //  8. Return NormalCompletion(empty).
     pub fn create_global_var_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> AltCompletion<()> {
         let global_object = &self.object_record.binding_object;
-        let has_property = has_own_property(global_object, &name.clone().into())?;
-        let extensible = is_extensible(global_object)?;
+        let has_property = has_own_property(agent, global_object, &name.clone().into())?;
+        let extensible = is_extensible(agent, global_object)?;
         if !has_property && extensible {
             self.object_record.create_mutable_binding(agent, name.clone(), deletable)?;
             self.object_record.initialize_binding(agent, &name, ECMAScriptValue::Undefined)?;
@@ -1273,7 +1273,7 @@ impl GlobalEnvironmentRecord {
     pub fn create_global_function_binding(&self, agent: &mut Agent, name: JSString, val: ECMAScriptValue, deletable: bool) -> AltCompletion<()> {
         let global_object = &self.object_record.binding_object;
         let prop_key: PropertyKey = name.clone().into();
-        let existing_prop = global_object.o.get_own_property(&prop_key)?;
+        let existing_prop = global_object.o.get_own_property(agent, &prop_key)?;
         let full_pd = |v, d| PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(d), ..Default::default() };
         let desc = match existing_prop {
             None => full_pd(val, deletable),

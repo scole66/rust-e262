@@ -44,7 +44,7 @@ impl ObjectInterface for BooleanObject {
         true
     }
 
-    fn get_prototype_of(&self) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -54,7 +54,7 @@ impl ObjectInterface for BooleanObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -64,7 +64,7 @@ impl ObjectInterface for BooleanObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self) -> AltCompletion<bool> {
+    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -74,7 +74,7 @@ impl ObjectInterface for BooleanObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -84,7 +84,7 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -94,8 +94,8 @@ impl ObjectInterface for BooleanObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
-        ordinary_define_own_property(self, key, desc)
+    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+        ordinary_define_own_property(agent, self, key, desc)
     }
 
     // [[HasProperty]] ( P )
@@ -104,8 +104,8 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, key: &PropertyKey) -> AltCompletion<bool> {
-        ordinary_has_property(self, key)
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+        ordinary_has_property(agent, self, key)
     }
 
     // [[Get]] ( P, Receiver )
@@ -115,7 +115,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
-        ordinary_get(self, agent, key, receiver)
+        ordinary_get(agent, self, key, receiver)
     }
 
     // [[Set]] ( P, V, Receiver )
@@ -125,7 +125,7 @@ impl ObjectInterface for BooleanObject {
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
     fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
-        ordinary_set(self, agent, key, v, receiver)
+        ordinary_set(agent, self, key, v, receiver)
     }
 
     // [[Delete]] ( P )
@@ -134,8 +134,8 @@ impl ObjectInterface for BooleanObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, key: &PropertyKey) -> AltCompletion<bool> {
-        ordinary_delete(self, key)
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+        ordinary_delete(agent, self, key)
     }
 
     // [[OwnPropertyKeys]] ( )
@@ -144,7 +144,7 @@ impl ObjectInterface for BooleanObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
 }

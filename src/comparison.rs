@@ -1,3 +1,4 @@
+use crate::agent::Agent;
 use crate::cr::AltCompletion;
 use crate::object::ObjectInterface;
 
@@ -9,9 +10,9 @@ use crate::object::ObjectInterface;
 //
 //  1. Assert: Type(O) is Object.
 //  2. Return ? O.[[IsExtensible]]().
-pub fn is_extensible<'a, T>(obj: T) -> AltCompletion<bool>
+pub fn is_extensible<'a, T>(agent: &mut Agent, obj: T) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
-    obj.into().is_extensible()
+    obj.into().is_extensible(agent)
 }
