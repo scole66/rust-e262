@@ -1,10 +1,11 @@
 use super::*;
 use crate::strings::JSString;
+use crate::tests::test_agent;
 
 #[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
 
     // Then requesting a new object with no prototype or extra slots
     let obj = ordinary_object_create(&mut agent, None, &[]);
@@ -19,7 +20,7 @@ fn ordinary_object_create_01() {
 #[test]
 fn ordinary_object_create_02() {
     // When an agent and a prototype are provided
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype but no extra slots
@@ -36,7 +37,7 @@ fn ordinary_object_create_02() {
 #[test]
 fn ordinary_object_create_03a() {
     // When an agent and a prototype are provided
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -52,7 +53,7 @@ fn ordinary_object_create_03a() {
 #[test]
 fn ordinary_object_create_03b() {
     // When an agent and a prototype are provided
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -68,7 +69,7 @@ fn ordinary_object_create_03b() {
 #[test]
 fn ordinary_object_create_03c() {
     // When an agent and a prototype are provided
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
@@ -85,29 +86,30 @@ fn ordinary_object_create_03c() {
 #[test]
 #[should_panic]
 fn make_basic_object_01() {
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense], None);
 }
 #[test]
 #[should_panic]
 fn make_basic_object_02() {
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible], None);
 }
 
 #[test]
 fn get_prototype_of_01() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
-    let result = obj.o.get_prototype_of();
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut test_agent(), None, &[]);
+    let result = obj.o.get_prototype_of(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), None);
 }
 #[test]
 fn get_prototype_of_02() {
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj = ordinary_object_create(&mut agent, Some(&proto), &[]);
-    let result = obj.o.get_prototype_of();
+    let result = obj.o.get_prototype_of(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap().as_ref(), Some(&proto));
 }
@@ -115,9 +117,9 @@ fn get_prototype_of_02() {
 #[test]
 fn set_prototype_of_01() {
     // Not changing an empty prototype
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let obj_a = ordinary_object_create(&mut agent, None, &[]);
-    let result = obj_a.o.set_prototype_of(None);
+    let result = obj_a.o.set_prototype_of(&mut agent, None);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj_a.o.common_object_data().borrow().prototype, None);
@@ -125,10 +127,10 @@ fn set_prototype_of_01() {
 #[test]
 fn set_prototype_of_02() {
     // Not changing a Some() prototype
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let obj_a = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&obj_a), &[]);
-    let result = obj_b.o.set_prototype_of(Some(&obj_a));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(&obj_a));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&obj_a));
@@ -136,11 +138,11 @@ fn set_prototype_of_02() {
 #[test]
 fn set_prototype_of_03() {
     // Changing a Some() prototype to a different Some() prototype
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
-    let result = obj_b.o.set_prototype_of(Some(&new_proto));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(&new_proto));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&new_proto));
@@ -148,10 +150,10 @@ fn set_prototype_of_03() {
 #[test]
 fn set_prototype_of_04() {
     // Trying to make a prototype loop
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
-    let result = proto.o.set_prototype_of(Some(&obj_b));
+    let result = proto.o.set_prototype_of(&mut agent, Some(&obj_b));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
     assert_eq!(proto.o.common_object_data().borrow().prototype.as_ref(), None);
@@ -159,12 +161,12 @@ fn set_prototype_of_04() {
 #[test]
 fn set_prototype_of_05() {
     // Changing the prototype of an object that's not extensible
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
     obj_b.o.common_object_data().borrow_mut().extensible = false;
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
-    let result = obj_b.o.set_prototype_of(Some(&new_proto));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(&new_proto));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&proto));
@@ -172,24 +174,27 @@ fn set_prototype_of_05() {
 
 #[test]
 fn is_extensible_01() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
-    let result = obj.o.is_extensible();
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let result = obj.o.is_extensible(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
 }
 #[test]
 fn is_extensible_02() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
     obj.o.common_object_data().borrow_mut().extensible = false;
-    let result = obj.o.is_extensible();
+    let result = obj.o.is_extensible(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
 
 #[test]
 fn prevent_extensions_01() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
-    let result = obj.o.prevent_extensions();
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let result = obj.o.prevent_extensions(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj.o.common_object_data().borrow().extensible, false);
@@ -197,21 +202,23 @@ fn prevent_extensions_01() {
 
 #[test]
 fn get_own_property_01() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
-    let result = obj.o.get_own_property(&key);
+    let result = obj.o.get_own_property(&mut agent, &key);
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());
 }
 #[test]
 fn get_own_property_02() {
-    let obj = ordinary_object_create(&mut Agent::new(), None, &[]);
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(89.0);
     let desc = PotentialPropertyDescriptor { value: Some(value), writable: Some(false), enumerable: Some(true), configurable: None, get: None, set: None };
-    obj.o.define_own_property(&key, &desc).expect("oops");
+    obj.o.define_own_property(&mut agent, &key, &desc).expect("oops");
 
-    let result = obj.o.get_own_property(&key);
+    let result = obj.o.get_own_property(&mut agent, &key);
     assert!(result.is_ok());
     let maybe_pd = result.unwrap();
     assert!(maybe_pd.is_some());
@@ -227,7 +234,7 @@ fn get_own_property_02() {
 
 #[test]
 fn set_and_get() {
-    let mut agent = Agent::new();
+    let mut agent = test_agent();
 
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
