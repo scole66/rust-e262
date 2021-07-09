@@ -94,6 +94,14 @@ pub fn unwind_syntax_error_object(agent: &mut Agent, err: Object) -> String {
     unwind_error_object(agent, "SyntaxError", err)
 }
 
+pub fn unwind_reference_error(agent: &mut Agent, completion: AbruptCompletion) -> String {
+    unwind_error(agent, "ReferenceError", completion)
+}
+
+pub fn unwind_reference_error_object(agent: &mut Agent, err: Object) -> String {
+    unwind_error_object(agent, "ReferenceError", err)
+}
+
 pub fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
     let mut s = factory.build_hasher();
     t.hash(&mut s);

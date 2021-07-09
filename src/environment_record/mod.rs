@@ -135,19 +135,37 @@ pub trait EnvironmentRecord: Debug {
 // The behaviour of the concrete specification methods for declarative Environment Records is defined by the following
 // algorithms.
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Removability {
     Deletable,
     Permanent,
 }
 
-#[derive(Debug, PartialEq)]
-enum Strictness {
-    Strict,
-    Loose,
+impl From<bool> for Removability {
+    fn from(source: bool) -> Self {
+        match source {
+            true => Removability::Deletable,
+            false => Removability::Permanent,
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum Strictness {
+    Strict,
+    Sloppy,
+}
+
+impl From<bool> for Strictness {
+    fn from(source: bool) -> Self {
+        match source {
+            true => Strictness::Strict,
+            false => Strictness::Sloppy,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Mutability {
     Mutable(Removability),
     Immutable(Strictness),
@@ -191,10 +209,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     //     newly created binding may be deleted by a subsequent DeleteBinding call.
     //  3. Return NormalCompletion(empty).
     fn create_mutable_binding(&self, _agent: &mut Agent, name: JSString, deletable: bool) -> AltCompletion<()> {
-        let removable = match deletable {
-            true => Removability::Deletable,
-            false => Removability::Permanent,
-        };
+        let removable = Removability::from(deletable);
         self.bindings.borrow_mut().insert(name, Binding { value: None, mutability: Mutability::Mutable(removable) });
         Ok(())
     }
@@ -211,10 +226,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     //    newly created binding is a strict binding.
     // 3. Return NormalCompletion(empty).
     fn create_immutable_binding(&self, _agent: &mut Agent, name: JSString, strict: bool) -> AltCompletion<()> {
-        let strictness = match strict {
-            true => Strictness::Strict,
-            false => Strictness::Loose,
-        };
+        let strictness = Strictness::from(strict);
         self.bindings.borrow_mut().insert(name, Binding { value: None, mutability: Mutability::Immutable(strictness) });
         Ok(())
     }
@@ -271,7 +283,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
             }
             Some(item) => match item.value {
                 None => {
-                    return Err(create_reference_error(agent, "Identifier not defined"));
+                    return Err(create_reference_error(agent, "Binding not initialized"));
                 }
                 Some(_) => match &item.mutability {
                     Mutability::Mutable(_) => {
@@ -320,7 +332,7 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     fn delete_binding(&self, _agent: &mut Agent, name: &JSString) -> AltCompletion<bool> {
         let mut bindings = self.bindings.borrow_mut();
         let item = bindings.get(name).unwrap();
-        if matches!(item.mutability, Mutability::Mutable(Removability::Permanent)) {
+        if item.mutability != Mutability::Mutable(Removability::Deletable) {
             Ok(false)
         } else {
             bindings.remove(name);
@@ -1319,3 +1331,6 @@ pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn En
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

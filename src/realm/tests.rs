@@ -84,5 +84,5 @@ fn throw_type_error_test() {
     let mut agent = test_agent();
     let err = throw_type_error(&mut agent, ECMAScriptValue::Undefined, ECMAScriptValue::Undefined, &[]).unwrap_err();
     let msg = unwind_type_error(&mut agent, err);
-    assert_eq!(msg, "");
+    assert_eq!(msg, "Generic TypeError");
 }
