@@ -1391,38 +1391,38 @@ impl ObjectInterface for DeadObject {
         self.objid
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
-        unreachable!();
+    fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
+        Err(create_type_error(agent, "get_prototype_of called on DeadObject"))
     }
-    fn set_prototype_of(&self, _agent: &mut Agent, _obj: Option<&Object>) -> AltCompletion<bool> {
-        unreachable!();
+    fn set_prototype_of(&self, agent: &mut Agent, _obj: Option<&Object>) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "set_prototype_of called on DeadObject"))
     }
-    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
-        unreachable!();
+    fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "is_extensible called on DeadObject"))
     }
-    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
-        unreachable!();
+    fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "prevent_extensions called on DeadObject"))
     }
-    fn get_own_property(&self, _agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
-        unreachable!();
+    fn get_own_property(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        Err(create_type_error(agent, "get_own_property called on DeadObject"))
     }
-    fn define_own_property(&self, _agent: &mut Agent, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
-        unreachable!();
+    fn define_own_property(&self, agent: &mut Agent, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "define_own_property called on DeadObject"))
     }
-    fn has_property(&self, _agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
-        unreachable!();
+    fn has_property(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "has_property called on DeadObject"))
     }
-    fn get(&self, _agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion {
-        unreachable!();
+    fn get(&self, agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion {
+        Err(create_type_error(agent, "get called on DeadObject"))
     }
-    fn set(&self, _agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> AltCompletion<bool> {
-        unreachable!();
+    fn set(&self, agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "set called on DeadObject"))
     }
-    fn delete(&self, _agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
-        unreachable!();
+    fn delete(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
+        Err(create_type_error(agent, "delete called on DeadObject"))
     }
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        unreachable!();
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Err(create_type_error(agent, "own_property_keys called on DeadObject"))
     }
 }
 
