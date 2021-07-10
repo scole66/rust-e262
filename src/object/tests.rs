@@ -1,6 +1,7 @@
 use super::*;
 use crate::strings::JSString;
-use crate::tests::test_agent;
+use crate::tests::{printer_validate, test_agent};
+use std::io::Write;
 
 #[test]
 fn data_property_debug() {
@@ -199,9 +200,11 @@ fn concise_property_descriptor_debug() {
     let p1 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
     let c1 = ConcisePropertyDescriptor::from(&p1);
     assert_eq!(format!("{:?}", c1), "{ true wec }");
+    printer_validate(|w| write!(w, "{:?}", c1));
     let p2 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: false, configurable: false, spot: 10 };
     let c2 = ConcisePropertyDescriptor::from(&p2);
     assert_eq!(format!("{:?}", c2), "{ true --- }");
+    printer_validate(|w| write!(w, "{:?}", c2));
     let p3 = PropertyDescriptor {
         property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(true), set: ECMAScriptValue::Undefined }),
         enumerable: false,
@@ -210,6 +213,7 @@ fn concise_property_descriptor_debug() {
     };
     let c3 = ConcisePropertyDescriptor::from(&p3);
     assert_eq!(format!("{:?}", c3), "{ [[Get]]: true [[Set]]: undefined -c }");
+    printer_validate(|w| write!(w, "{:?}", c3));
 }
 
 #[test]
