@@ -769,3 +769,66 @@ fn object_environment_record_get_outer_env() {
     let val_from_outer = outer.get_binding_value(&mut agent, &JSString::from("sentinel"), true).unwrap();
     assert_eq!(val_from_outer, ECMAScriptValue::from("very unique string"));
 }
+
+const ALL_BINDINGSTATUS: [BindingStatus; 3] = [BindingStatus::Lexical, BindingStatus::Initialized, BindingStatus::Uninitialized];
+#[test]
+fn binding_status_debug() {
+    for val in ALL_BINDINGSTATUS {
+        assert_ne!(format!("{:?}", val), "");
+    }
+}
+#[test]
+fn binding_status_eq() {
+    for (right_idx, right_value) in ALL_BINDINGSTATUS.iter().enumerate() {
+        for (left_idx, left_value) in ALL_BINDINGSTATUS.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+        }
+    }
+}
+
+#[test]
+fn global_environment_record_debug() {
+    let mut agent = test_agent();
+    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+    let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+    let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+    assert_ne!(format!("{:?}", ger), "");
+}
+
+#[test]
+fn global_environment_record_has_binding_01() {
+    let mut agent = test_agent();
+
+    let in_object_name = JSString::from("in_object");
+    let in_decl_name = JSString::from("in_decl");
+    let nobody_name = JSString::from("nobody");
+    let in_object_key = PropertyKey::from(in_object_name.clone());
+
+    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+    let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+    let in_object_property =
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &global_object, &in_object_key, &in_object_property).unwrap();
+    let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+    ger.create_mutable_binding(&mut agent, in_decl_name.clone(), true).unwrap();
+    ger.initialize_binding(&mut agent, &in_decl_name, ECMAScriptValue::from(0)).unwrap();
+
+    assert!(ger.has_binding(&mut agent, &in_decl_name).unwrap());
+    assert!(ger.has_binding(&mut agent, &in_object_name).unwrap());
+    assert!(!ger.has_binding(&mut agent, &nobody_name).unwrap());
+}
+#[test]
+fn global_environment_record_has_binding_02() {
+    let mut agent = test_agent();
+    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let global_object = DeadObject::object(&mut agent);
+    let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+    let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+    let err = ger.has_binding(&mut agent, &JSString::from("a")).unwrap_err();
+    let msg = unwind_type_error(&mut agent, err);
+    assert_eq!(msg, "has_property called on DeadObject");
+}
