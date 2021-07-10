@@ -12,25 +12,31 @@ use std::cell::RefCell;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct DataProperty {
     pub value: ECMAScriptValue,
     pub writable: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct AccessorProperty {
     pub get: ECMAScriptValue,
     pub set: ECMAScriptValue,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PropertyKind {
     Data(DataProperty),
     Accessor(AccessorProperty),
 }
 
-#[derive(Debug, Clone)]
+impl Default for PropertyKind {
+    fn default() -> Self {
+        Self::Data(Default::default())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct PropertyDescriptor {
     pub property: PropertyKind,
     pub enumerable: bool,
@@ -96,7 +102,7 @@ impl DescriptorKind for PropertyDescriptor {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct PotentialPropertyDescriptor {
     pub value: Option<ECMAScriptValue>,
     pub writable: Option<bool>,

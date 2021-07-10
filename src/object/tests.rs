@@ -3,6 +3,318 @@ use crate::strings::JSString;
 use crate::tests::test_agent;
 
 #[test]
+fn data_property_debug() {
+    let dp = DataProperty { value: ECMAScriptValue::Null, writable: true };
+    assert_ne!(format!("{:?}", dp), "");
+}
+#[test]
+fn data_property_eq() {
+    let items: [DataProperty; 4] = [
+        DataProperty { value: ECMAScriptValue::from("blue"), writable: true },
+        DataProperty { value: ECMAScriptValue::from("blue"), writable: false },
+        DataProperty { value: ECMAScriptValue::from(true), writable: true },
+        DataProperty { value: ECMAScriptValue::from(33), writable: false },
+    ];
+    for (right_idx, right_value) in items.iter().enumerate() {
+        for (left_idx, left_value) in items.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+            assert_eq!(*left_value != *right_value, left_idx != right_idx);
+        }
+    }
+}
+#[test]
+fn data_property_clone() {
+    let p1 = DataProperty { value: ECMAScriptValue::from("blue"), writable: true };
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+}
+#[test]
+fn data_property_default() {
+    let p: DataProperty = Default::default();
+    assert_eq!(p, DataProperty { value: ECMAScriptValue::Undefined, writable: false });
+}
+
+#[test]
+fn accessor_property_debug() {
+    let p1 = AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined };
+    assert_ne!(format!("{:?}", p1), "");
+}
+#[test]
+fn accessor_property_eq() {
+    let items: [AccessorProperty; 4] = [
+        AccessorProperty { get: ECMAScriptValue::from(55), set: ECMAScriptValue::from("movies") },
+        AccessorProperty { get: ECMAScriptValue::from(55), set: ECMAScriptValue::Undefined },
+        AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from("movies") },
+        AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined },
+    ];
+    for (right_idx, right_value) in items.iter().enumerate() {
+        for (left_idx, left_value) in items.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+            assert_eq!(*left_value != *right_value, left_idx != right_idx);
+        }
+    }
+}
+#[test]
+fn accessor_property_clone() {
+    let p1 = AccessorProperty { get: ECMAScriptValue::from(10), set: ECMAScriptValue::from("a") };
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+}
+#[test]
+fn accessor_property_default() {
+    let p: AccessorProperty = Default::default();
+    assert_eq!(p, AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined });
+}
+
+#[test]
+fn property_kind_debug() {
+    let pk = PropertyKind::Data(DataProperty { value: ECMAScriptValue::Null, writable: false });
+    assert_ne!(format!("{:?}", pk), "");
+}
+#[test]
+fn property_kind_eq() {
+    let items: [PropertyKind; 4] = [
+        PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }),
+        PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from("movies") }),
+        PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+    ];
+    for (right_idx, right_value) in items.iter().enumerate() {
+        for (left_idx, left_value) in items.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+            assert_eq!(*left_value != *right_value, left_idx != right_idx);
+        }
+    }
+}
+#[test]
+fn property_kind_clone() {
+    let pk1 = PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true });
+    let pk2 = pk1.clone();
+    assert_eq!(pk1, pk2);
+}
+#[test]
+fn property_kind_default() {
+    let def: PropertyKind = Default::default();
+    let expected = PropertyKind::Data(Default::default());
+    assert_eq!(def, expected);
+}
+
+#[test]
+fn property_descriptor_debug() {
+    let p = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 10 };
+    assert_ne!(format!("{:?}", p), "");
+}
+#[test]
+fn property_descriptor_eq() {
+    let items: [PropertyDescriptor; 6] = [
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 10 },
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: false }), enumerable: true, configurable: false, spot: 10 },
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: false, configurable: false, spot: 10 },
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 },
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 1 },
+        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: true }), enumerable: false, configurable: true, spot: 1 },
+    ];
+    for (right_idx, right_value) in items.iter().enumerate() {
+        for (left_idx, left_value) in items.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+            assert_eq!(*left_value != *right_value, left_idx != right_idx);
+        }
+    }
+}
+#[test]
+fn property_descriptor_clone() {
+    let p1 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+}
+#[test]
+fn property_descriptor_default() {
+    let pd: PropertyDescriptor = Default::default();
+    let expected = PropertyDescriptor { property: Default::default(), enumerable: false, configurable: false, spot: 0 };
+    assert_eq!(pd, expected);
+}
+#[test]
+fn property_descriptor_is_data_descriptor() {
+    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let a = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
+
+    assert!(d.is_data_descriptor());
+    assert!(!a.is_data_descriptor());
+}
+#[test]
+fn property_descriptor_is_accessor_descriptor() {
+    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let a = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
+
+    assert!(!d.is_accessor_descriptor());
+    assert!(a.is_accessor_descriptor());
+}
+#[test]
+fn property_descriptor_is_generic_descriptor() {
+    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let a = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
+
+    assert!(!d.is_generic_descriptor());
+    assert!(!a.is_generic_descriptor());
+}
+#[test]
+fn property_descriptor_writable() {
+    let writable = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
+    let constant = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let accessor = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
+
+    assert_eq!(writable.writable(), Some(true));
+    assert_eq!(constant.writable(), Some(false));
+    assert_eq!(accessor.writable(), None);
+}
+
+#[test]
+fn concise_property_descriptor_from() {
+    let p = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
+    let c = ConcisePropertyDescriptor::from(&p);
+    assert_eq!(*c.0, p);
+}
+#[test]
+fn concise_property_descriptor_debug() {
+    let p1 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
+    let c1 = ConcisePropertyDescriptor::from(&p1);
+    assert_eq!(format!("{:?}", c1), "{ true wec }");
+    let p2 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: false, configurable: false, spot: 10 };
+    let c2 = ConcisePropertyDescriptor::from(&p2);
+    assert_eq!(format!("{:?}", c2), "{ true --- }");
+    let p3 = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(true), set: ECMAScriptValue::Undefined }),
+        enumerable: false,
+        configurable: true,
+        spot: 10,
+    };
+    let c3 = ConcisePropertyDescriptor::from(&p3);
+    assert_eq!(format!("{:?}", c3), "{ [[Get]]: true [[Set]]: undefined -c }");
+}
+
+#[test]
+fn potential_property_descriptor_debug() {
+    let ppd: PotentialPropertyDescriptor = Default::default();
+    assert_ne!(format!("{:?}", ppd), "");
+}
+#[test]
+fn potential_property_descriptor_default() {
+    let ppd: PotentialPropertyDescriptor = Default::default();
+    assert_eq!(ppd, PotentialPropertyDescriptor { value: None, writable: None, get: None, set: None, enumerable: None, configurable: None });
+}
+#[test]
+fn potential_property_descriptor_partialeq() {
+    let items: [PotentialPropertyDescriptor; 8] = [
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) },
+        PotentialPropertyDescriptor { value: None, writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) },
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: None, get: None, set: None, enumerable: Some(true), configurable: Some(true) },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: Some(ECMAScriptValue::Undefined),
+            set: None,
+            enumerable: Some(true),
+            configurable: Some(true),
+        },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: None,
+            set: Some(ECMAScriptValue::Undefined),
+            enumerable: Some(true),
+            configurable: Some(true),
+        },
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: None, configurable: Some(true) },
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: None },
+        PotentialPropertyDescriptor { value: None, writable: None, get: None, set: None, enumerable: None, configurable: None },
+    ];
+    for (right_idx, right_value) in items.iter().enumerate() {
+        for (left_idx, left_value) in items.iter().enumerate() {
+            assert_eq!(*left_value == *right_value, left_idx == right_idx);
+            assert_eq!(*left_value != *right_value, left_idx != right_idx);
+        }
+    }
+}
+#[test]
+fn potential_property_descriptor_clone() {
+    let ppd1 = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) };
+    let ppd2 = ppd1.clone();
+    assert_eq!(ppd1, ppd2);
+}
+#[test]
+fn potential_property_descriptor_writable() {
+    let ppd1 = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
+    let ppd2 = PotentialPropertyDescriptor { writable: Some(false), ..Default::default() };
+    let ppd3 = PotentialPropertyDescriptor { writable: None, ..Default::default() };
+
+    assert_eq!(ppd1.writable(), Some(true));
+    assert_eq!(ppd2.writable(), Some(false));
+    assert_eq!(ppd3.writable(), None);
+}
+#[test]
+fn potential_property_descriptor_is_generic_descriptor() {
+    let items = [
+        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, true),
+        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, true),
+    ];
+    for (desc, expected) in items.iter() {
+        assert_eq!(desc.is_generic_descriptor(), *expected);
+    }
+}
+#[test]
+fn potential_property_descriptor_is_data_descriptor() {
+    let items = [
+        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, true),
+        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
+    ];
+    for (desc, expected) in items.iter() {
+        assert_eq!(desc.is_data_descriptor(), *expected);
+    }
+}
+#[test]
+fn potential_property_descriptor_is_accessor_descriptor() {
+    let items = [
+        (PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { writable: Some(true), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+        (PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(true)), ..Default::default() }, true),
+        (PotentialPropertyDescriptor { enumerable: Some(true), ..Default::default() }, false),
+        (PotentialPropertyDescriptor { configurable: Some(true), ..Default::default() }, false),
+    ];
+    for (desc, expected) in items.iter() {
+        assert_eq!(desc.is_accessor_descriptor(), *expected);
+    }
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();

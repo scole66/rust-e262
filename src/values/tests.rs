@@ -101,6 +101,11 @@ fn ecmascript_value_debug() {
     assert_ne!(format!("{:?}", ECMAScriptValue::Undefined), "");
 }
 #[test]
+fn ecmascript_value_default() {
+    let def: ECMAScriptValue = Default::default();
+    assert_eq!(def, ECMAScriptValue::Undefined);
+}
+#[test]
 fn ecmascript_value_from() {
     let v = ECMAScriptValue::from(true);
     assert_eq!(v, ECMAScriptValue::Boolean(true));
