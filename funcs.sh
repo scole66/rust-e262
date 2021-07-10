@@ -47,7 +47,7 @@ function report() {
       --demangled)
         extra_args="$extra_args -Xdemangler=rustfilt"
         ;;
-      --name=*)
+      --name=*|--name-regex=*)
         extra_args="$extra_args $1"
         ;;
       --pager)
