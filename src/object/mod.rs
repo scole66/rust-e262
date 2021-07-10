@@ -880,7 +880,7 @@ impl<'a> From<&'a Option<Object>> for ConciseOptionalObject<'a> {
 struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
 impl<'a> fmt::Debug for ConciseProperties<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut work = f.debug_struct("");
+        let mut work = f.debug_struct("AHashMap");
         for (key, value) in self.0.iter() {
             work.field(format!("{}", key).as_str(), &ConcisePropertyDescriptor::from(value));
         }
