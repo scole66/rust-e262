@@ -512,7 +512,7 @@ fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target
 
 fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
-    let fcn = create_builtin_function(agent, throw_type_error, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto), None);
+    let fcn = create_builtin_function(agent, throw_type_error, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     fcn.o.prevent_extensions(agent).unwrap();
     let key = PropertyKey::from("length");
     let length = get(agent, &fcn, &key).unwrap();
