@@ -155,6 +155,12 @@ impl From<Symbol> for ECMAScriptValue {
     }
 }
 
+impl Default for ECMAScriptValue {
+    fn default() -> Self {
+        Self::Undefined
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PropertyKey {
     String(JSString),
