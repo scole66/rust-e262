@@ -807,9 +807,7 @@ impl FunctionEnvironmentRecord {
             None => Ok(None),
         }
     }
-}
 
-impl FunctionEnvironmentRecord {
     // NewFunctionEnvironment ( F, newTarget )
     //
     // The abstract operation NewFunctionEnvironment takes arguments F and newTarget. It performs the following steps
@@ -1301,6 +1299,26 @@ impl GlobalEnvironmentRecord {
         set(agent, global_object, &prop_key, &desc.value.unwrap(), false)?;
         self.var_names.borrow_mut().insert(name);
         Ok(())
+    }
+
+    // NewGlobalEnvironment ( G, thisValue )
+    //
+    // The abstract operation NewGlobalEnvironment takes arguments G and thisValue. It performs the following steps when
+    // called:
+    //
+    //      1. Let objRec be NewObjectEnvironment(G, false, null).
+    //      2. Let dclRec be a new declarative Environment Record containing no bindings.
+    //      3. Let env be a new global Environment Record.
+    //      4. Set env.[[ObjectRecord]] to objRec.
+    //      5. Set env.[[GlobalThisValue]] to thisValue.
+    //      6. Set env.[[DeclarativeRecord]] to dclRec.
+    //      7. Set env.[[VarNames]] to a new empty List.
+    //      8. Set env.[[OuterEnv]] to null.
+    //      9. Return env.
+    fn new(global: Object, this_value: Object) -> Self {
+        let obj_rec = ObjectEnvironmentRecord::new(global, false, None);
+        let dcl_rec = DeclarativeEnvironmentRecord::new(None);
+        Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default() }
     }
 }
 
