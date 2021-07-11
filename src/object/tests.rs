@@ -319,6 +319,121 @@ fn potential_property_descriptor_is_accessor_descriptor() {
 }
 
 #[test]
+fn is_accessor_descriptor_01() {
+    let ppd_no = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
+    let ppd_yes = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
+    let pd_no = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let pd_yes = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+
+    assert!(is_accessor_descriptor(&ppd_yes));
+    assert!(is_accessor_descriptor(&pd_yes));
+    assert!(!is_accessor_descriptor(&ppd_no));
+    assert!(!is_accessor_descriptor(&pd_no));
+}
+
+#[test]
+fn is_data_descriptor_01() {
+    let ppd_yes = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
+    let ppd_no = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
+    let pd_yes = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let pd_no = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+
+    assert!(is_data_descriptor(&ppd_yes));
+    assert!(is_data_descriptor(&pd_yes));
+    assert!(!is_data_descriptor(&ppd_no));
+    assert!(!is_data_descriptor(&pd_no));
+}
+
+#[test]
+fn is_generic_descriptor_01() {
+    let ppd_data = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
+    let ppd_acc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), ..Default::default() };
+    let pd_data = PropertyDescriptor { property: PropertyKind::Data(Default::default()), ..Default::default() };
+    let pd_acc = PropertyDescriptor { property: PropertyKind::Accessor(Default::default()), ..Default::default() };
+    let pd_def: PropertyDescriptor = Default::default();
+    let ppd_def: PotentialPropertyDescriptor = Default::default();
+
+    assert!(!is_generic_descriptor(&ppd_data));
+    assert!(!is_generic_descriptor(&pd_data));
+    assert!(!is_generic_descriptor(&ppd_acc));
+    assert!(!is_generic_descriptor(&pd_acc));
+    assert!(!is_generic_descriptor(&pd_def));
+    assert!(is_generic_descriptor(&ppd_def));
+}
+
+#[test]
+fn ordinary_get_prototype_of_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_get_prototype_of(&obj);
+    assert_eq!(result, Some(object_proto));
+}
+
+#[test]
+fn ordinary_set_prototype_of_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let new_proto = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_set_prototype_of(&obj, Some(new_proto.clone()));
+    assert!(result);
+    assert_eq!(ordinary_get_prototype_of(&obj), Some(new_proto));
+}
+#[test]
+fn ordinary_set_prototype_of_02() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    let result = ordinary_set_prototype_of(&obj, None);
+    assert!(result);
+    assert_eq!(ordinary_get_prototype_of(&obj), None);
+}
+#[test]
+fn ordinary_set_prototype_of_03() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_set_prototype_of(&obj, Some(object_proto.clone()));
+    assert!(result);
+    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
+}
+#[test]
+fn ordinary_set_prototype_of_04() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    let result = ordinary_set_prototype_of(&obj, Some(object_proto.clone()));
+    assert!(result);
+    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
+}
+#[test]
+fn ordinary_set_prototype_of_05() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    obj.o.prevent_extensions(&mut agent).unwrap();
+
+    let result = ordinary_set_prototype_of(&obj, None);
+    assert!(!result);
+    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
+}
+#[test]
+fn ordinary_set_prototype_of_06() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_set_prototype_of(&obj, Some(obj.clone()));
+    assert!(!result);
+    assert_eq!(ordinary_get_prototype_of(&obj), Some(object_proto));
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();
@@ -446,7 +561,7 @@ fn set_prototype_of_02() {
     let mut agent = test_agent();
     let obj_a = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&obj_a), &[]);
-    let result = obj_b.o.set_prototype_of(&mut agent, Some(&obj_a));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(obj_a.clone()));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&obj_a));
@@ -458,7 +573,7 @@ fn set_prototype_of_03() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
-    let result = obj_b.o.set_prototype_of(&mut agent, Some(&new_proto));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(new_proto.clone()));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&new_proto));
@@ -469,7 +584,7 @@ fn set_prototype_of_04() {
     let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
-    let result = proto.o.set_prototype_of(&mut agent, Some(&obj_b));
+    let result = proto.o.set_prototype_of(&mut agent, Some(obj_b));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
     assert_eq!(proto.o.common_object_data().borrow().prototype.as_ref(), None);
@@ -482,7 +597,7 @@ fn set_prototype_of_05() {
     let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
     obj_b.o.common_object_data().borrow_mut().extensible = false;
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
-    let result = obj_b.o.set_prototype_of(&mut agent, Some(&new_proto));
+    let result = obj_b.o.set_prototype_of(&mut agent, Some(new_proto));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
     assert_eq!(obj_b.o.common_object_data().borrow().prototype.as_ref(), Some(&proto));

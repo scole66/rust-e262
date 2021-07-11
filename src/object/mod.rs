@@ -210,38 +210,30 @@ where
 //
 // NOTE     The loop in step 8 guarantees that there will be no circularities in any prototype chain that only includes
 //          objects that use the ordinary object definitions for [[GetPrototypeOf]] and [[SetPrototypeOf]].
-pub fn ordinary_set_prototype_of<'a, T>(o: T, val: Option<&Object>) -> bool
+pub fn ordinary_set_prototype_of<'a, T>(o: T, val: Option<Object>) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
     let current = obj.common_object_data().borrow().prototype.clone();
-    match (current, val) {
-        (None, None) => {
-            return true;
-        }
-        (Some(left), Some(right)) => {
-            if left.o.id() == right.o.id() {
-                return true;
-            }
-        }
-        _ => {}
+    if current == val {
+        return true;
     }
     let extensible = obj.common_object_data().borrow().extensible;
     if !extensible {
         return false;
     }
-    let mut p = val.map(Object::clone);
+    let mut p = val.clone();
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
-        } else if !pp.o.is_ordinary() {
-            break;
-        } else {
-            p = pp.o.common_object_data().borrow().prototype.clone();
         }
+        if !pp.o.is_ordinary() {
+            break;
+        }
+        p = pp.o.common_object_data().borrow().prototype.clone();
     }
-    obj.common_object_data().borrow_mut().prototype = val.map(Object::clone);
+    obj.common_object_data().borrow_mut().prototype = val;
     true
 }
 
@@ -807,7 +799,7 @@ pub trait ObjectInterface: Debug {
     }
 
     fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>>;
-    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool>;
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool>;
     fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool>;
     fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool>;
     fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
@@ -932,7 +924,7 @@ impl ObjectInterface for OrdinaryObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -1400,7 +1392,7 @@ impl ObjectInterface for DeadObject {
     fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
         Err(create_type_error(agent, "get_prototype_of called on DeadObject"))
     }
-    fn set_prototype_of(&self, agent: &mut Agent, _obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, agent: &mut Agent, _obj: Option<Object>) -> AltCompletion<bool> {
         Err(create_type_error(agent, "set_prototype_of called on DeadObject"))
     }
     fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool> {
@@ -1447,17 +1439,13 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(agent: &mut Agent, o: T, val: Option<&Object>) -> AltCompletion<bool>
+pub fn set_immutable_prototype<'a, T>(agent: &mut Agent, o: T, val: Option<Object>) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
     let current = obj.get_prototype_of(agent)?;
-    Ok(match (current.as_ref(), val) {
-        (None, None) => true,
-        (Some(a), Some(b)) => a == b,
-        _ => false,
-    })
+    Ok(current == val)
 }
 
 #[derive(Debug)]
@@ -1498,7 +1486,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // null). It performs the following steps when called:
     //
     //  1. Return ? SetImmutablePrototype(O, V).
-    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
         set_immutable_prototype(agent, self, obj)
     }
 

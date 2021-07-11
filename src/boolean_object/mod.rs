@@ -54,7 +54,7 @@ impl ObjectInterface for BooleanObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
