@@ -88,7 +88,7 @@ impl ObjectInterface for ErrorObject {
     fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
         Ok(ordinary_get_prototype_of(&*self))
     }
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<&Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
         Ok(ordinary_set_prototype_of(&*self, obj))
     }
     fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
