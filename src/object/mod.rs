@@ -403,15 +403,15 @@ where
         Some(cur) => {
             if desc.configurable.is_none() && desc.enumerable.is_none() && desc.get.is_none() && desc.set.is_none() && desc.value.is_none() && desc.writable.is_none() {
                 true
-            } else if !cur.configurable
-                && (desc.configurable.unwrap_or(false) || desc.enumerable.unwrap_or(cur.enumerable) != cur.enumerable || cur.is_data_descriptor() != desc.is_data_descriptor())
-            {
+            } else if !cur.configurable && (desc.configurable.unwrap_or(false) || desc.enumerable.unwrap_or(cur.enumerable) != cur.enumerable) {
                 false
             } else {
                 if is_generic_descriptor(desc) {
                     // Step 5
                     // No further validation required
-                } else if !cur.configurable && cur.is_data_descriptor() == desc.is_data_descriptor() {
+                } else if !cur.configurable && cur.is_data_descriptor() != desc.is_data_descriptor() {
+                    return false;
+                } else if !cur.configurable {
                     match &cur.property {
                         PropertyKind::Data(data_fields) => {
                             // Step 7
@@ -452,7 +452,7 @@ where
                     if let Some(enumerable) = desc.enumerable {
                         pd.enumerable = enumerable;
                     }
-                    if cur.is_data_descriptor() && desc.is_accessor_descriptor() {
+                    if cur.is_data_descriptor() && desc.is_accessor_descriptor() && !desc.is_data_descriptor() {
                         pd.property = PropertyKind::Accessor(AccessorProperty {
                             get: desc.get.clone().unwrap_or(ECMAScriptValue::Undefined),
                             set: desc.set.clone().unwrap_or(ECMAScriptValue::Undefined),
