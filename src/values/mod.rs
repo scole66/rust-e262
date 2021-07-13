@@ -212,6 +212,12 @@ impl From<Symbol> for PropertyKey {
     }
 }
 
+impl From<String> for PropertyKey {
+    fn from(source: String) -> Self {
+        Self::from(JSString::from(source))
+    }
+}
+
 impl TryFrom<PropertyKey> for JSString {
     type Error = &'static str;
     fn try_from(key: PropertyKey) -> Result<Self, Self::Error> {

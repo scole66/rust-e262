@@ -348,6 +348,8 @@ fn property_key_from() {
     let agent = test_agent();
     let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     assert_eq!(pk, PropertyKey::Symbol(agent.wks(WksId::ToPrimitive)));
+    let pk = PropertyKey::from(String::from("d"));
+    assert_eq!(pk, PropertyKey::String(JSString::from("d")));
 }
 #[test]
 fn property_key_debug() {
