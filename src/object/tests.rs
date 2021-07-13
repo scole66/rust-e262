@@ -988,6 +988,50 @@ fn validate_and_apply_property_descriptor_many() {
 }
 
 #[test]
+fn ordinary_has_property_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), configurable: Some(true), enumerable: Some(true), ..Default::default() };
+    let key = PropertyKey::from("a");
+    define_property_or_throw(&mut agent, &obj, &key, &initial).unwrap();
+    let key2 = PropertyKey::from("b");
+    let key3 = PropertyKey::from("toString");
+
+    // own property
+    let result = ordinary_has_property(&mut agent, &obj, &key).unwrap();
+    assert!(result);
+
+    // property not there
+    let result = ordinary_has_property(&mut agent, &obj, &key2).unwrap();
+    assert!(!result);
+
+    // parent property
+    let result = ordinary_has_property(&mut agent, &obj, &key3).unwrap();
+    assert!(result);
+}
+#[test]
+fn ordinary_has_property_02() {
+    // [[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_has_property(&mut agent, &obj, &key).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_has_property_03() {
+    // [GetPrototypeOf]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetPrototypeOf]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_has_property(&mut agent, &obj, &key).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetPrototypeOf]] called on TestObject");
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();
