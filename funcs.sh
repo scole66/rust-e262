@@ -47,11 +47,11 @@ function report() {
       --demangled)
         extra_args="$extra_args -Xdemangler=rustfilt"
         ;;
-      --name=*|--name-regex=*)
-        extra_args="$extra_args $1"
-        ;;
       --pager)
         pager="less -R"
+        ;;
+      *)
+        extra_args="$extra_args $1"
         ;;
     esac
     shift
@@ -61,9 +61,7 @@ function report() {
     --use-color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
     --instr-profile=res.profdata $(objects) \
-    --show-instantiations \
     --show-line-counts-or-regions \
-    --show-expansions \
     $extra_args | $pager
 
   popd > /dev/null
