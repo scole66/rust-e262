@@ -434,6 +434,446 @@ fn ordinary_set_prototype_of_06() {
 }
 
 #[test]
+fn ordinary_is_extensible_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_is_extensible(&obj);
+    assert!(result);
+
+    ordinary_prevent_extensions(&obj);
+    let result = ordinary_is_extensible(&obj);
+    assert!(!result);
+}
+
+#[test]
+fn ordinary_prevent_extensions_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+    let result = ordinary_prevent_extensions(&obj);
+    assert!(result);
+    assert!(!ordinary_is_extensible(&obj));
+}
+
+#[test]
+fn validate_and_apply_property_descriptor_01() {
+    // current = Undefined & extensible = false => false
+    let ppd = PotentialPropertyDescriptor { ..Default::default() };
+    let result = validate_and_apply_property_descriptor::<&Object>(None, None, false, &ppd, None);
+    assert!(!result);
+}
+#[test]
+fn validate_and_apply_property_descriptor_02() {
+    // current = Undefined & extensible = true & O = Undefined => true
+    let ppd = PotentialPropertyDescriptor { ..Default::default() };
+    let result = validate_and_apply_property_descriptor::<&Object>(None, None, true, &ppd, None);
+    assert!(result);
+}
+#[test]
+fn validate_and_apply_property_descriptor_03() {
+    // current Undefined; empty descriptor
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let ppd = PotentialPropertyDescriptor { ..Default::default() };
+    let key = PropertyKey::from("key");
+
+    let result = validate_and_apply_property_descriptor(Some(&obj), Some(&key), true, &ppd, None);
+
+    assert!(result);
+    let pd = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(pd.configurable, false);
+    assert_eq!(pd.enumerable, false);
+    assert_eq!(pd.property, PropertyKind::Data(DataProperty { value: ECMAScriptValue::Undefined, writable: false }));
+}
+#[test]
+fn validate_and_apply_property_descriptor_04() {
+    // current Undefined; overfull descriptor
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(true)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        get: Some(ECMAScriptValue::from("get")),
+        set: Some(ECMAScriptValue::from("set")),
+    };
+    let key = PropertyKey::from("key");
+
+    let result = validate_and_apply_property_descriptor(Some(&obj), Some(&key), true, &ppd, None);
+
+    assert!(result);
+    let pd = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(pd.configurable, true);
+    assert_eq!(pd.enumerable, true);
+    assert_eq!(pd.property, PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }));
+}
+#[test]
+fn validate_and_apply_property_descriptor_05() {
+    // current Undefined; accessor descriptor
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let ppd = PotentialPropertyDescriptor {
+        enumerable: Some(true),
+        configurable: Some(true),
+        get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))),
+        set: Some(ECMAScriptValue::Undefined),
+        ..Default::default()
+    };
+    let key = PropertyKey::from("key");
+
+    let result = validate_and_apply_property_descriptor(Some(&obj), Some(&key), true, &ppd, None);
+
+    assert!(result);
+    let pd = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(pd.configurable, true);
+    assert_eq!(pd.enumerable, true);
+    assert_eq!(pd.property, PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), set: ECMAScriptValue::Undefined }));
+}
+#[test]
+fn validate_and_apply_property_descriptor_06() {
+    // object Undefined; current reasonable; any valid input
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let existing = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(99)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let key = PropertyKey::from("key");
+    define_property_or_throw(&mut agent, &obj, &key, &existing).unwrap();
+    let current = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), ..Default::default() };
+
+    let result = validate_and_apply_property_descriptor::<&Object>(None, Some(&key), true, &ppd, Some(&current));
+
+    assert!(result);
+    let pd = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(pd.configurable, true);
+    assert_eq!(pd.enumerable, true);
+    assert_eq!(pd.property, PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(99), writable: true }));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ONE BIG TEST to check all different PotentialPropertyDescriptors against all different existing PropertyDescriptors.
+// (There are 23,328 different tests included in this.)
+#[derive(PartialEq)]
+enum Stage {
+    Data,
+    Accessor,
+    Done,
+}
+impl Default for Stage {
+    fn default() -> Self {
+        Self::Data
+    }
+}
+#[derive(Default)]
+struct VAPDIter {
+    value: u8,
+    enumerable: bool,
+    writable: bool,
+    configurable: bool,
+    get_throws: bool,
+    set_throws: bool,
+    stage: Stage,
+    tte: ECMAScriptValue,
+}
+impl VAPDIter {
+    fn new(agent: &Agent) -> Self {
+        VAPDIter { tte: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), ..Default::default() }
+    }
+    fn id_name(&self) -> String {
+        format!(
+            "{}{}{}{}",
+            if self.configurable { 'C' } else { '-' },
+            if self.enumerable { 'E' } else { '-' },
+            if self.stage == Stage::Data {
+                if self.writable {
+                    'W'
+                } else {
+                    '-'
+                }
+            } else if self.get_throws {
+                'G'
+            } else {
+                'u'
+            },
+            if self.stage == Stage::Data {
+                (self.value + 0x30) as char
+            } else if self.set_throws {
+                'S'
+            } else {
+                'u'
+            }
+        )
+    }
+}
+impl Iterator for VAPDIter {
+    type Item = (String, PotentialPropertyDescriptor);
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.stage == Stage::Done {
+            None
+        } else {
+            let result = Some((
+                self.id_name(),
+                PotentialPropertyDescriptor {
+                    value: if self.stage == Stage::Data { Some(ECMAScriptValue::from(self.value as i32)) } else { None },
+                    writable: if self.stage == Stage::Data { Some(self.writable) } else { None },
+                    enumerable: Some(self.enumerable),
+                    configurable: Some(self.configurable),
+                    get: if self.stage == Stage::Accessor { Some(if self.get_throws { self.tte.clone() } else { ECMAScriptValue::Undefined }) } else { None },
+                    set: if self.stage == Stage::Accessor { Some(if self.set_throws { self.tte.clone() } else { ECMAScriptValue::Undefined }) } else { None },
+                },
+            ));
+
+            if !self.configurable {
+                self.configurable = true;
+            } else {
+                self.configurable = false;
+                if !self.enumerable {
+                    self.enumerable = true;
+                } else {
+                    self.enumerable = false;
+                    if self.stage == Stage::Data {
+                        if !self.writable {
+                            self.writable = true;
+                        } else {
+                            self.writable = false;
+                            if self.value == 0 {
+                                self.value = 1;
+                            } else {
+                                self.stage = Stage::Accessor;
+                            }
+                        }
+                    } else if !self.get_throws {
+                        self.get_throws = true;
+                    } else {
+                        self.get_throws = false;
+                        if !self.set_throws {
+                            self.set_throws = true;
+                        } else {
+                            self.stage = Stage::Done;
+                        }
+                    }
+                }
+            }
+
+            result
+        }
+    }
+}
+#[derive(Default)]
+struct VAPDCheck {
+    value: Option<i32>,
+    writable: Option<bool>,
+    enumerable: Option<bool>,
+    configurable: Option<bool>,
+    get_throws: Option<bool>,
+    set_throws: Option<bool>,
+    tte: ECMAScriptValue,
+    done: bool,
+}
+impl VAPDCheck {
+    fn new(agent: &Agent) -> Self {
+        Self { tte: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), ..Default::default() }
+    }
+}
+impl Iterator for VAPDCheck {
+    type Item = PotentialPropertyDescriptor;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            None
+        } else {
+            let result = Some(PotentialPropertyDescriptor {
+                value: self.value.map(ECMAScriptValue::from),
+                writable: self.writable,
+                enumerable: self.enumerable,
+                configurable: self.configurable,
+                get: self.get_throws.map(|b| if b { self.tte.clone() } else { ECMAScriptValue::Undefined }),
+                set: self.set_throws.map(|b| if b { self.tte.clone() } else { ECMAScriptValue::Undefined }),
+            });
+
+            if self.configurable.is_none() {
+                self.configurable = Some(false);
+            } else if self.configurable == Some(false) {
+                self.configurable = Some(true);
+            } else {
+                self.configurable = None;
+                if self.writable.is_none() {
+                    self.writable = Some(false);
+                } else if self.writable == Some(false) {
+                    self.writable = Some(true);
+                } else {
+                    self.writable = None;
+                    if self.enumerable.is_none() {
+                        self.enumerable = Some(false);
+                    } else if self.enumerable == Some(false) {
+                        self.enumerable = Some(true);
+                    } else {
+                        self.enumerable = None;
+                        if self.value.is_none() {
+                            self.value = Some(0);
+                        } else if self.value == Some(0) {
+                            self.value = Some(1);
+                        } else {
+                            self.value = None;
+                            if self.get_throws.is_none() {
+                                self.get_throws = Some(false);
+                            } else if self.get_throws == Some(false) {
+                                self.get_throws = Some(true);
+                            } else {
+                                self.get_throws = None;
+                                if self.set_throws.is_none() {
+                                    self.set_throws = Some(false);
+                                } else if self.set_throws == Some(false) {
+                                    self.set_throws = Some(true);
+                                } else {
+                                    self.set_throws = None;
+                                    self.done = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            result
+        }
+    }
+}
+fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialPropertyDescriptor) -> Option<PropertyDescriptor> {
+    let config_changed = current.configurable != incoming.configurable.unwrap_or(current.configurable);
+    let enumerable_changed = current.enumerable != incoming.enumerable.unwrap_or(current.enumerable);
+    let current_configurable = current.configurable;
+    let current_enumurable = current.enumerable;
+    let kind_changed =
+        current.is_data_descriptor() && incoming.is_accessor_descriptor() && !incoming.is_data_descriptor() || current.is_accessor_descriptor() && incoming.is_data_descriptor();
+
+    match &current.property {
+        PropertyKind::Data(dp) => {
+            let writable_changed = dp.writable != incoming.writable.unwrap_or(dp.writable);
+            let value_changed = &dp.value != incoming.value.as_ref().unwrap_or(&dp.value);
+            let new_value = if let Some(v) = &incoming.value { v.clone() } else { dp.value.clone() };
+
+            // If existing is "config", all changes are allowed.
+            if current_configurable {
+                // If existing is configurable, all changes are allowed.
+                if kind_changed {
+                    let new_get = if let Some(g) = &incoming.get { g.clone() } else { ECMAScriptValue::Undefined };
+                    let new_set = if let Some(s) = &incoming.set { s.clone() } else { ECMAScriptValue::Undefined };
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Accessor(AccessorProperty { get: new_get, set: new_set }),
+                        configurable: incoming.configurable.unwrap_or(current_configurable),
+                        enumerable: incoming.enumerable.unwrap_or(current_enumurable),
+                        spot: current.spot,
+                    })
+                } else {
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { writable: incoming.writable.unwrap_or(dp.writable), value: new_value }),
+                        configurable: incoming.configurable.unwrap_or(current_configurable),
+                        enumerable: incoming.enumerable.unwrap_or(current_enumurable),
+                        spot: current.spot,
+                    })
+                }
+            } else if dp.writable {
+                // Otherwise, if existing is writable, changes to writable and value are allowed (but not configurable or enumerable)
+                if !config_changed && !enumerable_changed && !kind_changed {
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { writable: incoming.writable.unwrap_or(dp.writable), value: new_value }),
+                        configurable: current_configurable,
+                        enumerable: current_enumurable,
+                        spot: current.spot,
+                    })
+                } else {
+                    None
+                }
+            } else {
+                // Otherwise, the function succeeds only if no changes are made
+                if !config_changed && !enumerable_changed && !writable_changed && !value_changed && !kind_changed {
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { writable: dp.writable, value: new_value }),
+                        configurable: current_configurable,
+                        enumerable: current_enumurable,
+                        spot: current.spot,
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+        PropertyKind::Accessor(ap) => {
+            let get_changed = &ap.get != incoming.get.as_ref().unwrap_or(&ap.get);
+            let set_changed = &ap.set != incoming.set.as_ref().unwrap_or(&ap.set);
+
+            // If existing is "config", all changes are allowed.
+            if current_configurable {
+                // If existing is configurable, all changes are allowed.
+                if kind_changed {
+                    let new_value = if let Some(v) = &incoming.value { v.clone() } else { ECMAScriptValue::Undefined };
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Data(DataProperty { value: new_value, writable: incoming.writable.unwrap_or(false) }),
+                        configurable: incoming.configurable.unwrap_or(current_configurable),
+                        enumerable: incoming.enumerable.unwrap_or(current_enumurable),
+                        spot: current.spot,
+                    })
+                } else {
+                    let get_value = if let Some(g) = &incoming.get { g.clone() } else { ap.get.clone() };
+                    let set_value = if let Some(s) = &incoming.set { s.clone() } else { ap.set.clone() };
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Accessor(AccessorProperty { get: get_value, set: set_value }),
+                        configurable: incoming.configurable.unwrap_or(current_configurable),
+                        enumerable: incoming.enumerable.unwrap_or(current_enumurable),
+                        spot: current.spot,
+                    })
+                }
+            } else {
+                // Otherwise, the function succeeds only if no changes are made
+                if !config_changed && !enumerable_changed && !get_changed && !set_changed && !incoming.is_data_descriptor() {
+                    Some(PropertyDescriptor {
+                        property: PropertyKind::Accessor(AccessorProperty { get: ap.get.clone(), set: ap.set.clone() }),
+                        configurable: current_configurable,
+                        enumerable: current_enumurable,
+                        spot: current.spot,
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+#[test]
+fn validate_and_apply_property_descriptor_many() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    for (name, ppd) in VAPDIter::new(&agent) {
+        for (idx, _) in VAPDCheck::new(&agent).enumerate() {
+            let key = PropertyKey::from(format!("{}-{}", name, idx));
+            define_property_or_throw(&mut agent, &obj, &key, &ppd).unwrap();
+        }
+    }
+
+    for (name, _) in VAPDIter::new(&agent) {
+        for (idx, check) in VAPDCheck::new(&agent).enumerate() {
+            let key = PropertyKey::from(format!("{}-{}", name, idx));
+            let current = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+            let expected_prop = figure_expectation(&current, &check);
+
+            let result = validate_and_apply_property_descriptor(Some(&obj), Some(&key), true, &check, Some(&current));
+            assert_eq!(result, expected_prop.is_some(), "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?}", key, current, check, expected_prop);
+            let after = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+            assert_eq!(&after, expected_prop.as_ref().unwrap_or(&current), "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?};", key, current, check, expected_prop);
+        }
+    }
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();
