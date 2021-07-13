@@ -1,6 +1,6 @@
 use super::*;
 use crate::strings::JSString;
-use crate::tests::{printer_validate, test_agent};
+use crate::tests::{printer_validate, test_agent, unwind_type_error, FunctionId, TestObject};
 use std::io::Write;
 
 #[test]
@@ -456,6 +456,120 @@ fn ordinary_prevent_extensions_01() {
     let result = ordinary_prevent_extensions(&obj);
     assert!(result);
     assert!(!ordinary_is_extensible(&obj));
+}
+
+#[test]
+fn ordinary_get_own_property_01() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_get_own_property(&obj, &key);
+    assert!(result.is_none());
+}
+#[test]
+fn ordinary_get_own_property_02() {
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let key = PropertyKey::from("a");
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, &key, &ppd).unwrap();
+
+    let result = ordinary_get_own_property(&obj, &key).unwrap();
+    assert_eq!(result.configurable, true);
+    assert_eq!(result.enumerable, true);
+    assert!(matches!(result.property, PropertyKind::Data(..)));
+    if let PropertyKind::Data(data) = &result.property {
+        assert_eq!(data.value, ECMAScriptValue::from(10));
+        assert_eq!(data.writable, true);
+    }
+}
+
+#[test]
+fn ordinary_define_own_property_01() {
+    // Add a new property, object is extensible (the default)
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let key = PropertyKey::from("a");
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+
+    let result = ordinary_define_own_property(&mut agent, &obj, &key, &ppd).unwrap();
+
+    assert!(result);
+    let prop = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(prop.configurable, true);
+    assert_eq!(prop.enumerable, true);
+    assert!(matches!(prop.property, PropertyKind::Data(..)));
+    if let PropertyKind::Data(data) = &prop.property {
+        assert_eq!(data.value, ECMAScriptValue::from(10));
+        assert_eq!(data.writable, true);
+    }
+}
+#[test]
+fn ordinary_define_own_property_02() {
+    // Add a new property, object is not extensible
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let key = PropertyKey::from("a");
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    obj.o.prevent_extensions(&mut agent).unwrap();
+
+    let result = ordinary_define_own_property(&mut agent, &obj, &key, &ppd).unwrap();
+
+    assert!(!result);
+}
+#[test]
+fn ordinary_define_own_property_03() {
+    // Change an existing property
+    let mut agent = test_agent();
+    let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let key = PropertyKey::from("a");
+    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, &key, &initial).unwrap();
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), ..Default::default() };
+
+    let result = ordinary_define_own_property(&mut agent, &obj, &key, &ppd).unwrap();
+
+    assert!(result);
+    let prop = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
+    assert_eq!(prop.configurable, true);
+    assert_eq!(prop.enumerable, true);
+    assert!(matches!(prop.property, PropertyKind::Data(..)));
+    if let PropertyKind::Data(data) = &prop.property {
+        assert_eq!(data.value, ECMAScriptValue::from(0));
+        assert_eq!(data.writable, true);
+    }
+}
+#[test]
+fn ordinary_define_own_property_04() {
+    // [[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+
+    let result = ordinary_define_own_property(&mut agent, &obj, &key, &ppd).unwrap_err();
+
+    let msg = unwind_type_error(&mut agent, result);
+    assert_eq!(msg, "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_define_own_property_05() {
+    // [[IsExtensible]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::IsExtensible]);
+    let key = PropertyKey::from("a");
+    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+
+    let result = ordinary_define_own_property(&mut agent, &obj, &key, &ppd).unwrap_err();
+
+    let msg = unwind_type_error(&mut agent, result);
+    assert_eq!(msg, "[[IsExtensible]] called on TestObject");
 }
 
 #[test]
