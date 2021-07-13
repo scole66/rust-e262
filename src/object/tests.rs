@@ -1,6 +1,8 @@
 use super::*;
+use crate::function_object::create_builtin_function;
 use crate::strings::JSString;
 use crate::tests::{printer_validate, test_agent, unwind_type_error, FunctionId, TestObject};
+use crate::values::to_object;
 use std::io::Write;
 
 #[test]
@@ -1029,6 +1031,113 @@ fn ordinary_has_property_03() {
 
     let result = ordinary_has_property(&mut agent, &obj, &key).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "[[GetPrototypeOf]] called on TestObject");
+}
+
+#[test]
+fn ordinary_get_01() {
+    // [[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_get_02() {
+    // [[GetPrototypeOf]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetPrototypeOf]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetPrototypeOf]] called on TestObject");
+}
+#[test]
+fn ordinary_get_03() {
+    // Top of the prototype chain
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap();
+    assert_eq!(result, ECMAScriptValue::Undefined);
+}
+#[test]
+fn ordinary_get_04() {
+    // Normal data property
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, &key, &initial).unwrap();
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap();
+    assert_eq!(result, ECMAScriptValue::from(0));
+}
+fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+    // This is a getter; it is essentially:
+    // function() { return this.result; }
+    let obj = to_object(agent, this_value)?;
+    let key = PropertyKey::from("result");
+    get(agent, &obj, &key)
+}
+#[test]
+fn ordinary_get_05() {
+    // Normal accessor property
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, &key, &initial).unwrap();
+    define_property_or_throw(
+        &mut agent,
+        &obj,
+        &PropertyKey::from("result"),
+        &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("sentinel value")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+    )
+    .unwrap();
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::from(obj.clone())).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("sentinel value"));
+}
+#[test]
+fn ordinary_get_06() {
+    // Accessor property on parent (this ensures we're passing "receiver" properly)
+    let mut agent = test_agent();
+    let parent = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    // GETTER ON PARENT
+    define_property_or_throw(&mut agent, &parent, &key, &initial).unwrap();
+    let child = ordinary_object_create(&mut agent, Some(&parent), &[]);
+    // RESULT VALUE ON CHILD
+    define_property_or_throw(
+        &mut agent,
+        &child,
+        &PropertyKey::from("result"),
+        &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("sentinel value")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+    )
+    .unwrap();
+
+    // THEREFORE:
+    //    child.a == "sentinel value"
+    let result = ordinary_get(&mut agent, &child, &key, &ECMAScriptValue::from(child.clone())).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("sentinel value"));
+}
+#[test]
+fn ordinary_get_07() {
+    // Accessor properties undefined
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, &key, &initial).unwrap();
+
+    let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::from(obj.clone())).unwrap();
+    assert_eq!(result, ECMAScriptValue::Undefined);
 }
 
 #[test]
