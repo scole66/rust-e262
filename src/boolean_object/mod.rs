@@ -94,7 +94,7 @@ impl ObjectInterface for BooleanObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 

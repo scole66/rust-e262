@@ -190,7 +190,7 @@ impl ObjectInterface for TestObject {
             Ok(ordinary_get_own_property(self, key))
         }
     }
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         if self.define_own_property_throws {
             Err(create_type_error(agent, "[[DefineOwnProperty]] called on TestObject"))
         } else {

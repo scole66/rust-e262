@@ -111,7 +111,7 @@ impl ObjectInterface for FunctionObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
@@ -196,8 +196,8 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
     define_property_or_throw(
         agent,
         func,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("name"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(name_after_prefix)),
             writable: Some(false),
             enumerable: Some(false),
@@ -220,8 +220,8 @@ pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
     define_property_or_throw(
         agent,
         func,
-        &PropertyKey::from("length"),
-        &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(length)), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        PropertyKey::from("length"),
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(length)), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
 }
@@ -361,7 +361,7 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {

@@ -215,17 +215,17 @@ fn ecmascript_value_concise() {
     let mut agent = test_agent();
     let obj_proto = &agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Undefined"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Null"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() }).unwrap();
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Number"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() }).unwrap();
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("String"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() }).unwrap();
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Boolean"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }).unwrap();
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("BigInt"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() })
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Undefined"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Null"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Number"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("String"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Boolean"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("BigInt"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() })
         .unwrap();
     let sym = Symbol::new(&mut agent, Some(JSString::from("San Francisco")));
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Symbol"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Symbol"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() }).unwrap();
     let propobj = &agent.intrinsic(IntrinsicId::Boolean);
-    define_property_or_throw(&mut agent, &obj, &PropertyKey::from("Object"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("Object"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() }).unwrap();
 
     assert_ne!(format!("{:?}", obj), "");
 }
@@ -496,8 +496,8 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
         define_property_or_throw(
             agent,
             &target,
-            &key,
-            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            key,
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
     };
@@ -534,8 +534,8 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     define_property_or_throw(
         agent,
         &target,
-        &key,
-        &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
 
@@ -545,8 +545,8 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     define_property_or_throw(
         agent,
         &target,
-        &key,
-        &PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(tostring_getter)), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(tostring_getter)), ..Default::default() },
     )
     .unwrap();
 
@@ -561,8 +561,8 @@ fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
         define_property_or_throw(
             agent,
             &target,
-            &key,
-            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            key,
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
     };
@@ -704,8 +704,8 @@ fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue
     define_property_or_throw(
         agent,
         &target,
-        &key,
-        &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
     target
@@ -763,8 +763,8 @@ fn to_primitive_exotic_getter_throws() {
     define_property_or_throw(
         &mut agent,
         &target,
-        &key,
-        &PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(toprim_getter)), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(toprim_getter)), ..Default::default() },
     )
     .unwrap();
     let test_value = ECMAScriptValue::from(target);

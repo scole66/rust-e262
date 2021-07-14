@@ -482,7 +482,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(true), configurable: Some(deletable), ..Default::default() };
-        define_property_or_throw(agent, binding_object, &name_key, &desc)
+        define_property_or_throw(agent, binding_object, name_key, desc)
     }
 
     // CreateImmutableBinding ( N, S )
@@ -1282,21 +1282,21 @@ impl GlobalEnvironmentRecord {
     //          will produce the same sequence of Proxy trap calls.
     pub fn create_global_function_binding(&self, agent: &mut Agent, name: JSString, val: ECMAScriptValue, deletable: bool) -> AltCompletion<()> {
         let global_object = &self.object_record.binding_object;
-        let prop_key: PropertyKey = name.clone().into();
+        let prop_key = PropertyKey::from(name.clone());
         let existing_prop = global_object.o.get_own_property(agent, &prop_key)?;
         let full_pd = |v, d| PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(d), ..Default::default() };
         let desc = match existing_prop {
-            None => full_pd(val, deletable),
+            None => full_pd(val.clone(), deletable),
             Some(prop) => {
                 if prop.configurable {
-                    full_pd(val, deletable)
+                    full_pd(val.clone(), deletable)
                 } else {
-                    PotentialPropertyDescriptor { value: Some(val), ..Default::default() }
+                    PotentialPropertyDescriptor { value: Some(val.clone()), ..Default::default() }
                 }
             }
         };
-        define_property_or_throw(agent, global_object, &prop_key, &desc)?;
-        set(agent, global_object, &prop_key, &desc.value.unwrap(), false)?;
+        define_property_or_throw(agent, global_object, prop_key.clone(), desc)?;
+        set(agent, global_object, &prop_key, &val, false)?;
         self.var_names.borrow_mut().insert(name);
         Ok(())
     }
