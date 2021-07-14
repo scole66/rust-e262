@@ -540,8 +540,7 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     .unwrap();
 
     let key = PropertyKey::from("toString");
-    let tostring_getter =
-        create_builtin_function(agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), Some(JSString::from("get")));
+    let tostring_getter = create_builtin_function(agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
     define_property_or_throw(
         agent,
         &target,
@@ -664,7 +663,7 @@ fn to_primitive_no_change() {
     // Symbol
     let sym = Symbol::new(&mut agent, Some(JSString::from("Symbolic")));
     let result = to_primitive(&mut agent, &ECMAScriptValue::from(sym.clone()), None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(sym.clone()));
+    assert_eq!(result, ECMAScriptValue::from(sym));
     // BigInt
     let bi = "123456789012345678901234567890".parse::<BigInt>().unwrap();
     let result = to_primitive(&mut agent, &ECMAScriptValue::from(bi), None).unwrap();
@@ -700,7 +699,7 @@ fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let fcn = create_builtin_function(agent, steps, 1_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+    let fcn = create_builtin_function(agent, steps, 1_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     define_property_or_throw(
         agent,
         &target,
@@ -758,8 +757,7 @@ fn to_primitive_exotic_getter_throws() {
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let toprim_getter =
-        create_builtin_function(&mut agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), Some(JSString::from("get")));
+    let toprim_getter = create_builtin_function(&mut agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
     define_property_or_throw(
         &mut agent,
         &target,

@@ -158,7 +158,7 @@ fn set_01() {
     let mut agent = test_agent();
     let bool_obj = create_boolean_object(&mut agent, true);
     let receiver = ECMAScriptValue::Object(bool_obj.clone());
-    let res = bool_obj.o.set(&mut agent, &PropertyKey::from("rust"), &ECMAScriptValue::Null, &receiver).unwrap();
+    let res = bool_obj.o.set(&mut agent, PropertyKey::from("rust"), ECMAScriptValue::Null, &receiver).unwrap();
     assert_eq!(res, true);
 }
 

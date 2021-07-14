@@ -387,10 +387,7 @@ where
                         property: if is_generic_descriptor(&desc) || is_data_descriptor(&desc) {
                             PropertyKind::Data(DataProperty { value: desc.value.unwrap_or(ECMAScriptValue::Undefined), writable: desc.writable.unwrap_or(false) })
                         } else {
-                            PropertyKind::Accessor(AccessorProperty {
-                                get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
-                                set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
-                            })
+                            PropertyKind::Accessor(AccessorProperty { get: desc.get.unwrap_or(ECMAScriptValue::Undefined), set: desc.set.unwrap_or(ECMAScriptValue::Undefined) })
                         },
                         spot: data.next_spot,
                     };
@@ -453,10 +450,7 @@ where
                         pd.enumerable = enumerable;
                     }
                     if cur.is_data_descriptor() && desc.is_accessor_descriptor() && !desc.is_data_descriptor() {
-                        pd.property = PropertyKind::Accessor(AccessorProperty {
-                            get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
-                            set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
-                        });
+                        pd.property = PropertyKind::Accessor(AccessorProperty { get: desc.get.unwrap_or(ECMAScriptValue::Undefined), set: desc.set.unwrap_or(ECMAScriptValue::Undefined) });
                     } else if cur.is_accessor_descriptor() && desc.is_data_descriptor() {
                         pd.property = PropertyKind::Data(DataProperty { writable: desc.writable.unwrap_or(false), value: desc.value.unwrap_or(ECMAScriptValue::Undefined) });
                     } else {
@@ -567,13 +561,13 @@ where
 //  1. Assert: IsPropertyKey(P) is true.
 //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
 //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(agent: &mut Agent, o: T, p: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>
+pub fn ordinary_set<'a, T>(agent: &mut Agent, o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
-    let own_desc = obj.get_own_property(agent, p)?;
-    ordinary_set_with_own_descriptor(agent, obj, p.clone(), v.clone(), receiver, own_desc)
+    let own_desc = obj.get_own_property(agent, &p)?;
+    ordinary_set_with_own_descriptor(agent, obj, p, v, receiver, own_desc)
 }
 
 // OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc )
@@ -623,7 +617,7 @@ where
             let pot_parent = obj.get_prototype_of(agent)?;
             match pot_parent {
                 Some(parent) => {
-                    return parent.o.set(agent, &p, &v, receiver);
+                    return parent.o.set(agent, p, v, receiver);
                 }
                 None => {
                     PropertyDescriptor { configurable: true, enumerable: true, property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Undefined, writable: true }), spot: 0 }
@@ -649,7 +643,7 @@ where
                                 }
                             },
                         },
-                        None => create_data_property(agent, receiver, p, v.clone()),
+                        None => create_data_property(agent, receiver, p, v),
                     }
                 }
                 _ => Ok(false),
@@ -806,7 +800,7 @@ pub trait ObjectInterface: Debug {
     fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool>;
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool>;
     fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>>;
 }
@@ -994,7 +988,7 @@ impl ObjectInterface for OrdinaryObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -1172,7 +1166,7 @@ pub fn getv(agent: &mut Agent, v: &ECMAScriptValue, p: &PropertyKey) -> Completi
 //  4. Let success be ? O.[[Set]](P, V, O).
 //  5. If success is false and Throw is true, throw a TypeError exception.
 //  6. Return success.
-pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAScriptValue, throw: bool) -> AltCompletion<bool> {
+pub fn set(agent: &mut Agent, obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> AltCompletion<bool> {
     let objval = ECMAScriptValue::Object(obj.clone());
     let success = obj.o.set(agent, propkey, value, &objval)?;
     if !success && throw {
@@ -1413,7 +1407,7 @@ impl ObjectInterface for DeadObject {
     fn get(&self, agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion {
         Err(create_type_error(agent, "get called on DeadObject"))
     }
-    fn set(&self, agent: &mut Agent, _key: &PropertyKey, _value: &ECMAScriptValue, _receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, _key: PropertyKey, _value: ECMAScriptValue, _receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         Err(create_type_error(agent, "set called on DeadObject"))
     }
     fn delete(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
@@ -1556,7 +1550,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 

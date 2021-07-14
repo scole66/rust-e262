@@ -124,7 +124,7 @@ impl ObjectInterface for BooleanObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 

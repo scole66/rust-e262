@@ -1378,7 +1378,7 @@ fn set_and_get() {
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(56.7);
 
-    set(&mut agent, &obj, &key, &value, false).unwrap();
+    set(&mut agent, &obj, key.clone(), value, false).unwrap();
     let result = get(&mut agent, &obj, &key).unwrap();
 
     assert_eq!(result, ECMAScriptValue::Number(56.7));

@@ -178,6 +178,7 @@ fn parser_01() {
 }
 
 #[test]
+#[allow(clippy::redundant_clone)]
 fn parse_error_01() {
     let e1 = ParseError::new("&str style error", 10, 11);
     let e2 = ParseError::new(String::from("String style error"), 20, 22);

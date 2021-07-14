@@ -109,7 +109,7 @@ impl ObjectInterface for ErrorObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
         ordinary_get(agent, &*self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, &*self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {

@@ -174,13 +174,13 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
                     Err(create_reference_error(agent, "Unknown reference"))
                 } else {
                     let global_object = get_global_object(agent);
-                    set(agent, &global_object, &r.referenced_name, &w, false)?;
+                    set(agent, &global_object, r.referenced_name, w, false)?;
                     Ok(())
                 }
             }
             Base::Value(val) => {
                 let base_obj = to_object(agent, val.clone()).unwrap();
-                let succeeded = base_obj.o.set(agent, &r.referenced_name, &w, &get_this_value(&r))?;
+                let succeeded = base_obj.o.set(agent, r.referenced_name.clone(), w, &get_this_value(&r))?;
                 if !succeeded && r.strict {
                     Err(create_type_error(agent, "Invalid Assignment Target"))
                 } else {
