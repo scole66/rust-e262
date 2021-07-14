@@ -649,7 +649,7 @@ where
                                 }
                             },
                         },
-                        None => create_data_property(agent, receiver, p, v),
+                        None => create_data_property(agent, receiver, p, v.clone()),
                     }
                 }
                 _ => Ok(false),
@@ -1195,8 +1195,8 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAS
 // NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for properties
 //          created by the ECMAScript language assignment operator. Normally, the property will not already exist. If it
 //          does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]] will return false.
-pub fn create_data_property(agent: &mut Agent, obj: &Object, p: &PropertyKey, v: &ECMAScriptValue) -> AltCompletion<bool> {
-    let new_desc = PotentialPropertyDescriptor { value: Some(v.clone()), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+pub fn create_data_property(agent: &mut Agent, obj: &Object, p: &PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
+    let new_desc = PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     obj.o.define_own_property(agent, p, &new_desc)
 }
 
