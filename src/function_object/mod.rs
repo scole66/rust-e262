@@ -120,7 +120,7 @@ impl ObjectInterface for FunctionObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
@@ -197,13 +197,7 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
         agent,
         func,
         PropertyKey::from("name"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(name_after_prefix)),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(name_after_prefix)), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap()
 }
@@ -370,7 +364,7 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, v: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {

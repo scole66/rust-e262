@@ -527,7 +527,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         if !still_exists && strict {
             Err(create_reference_error(agent, "Reference no longer exists"))
         } else {
-            set(agent, binding_object, &name_key, &value, strict)?;
+            set(agent, binding_object, name_key, value, strict)?;
             Ok(())
         }
     }
@@ -1296,7 +1296,7 @@ impl GlobalEnvironmentRecord {
             }
         };
         define_property_or_throw(agent, global_object, prop_key.clone(), desc)?;
-        set(agent, global_object, &prop_key, &val, false)?;
+        set(agent, global_object, prop_key, val, false)?;
         self.var_names.borrow_mut().insert(name);
         Ok(())
     }

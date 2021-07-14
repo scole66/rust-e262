@@ -211,7 +211,7 @@ impl ObjectInterface for TestObject {
             ordinary_get(agent, self, key, receiver)
         }
     }
-    fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
         if self.set_throws {
             Err(create_type_error(agent, "[[Set]] called on TestObject"))
         } else {

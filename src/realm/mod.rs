@@ -325,13 +325,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         agent,
         &error_constructor,
         PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(&error_prototype)),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&error_prototype)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
     )
     .unwrap();
     realm_rec.borrow_mut().intrinsics.error = error_constructor.clone();
