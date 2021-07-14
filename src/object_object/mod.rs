@@ -97,8 +97,8 @@ pub fn attach_object_prototype_properties(agent: &mut Agent, realm: Rc<RefCell<R
         define_property_or_throw(
             agent,
             target,
-            &key,
-            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            key,
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
     };

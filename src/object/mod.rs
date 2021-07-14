@@ -305,12 +305,12 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(agent: &mut Agent, o: T, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool>
+pub fn ordinary_define_own_property<'a, T>(agent: &mut Agent, o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     let obj = o.into();
-    let current = obj.get_own_property(agent, p)?;
+    let current = obj.get_own_property(agent, &p)?;
     let extensible = is_extensible(agent, obj)?;
     Ok(validate_and_apply_property_descriptor(Some(obj), Some(p), extensible, desc, current.as_ref()))
 }
@@ -370,7 +370,7 @@ where
 //      a. For each field of Desc that is present, set the corresponding attribute of the property named P of object O
 //         to the value of the field.
 //  10. Return true.
-fn validate_and_apply_property_descriptor<'a, T>(oo: Option<T>, p: Option<&PropertyKey>, extensible: bool, desc: &PotentialPropertyDescriptor, current: Option<&PropertyDescriptor>) -> bool
+fn validate_and_apply_property_descriptor<'a, T>(oo: Option<T>, p: Option<PropertyKey>, extensible: bool, desc: PotentialPropertyDescriptor, current: Option<&PropertyDescriptor>) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -384,17 +384,17 @@ where
                     let property_descriptor = PropertyDescriptor {
                         enumerable: desc.enumerable.unwrap_or(false),
                         configurable: desc.configurable.unwrap_or(false),
-                        property: if is_generic_descriptor(desc) || is_data_descriptor(desc) {
-                            PropertyKind::Data(DataProperty { value: desc.value.clone().unwrap_or(ECMAScriptValue::Undefined), writable: desc.writable.unwrap_or(false) })
+                        property: if is_generic_descriptor(&desc) || is_data_descriptor(&desc) {
+                            PropertyKind::Data(DataProperty { value: desc.value.unwrap_or(ECMAScriptValue::Undefined), writable: desc.writable.unwrap_or(false) })
                         } else {
                             PropertyKind::Accessor(AccessorProperty {
-                                get: desc.get.clone().unwrap_or(ECMAScriptValue::Undefined),
-                                set: desc.set.clone().unwrap_or(ECMAScriptValue::Undefined),
+                                get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
+                                set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
                             })
                         },
                         spot: data.next_spot,
                     };
-                    data.properties.insert(p.cloned().unwrap(), property_descriptor);
+                    data.properties.insert(p.unwrap(), property_descriptor);
                     data.next_spot += 1;
                 }
                 true
@@ -406,7 +406,7 @@ where
             } else if !cur.configurable && (desc.configurable.unwrap_or(false) || desc.enumerable.unwrap_or(cur.enumerable) != cur.enumerable) {
                 false
             } else {
-                if is_generic_descriptor(desc) {
+                if is_generic_descriptor(&desc) {
                     // Step 5
                     // No further validation required
                 } else if !cur.configurable && cur.is_data_descriptor() != desc.is_data_descriptor() {
@@ -419,8 +419,8 @@ where
                                 if desc.writable.unwrap_or(false) {
                                     return false;
                                 }
-                                if let Some(val) = desc.value.clone() {
-                                    if val != data_fields.value {
+                                if let Some(val) = desc.value.as_ref() {
+                                    if *val != data_fields.value {
                                         return false;
                                     }
                                 }
@@ -429,13 +429,13 @@ where
                         }
                         PropertyKind::Accessor(acc_fields) => {
                             // Step 8
-                            if let Some(getter) = desc.get.clone() {
-                                if getter != acc_fields.get {
+                            if let Some(getter) = desc.get.as_ref() {
+                                if *getter != acc_fields.get {
                                     return false;
                                 }
                             }
-                            if let Some(setter) = desc.set.clone() {
-                                if setter != acc_fields.set {
+                            if let Some(setter) = desc.set.as_ref() {
+                                if *setter != acc_fields.set {
                                     return false;
                                 }
                             }
@@ -445,7 +445,7 @@ where
                 }
                 if let Some(o) = oo {
                     let mut data = o.into().common_object_data().borrow_mut();
-                    let mut pd = data.properties.get_mut(p.unwrap()).unwrap();
+                    let mut pd = data.properties.get_mut(&p.unwrap()).unwrap();
                     if let Some(configurable) = desc.configurable {
                         pd.configurable = configurable;
                     }
@@ -454,23 +454,23 @@ where
                     }
                     if cur.is_data_descriptor() && desc.is_accessor_descriptor() && !desc.is_data_descriptor() {
                         pd.property = PropertyKind::Accessor(AccessorProperty {
-                            get: desc.get.clone().unwrap_or(ECMAScriptValue::Undefined),
-                            set: desc.set.clone().unwrap_or(ECMAScriptValue::Undefined),
+                            get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
+                            set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
                         });
                     } else if cur.is_accessor_descriptor() && desc.is_data_descriptor() {
-                        pd.property = PropertyKind::Data(DataProperty { writable: desc.writable.unwrap_or(false), value: desc.value.clone().unwrap_or(ECMAScriptValue::Undefined) });
+                        pd.property = PropertyKind::Data(DataProperty { writable: desc.writable.unwrap_or(false), value: desc.value.unwrap_or(ECMAScriptValue::Undefined) });
                     } else {
                         match &mut pd.property {
                             PropertyKind::Accessor(acc_methods) => {
-                                if let Some(setter) = desc.set.clone() {
+                                if let Some(setter) = desc.set {
                                     acc_methods.set = setter;
                                 }
-                                if let Some(getter) = desc.get.clone() {
+                                if let Some(getter) = desc.get {
                                     acc_methods.get = getter;
                                 }
                             }
                             PropertyKind::Data(data_fields) => {
-                                if let Some(value) = desc.value.clone() {
+                                if let Some(value) = desc.value {
                                     data_fields.value = value;
                                 }
                                 if let Some(writable) = desc.writable {
@@ -573,7 +573,7 @@ where
 {
     let obj = o.into();
     let own_desc = obj.get_own_property(agent, p)?;
-    ordinary_set_with_own_descriptor(agent, obj, p, v, receiver, own_desc)
+    ordinary_set_with_own_descriptor(agent, obj, p.clone(), v.clone(), receiver, own_desc)
 }
 
 // OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc )
@@ -609,8 +609,8 @@ where
 pub fn ordinary_set_with_own_descriptor<'a, T>(
     agent: &mut Agent,
     o: T,
-    p: &PropertyKey,
-    v: &ECMAScriptValue,
+    p: PropertyKey,
+    v: ECMAScriptValue,
     receiver: &ECMAScriptValue,
     pot_own_desc: Option<PropertyDescriptor>,
 ) -> AltCompletion<bool>
@@ -623,7 +623,7 @@ where
             let pot_parent = obj.get_prototype_of(agent)?;
             match pot_parent {
                 Some(parent) => {
-                    return parent.o.set(agent, p, v, receiver);
+                    return parent.o.set(agent, &p, &v, receiver);
                 }
                 None => {
                     PropertyDescriptor { configurable: true, enumerable: true, property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Undefined, writable: true }), spot: 0 }
@@ -637,15 +637,15 @@ where
             false => Ok(false),
             true => match receiver {
                 ECMAScriptValue::Object(receiver) => {
-                    let maybe_existing_descriptor = receiver.o.get_own_property(agent, p)?;
+                    let maybe_existing_descriptor = receiver.o.get_own_property(agent, &p)?;
                     match maybe_existing_descriptor {
                         Some(existing_descriptor) => match &existing_descriptor.property {
                             PropertyKind::Accessor(_) => Ok(false),
                             PropertyKind::Data(existing_data_fields) => match existing_data_fields.writable {
                                 false => Ok(false),
                                 true => {
-                                    let value_desc = PotentialPropertyDescriptor { value: Some(v.clone()), ..Default::default() };
-                                    receiver.o.define_own_property(agent, p, &value_desc)
+                                    let value_desc = PotentialPropertyDescriptor { value: Some(v), ..Default::default() };
+                                    receiver.o.define_own_property(agent, p, value_desc)
                                 }
                             },
                         },
@@ -656,11 +656,11 @@ where
             },
         },
         PropertyKind::Accessor(acc_methods) => {
-            let setter = acc_methods.set.clone();
+            let setter = &acc_methods.set;
             match setter {
                 ECMAScriptValue::Undefined => Ok(false),
                 setter => {
-                    call(agent, &setter, receiver, &[v.clone()])?;
+                    call(agent, setter, receiver, &[v])?;
                     Ok(true)
                 }
             }
@@ -803,7 +803,7 @@ pub trait ObjectInterface: Debug {
     fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool>;
     fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool>;
     fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool>;
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool>;
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
     fn set(&self, agent: &mut Agent, key: &PropertyKey, value: &ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
@@ -964,7 +964,7 @@ impl ObjectInterface for OrdinaryObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -1195,9 +1195,9 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: &PropertyKey, value: &ECMAS
 // NOTE     This abstract operation creates a property whose attributes are set to the same defaults used for properties
 //          created by the ECMAScript language assignment operator. Normally, the property will not already exist. If it
 //          does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]] will return false.
-pub fn create_data_property(agent: &mut Agent, obj: &Object, p: &PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
+pub fn create_data_property(agent: &mut Agent, obj: &Object, p: PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
     let new_desc = PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
-    obj.o.define_own_property(agent, p, &new_desc)
+    obj.o.define_own_property(agent, p, new_desc)
 }
 
 // DefinePropertyOrThrow ( O, P, desc )
@@ -1212,7 +1212,7 @@ pub fn create_data_property(agent: &mut Agent, obj: &Object, p: &PropertyKey, v:
 //  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
 //  4. If success is false, throw a TypeError exception.
 //  5. Return success.
-pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<()> {
+pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<()> {
     let success = obj.o.define_own_property(agent, p, desc)?;
     if !success {
         Err(create_type_error(agent, "Property cannot be assigned to"))
@@ -1404,7 +1404,7 @@ impl ObjectInterface for DeadObject {
     fn get_own_property(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Err(create_type_error(agent, "get_own_property called on DeadObject"))
     }
-    fn define_own_property(&self, agent: &mut Agent, _key: &PropertyKey, _desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, _key: PropertyKey, _desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         Err(create_type_error(agent, "define_own_property called on DeadObject"))
     }
     fn has_property(&self, agent: &mut Agent, _key: &PropertyKey) -> AltCompletion<bool> {
@@ -1526,7 +1526,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 

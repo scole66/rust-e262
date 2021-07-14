@@ -20,7 +20,7 @@ fn create_native_error_object(agent: &mut Agent, message: &str, error_constructo
         configurable: Some(true),
         ..Default::default()
     };
-    define_property_or_throw(agent, &o, &PropertyKey::from("message"), &desc).unwrap();
+    define_property_or_throw(agent, &o, PropertyKey::from("message"), desc).unwrap();
     o
 }
 
@@ -100,7 +100,7 @@ impl ObjectInterface for ErrorObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(&*self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: &PropertyKey, desc: &PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
         ordinary_define_own_property(agent, &*self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {

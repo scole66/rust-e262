@@ -117,7 +117,7 @@ fn define_and_get_own_property_01() {
     let bool_obj = create_boolean_object(&mut agent, true);
     let res = bool_obj
         .o
-        .define_own_property(&mut agent, &PropertyKey::from("rust"), &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::String("is awesome".into())), ..Default::default() })
+        .define_own_property(&mut agent, PropertyKey::from("rust"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("is awesome")), ..Default::default() })
         .unwrap();
     assert!(res);
     let val = bool_obj.o.get_own_property(&mut agent, &PropertyKey::from("rust")).unwrap().unwrap();
@@ -125,7 +125,7 @@ fn define_and_get_own_property_01() {
     assert_eq!(val.configurable, false);
     assert!(matches!(val.property, PropertyKind::Data(..)));
     if let PropertyKind::Data(d) = val.property {
-        assert_eq!(d.value, ECMAScriptValue::String("is awesome".into()));
+        assert_eq!(d.value, ECMAScriptValue::from("is awesome"));
         assert_eq!(d.writable, false);
     }
 }

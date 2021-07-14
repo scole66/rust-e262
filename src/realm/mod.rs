@@ -291,8 +291,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &bool_constructor,
-        &PropertyKey::from("prototype"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("prototype"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(&boolean_prototype)),
             writable: Some(false),
             enumerable: Some(false),
@@ -305,8 +305,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &boolean_prototype,
-        &PropertyKey::from("constructor"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("constructor"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(bool_constructor)), // consumes bool_constructor
             writable: Some(true),
             enumerable: Some(false),
@@ -324,8 +324,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &error_constructor,
-        &PropertyKey::from("prototype"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("prototype"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(&error_prototype)),
             writable: Some(false),
             enumerable: Some(false),
@@ -338,8 +338,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &realm_rec.borrow().intrinsics.error_prototype,
-        &PropertyKey::from("constructor"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("constructor"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(error_constructor)), // consumes error_constructor
             writable: Some(true),
             enumerable: Some(false),
@@ -351,8 +351,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &error_prototype,
-        &PropertyKey::from("message"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("message"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from(""))),
             writable: Some(true),
             enumerable: Some(false),
@@ -364,8 +364,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     define_property_or_throw(
         agent,
         &error_prototype,
-        &PropertyKey::from("name"),
-        &PotentialPropertyDescriptor {
+        PropertyKey::from("name"),
+        PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::String(JSString::from("Error"))),
             writable: Some(true),
             enumerable: Some(false),
@@ -383,16 +383,16 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         define_property_or_throw(
             agent,
             &constructor,
-            &PropertyKey::from("prototype"),
-            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&proto)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+            PropertyKey::from("prototype"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&proto)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
         )
         .unwrap();
         // constructor.name = name
         define_property_or_throw(
             agent,
             &constructor,
-            &PropertyKey::from("name"),
-            &PotentialPropertyDescriptor {
+            PropertyKey::from("name"),
+            PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::String(JSString::from(name))),
                 writable: Some(true),
                 enumerable: Some(false),
@@ -405,16 +405,16 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         define_property_or_throw(
             agent,
             &proto,
-            &PropertyKey::from("constructor"),
-            &PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&constructor)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            PropertyKey::from("constructor"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&constructor)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
         // proto.message = ""
         define_property_or_throw(
             agent,
             &proto,
-            &PropertyKey::from("message"),
-            &PotentialPropertyDescriptor {
+            PropertyKey::from("message"),
+            PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::String(JSString::from(""))),
                 writable: Some(true),
                 enumerable: Some(false),
@@ -427,8 +427,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         define_property_or_throw(
             agent,
             &proto,
-            &PropertyKey::from("name"),
-            &PotentialPropertyDescriptor {
+            PropertyKey::from("name"),
+            PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::String(JSString::from(name))),
                 writable: Some(true),
                 enumerable: Some(false),
@@ -479,15 +479,15 @@ pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: 
     define_property_or_throw(
         agent,
         f,
-        &PropertyKey::from("caller"),
-        &PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower.clone()), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        PropertyKey::from("caller"),
+        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower.clone()), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
     define_property_or_throw(
         agent,
         f,
-        &PropertyKey::from("arguments"),
-        &PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        PropertyKey::from("arguments"),
+        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
     )
     .unwrap();
 }
@@ -519,8 +519,8 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &fcn,
-        &key,
-        &PotentialPropertyDescriptor { value: Some(length), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { value: Some(length), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
     )
     .unwrap();
     let key = PropertyKey::from("name");
@@ -528,8 +528,8 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &fcn,
-        &key,
-        &PotentialPropertyDescriptor { value: Some(name), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+        key,
+        PotentialPropertyDescriptor { value: Some(name), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
     )
     .unwrap();
 
