@@ -72,6 +72,10 @@ impl Agent {
         }
     }
 
+    pub fn active_function_object(&mut self) -> Option<Object> {
+        self.running_execution_context().map(|ec| ec.function.as_ref().cloned()).flatten()
+    }
+
     pub fn next_object_id(&mut self) -> usize {
         assert!(self.obj_id < usize::MAX);
         let result = self.obj_id;
