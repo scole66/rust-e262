@@ -1141,6 +1141,33 @@ fn ordinary_get_07() {
 }
 
 #[test]
+fn ordinary_set_01() {
+    // [[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+
+    let result = ordinary_set(&mut agent, &obj, key, value, &receiver).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_set_02() {
+    // success
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from("test sentinel");
+    let receiver = ECMAScriptValue::from(obj.clone());
+
+    let result = ordinary_set(&mut agent, &obj, key.clone(), value.clone(), &receiver).unwrap();
+    assert!(result);
+    let item = get(&mut agent, &obj, &key).unwrap();
+    assert_eq!(item, value);
+}
+
+#[test]
 fn ordinary_set_with_own_descriptor_01() {
     // [[GetPrototypeOf]] throws
     let mut agent = test_agent();
