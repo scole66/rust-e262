@@ -731,11 +731,11 @@ where
     keys.sort_by_cached_key(array_index_compare);
     norm_keys.sort_by_key(|x| x.1);
     symb_keys.sort_by_key(|x| x.1);
-    for item in norm_keys.iter() {
-        keys.push(item.0.clone());
+    for item in norm_keys.into_iter() {
+        keys.push(item.0);
     }
-    for item in symb_keys.iter() {
-        keys.push(item.0.clone());
+    for item in symb_keys.into_iter() {
+        keys.push(item.0);
     }
     keys
 }
