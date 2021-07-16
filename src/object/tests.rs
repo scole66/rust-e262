@@ -1141,6 +1141,203 @@ fn ordinary_get_07() {
 }
 
 #[test]
+fn ordinary_set_with_own_descriptor_01() {
+    // [[GetPrototypeOf]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetPrototypeOf]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetPrototypeOf]] called on TestObject");
+}
+#[test]
+fn ordinary_set_with_own_descriptor_02() {
+    // If ownDesc is None, call [[Set]] on the parent. (We check by having the parent throw when we call its [[Set]].)
+    let mut agent = test_agent();
+    let parent = TestObject::object(&mut agent, &[FunctionId::Set]);
+    let obj = ordinary_object_create(&mut agent, Some(&parent), &[]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[Set]] called on TestObject");
+}
+#[test]
+fn ordinary_set_with_own_descriptor_03() {
+    // ownDesc has writable:false; function should return false.
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: false, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(own_desc)).unwrap();
+    assert!(!result);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_04() {
+    // Type(receiver) is not object -> return false
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(999);
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, None).unwrap();
+    assert!(!result);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_05() {
+    // receiver.[[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, None).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_set_with_own_descriptor_06() {
+    // existing is an accessor
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("sentinel value")).unwrap();
+    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let accessor_prop = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, key.clone(), accessor_prop).unwrap();
+    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(own_desc)).unwrap();
+    assert!(!result);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_07() {
+    // existing is read-only
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+    let readonly =
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("read and weep")), writable: Some(false), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, key.clone(), readonly).unwrap();
+    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(own_desc)).unwrap();
+    assert!(!result);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_08() {
+    // existing exists
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::Undefined;
+    let receiver = ECMAScriptValue::from(obj.clone());
+    let previously =
+        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("initial")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    define_property_or_throw(&mut agent, &obj, key.clone(), previously).unwrap();
+    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }), enumerable: true, configurable: true, spot: 0 };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc)).unwrap();
+    assert!(result);
+
+    let item = get(&mut agent, &obj, &key).unwrap();
+    assert_eq!(item, value);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_09() {
+    // existing does not exist
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from("test sentinel");
+    let receiver = ECMAScriptValue::from(obj.clone());
+    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }), enumerable: true, configurable: true, spot: 0 };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc)).unwrap();
+    assert!(result);
+
+    let item = get(&mut agent, &obj, &key).unwrap();
+    assert_eq!(item, value);
+}
+fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, arguments: &[ECMAScriptValue]) -> Completion {
+    // This is a setter; it is essentially:
+    // function(val) { this.value = val; }
+    let obj = to_object(agent, this_value)?;
+    let key = PropertyKey::from("result");
+    let mut args = arguments.iter();
+    let val = args.next().cloned().unwrap_or(ECMAScriptValue::Undefined);
+    set(agent, &obj, key, val, true)?;
+    Ok(ECMAScriptValue::Undefined)
+}
+#[test]
+fn ordinary_set_with_own_descriptor_10() {
+    // own_desc is an accessor descriptor, with the above setter function
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from("test sentinel");
+    let receiver = ECMAScriptValue::from(obj.clone());
+    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("initial value")).unwrap();
+    let setter = create_builtin_function(&mut agent, test_setter, 1_f64, key.clone(), &[], None, None, Some(JSString::from("set")));
+    let accessor_prop = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(setter) }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value.clone(), &receiver, Some(accessor_prop)).unwrap();
+    assert!(result);
+
+    let item = get(&mut agent, &obj, &PropertyKey::from("result")).unwrap();
+    assert_eq!(item, value);
+}
+#[test]
+fn ordinary_set_with_own_descriptor_11() {
+    // own_desc is an accessor descriptor, with a setter function that throws
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from("test sentinel");
+    let receiver = ECMAScriptValue::from(obj.clone());
+    let setter = agent.intrinsic(IntrinsicId::ThrowTypeError);
+    let accessor_prop = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(setter) }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value.clone(), &receiver, Some(accessor_prop)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
+}
+#[test]
+fn ordinary_set_with_own_descriptor_12() {
+    // own_desc is an accessor descriptor, with an undefined setter function
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from("test sentinel");
+    let receiver = ECMAScriptValue::from(obj.clone());
+    let accessor_prop = PropertyDescriptor {
+        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
+
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap();
+    assert!(!result);
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();
