@@ -1462,6 +1462,107 @@ fn ordinary_own_property_keys_02() {
 }
 
 #[test]
+fn array_index_key_01() {
+    assert_eq!(array_index_key(&PropertyKey::from("981")), 981);
+}
+#[test]
+#[should_panic]
+fn array_index_key_02() {
+    array_index_key(&PropertyKey::from("blip"));
+}
+#[test]
+#[should_panic]
+fn array_index_key_03() {
+    let mut agent = test_agent();
+    array_index_key(&PropertyKey::from(Symbol::new(&mut agent, None)));
+}
+
+#[test]
+fn object_interface_to_boolean_obj() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(obj.o.to_boolean_obj().is_none());
+}
+#[test]
+fn object_interface_to_function_obj() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(obj.o.to_function_obj().is_none());
+}
+#[test]
+fn object_interface_to_callable_obj() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(obj.o.to_callable_obj().is_none());
+}
+#[test]
+fn object_interface_to_builtin_function_obj() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(obj.o.to_builtin_function_obj().is_none());
+}
+#[test]
+fn object_interface_is_arguments_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_arguments_object());
+}
+#[test]
+fn object_interface_is_callable_obj() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_callable_obj());
+}
+#[test]
+fn object_interface_is_error_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_error_object());
+}
+#[test]
+fn object_interface_is_boolean_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_boolean_object());
+}
+#[test]
+fn object_interface_is_number_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_number_object());
+}
+#[test]
+fn object_interface_is_string_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_string_object());
+}
+#[test]
+fn object_interface_is_date_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_date_object());
+}
+#[test]
+fn object_interface_is_regexp_object() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    assert!(!obj.o.is_regexp_object());
+}
+
+#[test]
 fn ordinary_object_create_01() {
     // When: An agent is given
     let mut agent = test_agent();

@@ -728,7 +728,7 @@ where
             }
         }
     }
-    keys.sort_by_cached_key(array_index_compare);
+    keys.sort_by_cached_key(array_index_key);
     norm_keys.sort_by_key(|x| x.1);
     symb_keys.sort_by_key(|x| x.1);
     for item in norm_keys.into_iter() {
@@ -739,7 +739,7 @@ where
     }
     keys
 }
-fn array_index_compare(item: &PropertyKey) -> u32 {
+fn array_index_key(item: &PropertyKey) -> u32 {
     match item {
         PropertyKey::String(s) => String::from_utf16_lossy(s.as_slice()).parse::<u32>().unwrap(),
         PropertyKey::Symbol(_) => unreachable!(),
