@@ -1342,7 +1342,7 @@ fn ordinary_set_with_own_descriptor_11() {
         spot: 0,
     };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value.clone(), &receiver, Some(accessor_prop)).unwrap_err();
+    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
 }
 #[test]
@@ -1362,6 +1362,103 @@ fn ordinary_set_with_own_descriptor_12() {
 
     let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap();
     assert!(!result);
+}
+
+#[test]
+fn ordinary_delete_01() {
+    // [[GetOwnProperty]] throws
+    let mut agent = test_agent();
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_delete(&mut agent, &obj, &key).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "[[GetOwnProperty]] called on TestObject");
+}
+#[test]
+fn ordinary_delete_02() {
+    // property isn't actually there
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+
+    let result = ordinary_delete(&mut agent, &obj, &key).unwrap();
+    assert!(result);
+}
+#[test]
+fn ordinary_delete_03() {
+    // property isn't configurable
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from(0);
+    define_property_or_throw(
+        &mut agent,
+        &obj,
+        key.clone(),
+        PotentialPropertyDescriptor { value: Some(value.clone()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+    )
+    .unwrap();
+
+    let result = ordinary_delete(&mut agent, &obj, &key).unwrap();
+    assert!(!result);
+    let item = get(&mut agent, &obj, &key).unwrap();
+    assert_eq!(item, value);
+}
+#[test]
+fn ordinary_delete_04() {
+    // property is normal
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let key = PropertyKey::from("a");
+    let value = ECMAScriptValue::from(0);
+    create_data_property(&mut agent, &obj, key.clone(), value).unwrap();
+
+    let result = ordinary_delete(&mut agent, &obj, &key).unwrap();
+    assert!(result);
+    let item = get(&mut agent, &obj, &key).unwrap();
+    assert_eq!(item, ECMAScriptValue::Undefined);
+}
+
+#[test]
+fn ordinary_own_property_keys_01() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    let result = ordinary_own_property_keys(&obj);
+    assert_eq!(result, &[]);
+}
+use crate::values::Symbol;
+#[test]
+fn ordinary_own_property_keys_02() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let sym1 = Symbol::new(&mut agent, Some(JSString::from("TestSymbol 1")));
+    let sym2 = Symbol::new(&mut agent, Some(JSString::from("TestSymbol 2")));
+    create_data_property(&mut agent, &obj, PropertyKey::from(sym1.clone()), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("hillbilly"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("automobile"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("888"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from(sym2.clone()), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("1002"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("green"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("-1"), ECMAScriptValue::Null).unwrap();
+    create_data_property(&mut agent, &obj, PropertyKey::from("0"), ECMAScriptValue::Null).unwrap();
+
+    let result = ordinary_own_property_keys(&obj);
+    assert_eq!(
+        result,
+        &[
+            PropertyKey::from("0"),
+            PropertyKey::from("888"),
+            PropertyKey::from("1002"),
+            PropertyKey::from("hillbilly"),
+            PropertyKey::from("automobile"),
+            PropertyKey::from("green"),
+            PropertyKey::from("-1"),
+            PropertyKey::from(sym1),
+            PropertyKey::from(sym2),
+        ]
+    );
 }
 
 #[test]
