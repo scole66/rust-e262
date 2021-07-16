@@ -95,6 +95,25 @@ fn agent_pop_execution_context() {
     assert!(r.script_or_module.is_none());
 }
 #[test]
+fn agent_active_function_object() {
+    let mut agent = Agent::new();
+    // no Running Execution Context, so this should be None.
+    let afo = agent.active_function_object();
+    assert!(afo.is_none());
+
+    agent.initialize_host_defined_realm();
+    // Now there's an execution context, but still no active function, so this should still be None.
+    let afo = agent.active_function_object();
+    assert!(afo.is_none());
+
+    // Just randomly assign a function object to the data, for this test.
+    let fo = agent.intrinsic(IntrinsicId::ThrowTypeError);
+    agent.running_execution_context_mut().unwrap().function = Some(fo.clone());
+
+    let afo = agent.active_function_object().unwrap();
+    assert_eq!(afo, fo);
+}
+#[test]
 fn agent_next_object_id() {
     let mut agent = Agent::new();
     // Starts at something, and then increases monotonically.
