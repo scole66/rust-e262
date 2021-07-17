@@ -223,6 +223,34 @@ pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
 ///////////////////////////////////////////////////////////////////
 /// BUILT IN FUNCTIONS
 ///////////////////////////////////////////////////////////////////
+
+// A small little arguments iterator, useful for built-in functions.
+// When you have
+// fn builtin_function(..., arguments: &[ECMAScriptValue]) -> ...
+// Then in your code you can say:
+//      let mut args = Arguments::from(arguments);
+//      let first_arg = args.next_arg();
+//      let second_arg = args.next_arg();
+// etc. If the args are there, you get them, if the arguments array is short, then you get undefined.
+pub struct Arguments<'a> {
+    iterator: std::slice::Iter<'a, ECMAScriptValue>,
+    count: usize,
+}
+impl<'a> From<&'a [ECMAScriptValue]> for Arguments<'a> {
+    fn from(source: &'a [ECMAScriptValue]) -> Self {
+        let count = source.len();
+        Self { iterator: source.iter(), count }
+    }
+}
+impl<'a> Arguments<'a> {
+    pub fn next_arg(&mut self) -> ECMAScriptValue {
+        self.iterator.next().cloned().unwrap_or(ECMAScriptValue::Undefined)
+    }
+    pub fn count(&self) -> usize {
+        self.count
+    }
+}
+
 #[derive(Debug)]
 pub enum FunctionName {
     String(JSString),
@@ -461,3 +489,6 @@ pub fn create_builtin_function(
     set_function_name(agent, &func, FunctionName::from(name), prefix);
     func
 }
+
+#[cfg(test)]
+mod tests;
