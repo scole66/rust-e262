@@ -2,10 +2,13 @@ use super::*;
 use crate::tests::{calculate_hash, test_agent, unwind_type_error};
 use ahash::RandomState;
 
-const ALL_INTRINSIC_IDS: [IntrinsicId; 15] = [
+const ALL_INTRINSIC_IDS: [IntrinsicId; 20] = [
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
+    IntrinsicId::Error,
     IntrinsicId::ErrorPrototype,
+    IntrinsicId::EvalError,
+    IntrinsicId::EvalErrorPrototype,
     IntrinsicId::FunctionPrototype,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
@@ -18,6 +21,8 @@ const ALL_INTRINSIC_IDS: [IntrinsicId; 15] = [
     IntrinsicId::ThrowTypeError,
     IntrinsicId::TypeError,
     IntrinsicId::TypeErrorPrototype,
+    IntrinsicId::URIError,
+    IntrinsicId::URIErrorPrototype,
 ];
 #[test]
 fn intrinsic_id_debug() {
@@ -62,7 +67,10 @@ fn intrinsics_get() {
     let intrinsics = &agent.running_execution_context().unwrap().realm.borrow().intrinsics;
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
     assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
     assert_eq!(intrinsics.get(IntrinsicId::ErrorPrototype), intrinsics.error_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
+    assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
     assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
@@ -75,6 +83,8 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::ThrowTypeError), intrinsics.throw_type_error);
     assert_eq!(intrinsics.get(IntrinsicId::TypeError), intrinsics.type_error);
     assert_eq!(intrinsics.get(IntrinsicId::TypeErrorPrototype), intrinsics.type_error_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::URIError), intrinsics.uri_error);
+    assert_eq!(intrinsics.get(IntrinsicId::URIErrorPrototype), intrinsics.uri_error_prototype);
 }
 
 #[test]
