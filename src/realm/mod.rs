@@ -6,6 +6,7 @@ use super::errors::{
     provision_type_error_intrinsic, provision_uri_error_intrinsic,
 };
 use super::function_object::create_builtin_function;
+use super::number_object::provision_number_intrinsic;
 use super::object::{
     define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
     BUILTIN_FUNCTION_SLOTS,
@@ -25,6 +26,8 @@ pub enum IntrinsicId {
     EvalError,
     EvalErrorPrototype,
     FunctionPrototype,
+    Number,
+    NumberPrototype,
     Object,
     ObjectPrototype,
     RangeError,
@@ -84,6 +87,7 @@ pub struct Intrinsics {
     pub map_iterator_prototype: Object,             // The prototype of Map iterator objects (24.1.5)
     pub math: Object,                               // Math	The Math object (21.3)
     pub number: Object,                             // Number	The Number constructor (21.1.1)
+    pub number_prototype: Object,                   //
     pub object: Object,                             // Object	The Object constructor (20.1.1)
     pub object_prototype: Object,                   // The Object prototype object
     pub parse_float: Object,                        // parseFloat	The parseFloat function (19.2.4)
@@ -173,6 +177,7 @@ impl Intrinsics {
             map_iterator_prototype: dead.clone(),
             math: dead.clone(),
             number: dead.clone(),
+            number_prototype: dead.clone(),
             object: dead.clone(),
             object_prototype: dead.clone(),
             parse_float: dead.clone(),
@@ -218,6 +223,8 @@ impl Intrinsics {
             IntrinsicId::EvalError => &self.eval_error,
             IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
+            IntrinsicId::Number => &self.number,
+            IntrinsicId::NumberPrototype => &self.number_prototype,
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
             IntrinsicId::RangeError => &self.range_error,
@@ -346,6 +353,9 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         },
     )
     .unwrap();
+    ///////////////////////////////////////////////////////////////////
+    // %Number% and %Number.prototype%
+    provision_number_intrinsic(agent, &realm_rec);
 
     provision_error_intrinsic(agent, &realm_rec);
     provision_eval_error_intrinsic(agent, &realm_rec);

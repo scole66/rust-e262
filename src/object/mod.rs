@@ -5,6 +5,7 @@ use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
+use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
@@ -753,6 +754,9 @@ pub trait ObjectInterface: Debug {
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         None
     }
+    fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
+        None
+    }
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
@@ -1091,12 +1095,14 @@ pub enum InternalSlotName {
     ErrorData,
     InitialName,
     Realm,
+    NumberData,
     Nonsense, // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
 pub const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
 pub const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
 pub const BUILTIN_FUNCTION_SLOTS: [InternalSlotName; 4] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
+pub const NUMBER_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1123,6 +1129,8 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         BooleanObject::object(agent, prototype)
     } else if slot_match(&ERROR_OBJECT_SLOTS, &slot_set) {
         ErrorObject::object(agent, prototype)
+    } else if slot_match(&NUMBER_OBJECT_SLOTS, &slot_set) {
+        NumberObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
