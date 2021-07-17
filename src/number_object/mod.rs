@@ -164,8 +164,8 @@ impl NumberObject {
 }
 
 pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
+    let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
     let number_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::NumberData]);
     realm.borrow_mut().intrinsics.number_prototype = number_prototype.clone();
@@ -424,7 +424,7 @@ fn number_is_nan(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: 
 fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
-    Ok(ECMAScriptValue::from(match number.clone() {
+    Ok(ECMAScriptValue::from(match number {
         ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9007199254740991.0,
         _ => false,
     }))
