@@ -454,7 +454,7 @@ fn to_string_09() {
     let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
 }
-fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     let sym = Symbol::new(agent, None);
     Ok(ECMAScriptValue::from(sym))
 }
@@ -542,21 +542,21 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
-fn faux_makes_number(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn faux_makes_number(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Ok(ECMAScriptValue::from(123456))
 }
 // non-object string
-fn faux_makes_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn faux_makes_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
-fn faux_makes_obj(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn faux_makes_obj(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(agent, Some(&object_prototype), &[]);
     Ok(ECMAScriptValue::from(obj))
 }
 // error
-fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 enum FauxKind {
@@ -761,7 +761,7 @@ fn to_primitive_prefer_number() {
     let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
-fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, arguments: &[ECMAScriptValue]) -> Completion {
+fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     if arguments.len() == 1 {
         if let ECMAScriptValue::String(s) = &arguments[0] {
             Ok(ECMAScriptValue::from(format!("Saw {}", s)))
@@ -772,7 +772,7 @@ fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
         Ok(ECMAScriptValue::from(format!("Incorrect arg count: there were {} elements, should have been 1", arguments.len())))
     }
 }
-fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion) -> Object {
+fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) -> Object {
     let realm = agent.running_execution_context().unwrap().realm.clone();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
@@ -801,7 +801,7 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
-fn exotic_returns_object(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn exotic_returns_object(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     let realm = agent.running_execution_context().unwrap().realm.clone();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
@@ -816,7 +816,7 @@ fn to_primitive_exotic_returns_object() {
     let result = to_primitive(&mut agent, &test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
 }
-fn exotic_throws(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn exotic_throws(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 #[test]

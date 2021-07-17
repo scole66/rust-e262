@@ -1075,7 +1075,7 @@ fn ordinary_get_04() {
     let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap();
     assert_eq!(result, ECMAScriptValue::from(0));
 }
-fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     // This is a getter; it is essentially:
     // function() { return this.result; }
     let obj = to_object(agent, this_value)?;
@@ -1293,7 +1293,7 @@ fn ordinary_set_with_own_descriptor_09() {
     let item = get(&mut agent, &obj, &key).unwrap();
     assert_eq!(item, value);
 }
-fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, arguments: &[ECMAScriptValue]) -> Completion {
+fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     // This is a setter; it is essentially:
     // function(val) { this.value = val; }
     let obj = to_object(agent, this_value)?;

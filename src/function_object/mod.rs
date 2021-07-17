@@ -281,7 +281,7 @@ impl From<JSString> for FunctionName {
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion,
+    pub steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
 }
 
 impl fmt::Debug for BuiltInFunctionData {
@@ -291,7 +291,7 @@ impl fmt::Debug for BuiltInFunctionData {
 }
 
 impl BuiltInFunctionData {
-    pub fn new(realm: Rc<RefCell<Realm>>, initial_name: Option<FunctionName>, steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion) -> Self {
+    pub fn new(realm: Rc<RefCell<Realm>>, initial_name: Option<FunctionName>, steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) -> Self {
         Self { realm, initial_name, steps }
     }
 }
@@ -321,7 +321,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
     ) -> Rc<Self> {
         Rc::new(Self {
             common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &BUILTIN_FUNCTION_SLOTS)),
@@ -335,7 +335,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
     ) -> Object {
         Object { o: Self::new(agent, prototype, extensible, realm, initial_name, steps) }
     }
@@ -433,7 +433,7 @@ impl CallableObject for BuiltInFunctionObject {
         caller_context.suspend();
         let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(agent, this_argument.clone(), ECMAScriptValue::Undefined, arguments_list);
+        let result = (self.builtin_data.borrow().steps)(agent, this_argument.clone(), None, arguments_list);
         agent.pop_execution_context();
         agent.running_execution_context_mut().unwrap().resume();
 
@@ -474,7 +474,7 @@ impl CallableObject for BuiltInFunctionObject {
 #[allow(clippy::too_many_arguments)]
 pub fn create_builtin_function(
     agent: &mut Agent,
-    behavior: fn(&mut Agent, ECMAScriptValue, ECMAScriptValue, &[ECMAScriptValue]) -> Completion,
+    behavior: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
     length: f64,
     name: PropertyKey,
     _internal_slots_list: &[InternalSlotName],
