@@ -1,7 +1,7 @@
 use super::*;
 use crate::errors::create_type_error;
 use crate::function_object::create_builtin_function;
-use crate::object::{define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::object::{create_data_property, define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::IntrinsicId;
 use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_type_error};
 use ahash::RandomState;
@@ -394,6 +394,85 @@ fn property_key_try_from() {
     assert_eq!(JSString::try_from(&pk).unwrap(), "key");
     let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     assert_eq!(JSString::try_from(&pk).unwrap_err(), "Expected String-valued property key");
+}
+
+#[test]
+fn to_string_01() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::Undefined).unwrap();
+    assert_eq!(result, "undefined");
+}
+#[test]
+fn to_string_02() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::Null).unwrap();
+    assert_eq!(result, "null");
+}
+#[test]
+fn to_string_03() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::from(true)).unwrap();
+    assert_eq!(result, "true");
+}
+#[test]
+fn to_string_04() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::from(false)).unwrap();
+    assert_eq!(result, "false");
+}
+#[test]
+fn to_string_05() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::from(10)).unwrap();
+    assert_eq!(result, "10");
+}
+#[test]
+fn to_string_06() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::from("blue")).unwrap();
+    assert_eq!(result, "blue");
+}
+#[test]
+fn to_string_07() {
+    let mut agent = test_agent();
+    let sym = Symbol::new(&mut agent, None);
+    let result = to_string(&mut agent, ECMAScriptValue::Symbol(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+}
+#[test]
+fn to_string_08() {
+    let mut agent = test_agent();
+    let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&obj_proto), &[]);
+    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap();
+    assert_eq!(result, "[object Object]");
+}
+#[test]
+fn to_string_09() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+}
+fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+    let sym = Symbol::new(agent, None);
+    Ok(ECMAScriptValue::from(sym))
+}
+#[test]
+fn to_string_10() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let badtostring = create_builtin_function(&mut agent, tostring_symbol, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+    create_data_property(&mut agent, &obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
+
+    let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+}
+#[test]
+fn to_string_11() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::from(BigInt::from(789123))).unwrap();
+    assert_eq!(result, "789123");
 }
 
 #[test]

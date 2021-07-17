@@ -470,6 +470,54 @@ pub fn to_boolean(val: ECMAScriptValue) -> bool {
     bool::from(val)
 }
 
+// ToString ( argument )
+//
+// The abstract operation ToString takes argument argument. It converts argument to a value of type String according to
+// Table 16:
+//
+// Table 16: ToString Conversions
+// +---------------+-----------------------------------------------------------+
+// | Argument Type | Result                                                    |
+// +---------------+-----------------------------------------------------------+
+// | Undefined     | Return "undefined".                                       |
+// +---------------+-----------------------------------------------------------+
+// | Null          | Return "null".                                            |
+// +---------------+-----------------------------------------------------------+
+// | Boolean       | If argument is true, return "true".                       |
+// |               | If argument is false, return "false".                     |
+// +---------------+-----------------------------------------------------------+
+// | Number        | Return ! Number::toString(argument).                      |
+// +---------------+-----------------------------------------------------------+
+// | String        | Return argument.                                          |
+// +---------------+-----------------------------------------------------------+
+// | Symbol        | Throw a TypeError exception.                              |
+// +---------------+-----------------------------------------------------------+
+// | BigInt        | Return ! BigInt::toString(argument).                      |
+// +---------------+-----------------------------------------------------------+
+// | Object        | Apply the following steps:                                |
+// |               |      1. Let primValue be ? ToPrimitive(argument, string). |
+// |               |      2. Return ? ToString(primValue).                     |
+// +---------------+-----------------------------------------------------------+
+pub fn to_string(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<JSString> {
+    match val {
+        ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
+        ECMAScriptValue::Null => Ok(JSString::from("null")),
+        ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
+        ECMAScriptValue::Number(n) => {
+            let mut s = Vec::new();
+            number_to_string(&mut s, n).unwrap();
+            Ok(JSString::from(s))
+        }
+        ECMAScriptValue::String(s) => Ok(s),
+        ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbols may not be converted to strings")),
+        ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
+        ECMAScriptValue::Object(o) => {
+            let prim_value = to_primitive(agent, &ECMAScriptValue::from(o), Some(ConversionHint::String))?;
+            to_string(agent, prim_value)
+        }
+    }
+}
+
 // ToObject ( argument )
 //
 // The abstract operation ToObject takes argument argument. It converts argument to a value of type Object according to
