@@ -9,7 +9,9 @@ use super::object::{call, get, get_method, to_callable, Object};
 use super::string_object::create_string_object;
 use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
-use num::bigint::BigInt;
+use lazy_static::lazy_static;
+use num::{BigInt, BigUint, Num, ToPrimitive};
+use regex::Regex;
 use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -468,6 +470,108 @@ impl From<ECMAScriptValue> for bool {
 }
 pub fn to_boolean(val: ECMAScriptValue) -> bool {
     bool::from(val)
+}
+
+// ToNumeric ( value )
+//
+// The abstract operation ToNumeric takes argument value. It returns value converted to a Number or a BigInt. It
+// performs the following steps when called:
+//
+//      1. Let primValue be ? ToPrimitive(value, number).
+//      2. If Type(primValue) is BigInt, return primValue.
+//      3. Return ? ToNumber(primValue).
+#[derive(Debug, PartialEq)]
+pub enum Numeric {
+    Number(f64),
+    BigInt(Rc<BigInt>),
+}
+pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Numeric> {
+    let prim_value = to_primitive(agent, &value, Some(ConversionHint::Number))?;
+    if let ECMAScriptValue::BigInt(bi) = prim_value {
+        Ok(Numeric::BigInt(bi))
+    } else {
+        Ok(Numeric::Number(to_number(agent, prim_value)?))
+    }
+}
+
+// ToNumber ( argument )
+//
+// The abstract operation ToNumber takes argument argument. It converts argument to a value of type Number according to
+// Table 14:
+//
+//   Table 14: ToNumber Conversions
+// +---------------+-------------------------------------------------------------------+
+// | Argument Type | Result                                                            |
+// +---------------+-------------------------------------------------------------------+
+// | Undefined     | Return NaN.                                                       |
+// +---------------+-------------------------------------------------------------------+
+// | Null          | Return +0𝔽.                                                       |
+// +---------------+-------------------------------------------------------------------+
+// | Boolean       | If argument is true, return 1𝔽. If argument is false, return +0𝔽. |
+// +---------------+-------------------------------------------------------------------+
+// | Number        | Return argument (no conversion).                                  |
+// +---------------+-------------------------------------------------------------------+
+// | String        | See grammar and conversion algorithm below.                       |
+// +---------------+-------------------------------------------------------------------+
+// | Symbol        | Throw a TypeError exception.                                      |
+// +---------------+-------------------------------------------------------------------+
+// | BigInt        | Throw a TypeError exception.                                      |
+// +---------------+-------------------------------------------------------------------+
+// | Object        | Apply the following steps:                                        |
+// |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
+// |               |     2. Return ? ToNumber(primValue).                              |
+// +---------------+-------------------------------------------------------------------+
+pub fn to_number(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<f64> {
+    match value {
+        ECMAScriptValue::Undefined => Ok(f64::NAN),
+        ECMAScriptValue::Null => Ok(0_f64),
+        ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
+        ECMAScriptValue::Number(n) => Ok(n),
+        ECMAScriptValue::String(s) => Ok(string_to_number(s)),
+        ECMAScriptValue::BigInt(_) => Err(create_type_error(agent, "BigInt values cannot be converted to Number values")),
+        ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbol values cannot be converted to Number values")),
+        ECMAScriptValue::Object(o) => {
+            let prim_value = to_primitive(agent, &ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
+            to_number(agent, prim_value)
+        }
+    }
+}
+
+fn string_to_number(string: JSString) -> f64 {
+    lazy_static! {
+        static ref STR_WHITE_SPACE: &'static str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
+        static ref DECIMAL_DIGITS: &'static str = "(?:[0-9]+)";
+        static ref EXPONENT_PART: &'static str = "(?:[eE][-+]?[0-9]+)";
+        static ref STR_UNSIGNED_DECIMAL_LITERAL: String =
+            format!(r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)", *DECIMAL_DIGITS, *DECIMAL_DIGITS, *EXPONENT_PART, *DECIMAL_DIGITS, *EXPONENT_PART, *DECIMAL_DIGITS, *EXPONENT_PART);
+        static ref STR_DECIMAL_LITERAL: String = format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL);
+        static ref BINARY_INTEGER_LITERAL: &'static str = "(?:0[bB](?P<binary>[01]+))";
+        static ref OCTAL_INTEGER_LITERAL: &'static str = "(?:0[oO](?P<octal>[0-7]+))";
+        static ref HEX_INTEGER_LITERAL: &'static str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
+        static ref NONDECIMAL_INTEGER_LITERAL: String = format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
+        static ref STR_NUMERIC_LITERAL: String = format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
+        static ref STRING_NUMERIC_LITERAL: String = format!("^(?:{}?|{}?{}{}?)$", *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE);
+        static ref MATCHER: Regex = Regex::new(&*STRING_NUMERIC_LITERAL).unwrap();
+    }
+
+    let number_string = String::from(string);
+    match MATCHER.captures(&number_string) {
+        None => f64::NAN,
+        Some(captures) => captures.name("decimal").map_or_else(
+            || {
+                captures.name("binary").map_or_else(
+                    || {
+                        captures.name("octal").map_or_else(
+                            || captures.name("hex").map_or(0.0, |hex| BigUint::from_str_radix(hex.as_str(), 16).unwrap().to_f64().unwrap()),
+                            |octal| BigUint::from_str_radix(octal.as_str(), 8).unwrap().to_f64().unwrap(),
+                        )
+                    },
+                    |binary| BigUint::from_str_radix(binary.as_str(), 2).unwrap().to_f64().unwrap(),
+                )
+            },
+            |s| s.as_str().parse::<f64>().unwrap(),
+        ),
+    }
 }
 
 // ToString ( argument )

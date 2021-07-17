@@ -397,6 +397,159 @@ fn property_key_try_from() {
 }
 
 #[test]
+fn numeric_debug() {
+    assert_ne!(format!("{:?}", Numeric::Number(0.0)), "");
+}
+#[test]
+fn numeric_partialeq() {
+    let num1 = Numeric::Number(10.0);
+    let num2 = Numeric::Number(-10.0);
+
+    assert_eq!(num1 != num2, true);
+    assert_eq!(num1 == num2, false);
+}
+
+#[test]
+fn to_numeric_01() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let result = to_numeric(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+}
+#[test]
+fn to_numeric_02() {
+    let mut agent = test_agent();
+    let result = to_numeric(&mut agent, ECMAScriptValue::from(BigInt::from(4747474))).unwrap();
+    assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4747474))));
+}
+#[test]
+fn to_numeric_03() {
+    let mut agent = test_agent();
+    let result = to_numeric(&mut agent, ECMAScriptValue::from(10)).unwrap();
+    assert_eq!(result, Numeric::Number(10.0));
+}
+#[test]
+fn to_numeric_04() {
+    let mut agent = test_agent();
+    let sym = Symbol::new(&mut agent, None);
+    let result = to_numeric(&mut agent, ECMAScriptValue::from(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+
+#[test]
+fn to_number_01() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::Undefined;
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert!(result.is_nan());
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn to_number_02() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::Null;
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert_eq!(result, 0.0);
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn to_number_03() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from(true);
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert_eq!(result, 1.0);
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn to_number_04() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from(false);
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert_eq!(result, 0.0);
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn to_number_05() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from(37.6);
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert_eq!(result, 37.6);
+}
+#[test]
+fn to_number_06() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from("blue");
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert!(result.is_nan());
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn to_number_07() {
+    let mut agent = test_agent();
+    let testcases = [
+        ("", 0.0),
+        ("1", 1.0),
+        ("   12   ", 12.0),
+        ("-Infinity", f64::NEG_INFINITY),
+        ("0030", 30.0),
+        (" \t\r\n\u{a0}\u{2029}\u{2028}\u{b}\u{c}\u{feff}", 0.0),
+        ("0xabcd", 43981.0),
+        ("0X6A8BB", 436411.0),
+        ("0b010", 2.0),
+        ("0B110", 6.0),
+        ("0o766", 502.0),
+        ("0O7", 7.0),
+        ("0xabcdabcdabcdabcdabcdabcdabcdabcd", 228365892722206371581333312115001109453.0),
+    ];
+
+    for (s, e) in testcases {
+        let result = to_number(&mut agent, ECMAScriptValue::from(s)).unwrap();
+        assert_eq!(result, e);
+    }
+}
+#[test]
+fn to_number_08() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from(BigInt::from(10));
+
+    let result = to_number(&mut agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "BigInt values cannot be converted to Number values");
+}
+#[test]
+fn to_number_09() {
+    let mut agent = test_agent();
+    let input = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+
+    let result = to_number(&mut agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+#[test]
+fn to_number_10() {
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+    let input = ECMAScriptValue::from(obj);
+
+    let result = to_number(&mut agent, input).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
+}
+#[test]
+fn to_number_11() {
+    let mut agent = test_agent();
+    let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+    let obj = ordinary_object_create(&mut agent, Some(&obj_proto), &[]);
+    let input = ECMAScriptValue::from(obj);
+
+    let result = to_number(&mut agent, input).unwrap();
+    assert!(result.is_nan());
+}
+
+#[test]
 fn to_string_01() {
     let mut agent = test_agent();
     let result = to_string(&mut agent, ECMAScriptValue::Undefined).unwrap();
