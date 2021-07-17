@@ -45,7 +45,7 @@ impl From<&str> for JSString {
 
 impl From<&[u8]> for JSString {
     fn from(source: &[u8]) -> Self {
-        let v: Vec<u16> = source.into_iter().map(|v| *v as u16).collect();
+        let v: Vec<u16> = source.iter().map(|v| *v as u16).collect();
         Self::from(v)
     }
 }
