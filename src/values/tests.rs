@@ -672,7 +672,6 @@ fn to_object_03() {
     assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
 }
 #[test]
-//#[should_panic] // An XFAIL. Number objects not yet implemented.
 fn to_object_04() {
     let mut agent = test_agent();
     let test_value = 1337.0;
