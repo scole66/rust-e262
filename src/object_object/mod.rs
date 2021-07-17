@@ -12,7 +12,7 @@ use std::rc::Rc;
 // When the valueOf method is called, the following steps are taken:
 //
 //      1. Return ? ToObject(this value).
-fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     to_object(agent, this_value).map(ECMAScriptValue::from)
 }
 
@@ -47,7 +47,7 @@ fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _ne
 use super::arrays::is_array;
 use super::object::get;
 use super::strings::JSString;
-fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: ECMAScriptValue, _arguments: &[ECMAScriptValue]) -> Completion {
+fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     if this_value.is_undefined() {
         return Ok(ECMAScriptValue::from("[object Undefined]"));
     }
