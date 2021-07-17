@@ -43,6 +43,18 @@ impl From<&str> for JSString {
     }
 }
 
+impl From<&[u8]> for JSString {
+    fn from(source: &[u8]) -> Self {
+        let v: Vec<u16> = source.into_iter().map(|v| *v as u16).collect();
+        Self::from(v)
+    }
+}
+impl From<Vec<u8>> for JSString {
+    fn from(source: Vec<u8>) -> Self {
+        Self::from(source.as_slice())
+    }
+}
+
 impl From<String> for JSString {
     fn from(source: String) -> Self {
         Self::from(source.as_str())
@@ -216,6 +228,13 @@ mod tests {
         //assert_eq!(display, "Bob");
         assert!(display == "Bob");
     }
+    #[test]
+    fn from_u8array_01() {
+        let src: &[u8] = &[66, 111, 98]; // Bob
+        let res = JSString::from(src);
+        let display = format!("{}", res);
+        assert!(display == "Bob");
+    }
 
     #[test]
     fn from_str_test_01() {
@@ -288,7 +307,8 @@ mod tests {
 
     #[test]
     fn code_point_at_02() {
-        let mystr = JSString::from(vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902]);
+        let src: Vec<u16> = vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902];
+        let mystr = JSString::from(src);
         let expected = vec![
             CodePointAtResult { code_point: 0, code_unit_count: 1, is_unpaired_surrogate: false },
             CodePointAtResult { code_point: 0x10000, code_unit_count: 2, is_unpaired_surrogate: false },
@@ -320,7 +340,8 @@ mod tests {
 
     #[test]
     fn string_to_code_points_01() {
-        let mystr = JSString::from(vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902]);
+        let src: Vec<u16> = vec![0x00, 0xd800, 0xdc00, 0xde00, 0xd900, 0x00e2, 0xd902];
+        let mystr = JSString::from(src);
         let result = string_to_code_points(&mystr);
         let expected = vec![0, 0x10000, 0xde00, 0xd900, 0xe2, 0xd902];
         assert!(result == expected);
