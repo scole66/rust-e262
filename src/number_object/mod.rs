@@ -1,10 +1,11 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
+use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
-    ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
-    ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor, NUMBER_OBJECT_SLOTS,
+    define_property_or_throw, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of,
+    ordinary_has_property, ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of,
+    CommonObjectData, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, NUMBER_OBJECT_SLOTS,
 };
 use super::realm::{IntrinsicId, Realm};
 use super::values::{to_numeric, ECMAScriptValue, Numeric, PropertyKey};
@@ -162,9 +163,6 @@ impl NumberObject {
     }
 }
 
-use super::function_object::create_builtin_function;
-use super::object::{define_property_or_throw, ordinary_object_create, BUILTIN_FUNCTION_SLOTS};
-
 pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
     let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let function_prototype = agent.intrinsic(IntrinsicId::FunctionPrototype);
@@ -192,41 +190,44 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     let number_constructor =
         create_builtin_function(agent, number_constructor_function, 1_f64, PropertyKey::from("Number"), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
 
-    let constructor_function = |steps, name: &str, length| {
-        let key = PropertyKey::from(name);
-        let function_object = create_builtin_function(agent, steps, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-        define_property_or_throw(
-            agent,
-            &number_constructor,
-            key,
-            PotentialPropertyDescriptor {
-                value: Some(ECMAScriptValue::from(function_object)),
-                writable: Some(true),
-                enumerable: Some(false),
-                configurable: Some(true),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-    };
+    // Constructor Function Properties
+    macro_rules! constructor_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(agent, $steps, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            define_property_or_throw(
+                agent,
+                &number_constructor,
+                key,
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::from(function_object)),
+                    writable: Some(true),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        };
+    }
+    constructor_function!(number_is_finite, "isFinite", 1_f64);
+    constructor_function!(number_is_integer, "isInteger", 1_f64);
+    constructor_function!(number_is_nan, "isNaN", 1_f64);
+    constructor_function!(number_is_safe_integer, "isSafeInteger", 1_f64);
 
-    // Constructor Functions
-    constructor_function(number_is_finite, "isFinite", 1_f64);
-    constructor_function(number_is_integer, "isInteger", 1_f64);
-    constructor_function(number_is_nan, "isNaN", 1_f64);
-    constructor_function(number_is_safe_integer, "isSafeInteger", 1_f64);
-
-    let constructor_data = |value, name: &str| {
-        let key = PropertyKey::from(name);
-        define_property_or_throw(
-            agent,
-            &number_constructor,
-            key,
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(value)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-        )
-        .unwrap();
-    };
-
+    // Constructor Data Properties
+    macro_rules! constructor_data {
+        ( $value:expr, $name:expr ) => {{
+            let key = PropertyKey::from($name);
+            define_property_or_throw(
+                agent,
+                &number_constructor,
+                key,
+                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+            )
+            .unwrap();
+        }};
+    }
     // Number.EPSILON
     //
     // The value of Number.EPSILON is the Number value for the magnitude of the difference between 1 and the smallest
@@ -234,7 +235,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // 2.2204460492503130808472633361816 × 10**-16.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(f64::EPSILON, "EPSILON");
+    constructor_data!(f64::EPSILON, "EPSILON");
 
     // Number.MAX_SAFE_INTEGER
     //
@@ -244,7 +245,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // The value of Number.MAX_SAFE_INTEGER is 9007199254740991𝔽 (𝔽(2**53 - 1)).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(9007199254740991.0, "MAX_SAFE_INTEGER");
+    constructor_data!(9007199254740991.0, "MAX_SAFE_INTEGER");
 
     // Number.MAX_VALUE
     //
@@ -252,7 +253,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // 1.7976931348623157 × 10**308.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(f64::MAX, "MAX_VALUE");
+    constructor_data!(f64::MAX, "MAX_VALUE");
 
     // Number.MIN_SAFE_INTEGER
     //
@@ -262,7 +263,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // The value of Number.MIN_SAFE_INTEGER is -9007199254740991𝔽 (𝔽(-(2**53 - 1))).
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(-9007199254740991.0, "MIN_SAFE_INTEGER");
+    constructor_data!(-9007199254740991.0, "MIN_SAFE_INTEGER");
 
     // Number.MIN_VALUE
     //
@@ -274,47 +275,36 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // smallest non-zero positive value that can actually be represented by the implementation.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(5e-324, "MIN_VALUE");
+    constructor_data!(5e-324, "MIN_VALUE");
 
     // Number.NaN
     //
     // The value of Number.NaN is NaN.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(f64::NAN, "NaN");
+    constructor_data!(f64::NAN, "NaN");
 
     // Number.NEGATIVE_INFINITY
     //
     // The value of Number.NEGATIVE_INFINITY is -∞𝔽.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(f64::NEG_INFINITY, "NEGATIVE_INFINITY");
+    constructor_data!(f64::NEG_INFINITY, "NEGATIVE_INFINITY");
 
     // Number.POSITIVE_INFINITY
     //
     // The value of Number.POSITIVE_INFINITY is +∞𝔽.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    constructor_data(f64::INFINITY, "POSITIVE_INFINITY");
+    constructor_data!(f64::INFINITY, "POSITIVE_INFINITY");
 
     // Number.prototype
     //
     // The initial value of Number.prototype is the Number prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    define_property_or_throw(
-        agent,
-        &number_constructor,
-        PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(&number_prototype)),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    constructor_data!(&number_prototype, "prototype");
+
     realm.borrow_mut().intrinsics.number = number_constructor.clone();
     define_property_or_throw(
         agent,
@@ -371,7 +361,7 @@ fn number_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
     match new_target {
         None => Ok(ECMAScriptValue::from(n)),
         Some(nt) => {
-            let o = ordinary_create_from_constructor(agent, nt, IntrinsicId::NumberPrototype, &NUMBER_OBJECT_SLOTS)?;
+            let o = ordinary_create_from_constructor(agent, nt, IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
             *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
             Ok(ECMAScriptValue::from(o))
         }
@@ -385,7 +375,7 @@ fn number_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
 //      1. If Type(number) is not Number, return false.
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
-fn number_is_finite(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_finite(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
@@ -399,10 +389,10 @@ fn number_is_finite(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target
 // When Number.isInteger is called with one argument number, the following steps are taken:
 //
 //      1. Return ! IsIntegralNumber(number).
-fn number_is_integer(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
-    Ok(ECMAScriptValue::from(is_integral_number(number)))
+    Ok(ECMAScriptValue::from(is_integral_number(&number)))
 }
 
 // Number.isNaN ( number )
@@ -415,7 +405,7 @@ fn number_is_integer(agent: &mut Agent, _this_value: ECMAScriptValue, _new_targe
 //
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
-fn number_is_nan(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_nan(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
@@ -431,7 +421,7 @@ fn number_is_nan(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
 //      1. If ! IsIntegralNumber(number) is true, then
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
-fn number_is_safe_integer(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number.clone() {
