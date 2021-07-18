@@ -167,9 +167,6 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    let number_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::NumberData]);
-    realm.borrow_mut().intrinsics.number_prototype = number_prototype.clone();
-
     // The Number Constructor
     //
     // The Number constructor:
@@ -312,22 +309,69 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // The initial value of Number.prototype is the Number prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
+    let number_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::NumberData]);
     constructor_data!(&number_prototype, "prototype");
 
-    realm.borrow_mut().intrinsics.number = number_constructor.clone();
-    define_property_or_throw(
-        agent,
-        &number_prototype,
-        PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(number_constructor)), // consumes number_constructor
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    // Properties of the Number Prototype Object
+    //
+    // The Number prototype object:
+    //
+    //   * is %Number.prototype%.
+    //   * is an ordinary object.
+    //   * is itself a Number object; it has a [[NumberData]] internal slot with the value +0𝔽.
+    //   * has a [[Prototype]] internal slot whose value is %Object.prototype%.
+    //   * Unless explicitly stated otherwise, the methods of the Number prototype object defined below are not generic
+    //     and the this value passed to them must be either a Number value or an object that has a [[NumberData]]
+    //     internal slot that has been initialized to a Number value.
+
+    // Prototype Data Properties
+    macro_rules! prototype_data {
+        ( $value:expr, $name:expr ) => {{
+            let key = PropertyKey::from($name);
+            define_property_or_throw(
+                agent,
+                &number_prototype,
+                key,
+                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            )
+            .unwrap();
+        }};
+    }
+
+    // Number.prototype.constructor
+    //
+    // The initial value of Number.prototype.constructor is %Number%.
+    prototype_data!(&number_constructor, "constructor");
+
+    // Prototype Function Properties
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            define_property_or_throw(
+                agent,
+                &number_prototype,
+                key,
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::from(function_object)),
+                    writable: Some(true),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        };
+    }
+    prototype_function!(number_prototype_to_exponential, "toExponential", 1.0);
+    prototype_function!(number_prototype_to_fixed, "toFixed", 1.0);
+    prototype_function!(number_prototype_to_locale_string, "toLocaleString", 0.0);
+    prototype_function!(number_prototype_to_precision, "toPrecision", 1.0);
+    prototype_function!(number_prototype_to_string, "toString", 1.0);
+    prototype_function!(number_prototype_value_of, "valueOf", 0.0);
+
+    realm.borrow_mut().intrinsics.number = number_constructor;
+    realm.borrow_mut().intrinsics.number_prototype = number_prototype;
 }
 
 // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
@@ -437,6 +481,75 @@ fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new
         ECMAScriptValue::Number(n) => is_integral_number(&number) && n.abs() <= 9007199254740991.0,
         _ => false,
     }))
+}
+use super::errors::create_type_error;
+// The abstract operation thisNumberValue takes argument value. It performs the following steps when called:
+//
+//  1. If Type(value) is Number, return value.
+//  2. If Type(value) is Object and value has a [[NumberData]] internal slot, then
+//      a. Let n be value.[[NumberData]].
+//      b. Assert: Type(n) is Number.
+//      c. Return n.
+//  3. Throw a TypeError exception.
+//
+// The phrase “this Number value” within the specification of a method refers to the result returned by calling the
+// abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
+fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<f64> {
+    match value {
+        ECMAScriptValue::Number(x) => Ok(x),
+        ECMAScriptValue::Object(o) if o.o.is_number_object() => {
+            let no = o.o.to_number_obj().unwrap();
+            let n = *no.number_data().borrow();
+            Ok(n)
+        }
+        _ => Err(create_type_error(agent, "Number method called with non-number receiver")),
+    }
+}
+
+fn number_prototype_to_exponential(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn number_prototype_to_fixed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn number_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+
+// Number.prototype.toString ( [ radix ] )
+//
+// NOTE     The optional radix should be an integral Number value in the inclusive range 2𝔽 to 36𝔽. If radix is
+//          undefined then 10𝔽 is used as the value of radix.
+//
+// The following steps are performed:
+//
+// 1. Let x be ? thisNumberValue(this value).
+// 2. If radix is undefined, let radixMV be 10.
+// 3. Else, let radixMV be ? ToIntegerOrInfinity(radix).
+// 4. If radixMV < 2 or radixMV > 36, throw a RangeError exception.
+// 5. If radixMV = 10, return ! ToString(x).
+// 6. Return the String representation of this Number value using the radix specified by radixMV. Letters a-z are used
+//    for digits with values 10 through 35. The precise algorithm is implementation-defined, however the algorithm
+//    should be a generalization of that specified in 6.1.6.1.20.
+//
+// The toString function is not generic; it throws a TypeError exception if its this value is not a Number or a Number
+// object. Therefore, it cannot be transferred to other kinds of objects for use as a method.
+//
+// The "length" property of the toString method is 1𝔽.
+fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let radix = args.next_arg();
+    let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(agent, radix)? };
+    todo!()
+}
+
+// Number.prototype.valueOf ( )
+//  1. Return ? thisNumberValue(this value).
+fn number_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    this_number_value(agent, this_value).map(ECMAScriptValue::Number)
 }
 
 #[cfg(test)]
