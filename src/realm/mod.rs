@@ -19,6 +19,7 @@ use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum IntrinsicId {
+    // If you add something here, _please_ update the ALL_INTRINSIC_IDS list in the unit tests!
     Boolean,
     BooleanPrototype,
     Error,

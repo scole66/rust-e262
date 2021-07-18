@@ -2,7 +2,7 @@ use super::*;
 use crate::tests::{calculate_hash, test_agent, unwind_type_error};
 use ahash::RandomState;
 
-const ALL_INTRINSIC_IDS: [IntrinsicId; 20] = [
+const ALL_INTRINSIC_IDS: [IntrinsicId; 22] = [
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
     IntrinsicId::Error,
@@ -12,6 +12,8 @@ const ALL_INTRINSIC_IDS: [IntrinsicId; 20] = [
     IntrinsicId::FunctionPrototype,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
+    IntrinsicId::Number,
+    IntrinsicId::NumberPrototype,
     IntrinsicId::RangeError,
     IntrinsicId::RangeErrorPrototype,
     IntrinsicId::ReferenceError,
@@ -72,6 +74,8 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::EvalError), intrinsics.eval_error);
     assert_eq!(intrinsics.get(IntrinsicId::EvalErrorPrototype), intrinsics.eval_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
+    assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
     assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);

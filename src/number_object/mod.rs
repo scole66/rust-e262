@@ -429,3 +429,6 @@ fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new
         _ => false,
     }))
 }
+
+#[cfg(test)]
+mod tests;
