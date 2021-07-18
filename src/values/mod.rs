@@ -574,6 +574,34 @@ fn string_to_number(string: JSString) -> f64 {
     }
 }
 
+// ToIntegerOrInfinity ( argument )
+//
+// The abstract operation ToIntegerOrInfinity takes argument argument. It converts argument to an integer, +∞, or -∞. It
+// performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, or -0𝔽, return 0.
+//  3. If number is +∞𝔽, return +∞.
+//  4. If number is -∞𝔽, return -∞.
+//  5. Let integer be floor(abs(ℝ(number))).
+//  6. If number < +0𝔽, set integer to -integer.
+//  7. Return integer.
+pub fn to_integer_or_infinity(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompletion<f64> {
+    let number = to_number(agent, argument)?;
+    if number.is_nan() || number == 0.0 {
+        Ok(0.0)
+    } else if number.is_infinite() {
+        Ok(number)
+    } else {
+        let integer = number.abs().floor();
+        if number < 0.0 {
+            Ok(-integer)
+        } else {
+            Ok(integer)
+        }
+    }
+}
+
 // ToString ( argument )
 //
 // The abstract operation ToString takes argument argument. It converts argument to a value of type String according to
