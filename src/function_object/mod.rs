@@ -72,7 +72,7 @@ pub trait CallableObject: ObjectInterface {
 }
 
 pub trait ConstructableObject: CallableObject {
-    fn construct(&self, agent: &mut Agent, arguments_list: &[ECMAScriptValue], new_target: &dyn ConstructableObject) -> Completion;
+    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -282,6 +282,7 @@ pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
     pub steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+    pub is_constructor: bool,
 }
 
 impl fmt::Debug for BuiltInFunctionData {
@@ -291,8 +292,13 @@ impl fmt::Debug for BuiltInFunctionData {
 }
 
 impl BuiltInFunctionData {
-    pub fn new(realm: Rc<RefCell<Realm>>, initial_name: Option<FunctionName>, steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) -> Self {
-        Self { realm, initial_name, steps }
+    pub fn new(
+        realm: Rc<RefCell<Realm>>,
+        initial_name: Option<FunctionName>,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        is_constructor: bool,
+    ) -> Self {
+        Self { realm, initial_name, steps, is_constructor }
     }
 }
 
@@ -322,10 +328,11 @@ impl BuiltInFunctionObject {
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
         steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        is_constructor: bool,
     ) -> Rc<Self> {
         Rc::new(Self {
             common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &BUILTIN_FUNCTION_SLOTS)),
-            builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps)),
+            builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
         })
     }
 
@@ -336,8 +343,9 @@ impl BuiltInFunctionObject {
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
         steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        is_constructor: bool,
     ) -> Object {
-        Object { o: Self::new(agent, prototype, extensible, realm, initial_name, steps) }
+        Object { o: Self::new(agent, prototype, extensible, realm, initial_name, steps, is_constructor) }
     }
 }
 
@@ -360,6 +368,14 @@ impl ObjectInterface for BuiltInFunctionObject {
     }
     fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
         Some(self)
+    }
+    fn to_constructable(&self) -> Option<&dyn ConstructableObject> {
+        let is_c = self.builtin_function_data().borrow().is_constructor;
+        if is_c {
+            Some(self)
+        } else {
+            None
+        }
     }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         Some(self)
@@ -441,6 +457,30 @@ impl CallableObject for BuiltInFunctionObject {
     }
 }
 
+impl ConstructableObject for BuiltInFunctionObject {
+    // [[Construct]] ( argumentsList, newTarget )
+    //
+    // The [[Construct]] internal method of a built-in function object F takes arguments argumentsList (a List of
+    // ECMAScript language values) and newTarget (a constructor). The steps performed are the same as [[Call]] (see
+    // 10.3.1) except that step 10 is replaced by:
+    //
+    // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the
+    //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
+    //     newTarget provides the NewTarget value.
+    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion {
+        assert_eq!(self.id(), self_object.o.id());
+        let caller_context = agent.running_execution_context_mut().unwrap();
+        caller_context.suspend();
+        let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
+        agent.push_execution_context(callee_context);
+        let result = (self.builtin_data.borrow().steps)(agent, ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        agent.pop_execution_context();
+        agent.running_execution_context_mut().unwrap().resume();
+
+        result
+    }
+}
+
 // CreateBuiltinFunction ( behaviour, length, name, internalSlotsList [ , realm [ , prototype [ , prefix ] ] ] )
 //
 // The abstract operation CreateBuiltinFunction takes arguments behaviour, length (a non-negative integer or +∞), name
@@ -475,6 +515,7 @@ impl CallableObject for BuiltInFunctionObject {
 pub fn create_builtin_function(
     agent: &mut Agent,
     behavior: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+    is_constructor: bool,
     length: f64,
     name: PropertyKey,
     _internal_slots_list: &[InternalSlotName],
@@ -484,7 +525,7 @@ pub fn create_builtin_function(
 ) -> Object {
     let realm_to_use = realm.unwrap_or_else(|| agent.running_execution_context().unwrap().realm.clone());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
-    let func = BuiltInFunctionObject::object(agent, Some(prototype_to_use), true, realm_to_use, None, behavior);
+    let func = BuiltInFunctionObject::object(agent, Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
     set_function_length(agent, &func, length);
     set_function_name(agent, &func, FunctionName::from(name), prefix);
     func

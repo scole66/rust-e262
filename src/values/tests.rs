@@ -615,7 +615,7 @@ fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
 fn to_string_10() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
-    let badtostring = create_builtin_function(&mut agent, tostring_symbol, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+    let badtostring = create_builtin_function(&mut agent, tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
     create_data_property(&mut agent, &obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
 
     let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
@@ -724,7 +724,7 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
     let mut connect = |name, length, steps| {
         let key = PropertyKey::from(name);
-        let fcn = create_builtin_function(agent, steps, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+        let fcn = create_builtin_function(agent, steps, false, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
         define_property_or_throw(
             agent,
             &target,
@@ -762,7 +762,7 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
     let key = PropertyKey::from("valueOf");
-    let fcn = create_builtin_function(agent, faux_makes_number, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+    let fcn = create_builtin_function(agent, faux_makes_number, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
     define_property_or_throw(
         agent,
         &target,
@@ -772,7 +772,7 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     .unwrap();
 
     let key = PropertyKey::from("toString");
-    let tostring_getter = create_builtin_function(agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+    let tostring_getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
     define_property_or_throw(
         agent,
         &target,
@@ -931,7 +931,7 @@ fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(&object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let fcn = create_builtin_function(agent, steps, 1_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
+    let fcn = create_builtin_function(agent, steps, false, 1_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     define_property_or_throw(
         agent,
         &target,
@@ -989,7 +989,7 @@ fn to_primitive_exotic_getter_throws() {
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let toprim_getter = create_builtin_function(&mut agent, faux_errors, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+    let toprim_getter = create_builtin_function(&mut agent, faux_errors, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
     define_property_or_throw(
         &mut agent,
         &target,

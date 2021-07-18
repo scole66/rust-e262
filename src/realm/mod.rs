@@ -286,8 +286,17 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     // %Boolean% and %Boolean.prototype%
     let boolean_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::BooleanData]);
     realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
-    let bool_constructor =
-        create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from("Boolean"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
+    let bool_constructor = create_builtin_function(
+        agent,
+        throw_type_error,
+        false,
+        1_f64,
+        PropertyKey::from("Boolean"),
+        &BUILTIN_FUNCTION_SLOTS,
+        Some(realm_rec.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
     define_property_or_throw(
         agent,
         &bool_constructor,
@@ -320,7 +329,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     let error_prototype = ordinary_object_create(agent, Some(&object_prototype), &[]);
     realm_rec.borrow_mut().intrinsics.error_prototype = error_prototype.clone();
     let error_constructor =
-        create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from("Error"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
+        create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from("Error"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
     define_property_or_throw(
         agent,
         &error_constructor,
@@ -372,7 +381,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     let set_up_native_error = |agent: &mut Agent, name: &str| {
         let proto = ordinary_object_create(agent, Some(&error_prototype), &[]);
         let constructor =
-            create_builtin_function(agent, throw_type_error, 1_f64, PropertyKey::from(name), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
+            create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from(name), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
         // constructor.prototype = proto
         define_property_or_throw(
             agent,
@@ -506,7 +515,7 @@ fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target
 
 fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
-    let fcn = create_builtin_function(agent, throw_type_error, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
+    let fcn = create_builtin_function(agent, throw_type_error, false, 0_f64, PropertyKey::from(""), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     fcn.o.prevent_extensions(agent).unwrap();
     let key = PropertyKey::from("length");
     let length = get(agent, &fcn, &key).unwrap();
