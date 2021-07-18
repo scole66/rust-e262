@@ -550,6 +550,26 @@ fn to_number_11() {
 }
 
 #[test]
+#[allow(clippy::float_cmp)]
+fn to_integer_or_infinity_01() {
+    let mut agent = test_agent();
+    let testcases = &[(f64::NAN, 0.0), (f64::INFINITY, f64::INFINITY), (f64::NEG_INFINITY, f64::NEG_INFINITY), (0.0, 0.0), (-0.0, 0.0), (10.2, 10.0), (-10.2, -10.0)];
+
+    for (val, expected) in testcases {
+        let result = to_integer_or_infinity(&mut agent, ECMAScriptValue::from(*val)).unwrap();
+        assert_eq!(result, *expected);
+    }
+}
+#[test]
+fn to_integer_or_infinity_02() {
+    let mut agent = test_agent();
+    let sym = Symbol::new(&mut agent, None);
+
+    let result = to_integer_or_infinity(&mut agent, ECMAScriptValue::from(sym)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+
+#[test]
 fn to_string_01() {
     let mut agent = test_agent();
     let result = to_string(&mut agent, ECMAScriptValue::Undefined).unwrap();
