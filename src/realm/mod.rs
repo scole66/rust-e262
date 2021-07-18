@@ -22,6 +22,8 @@ pub enum IntrinsicId {
     FunctionPrototype,
     Object,
     ObjectPrototype,
+    RangeError,
+    RangeErrorPrototype,
     ReferenceError,
     ReferenceErrorPrototype,
     SyntaxError,
@@ -81,6 +83,7 @@ pub struct Intrinsics {
     pub promise: Object,                            // Promise	The Promise constructor (27.2.3)
     pub proxy: Object,                              // Proxy	The Proxy constructor (28.2.1)
     pub range_error: Object,                        // RangeError	The RangeError constructor (20.5.5.2)
+    pub range_error_prototype: Object,              //
     pub reference_error: Object,                    // ReferenceError	The ReferenceError constructor (20.5.5.3)
     pub reference_error_prototype: Object,          //
     pub reflect: Object,                            // Reflect	The Reflect object (28.1)
@@ -167,6 +170,7 @@ impl Intrinsics {
             promise: dead.clone(),
             proxy: dead.clone(),
             range_error: dead.clone(),
+            range_error_prototype: dead.clone(),
             reference_error: dead.clone(),
             reference_error_prototype: dead.clone(),
             reflect: dead.clone(),
@@ -202,6 +206,8 @@ impl Intrinsics {
             IntrinsicId::FunctionPrototype => &self.function_prototype,
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
+            IntrinsicId::RangeError => &self.range_error,
+            IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
             IntrinsicId::SyntaxError => &self.syntax_error,
@@ -447,6 +453,12 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     let (type_error_constructor, type_error_proto) = set_up_native_error(agent, "TypeError");
     realm_rec.borrow_mut().intrinsics.type_error_prototype = type_error_proto;
     realm_rec.borrow_mut().intrinsics.type_error = type_error_constructor;
+
+    ///////////////////////////////////////////////////////////////////
+    // %RangeError% and %RangeError.prototype%
+    let (range_error_constructor, range_error_proto) = set_up_native_error(agent, "RangeError");
+    realm_rec.borrow_mut().intrinsics.range_error_prototype = range_error_proto;
+    realm_rec.borrow_mut().intrinsics.range_error = range_error_constructor;
 
     ///////////////////////////////////////////////////////////////////
     // %ReferenceError% and %ReferenceError.prototype%
