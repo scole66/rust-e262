@@ -539,11 +539,17 @@ fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValu
 // object. Therefore, it cannot be transferred to other kinds of objects for use as a method.
 //
 // The "length" property of the toString method is 1𝔽.
+use super::values::to_integer_or_infinity;
+use super::errors::create_range_error;
 fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let radix = args.next_arg();
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(agent, radix)? };
-    todo!()
+    if radix_mv < 2.0 || radix_mv > 36.0 {
+        Err(create_range_error(agent, format!("Radix {} out of range (must be in 2..36)", radix_mv)))
+    } else {
+        todo!()
+    }
 }
 
 // Number.prototype.valueOf ( )
