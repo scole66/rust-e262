@@ -187,14 +187,23 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // The Number constructor:
     //
     //      * has a [[Prototype]] internal slot whose value is %Function.prototype%.
-    let number_constructor =
-        create_builtin_function(agent, number_constructor_function, 1_f64, PropertyKey::from("Number"), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+    let number_constructor = create_builtin_function(
+        agent,
+        number_constructor_function,
+        true,
+        1_f64,
+        PropertyKey::from("Number"),
+        &BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
 
     // Constructor Function Properties
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &number_constructor,
