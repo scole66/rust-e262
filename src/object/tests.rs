@@ -1578,28 +1578,6 @@ fn ordinary_object_create_01() {
 }
 
 #[test]
-fn common_object_data_new() {
-    let mut agent = test_agent();
-    let expected_obj_id = agent.obj_id;
-
-    let cod = CommonObjectData::new(&mut agent, None, true, &[]);
-
-    assert!(cod.properties.is_empty());
-    assert!(cod.prototype.is_none());
-    assert!(cod.extensible);
-    assert_eq!(cod.objid, expected_obj_id);
-    assert_eq!(cod.next_spot, 0);
-    assert!(cod.slots.is_empty());
-}
-
-#[test]
-fn common_object_data_debug() {
-    let mut agent = test_agent();
-    let cod = CommonObjectData::new(&mut agent, None, true, &[]);
-    assert_ne!(format!("{:?}", cod), "");
-}
-
-#[test]
 fn ordinary_object_create_02() {
     // When an agent and a prototype are provided
     let mut agent = test_agent();
