@@ -4,7 +4,7 @@ use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
-use super::function_object::{BuiltinFunctionInterface, CallableObject, FunctionObjectData};
+use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
 use ahash::{AHashMap, AHashSet};
@@ -764,6 +764,9 @@ pub trait ObjectInterface: Debug {
         // Whereas this is anything that implements [[Call]]
         None
     }
+    fn to_constructable(&self) -> Option<&dyn ConstructableObject> {
+        None
+    }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         None
     }
@@ -1293,6 +1296,27 @@ pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptVa
             callable.call(agent, &self_obj, this_value, args)
         }
     }
+}
+
+// Construct ( F [ , argumentsList [ , newTarget ] ] )
+//
+// The abstract operation Construct takes argument F (a function object) and optional arguments argumentsList and
+// newTarget. It is used to call the [[Construct]] internal method of a function object. argumentsList and newTarget are
+// the values to be passed as the corresponding arguments of the internal method. If argumentsList is not present, a new
+// empty List is used as its value. If newTarget is not present, F is used as its value. It performs the following steps
+// when called:
+//
+//    1. If newTarget is not present, set newTarget to F.
+//    2. If argumentsList is not present, set argumentsList to a new empty List.
+//    3. Assert: IsConstructor(F) is true.
+//    4. Assert: IsConstructor(newTarget) is true.
+//    5. Return ? F.[[Construct]](argumentsList, newTarget).
+//
+// NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
+pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion {
+    let nt = new_target.unwrap_or(func);
+    let cstr = func.o.to_constructable().unwrap();
+    cstr.construct(agent, func, args, nt)
 }
 
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )

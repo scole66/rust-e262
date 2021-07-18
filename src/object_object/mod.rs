@@ -93,7 +93,7 @@ pub fn attach_object_prototype_properties(agent: &mut Agent, realm: Rc<RefCell<R
 
     let mut connect = |name, length, steps| {
         let key = PropertyKey::from(name);
-        let fcn = create_builtin_function(agent, steps, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+        let fcn = create_builtin_function(agent, steps, false, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
         define_property_or_throw(
             agent,
             target,

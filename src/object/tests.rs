@@ -1088,7 +1088,7 @@ fn ordinary_get_05() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
     let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
     define_property_or_throw(
@@ -1108,7 +1108,7 @@ fn ordinary_get_06() {
     let mut agent = test_agent();
     let parent = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
     let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     // GETTER ON PARENT
     define_property_or_throw(&mut agent, &parent, key.clone(), initial).unwrap();
@@ -1234,7 +1234,7 @@ fn ordinary_set_with_own_descriptor_06() {
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
     create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("sentinel value")).unwrap();
-    let getter = create_builtin_function(&mut agent, test_getter, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
     let accessor_prop = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     define_property_or_throw(&mut agent, &obj, key.clone(), accessor_prop).unwrap();
     let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
@@ -1312,7 +1312,7 @@ fn ordinary_set_with_own_descriptor_10() {
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
     create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("initial value")).unwrap();
-    let setter = create_builtin_function(&mut agent, test_setter, 1_f64, key.clone(), &[], None, None, Some(JSString::from("set")));
+    let setter = create_builtin_function(&mut agent, test_setter, false, 1_f64, key.clone(), &[], None, None, Some(JSString::from("set")));
     let accessor_prop = PropertyDescriptor {
         property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(setter) }),
         enumerable: true,
