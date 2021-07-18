@@ -2,13 +2,15 @@ use super::*;
 use crate::tests::{calculate_hash, test_agent, unwind_type_error};
 use ahash::RandomState;
 
-const ALL_INTRINSIC_IDS: [IntrinsicId; 13] = [
+const ALL_INTRINSIC_IDS: [IntrinsicId; 15] = [
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
     IntrinsicId::ErrorPrototype,
     IntrinsicId::FunctionPrototype,
     IntrinsicId::Object,
     IntrinsicId::ObjectPrototype,
+    IntrinsicId::RangeError,
+    IntrinsicId::RangeErrorPrototype,
     IntrinsicId::ReferenceError,
     IntrinsicId::ReferenceErrorPrototype,
     IntrinsicId::SyntaxError,
@@ -64,6 +66,8 @@ fn intrinsics_get() {
     assert_eq!(intrinsics.get(IntrinsicId::FunctionPrototype), intrinsics.function_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
     assert_eq!(intrinsics.get(IntrinsicId::ObjectPrototype), intrinsics.object_prototype);
+    assert_eq!(intrinsics.get(IntrinsicId::RangeError), intrinsics.range_error);
+    assert_eq!(intrinsics.get(IntrinsicId::RangeErrorPrototype), intrinsics.range_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
     assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::SyntaxError), intrinsics.syntax_error);

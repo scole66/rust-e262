@@ -51,6 +51,15 @@ pub fn create_syntax_error(agent: &mut Agent, message: &str) -> AbruptCompletion
     AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_syntax_error_object(agent, message))), target: None })
 }
 
+pub fn create_range_error_object(agent: &mut Agent, message: &str) -> Object {
+    let cstr = agent.intrinsic(IntrinsicId::RangeError);
+    create_native_error_object(agent, message, cstr, IntrinsicId::RangeErrorPrototype)
+}
+
+pub fn create_range_error(agent: &mut Agent, message: &str) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_range_error_object(agent, message))), target: None })
+}
+
 #[derive(Debug)]
 pub struct ErrorObject {
     common: RefCell<CommonObjectData>,
