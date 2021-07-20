@@ -266,17 +266,15 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
 pub fn error_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let message = args.next_arg();
-    let afo: Option<Object>;
+    let afo: Object;
 
     let nt = match new_target {
-        Some(objref) => Some(objref),
+        Some(objref) => objref,
         None => {
-            afo = agent.active_function_object();
-            afo.as_ref()
+            afo = agent.active_function_object().unwrap();
+            &afo
         }
-    }
-    .unwrap();
-    //let nt = new_target.unwrap_or_else(|| agent.active_function_object().unwrap());
+    };
     let o = ordinary_create_from_constructor(agent, nt, IntrinsicId::ErrorPrototype, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(agent, message)?;
@@ -430,16 +428,15 @@ fn provision_native_error_intrinsics(
 fn native_error_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue], intrinsic_id: IntrinsicId) -> Completion {
     let mut args = Arguments::from(arguments);
     let message = args.next_arg();
-    let afo: Option<Object>;
+    let afo: Object;
 
     let nt = match new_target {
-        Some(objref) => Some(objref),
+        Some(objref) => objref,
         None => {
-            afo = agent.active_function_object();
-            afo.as_ref()
+            afo = agent.active_function_object().unwrap();
+            &afo
         }
-    }
-    .unwrap();
+    };
     let o = ordinary_create_from_constructor(agent, nt, intrinsic_id, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(agent, message)?;
