@@ -1,6 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
+use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
     define_property_or_throw, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of,
@@ -8,7 +9,7 @@ use super::object::{
     CommonObjectData, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, NUMBER_OBJECT_SLOTS,
 };
 use super::realm::{IntrinsicId, Realm};
-use super::values::{to_numeric, ECMAScriptValue, Numeric, PropertyKey};
+use super::values::{to_integer_or_infinity, to_numeric, to_string, ECMAScriptValue, Numeric, PropertyKey};
 use num::ToPrimitive;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -482,7 +483,7 @@ fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new
         _ => false,
     }))
 }
-use super::errors::create_type_error;
+
 // The abstract operation thisNumberValue takes argument value. It performs the following steps when called:
 //
 //  1. If Type(value) is Number, return value.
@@ -519,6 +520,138 @@ fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValu
     todo!()
 }
 
+fn next_double(dbl: f64) -> f64 {
+    // Copied from the V8 source
+    // Returns the next greater double. Returns +infinity on input +infinity.
+    // double NextDouble() const {
+    //   if (d64_ == kInfinity) return Double(kInfinity).value();
+    //   if (Sign() < 0 && Significand() == 0) {
+    //     // -0.0
+    //     return 0.0;
+    //   }
+    //   if (Sign() < 0) {
+    //     return Double(d64_ - 1).value();
+    //   } else {
+    //     return Double(d64_ + 1).value();
+    //   }
+    // }
+    if dbl == f64::INFINITY {
+        f64::INFINITY
+    } else if dbl.signum() < 0.0 {
+        if dbl == 0.0 {
+            // -0.0
+            0.0
+        } else {
+            f64::from_bits(dbl.to_bits() - 1)
+        }
+    } else {
+        f64::from_bits(dbl.to_bits() + 1)
+    }
+}
+
+fn double_exponent(dbl: f64) -> i32 {
+    const PHYSICAL_SIGNIFICAND_SIZE: i32 = 52;
+    const EXPONENT_BIAS: i32 = 0x3ff + PHYSICAL_SIGNIFICAND_SIZE;
+    const DENORMAL_EXPONENT: i32 = -EXPONENT_BIAS + 1;
+
+    if dbl.is_subnormal() {
+        DENORMAL_EXPONENT
+    } else {
+        let biased_e = (dbl.to_bits() >> PHYSICAL_SIGNIFICAND_SIZE) as i32;
+        biased_e - EXPONENT_BIAS
+    }
+}
+
+#[allow(clippy::float_cmp)]
+pub fn double_to_radix_string(val: f64, radix: i32) -> String {
+    // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
+    // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
+
+    // Character array used for conversion.
+    let chars = b"0123456789abcdefghijklmnopqrstuvwxyz";
+
+    // Temporary buffer for the result. We start with the decimal point in the
+    // middle and write to the left for the integer part and to the right for the
+    // fractional part. 1024 characters for the exponent and 52 for the mantissa
+    // either way, with additional space for sign, decimal point and string
+    // termination should be sufficient.
+    const KBUFFERSIZE: usize = 2200;
+    let mut buffer: [u8; KBUFFERSIZE] = [0; KBUFFERSIZE];
+    let mut integer_cursor = KBUFFERSIZE / 2;
+    let mut fraction_cursor = integer_cursor;
+
+    let negative = val < 0.0;
+    let value = if negative { -val } else { val };
+
+    // Split the value into an integer part and a fractional part.
+    let mut integer = value.floor();
+    let mut fraction = value - integer;
+    // We only compute fractional digits up to the input double's precision.
+    let mut delta = 0.5 * (next_double(value) - value);
+    delta = delta.max(next_double(0.0));
+    if fraction >= delta {
+        // Insert decimal point.
+        buffer[fraction_cursor] = b'.';
+        fraction_cursor += 1;
+        while fraction >= delta {
+            // Shift up by one digit.
+            fraction *= radix as f64;
+            delta *= radix as f64;
+            // Write digit.
+            let digit = fraction as usize;
+            buffer[fraction_cursor] = chars[digit];
+            fraction_cursor += 1;
+            // Calculate remainder.
+            fraction -= digit as f64;
+            // Round to even.
+            if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
+                // We need to back trace already written digits in case of carry-over.
+                loop {
+                    fraction_cursor -= 1;
+                    if fraction_cursor == KBUFFERSIZE / 2 {
+                        // Carry over to the integer part.
+                        integer += 1.0;
+                        break;
+                    }
+                    let c = buffer[fraction_cursor] as i32;
+                    // Reconstruct digit.
+                    let digit = if c > '9' as i32 { c - 'a' as i32 + 10 } else { c - '0' as i32 };
+                    if digit + 1 < radix {
+                        buffer[fraction_cursor] = chars[digit as usize + 1];
+                        fraction_cursor += 1;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Compute integer digits. Fill unrepresented digits with zero.
+    while double_exponent(integer / radix as f64) > 0 {
+        integer /= radix as f64;
+        integer_cursor -= 1;
+        buffer[integer_cursor] = b'0';
+    }
+    loop {
+        let remainder = integer % radix as f64;
+        integer_cursor -= 1;
+        buffer[integer_cursor] = chars[remainder as usize];
+        integer = (integer - remainder) / radix as f64;
+        if integer <= 0.0 {
+            break;
+        }
+    }
+
+    // Add sign
+    if negative {
+        integer_cursor -= 1;
+        buffer[integer_cursor] = b'-';
+    }
+    // Allocate new String as return value.
+    String::from_utf8_lossy(&buffer[integer_cursor..fraction_cursor]).to_string()
+}
+
 // Number.prototype.toString ( [ radix ] )
 //
 // NOTE     The optional radix should be an integral Number value in the inclusive range 2𝔽 to 36𝔽. If radix is
@@ -539,16 +672,20 @@ fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValu
 // object. Therefore, it cannot be transferred to other kinds of objects for use as a method.
 //
 // The "length" property of the toString method is 1𝔽.
-use super::values::to_integer_or_infinity;
-use super::errors::create_range_error;
 fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let radix = args.next_arg();
+    let x = this_number_value(agent, this_value)?;
     let radix_mv = if radix.is_undefined() { 10.0 } else { to_integer_or_infinity(agent, radix)? };
-    if radix_mv < 2.0 || radix_mv > 36.0 {
+    if !(2.0..=36.0).contains(&radix_mv) {
         Err(create_range_error(agent, format!("Radix {} out of range (must be in 2..36)", radix_mv)))
     } else {
-        todo!()
+        let iradix = radix_mv as i32;
+        if iradix == 10 {
+            Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(x)).unwrap()))
+        } else {
+            Ok(ECMAScriptValue::from(double_to_radix_string(x, iradix)))
+        }
     }
 }
 

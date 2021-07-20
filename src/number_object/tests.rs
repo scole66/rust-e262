@@ -1,5 +1,5 @@
 use super::*;
-use crate::object::{call, construct, get, AccessorProperty, PropertyKind};
+use crate::object::{call, construct, get, ordinary_object_create, AccessorProperty, PropertyKind};
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
 use crate::values::Symbol;
@@ -449,4 +449,67 @@ fn number_is_safe_integer_one_arg() {
 
     let result = call(&mut agent, &is_safe_integer, &this_value, &[ECMAScriptValue::from("blue")]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(false));
+}
+
+#[test]
+#[allow(clippy::float_cmp)]
+fn this_number_value_01() {
+    // called with number object
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+
+    let result = this_number_value(&mut agent, number).unwrap();
+    assert_eq!(result, 123.0);
+}
+#[test]
+#[allow(clippy::float_cmp)]
+fn this_number_value_02() {
+    // called with number value
+    let mut agent = test_agent();
+
+    let result = this_number_value(&mut agent, ECMAScriptValue::from(123)).unwrap();
+    assert_eq!(result, 123.0);
+}
+#[test]
+fn this_number_value_03() {
+    // called with non-number object
+    let mut agent = test_agent();
+    let obj = ordinary_object_create(&mut agent, None, &[]);
+
+    let result = this_number_value(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
+}
+#[test]
+fn this_number_value_04() {
+    // called with non-number, non-object value
+    let mut agent = test_agent();
+
+    let result = this_number_value(&mut agent, ECMAScriptValue::from(true)).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
+}
+use crate::values::to_object;
+#[test]
+fn number_proto_to_string_01() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+    let obj = to_object(&mut agent, number.clone()).unwrap();
+
+    let to_string = get(&mut agent, &obj, &PropertyKey::from("toString")).unwrap();
+    let result = call(&mut agent, &to_string, &number, &[]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from("123"));
+}
+#[test]
+fn number_proto_to_string_02() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
+    let obj = to_object(&mut agent, number.clone()).unwrap();
+
+    let to_string = get(&mut agent, &obj, &PropertyKey::from("toString")).unwrap();
+    let result = call(&mut agent, &to_string, &number, &[ECMAScriptValue::from(25)]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from("4n.ji33333333"));
 }
