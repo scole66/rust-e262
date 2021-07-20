@@ -1,14 +1,16 @@
 use super::agent::Agent;
 use super::cr::Completion;
 use super::environment_record::GlobalEnvironmentRecord;
-use super::errors::create_type_error;
+use super::errors::{
+    create_type_error, provision_error_intrinsic, provision_eval_error_intrinsic, provision_range_error_intrinsic, provision_reference_error_intrinsic, provision_syntax_error_intrinsic,
+    provision_type_error_intrinsic, provision_uri_error_intrinsic,
+};
 use super::function_object::create_builtin_function;
 use super::object::{
     define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
     BUILTIN_FUNCTION_SLOTS,
 };
 use super::object_object::attach_object_prototype_properties;
-use super::strings::JSString;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::fmt;
@@ -18,7 +20,10 @@ use std::rc::Rc;
 pub enum IntrinsicId {
     Boolean,
     BooleanPrototype,
+    Error,
     ErrorPrototype,
+    EvalError,
+    EvalErrorPrototype,
     FunctionPrototype,
     Object,
     ObjectPrototype,
@@ -31,6 +36,8 @@ pub enum IntrinsicId {
     ThrowTypeError,
     TypeError,
     TypeErrorPrototype,
+    URIError,
+    URIErrorPrototype,
 }
 
 pub struct Intrinsics {
@@ -58,6 +65,7 @@ pub struct Intrinsics {
     pub error_prototype: Object,                    //
     pub eval: Object,                               // eval	The eval function (19.2.1)
     pub eval_error: Object,                         // EvalError	The EvalError constructor (20.5.5.1)
+    pub eval_error_prototype: Object,               //
     pub finalization_registry: Object,              // FinalizationRegistry	The FinalizationRegistry constructor (26.2.1)
     pub float32_array: Object,                      // Float32Array	The Float32Array constructor (23.2)
     pub float64_array: Object,                      // Float64Array	The Float64Array constructor (23.2)
@@ -106,6 +114,7 @@ pub struct Intrinsics {
     pub uint16_array: Object,                       // Uint16Array	The Uint16Array constructor (23.2)
     pub uint32_array: Object,                       // Uint32Array	The Uint32Array constructor (23.2)
     pub uri_error: Object,                          // URIError	The URIError constructor (20.5.5.6)
+    pub uri_error_prototype: Object,                //
     pub weak_map: Object,                           // WeakMap	The WeakMap constructor (24.3.1)
     pub weak_ref: Object,                           // WeakRef	The WeakRef constructor (26.1.1)
     pub weak_set: Object,                           // WeakSet	The WeakSet constructor (24.4.1)
@@ -145,6 +154,7 @@ impl Intrinsics {
             error_prototype: dead.clone(),
             eval: dead.clone(),
             eval_error: dead.clone(),
+            eval_error_prototype: dead.clone(),
             finalization_registry: dead.clone(),
             float32_array: dead.clone(),
             float64_array: dead.clone(),
@@ -193,6 +203,7 @@ impl Intrinsics {
             uint16_array: dead.clone(),
             uint32_array: dead.clone(),
             uri_error: dead.clone(),
+            uri_error_prototype: dead.clone(),
             weak_map: dead.clone(),
             weak_ref: dead.clone(),
             weak_set: dead,
@@ -202,7 +213,10 @@ impl Intrinsics {
         match id {
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
+            IntrinsicId::Error => &self.error,
             IntrinsicId::ErrorPrototype => &self.error_prototype,
+            IntrinsicId::EvalError => &self.eval_error,
+            IntrinsicId::EvalErrorPrototype => &self.eval_error_prototype,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
             IntrinsicId::Object => &self.object,
             IntrinsicId::ObjectPrototype => &self.object_prototype,
@@ -215,6 +229,8 @@ impl Intrinsics {
             IntrinsicId::ThrowTypeError => &self.throw_type_error,
             IntrinsicId::TypeError => &self.type_error,
             IntrinsicId::TypeErrorPrototype => &self.type_error_prototype,
+            IntrinsicId::URIError => &self.uri_error,
+            IntrinsicId::URIErrorPrototype => &self.uri_error_prototype,
         }
         .clone()
     }
@@ -330,151 +346,18 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         },
     )
     .unwrap();
-    ///////////////////////////////////////////////////////////////////
-    // %Error% and %Error.prototype%
-    let error_prototype = ordinary_object_create(agent, Some(&object_prototype), &[]);
-    realm_rec.borrow_mut().intrinsics.error_prototype = error_prototype.clone();
-    let error_constructor =
-        create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from("Error"), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
-    define_property_or_throw(
-        agent,
-        &error_constructor,
-        PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&error_prototype)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-    )
-    .unwrap();
-    realm_rec.borrow_mut().intrinsics.error = error_constructor.clone();
-    define_property_or_throw(
-        agent,
-        &realm_rec.borrow().intrinsics.error_prototype,
-        PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(error_constructor)), // consumes error_constructor
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &error_prototype,
-        PropertyKey::from("message"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from(""))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        &error_prototype,
-        PropertyKey::from("name"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::String(JSString::from("Error"))),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
-    )
-    .unwrap();
 
-    let set_up_native_error = |agent: &mut Agent, name: &str| {
-        let proto = ordinary_object_create(agent, Some(&error_prototype), &[]);
-        let constructor =
-            create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from(name), &BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
-        // constructor.prototype = proto
-        define_property_or_throw(
-            agent,
-            &constructor,
-            PropertyKey::from("prototype"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&proto)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-        )
-        .unwrap();
-        // constructor.name = name
-        define_property_or_throw(
-            agent,
-            &constructor,
-            PropertyKey::from("name"),
-            PotentialPropertyDescriptor {
-                value: Some(ECMAScriptValue::String(JSString::from(name))),
-                writable: Some(true),
-                enumerable: Some(false),
-                configurable: Some(true),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        // proto.constructor = constructor
-        define_property_or_throw(
-            agent,
-            &proto,
-            PropertyKey::from("constructor"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(&constructor)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-        )
-        .unwrap();
-        // proto.message = ""
-        define_property_or_throw(
-            agent,
-            &proto,
-            PropertyKey::from("message"),
-            PotentialPropertyDescriptor {
-                value: Some(ECMAScriptValue::String(JSString::from(""))),
-                writable: Some(true),
-                enumerable: Some(false),
-                configurable: Some(true),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        // proto.name = name
-        define_property_or_throw(
-            agent,
-            &proto,
-            PropertyKey::from("name"),
-            PotentialPropertyDescriptor {
-                value: Some(ECMAScriptValue::String(JSString::from(name))),
-                writable: Some(true),
-                enumerable: Some(false),
-                configurable: Some(true),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        (constructor, proto)
-    };
-    ///////////////////////////////////////////////////////////////////
-    // %TypeError% and %TypeError.prototype%
-    let (type_error_constructor, type_error_proto) = set_up_native_error(agent, "TypeError");
-    realm_rec.borrow_mut().intrinsics.type_error_prototype = type_error_proto;
-    realm_rec.borrow_mut().intrinsics.type_error = type_error_constructor;
-
-    ///////////////////////////////////////////////////////////////////
-    // %RangeError% and %RangeError.prototype%
-    let (range_error_constructor, range_error_proto) = set_up_native_error(agent, "RangeError");
-    realm_rec.borrow_mut().intrinsics.range_error_prototype = range_error_proto;
-    realm_rec.borrow_mut().intrinsics.range_error = range_error_constructor;
-
-    ///////////////////////////////////////////////////////////////////
-    // %ReferenceError% and %ReferenceError.prototype%
-    let (reference_error_constructor, reference_error_proto) = set_up_native_error(agent, "ReferenceError");
-    realm_rec.borrow_mut().intrinsics.reference_error_prototype = reference_error_proto;
-    realm_rec.borrow_mut().intrinsics.reference_error = reference_error_constructor;
-
-    ///////////////////////////////////////////////////////////////////
-    // %SyntaxError% and %SyntaxError.prototype%
-    let (syntax_error_constructor, syntax_error_proto) = set_up_native_error(agent, "SyntaxError");
-    realm_rec.borrow_mut().intrinsics.syntax_error_prototype = syntax_error_proto;
-    realm_rec.borrow_mut().intrinsics.syntax_error = syntax_error_constructor;
+    provision_error_intrinsic(agent, &realm_rec);
+    provision_eval_error_intrinsic(agent, &realm_rec);
+    provision_range_error_intrinsic(agent, &realm_rec);
+    provision_reference_error_intrinsic(agent, &realm_rec);
+    provision_syntax_error_intrinsic(agent, &realm_rec);
+    provision_type_error_intrinsic(agent, &realm_rec);
+    provision_uri_error_intrinsic(agent, &realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 
-    attach_object_prototype_properties(agent, realm_rec.clone(), &object_prototype);
+    attach_object_prototype_properties(agent, realm_rec, &object_prototype);
 }
 
 // From function objects...
