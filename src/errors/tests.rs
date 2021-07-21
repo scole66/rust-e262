@@ -1,7 +1,8 @@
 use super::*;
-use crate::object::get;
+use crate::object::{call, construct, get, has_own_property};
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
+use crate::values::to_object;
 
 #[test]
 fn create_native_error_object_01() {
@@ -377,6 +378,48 @@ fn error_constructor_data_props() {
     let val = get(&mut agent, &error_constructor, &PropertyKey::from("prototype")).unwrap();
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
     assert_eq!(val, ECMAScriptValue::from(error_prototype));
+}
+
+#[test]
+fn error_constructor_function_01() {
+    // Called as function, with argument.
+    let mut agent = test_agent();
+    let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
+
+    let result = call(&mut agent, &error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
+    let obj = to_object(&mut agent, result).unwrap();
+
+    assert!(obj.o.is_error_object());
+    assert_eq!(get(&mut agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+}
+
+#[test]
+fn error_constructor_function_02() {
+    // Called as function, with no argument.
+    let mut agent = test_agent();
+    let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
+
+    let result = call(&mut agent, &error_constructor, &ECMAScriptValue::Undefined, &[]).unwrap();
+    let obj = to_object(&mut agent, result).unwrap();
+
+    assert!(obj.o.is_error_object());
+    assert!(!has_own_property(&mut agent, &obj, &PropertyKey::from("message")).unwrap());
+    assert_eq!(get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
+}
+
+#[test]
+fn error_constructor_function_03() {
+    // Called as constructor
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+
+    let result = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("A")], None).unwrap();
+    let obj = to_object(&mut agent, result).unwrap();
+
+    assert!(obj.o.is_error_object());
+    assert_eq!(get(&mut agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
+    assert_eq!(get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("Error"));
 }
 
 #[test]
