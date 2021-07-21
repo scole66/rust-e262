@@ -519,3 +519,6 @@ pub fn provision_uri_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm
     realm.borrow_mut().intrinsics.uri_error = constructor;
     realm.borrow_mut().intrinsics.uri_error_prototype = prototype;
 }
+
+#[cfg(test)]
+mod tests;
