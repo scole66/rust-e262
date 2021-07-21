@@ -1319,6 +1319,23 @@ pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new
     cstr.construct(agent, func, args, nt)
 }
 
+// Invoke ( V, P [ , argumentsList ] )
+//
+// The abstract operation Invoke takes arguments V (an ECMAScript language value) and P (a property key) and optional
+// argument argumentsList (a List of ECMAScript language values). It is used to call a method property of an ECMAScript
+// language value. V serves as both the lookup point for the property and the this value of the call. argumentsList is
+// the list of arguments values passed to the method. If argumentsList is not present, a new empty List is used as its
+// value. It performs the following steps when called:
+//
+//  1. Assert: IsPropertyKey(P) is true.
+//  2. If argumentsList is not present, set argumentsList to a new empty List.
+//  3. Let func be ? GetV(V, P).
+//  4. Return ? Call(func, V, argumentsList).
+pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion {
+    let func = getv(agent, &v, p)?;
+    call(agent, &func, &v, arguments_list)
+}
+
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )
 //
 // The abstract operation OrdinaryObjectCreate takes argument proto (an Object or null) and optional argument
