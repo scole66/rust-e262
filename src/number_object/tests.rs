@@ -1,7 +1,7 @@
 use super::*;
-use crate::object::{call, construct, get, ordinary_object_create, AccessorProperty, PropertyKind};
+use crate::object::{call, construct, get, invoke, ordinary_object_create, AccessorProperty, PropertyKind};
 use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_type_error};
+use crate::tests::{test_agent, unwind_range_error, unwind_type_error};
 use crate::values::Symbol;
 use num::BigInt;
 
@@ -488,16 +488,14 @@ fn this_number_value_04() {
     let result = this_number_value(&mut agent, ECMAScriptValue::from(true)).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
 }
-use crate::values::to_object;
+
 #[test]
 fn number_proto_to_string_01() {
     let mut agent = test_agent();
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
-    let obj = to_object(&mut agent, number.clone()).unwrap();
 
-    let to_string = get(&mut agent, &obj, &PropertyKey::from("toString")).unwrap();
-    let result = call(&mut agent, &to_string, &number, &[]).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("123"));
 }
@@ -506,10 +504,70 @@ fn number_proto_to_string_02() {
     let mut agent = test_agent();
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
-    let obj = to_object(&mut agent, number.clone()).unwrap();
 
-    let to_string = get(&mut agent, &obj, &PropertyKey::from("toString")).unwrap();
-    let result = call(&mut agent, &to_string, &number, &[ECMAScriptValue::from(25)]).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(25)]).unwrap();
 
     assert_eq!(result, ECMAScriptValue::from("4n.ji33333333"));
+}
+
+#[test]
+fn number_proto_to_string_03() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123.789)], None).unwrap();
+    let sym = Symbol::new(&mut agent, None);
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(sym)]).unwrap_err();
+
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+#[test]
+fn number_proto_to_string_04() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(2)]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from("1111011"));
+}
+#[test]
+fn number_proto_to_string_05() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(36)]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from("3f"));
+}
+#[test]
+fn number_proto_to_string_06() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(1)]).unwrap_err();
+
+    assert_eq!(unwind_range_error(&mut agent, result), "Radix 1 out of range (must be in 2..36)");
+}
+#[test]
+fn number_proto_to_string_07() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(123)], None).unwrap();
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(37)]).unwrap_err();
+
+    assert_eq!(unwind_range_error(&mut agent, result), "Radix 37 out of range (must be in 2..36)");
+}
+#[test]
+fn number_proto_to_string_08() {
+    // this_number_value is not actually a number
+    let mut agent = test_agent();
+    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let to_string = get(&mut agent, &number_prototype, &PropertyKey::from("toString")).unwrap();
+
+    let result = call(&mut agent, &to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
 }
