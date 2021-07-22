@@ -287,25 +287,8 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
 //             [[Configurable]]: true }.
 //          c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
 //      4. Return O.
-pub fn error_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    let mut args = Arguments::from(arguments);
-    let message = args.next_arg();
-    let afo: Object;
-
-    let nt = match new_target {
-        Some(objref) => objref,
-        None => {
-            afo = agent.active_function_object().unwrap();
-            &afo
-        }
-    };
-    let o = ordinary_create_from_constructor(agent, nt, IntrinsicId::ErrorPrototype, &[InternalSlotName::ErrorData])?;
-    if !message.is_undefined() {
-        let msg = to_string(agent, message)?;
-        let msg_desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(msg)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() };
-        define_property_or_throw(agent, &o, PropertyKey::from("message"), msg_desc).unwrap();
-    }
-    Ok(ECMAScriptValue::from(o))
+pub fn error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::Error)
 }
 
 // Error.prototype.toString ( )

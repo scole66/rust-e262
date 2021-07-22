@@ -1,8 +1,8 @@
 use super::*;
-use crate::object::{call, construct, get, has_own_property};
+use crate::object::{call, construct, get, has_own_property, AccessorProperty, PropertyKind};
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
-use crate::values::to_object;
+use crate::values::{to_object, Symbol};
 
 #[test]
 fn create_native_error_object_01() {
@@ -423,6 +423,35 @@ fn error_constructor_function_03() {
 }
 
 #[test]
+fn error_constructor_throws() {
+    // ordinary_create_from_contructor throws.
+    // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+
+    // This hack is to get around the "not configurable" characteristic of Error.prototype.
+    // (It replaces Error.prototype (a data property) with an accessor property that throws when "prototype" is gotten.)
+    let new_prop = PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), set: ECMAScriptValue::Undefined });
+    {
+        let mut cod = error_constructor.o.common_object_data().borrow_mut();
+        let mut prop = cod.properties.get_mut(&PropertyKey::from("prototype")).unwrap();
+        prop.property = new_prop;
+    }
+
+    let result = construct(&mut agent, &error_constructor, &[], None).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
+}
+#[test]
+fn error_constructor_to_string_throws() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+
+    let result = construct(&mut agent, &error_constructor, &[sym], None).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+}
+
+#[test]
 fn error_prototype_data_props() {
     let mut agent = test_agent();
     let error_prototype = agent.intrinsic(IntrinsicId::ErrorPrototype);
@@ -436,4 +465,125 @@ fn error_prototype_data_props() {
 
     let val = get(&mut agent, &error_prototype, &PropertyKey::from("name")).unwrap();
     assert_eq!(val, ECMAScriptValue::from("Error"));
+}
+
+use crate::object::{define_property_or_throw, invoke, set};
+#[test]
+fn error_prototype_tostring_01() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobj = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+
+    let result = invoke(&mut agent, errobj, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Error: ErrorMessage"));
+}
+#[test]
+fn error_prototype_tostring_02() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Bob: you have a phone call"));
+}
+#[test]
+fn error_prototype_tostring_03() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Error"));
+}
+#[test]
+fn error_prototype_tostring_04() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::Undefined, false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Bob"));
+}
+#[test]
+fn error_prototype_tostring_05() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::Undefined, false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Error: Message"));
+}
+#[test]
+fn error_prototype_tostring_06() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from(""), false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("Message"), false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("Message"));
+}
+#[test]
+fn error_prototype_tostring_07() {
+    // getting property "name" throws
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    let desc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))), ..Default::default() };
+    define_property_or_throw(&mut agent, &errobj, PropertyKey::from("name"), desc).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
+}
+#[test]
+fn error_prototype_tostring_08() {
+    // getting property "message" throws
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    let desc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))), ..Default::default() };
+    define_property_or_throw(&mut agent, &errobj, PropertyKey::from("message"), desc).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
+}
+#[test]
+fn error_prototype_tostring_09() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+    set(&mut agent, &errobj, PropertyKey::from("name"), sym, false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
+}
+#[test]
+fn error_prototype_tostring_10() {
+    let mut agent = test_agent();
+    let error_constructor = agent.intrinsic(IntrinsicId::Error);
+    let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
+    let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+    set(&mut agent, &errobj, PropertyKey::from("message"), sym, false).unwrap();
+
+    let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbols may not be converted to strings");
 }
