@@ -571,9 +571,8 @@ fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue,
         } else if e >= 0 {
             // No leading zeroes
             let e_us: usize = e as usize + 1;
-            let p_us: usize = p_size;
             let a = &digits[0..e_us];
-            let b = &digits[e_us..p_us];
+            let b = &digits[e_us..p_size];
             format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
         } else {
             // Leading zeroes
