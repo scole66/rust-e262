@@ -1,6 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
+use super::dtoa_r::dtoa;
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -516,8 +517,120 @@ fn number_prototype_to_fixed(_agent: &mut Agent, _this_value: ECMAScriptValue, _
 fn number_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
-fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+
+fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut workbuf: [u8; 101] = [0; 101];
+    let mut args = Arguments::from(arguments);
+    let precision = args.next_arg();
+    let mut x = this_number_value(agent, this_value)?;
+    if precision.is_undefined() {
+        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(x)).unwrap()));
+    }
+    let prec = to_integer_or_infinity(agent, precision.clone())?;
+    if !x.is_finite() {
+        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(x)).unwrap()));
+    }
+    if !(1.0..=100.0).contains(&prec) {
+        let precision_str = to_string(agent, precision).unwrap();
+        return Err(create_range_error(agent, format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
+    }
+
+    let s: &str;
+    if x < 0.0 {
+        x = -x;
+        s = "-";
+    } else {
+        s = "";
+    }
+    let p = prec as u32;
+    let mut e: i32;
+
+    if x == 0.0 {
+        for idx in 0..p {
+            workbuf[idx as usize] = b'0';
+        }
+        e = 0;
+    } else {
+        let info = dtoa(x);
+        println!("{:?}", info);
+        e = info.decpt - 1;
+        let strbuf = info.chars.as_bytes();
+        // copy p digits of the chars, switching to '0' if we run out, and starting with index 1 (so that we can back
+        // up by one if rounding overflows that way)
+        let mut out_of_chars = false;
+        for idx in 1..=p {
+            workbuf[idx as usize] = if out_of_chars {
+                b'0'
+            } else {
+                let ch = strbuf[idx as usize - 1];
+                if ch == b'\0' {
+                    out_of_chars = true;
+                    b'0'
+                } else {
+                    ch
+                }
+            };
+        }
+        // Check for rounding up
+        if !out_of_chars && strbuf[p as usize] >= b'5' {
+            let mut rounding_idx = p as usize;
+            while rounding_idx >= 1 {
+                let ch = workbuf[rounding_idx];
+                if ch <= b'8' {
+                    workbuf[rounding_idx] = ch + 1;
+                    break;
+                }
+                // ch == '9'
+                workbuf[rounding_idx] = b'0';
+                rounding_idx -= 1;
+            }
+            if rounding_idx == 0 {
+                workbuf[0] = b'1';
+                e = e + 1;
+            }
+        }
+
+        // exponential form
+        if e < -6 || e >= p as i32 {
+            let mut m: Vec<u8> = Vec::new();
+            let mut idx = if workbuf[0] == 0 { 1 } else { 0 };
+            if p != 1 {
+                m.push(workbuf[idx]);
+                idx += 1;
+                m.push(b'.');
+                for _ in 0..p - 1 {
+                    m.push(workbuf[idx]);
+                    idx += 1;
+                }
+            } else {
+                m.push(workbuf[idx]);
+            }
+            let m2 = String::from_utf8_lossy(m.as_slice());
+            return Ok(ECMAScriptValue::from(format!("{}{}e{}", s, m2, e)));
+        }
+    }
+
+    let idx: usize = if workbuf[0] == 0 { 1 } else { 0 };
+    let m = &workbuf[idx..idx + p as usize];
+
+    // Non-exponential forms
+    if e == p as i32 - 1 {
+        // No decimal point
+        return Ok(ECMAScriptValue::from(format!("{}{}", s, String::from_utf8_lossy(m))));
+    }
+    if e >= 0 {
+        // No leading zeroes
+        let e_us: usize = e as usize + 1;
+        let p_us: usize = p as usize;
+        let a = &m[0..e_us];
+        let b = &m[e_us..p_us];
+        return Ok(ECMAScriptValue::from(format!("{}{}.{}", s, String::from_utf8_lossy(a), String::from_utf8_lossy(b))));
+    }
+
+    // Leading zeroes
+    let digits = String::from_utf8_lossy(m);
+    let num_zeroes: usize = (-e - 1) as usize;
+    return Ok(ECMAScriptValue::from(format!("{}0.{:0>width$}", s, digits, width = num_zeroes + digits.len())));
 }
 
 fn next_double(dbl: f64) -> f64 {

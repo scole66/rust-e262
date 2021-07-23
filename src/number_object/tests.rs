@@ -571,3 +571,32 @@ fn number_proto_to_string_08() {
     let result = call(&mut agent, &to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
 }
+
+fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(precision)]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from(expected));
+}
+#[test]
+fn number_proto_to_precision_01() {
+    number_proto_to_precision_test(2.125, 2, "2.1");
+}
+#[test]
+fn number_proto_to_precision_02() {
+    number_proto_to_precision_test(2.775, 3, "2.78");
+}
+#[test]
+fn number_proto_to_precision_03() {
+    number_proto_to_precision_test(9.9999, 3, "10.0");
+}
+#[test]
+fn number_proto_to_precision_04() {
+    number_proto_to_precision_test(0.00125, 3, "0.00125");
+}
+#[test]
+fn number_proto_to_precision_05() {
+    number_proto_to_precision_test(5.960464477539063e-8, 3, "5.96e-8");
+}

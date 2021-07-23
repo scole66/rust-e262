@@ -13,7 +13,7 @@ lazy_static! {
     static ref DTOALOCK: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
 }
 
-//#[derive(Debug)]
+#[derive(Debug)]
 pub struct DtoAResult {
     pub chars: String,
     pub decpt: i32,
