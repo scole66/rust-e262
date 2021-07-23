@@ -519,10 +519,9 @@ fn number_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScript
 }
 
 fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    let mut workbuf: [u8; 101] = [0; 101];
     let mut args = Arguments::from(arguments);
     let precision = args.next_arg();
-    let mut value = this_number_value(agent, this_value)?;
+    let value = this_number_value(agent, this_value)?;
     if precision.is_undefined() {
         return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
     }
@@ -535,79 +534,44 @@ fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue,
         return Err(create_range_error(agent, format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
     }
 
-    let sign: &str;
-    if value < 0.0 {
-        value = -value;
-        sign = "-";
-    } else {
-        sign = "";
-    }
-    let p = prec as u32;
-    let mut e: i32;
-
-    if value == 0.0 {
-        for idx in 0..p {
-            workbuf[idx as usize] = b'0';
-        }
-        e = 0;
-    } else {
-        let info = dtoa_precise(value, 100);
-        println!("{:?}", info);
-        e = info.decpt - 1;
-        let strbuf = info.chars.as_bytes();
-        // copy p digits of the chars, switching to '0' if we run out, and starting with index 1 (so that we can back
-        // up by one if rounding overflows that way)
-        let mut out_of_chars = false;
-        for idx in 1..=p {
-            workbuf[idx as usize] = if out_of_chars {
+    let p_size = prec as usize;
+    let p_val = prec as i32;
+    let info = dtoa_precise(value, p_val);
+    let strbuf = info.chars.as_bytes();
+    // copy digits out of that, right-padding with '0', until we get p chars.
+    let mut workbuf: [u8; 101] = [0; 101];
+    let mut out_of_chars = false;
+    for idx in 0..p_size {
+        workbuf[idx] = if out_of_chars {
+            b'0'
+        } else {
+            let ch = strbuf[idx];
+            if ch == 0 {
+                out_of_chars = true;
                 b'0'
             } else {
-                let ch = strbuf[idx as usize - 1];
-                if ch == b'\0' {
-                    out_of_chars = true;
-                    b'0'
-                } else {
-                    ch
-                }
-            };
-        }
-        // Check for rounding up
-        if !out_of_chars && strbuf[p as usize] >= b'5' {
-            let mut rounding_idx = p as usize;
-            while rounding_idx >= 1 {
-                let ch = workbuf[rounding_idx];
-                if ch <= b'8' {
-                    workbuf[rounding_idx] = ch + 1;
-                    break;
-                }
-                // ch == '9'
-                workbuf[rounding_idx] = b'0';
-                rounding_idx -= 1;
+                ch
             }
-            if rounding_idx == 0 {
-                workbuf[0] = b'1';
-                e += 1;
-            }
-        }
+        };
     }
-
-    let idx: usize = if workbuf[0] == 0 { 1 } else { 0 };
-    let digits = &workbuf[idx..idx + p as usize];
+    let digits = &workbuf[0..p_size];
+    let e = info.decpt - 1;
+    let sign = if info.sign != 0 && value != 0.0 { "-" } else { "" };
 
     Ok(ECMAScriptValue::from(
         // exponential form
-        if e < -6 || e >= p as i32 {
+        if e < -6 || e >= p_val {
             let before_pt = String::from_utf8_lossy(&digits[0..1]);
-            let decpt = if p != 1 { "." } else { "" };
-            let after_pt = String::from_utf8_lossy(&digits[1..p as usize]);
+            let decpt = if p_val != 1 { "." } else { "" };
+            let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
             format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
-        } else if e == p as i32 - 1 {
+        } else if e == p_val - 1 {
             // No decimal point
             format!("{}{}", sign, String::from_utf8_lossy(digits))
         } else if e >= 0 {
             // No leading zeroes
             let e_us: usize = e as usize + 1;
-            let p_us: usize = p as usize;
+            let p_us: usize = p_size;
             let a = &digits[0..e_us];
             let b = &digits[e_us..p_us];
             format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
