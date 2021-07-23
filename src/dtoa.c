@@ -6201,8 +6201,8 @@ dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 	}
 
 
-void dtoa_rust(double dd, int *decpt, int *sign, char *buf, size_t blen) {
-	dtoa_r(dd, 0, 0, decpt, sign, NULL, buf, blen);
+void dtoa_rust(double dd, int mode, int ndigits, int *decpt, int *sign, char *buf, size_t blen) {
+	dtoa_r(dd, mode, ndigits, decpt, sign, NULL, buf, blen);
 }
 
 #ifdef __cplusplus

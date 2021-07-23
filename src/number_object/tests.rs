@@ -586,7 +586,7 @@ fn number_proto_to_precision_01() {
 }
 #[test]
 fn number_proto_to_precision_02() {
-    number_proto_to_precision_test(2.775, 3, "2.78");
+    number_proto_to_precision_test(2.7759, 3, "2.78");
 }
 #[test]
 fn number_proto_to_precision_03() {
@@ -599,4 +599,94 @@ fn number_proto_to_precision_04() {
 #[test]
 fn number_proto_to_precision_05() {
     number_proto_to_precision_test(5.960464477539063e-8, 3, "5.96e-8");
+}
+#[test]
+fn number_proto_to_precision_06() {
+    number_proto_to_precision_test(-0.0, 3, "0.00");
+}
+#[test]
+fn number_proto_to_precision_07() {
+    number_proto_to_precision_test(-5.0, 6, "-5.00000");
+}
+#[test]
+fn number_proto_to_precision_08() {
+    number_proto_to_precision_test(6500000.0, 2, "6.5e6");
+}
+#[test]
+fn number_proto_to_precision_09() {
+    number_proto_to_precision_test(9999999.0, 2, "1.0e7");
+}
+#[test]
+fn number_proto_to_precision_10() {
+    number_proto_to_precision_test(-9999999.0, 1, "-1e7");
+}
+#[test]
+fn number_proto_to_precision_11() {
+    number_proto_to_precision_test(12345.0, 5, "12345");
+}
+#[test]
+fn number_proto_to_precision_15() {
+    number_proto_to_precision_test(f64::NEG_INFINITY, 5, "-Infinity");
+}
+
+#[test]
+fn number_proto_to_precision_12() {
+    // this_number_value is not actually a number
+    let mut agent = test_agent();
+    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&mut agent, &number_prototype, &PropertyKey::from("toPrecision")).unwrap();
+
+    let result = call(&mut agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
+}
+#[test]
+fn number_proto_to_precision_13() {
+    // precision not present
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("548.333"));
+}
+#[test]
+fn number_proto_to_precision_14() {
+    // precision not convertable to number
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+#[test]
+fn number_proto_to_precision_16() {
+    // precision out of range
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(0)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "Precision ‘0’ must lie within the range 1..100");
+}
+#[test]
+fn number_proto_to_precision_17() {
+    // precision out of range
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "Precision ‘101’ must lie within the range 1..100");
+}
+#[test]
+fn number_proto_to_precision_18() {
+    // precision just in range
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(100)]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("548.3329999999999699866748414933681488037109375000000000000000000000000000000000000000000000000000000"));
 }

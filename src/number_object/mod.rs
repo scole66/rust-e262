@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
-use super::dtoa_r::dtoa;
+use super::dtoa_r::dtoa_precise;
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -522,36 +522,36 @@ fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue,
     let mut workbuf: [u8; 101] = [0; 101];
     let mut args = Arguments::from(arguments);
     let precision = args.next_arg();
-    let mut x = this_number_value(agent, this_value)?;
+    let mut value = this_number_value(agent, this_value)?;
     if precision.is_undefined() {
-        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(x)).unwrap()));
+        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
     }
     let prec = to_integer_or_infinity(agent, precision.clone())?;
-    if !x.is_finite() {
-        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(x)).unwrap()));
+    if !value.is_finite() {
+        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
     }
     if !(1.0..=100.0).contains(&prec) {
         let precision_str = to_string(agent, precision).unwrap();
         return Err(create_range_error(agent, format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
     }
 
-    let s: &str;
-    if x < 0.0 {
-        x = -x;
-        s = "-";
+    let sign: &str;
+    if value < 0.0 {
+        value = -value;
+        sign = "-";
     } else {
-        s = "";
+        sign = "";
     }
     let p = prec as u32;
     let mut e: i32;
 
-    if x == 0.0 {
+    if value == 0.0 {
         for idx in 0..p {
             workbuf[idx as usize] = b'0';
         }
         e = 0;
     } else {
-        let info = dtoa(x);
+        let info = dtoa_precise(value, 100);
         println!("{:?}", info);
         e = info.decpt - 1;
         let strbuf = info.chars.as_bytes();
@@ -586,51 +586,38 @@ fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue,
             }
             if rounding_idx == 0 {
                 workbuf[0] = b'1';
-                e = e + 1;
+                e += 1;
             }
-        }
-
-        // exponential form
-        if e < -6 || e >= p as i32 {
-            let mut m: Vec<u8> = Vec::new();
-            let mut idx = if workbuf[0] == 0 { 1 } else { 0 };
-            if p != 1 {
-                m.push(workbuf[idx]);
-                idx += 1;
-                m.push(b'.');
-                for _ in 0..p - 1 {
-                    m.push(workbuf[idx]);
-                    idx += 1;
-                }
-            } else {
-                m.push(workbuf[idx]);
-            }
-            let m2 = String::from_utf8_lossy(m.as_slice());
-            return Ok(ECMAScriptValue::from(format!("{}{}e{}", s, m2, e)));
         }
     }
 
     let idx: usize = if workbuf[0] == 0 { 1 } else { 0 };
-    let m = &workbuf[idx..idx + p as usize];
+    let digits = &workbuf[idx..idx + p as usize];
 
-    // Non-exponential forms
-    if e == p as i32 - 1 {
-        // No decimal point
-        return Ok(ECMAScriptValue::from(format!("{}{}", s, String::from_utf8_lossy(m))));
-    }
-    if e >= 0 {
-        // No leading zeroes
-        let e_us: usize = e as usize + 1;
-        let p_us: usize = p as usize;
-        let a = &m[0..e_us];
-        let b = &m[e_us..p_us];
-        return Ok(ECMAScriptValue::from(format!("{}{}.{}", s, String::from_utf8_lossy(a), String::from_utf8_lossy(b))));
-    }
-
-    // Leading zeroes
-    let digits = String::from_utf8_lossy(m);
-    let num_zeroes: usize = (-e - 1) as usize;
-    return Ok(ECMAScriptValue::from(format!("{}0.{:0>width$}", s, digits, width = num_zeroes + digits.len())));
+    Ok(ECMAScriptValue::from(
+        // exponential form
+        if e < -6 || e >= p as i32 {
+            let before_pt = String::from_utf8_lossy(&digits[0..1]);
+            let decpt = if p != 1 { "." } else { "" };
+            let after_pt = String::from_utf8_lossy(&digits[1..p as usize]);
+            format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
+        } else if e == p as i32 - 1 {
+            // No decimal point
+            format!("{}{}", sign, String::from_utf8_lossy(digits))
+        } else if e >= 0 {
+            // No leading zeroes
+            let e_us: usize = e as usize + 1;
+            let p_us: usize = p as usize;
+            let a = &digits[0..e_us];
+            let b = &digits[e_us..p_us];
+            format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
+        } else {
+            // Leading zeroes
+            let digit_str = String::from_utf8_lossy(digits);
+            let num_zeroes: usize = (-e - 1) as usize;
+            format!("{}0.{:0>width$}", sign, digit_str, width = num_zeroes + digit_str.len())
+        },
+    ))
 }
 
 fn next_double(dbl: f64) -> f64 {
