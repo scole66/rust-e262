@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
-use super::dtoa_r::dtoa_precise;
+use super::dtoa_r::{dtoa, dtoa_precise};
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -508,16 +508,195 @@ fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion
     }
 }
 
-fn number_prototype_to_exponential(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Number.prototype.toExponential ( fractionDigits )
+//
+// Return a String containing this Number value represented in decimal exponential notation with one digit before the
+// significand's decimal point and fractionDigits digits after the significand's decimal point. If fractionDigits is
+// undefined, include as many significand digits as necessary to uniquely specify the Number (just like in ToString
+// except that in this case the Number is always output in exponential notation). Specifically, perform the following
+// steps:
+//
+//  1. Let x be ? thisNumberValue(this value).
+//  2. Let f be ? ToIntegerOrInfinity(fractionDigits).
+//  3. Assert: If fractionDigits is undefined, then f is 0.
+//  4. If x is not finite, return ! Number::toString(x).
+//  5. If f < 0 or f > 100, throw a RangeError exception.
+//  6. Set x to ℝ(x).
+//  7. Let s be the empty String.
+//  8. If x < 0, then
+//      a. Set s to "-".
+//      b. Set x to -x.
+//  9. If x = 0, then
+//      a. Let m be the String value consisting of f + 1 occurrences of the code unit 0x0030 (DIGIT ZERO).
+//      b. Let e be 0.
+//  10. Else,
+//      a. If fractionDigits is not undefined, then
+//          i. Let e and n be integers such that 10**f ≤ n < 10**(f + 1) and for which n × 10**(e - f) - x is as close
+//             to zero as possible. If there are two such sets of e and n, pick the e and n for which n × 10**(e - f)
+//             is larger.
+//      b. Else,
+//          i. Let e, n, and f be integers such that f ≥ 0, 10**f ≤ n < 10**(f + 1), 𝔽(n × 10**(e - f)) is 𝔽(x), and
+//             f is as small as possible. Note that the decimal representation of n has f + 1 digits, n is not
+//             divisible by 10, and the least significant digit of n is not necessarily uniquely determined by these
+//             criteria.
+//      c. Let m be the String value consisting of the digits of the decimal representation of n (in order, with no
+//         leading zeroes).
+//  11. If f ≠ 0, then
+//      a. Let a be the first code unit of m.
+//      b. Let b be the other f code units of m.
+//      c. Set m to the string-concatenation of a, ".", and b.
+//  12. If e = 0, then
+//      a. Let c be "+".
+//      b. Let d be "0".
+//  13. Else,
+//      a. If e > 0, let c be "+".
+//      b. Else,
+//          i. Assert: e < 0.
+//          ii. Let c be "-".
+//          iii. Set e to -e.
+//      c. Let d be the String value consisting of the digits of the decimal representation of e (in order, with no
+//         leading zeroes).
+//  14. Set m to the string-concatenation of m, "e", c, and d.
+//  15. Return the string-concatenation of s and m.
+//
+// NOTE     For implementations that provide more accurate conversions than required by the rules above, it is
+//          recommended that the following alternative version of step 10.b.i be used as a guideline:
+//
+//          1. Let e, n, and f be integers such that f ≥ 0, 10f ≤ n < 10f + 1, 𝔽(n × 10e - f) is 𝔽(x), and f is as
+//             small as possible. If there are multiple possibilities for n, choose the value of n for which 𝔽(n × 10e
+//             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
+//             even.
+fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let fraction_digits = args.next_arg();
+
+    let value = this_number_value(agent, this_value)?;
+    let fraction = to_integer_or_infinity(agent, fraction_digits.clone())?;
+    if !value.is_finite() {
+        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
+    }
+    if !(0.0..=100.0).contains(&fraction) {
+        let fd_str = to_string(agent, fraction_digits).unwrap();
+        return Err(create_range_error(agent, format!("FractionDigits ‘{}’ must lie within 0..100", fd_str)));
+    }
+    let fraction = fraction as i32;
+
+    let exp: i32;
+    let info;
+    let mut workbuf: [u8; 101] = [0; 101];
+    let digits;
+    if !fraction_digits.is_undefined() {
+        info = dtoa_precise(value, fraction + 1);
+        // We need fraction +1 digits to come out of this.
+        let strbuf = info.chars.as_bytes();
+        // copy digits out of that, right-padding with '0', until we get p chars.
+        let mut out_of_chars = false;
+        for idx in 0..(fraction + 1) as usize {
+            workbuf[idx] = if out_of_chars {
+                b'0'
+            } else {
+                let ch = strbuf[idx];
+                if ch == 0 {
+                    out_of_chars = true;
+                    b'0'
+                } else {
+                    ch
+                }
+            };
+        }
+        digits = &workbuf[0..(fraction + 1) as usize];
+    } else {
+        info = dtoa(value);
+        let strbuf = info.chars.as_bytes();
+        // Find the first null
+        let mut null_idx: Option<usize> = None;
+        for (idx, ch) in strbuf.iter().enumerate() {
+            if *ch == 0 {
+                null_idx = Some(idx);
+                break;
+            }
+        }
+        digits = &strbuf[0..null_idx.unwrap()];
+    }
+    exp = info.decpt - 1;
+    let sign = if value < 0.0 { "-" } else { "" };
+
+    Ok(ECMAScriptValue::from(if fraction == 0 {
+        format!("{}{}e{:+}", sign, String::from_utf8_lossy(digits), exp)
+    } else {
+        let first_digit = &digits[0..1];
+        let remaining = &digits[1..];
+        format!("{}{}.{}e{:+}", sign, String::from_utf8_lossy(first_digit), String::from_utf8_lossy(remaining), exp)
+    }))
 }
 fn number_prototype_to_fixed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
-fn number_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+
+// Number.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
+//
+// An ECMAScript implementation that includes the ECMA-402 Internationalization API must implement the
+// Number.prototype.toLocaleString method as specified in the ECMA-402 specification. If an ECMAScript implementation
+// does not include the ECMA-402 API the following specification of the toLocaleString method is used.
+//
+// Produces a String value that represents this Number value formatted according to the conventions of the host
+// environment's current locale. This function is implementation-defined, and it is permissible, but not encouraged,
+// for it to return the same thing as toString.
+//
+// The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
+// that do not include ECMA-402 support must not use those parameter positions for anything else.
+fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    number_prototype_to_string(agent, this_value, new_target, arguments)
 }
 
+// Number.prototype.toPrecision ( precision )
+//
+// Return a String containing this Number value represented either in decimal exponential notation with one digit
+// before the significand's decimal point and precision - 1 digits after the significand's decimal point or in decimal
+// fixed notation with precision significant digits. If precision is undefined, call ToString instead. Specifically,
+// perform the following steps:
+//
+//  1. Let x be ? thisNumberValue(this value).
+//  2. If precision is undefined, return ! ToString(x).
+//  3. Let p be ? ToIntegerOrInfinity(precision).
+//  4. If x is not finite, return ! Number::toString(x).
+//  5. If p < 1 or p > 100, throw a RangeError exception.
+//  6. Set x to ℝ(x).
+//  7. Let s be the empty String.
+//  8. If x < 0, then
+//      a. Set s to the code unit 0x002D (HYPHEN-MINUS).
+//      b. Set x to -x.
+//  9. If x = 0, then
+//      a. Let m be the String value consisting of p occurrences of the code unit 0x0030 (DIGIT ZERO).
+//      b. Let e be 0.
+//  10. Else,
+//      a. Let e and n be integers such that 10p - 1 ≤ n < 10p and for which n × 10e - p + 1 - x is as close to zero as
+//         possible. If there are two such sets of e and n, pick the e and n for which n × 10e - p + 1 is larger.
+//      b. Let m be the String value consisting of the digits of the decimal representation of n (in order, with no
+//         leading zeroes).
+//      c. If e < -6 or e ≥ p, then
+//          i. Assert: e ≠ 0.
+//          ii. If p ≠ 1, then
+//              1. Let a be the first code unit of m.
+//              2. Let b be the other p - 1 code units of m.
+//              3. Set m to the string-concatenation of a, ".", and b.
+//          iii. If e > 0, then
+//              1. Let c be the code unit 0x002B (PLUS SIGN).
+//          iv. Else,
+//              1. Assert: e < 0.
+//              2. Let c be the code unit 0x002D (HYPHEN-MINUS).
+//              3. Set e to -e.
+//          v. Let d be the String value consisting of the digits of the decimal representation of e (in order, with no
+//             leading zeroes).
+//          vi. Return the string-concatenation of s, m, the code unit 0x0065 (LATIN SMALL LETTER E), c, and d.
+//  11. If e = p - 1, return the string-concatenation of s and m.
+//  12. If e ≥ 0, then
+//      a. Set m to the string-concatenation of the first e + 1 code units of m, the code unit 0x002E (FULL STOP), and
+//         the remaining p - (e + 1) code units of m.
+//  13. Else,
+//      a. Set m to the string-concatenation of the code unit 0x0030 (DIGIT ZERO), the code unit 0x002E (FULL STOP),
+//         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
+//  14. Return the string-concatenation of s and m.
 fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let precision = args.next_arg();

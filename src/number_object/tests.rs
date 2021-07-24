@@ -690,3 +690,29 @@ fn number_proto_to_precision_18() {
     let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(100)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("548.3329999999999699866748414933681488037109375000000000000000000000000000000000000000000000000000000"));
 }
+
+fn number_proto_to_exponent_test(value: f64, fraction_digits: u32, expected: &str) {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from(expected));
+}
+#[test]
+fn number_proto_to_exponential_01() {
+    number_proto_to_exponent_test(56.333, 3, "5.633e+1");
+}
+#[test]
+fn number_proto_to_exponential_02() {
+    number_proto_to_exponent_test(0.1, 100, "1.0000000000000000555111512312578270211815834045410156250000000000000000000000000000000000000000000000e-1");
+}
+#[test]
+fn number_proto_to_exponential_03() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("1e-1"));
+}
