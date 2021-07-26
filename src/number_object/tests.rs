@@ -950,3 +950,15 @@ fn next_double_test() {
     assert_eq!(next_double(-1.0), -0.9999999999999999);
     assert_eq!(next_double(-1.0).to_bits(), 0xBFEFFFFFFFFFFFFF);
 }
+
+#[test]
+fn number_proto_to_locale_string_01() {
+    // Implementations of toLocaleString may not use the arguments for any use beyond their ECMA-402 specified uses. In
+    // particular, if we defer to toString, the first argument must _not_ be used as the radix argument.
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(10)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("10"));
+}

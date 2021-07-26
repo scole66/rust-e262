@@ -743,8 +743,8 @@ fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _ne
 //
 // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
 // that do not include ECMA-402 support must not use those parameter positions for anything else.
-fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    number_prototype_to_string(agent, this_value, new_target, arguments)
+fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    number_prototype_to_string(agent, this_value, new_target, &[]) // Don't send the args along, because reserved1 & 2 are not meaningful
 }
 
 // Number.prototype.toPrecision ( precision )
@@ -911,6 +911,8 @@ fn double_exponent(dbl: f64) -> i32 {
 }
 
 #[allow(clippy::float_cmp)]
+#[allow(unused_assignments)] // Remove this when the Condition B panic is removed
+#[allow(unreachable_code)] // Remove this when the Condition B panic is removed
 pub fn double_to_radix_string(val: f64, radix: i32) -> String {
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
     // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
