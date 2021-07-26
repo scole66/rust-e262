@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
-use super::dtoa_r::{dtoa, dtoa_precise};
+use super::dtoa_r::{dtoa, dtoa_fixed, dtoa_precise};
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -577,7 +577,7 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
     }
     if !(0.0..=100.0).contains(&fraction) {
         let fd_str = to_string(agent, fraction_digits).unwrap();
-        return Err(create_range_error(agent, format!("FractionDigits ‘{}’ must lie within 0..100", fd_str)));
+        return Err(create_range_error(agent, format!("FractionDigits ‘{}’ must lie within the range 0..100", fd_str)));
     }
     let fraction = fraction as i32;
 
@@ -629,8 +629,106 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
         format!("{}{}.{}e{:+}", sign, String::from_utf8_lossy(first_digit), String::from_utf8_lossy(remaining), exp)
     }))
 }
-fn number_prototype_to_fixed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+
+// Number.prototype.toFixed ( fractionDigits )
+//
+// NOTE 1       toFixed returns a String containing this Number value represented in decimal fixed-point notation with
+//              fractionDigits digits after the decimal point. If fractionDigits is undefined, 0 is assumed.
+//
+// The following steps are performed:
+//
+//  1. Let x be ? thisNumberValue(this value).
+//  2. Let f be ? ToIntegerOrInfinity(fractionDigits).
+//  3. Assert: If fractionDigits is undefined, then f is 0.
+//  4. If f is not finite, throw a RangeError exception.
+//  5. If f < 0 or f > 100, throw a RangeError exception.
+//  6. If x is not finite, return ! Number::toString(x).
+//  7. Set x to ℝ(x).
+//  8. Let s be the empty String.
+//  9. If x < 0, then
+//      a. Set s to "-".
+//      b. Set x to -x.
+//  10. If x ≥ 10**21, then
+//      a. Let m be ! ToString(𝔽(x)).
+//  11. Else,
+//      a. Let n be an integer for which n / 10**f - x is as close to zero as possible. If there are two such n, pick the
+//         larger n.
+//      b. If n = 0, let m be the String "0". Otherwise, let m be the String value consisting of the digits of the
+//         decimal representation of n (in order, with no leading zeroes).
+//      c. If f ≠ 0, then
+//          i. Let k be the length of m.
+//          ii. If k ≤ f, then
+//              1. Let z be the String value consisting of f + 1 - k occurrences of the code unit 0x0030 (DIGIT ZERO).
+//              2. Set m to the string-concatenation of z and m.
+//              3. Set k to f + 1.
+//          iii. Let a be the first k - f code units of m.
+//          iv. Let b be the other f code units of m.
+//          v. Set m to the string-concatenation of a, ".", and b.
+//  12. Return the string-concatenation of s and m.
+//
+// NOTE 2       The output of toFixed may be more precise than toString for some values because toString only prints
+//              enough significant digits to distinguish the number from adjacent Number values. For example,
+//
+//                  (1000000000000000128).toString() returns "1000000000000000100", while
+//                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
+//
+fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let fraction_digits = args.next_arg();
+    let value = this_number_value(agent, this_value)?;
+    let fraction = to_integer_or_infinity(agent, fraction_digits)?;
+    if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
+        return Err(create_range_error(agent, "Argument for Number.toFixed must be in the range 0..100"));
+    }
+    if !value.is_finite() || value.abs() >= 1.0e21 {
+        return to_string(agent, ECMAScriptValue::from(value)).map(ECMAScriptValue::from);
+    }
+    let magnitude = value.abs();
+
+    Ok(ECMAScriptValue::from({
+        let sign = if value < 0.0 { "-" } else { "" };
+        let f = fraction as i32;
+        let mut workbuf: [u8; 101] = [b'0'; 101];
+        let info = dtoa_fixed(magnitude, f);
+        let mut k = info.decpt + f;
+        if f == 0 {
+            // sign + the k digits from dtoa.
+            let strbuf = info.chars.as_bytes();
+            for idx in 0..k as usize {
+                workbuf[idx] = {
+                    let ch = strbuf[idx];
+                    if ch == 0 {
+                        break;
+                    } else {
+                        ch
+                    }
+                };
+            }
+            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
+        } else {
+            let mut write_offset = 0;
+            if k <= f {
+                write_offset = f + 1 - k;
+                k = f + 1;
+            }
+            let strbuf = info.chars.as_bytes();
+            // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
+            for read_idx in 0..(info.decpt + f - write_offset) as usize {
+                workbuf[read_idx + write_offset as usize] = {
+                    let ch = strbuf[read_idx];
+                    if ch == 0 {
+                        break;
+                    } else {
+                        ch
+                    }
+                };
+            }
+            let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
+            let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
+
+            format!("{}{}.{}", sign, before_point, after_point)
+        }
+    }))
 }
 
 // Number.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
@@ -762,7 +860,7 @@ fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue,
     ))
 }
 
-fn next_double(dbl: f64) -> f64 {
+pub fn next_double(dbl: f64) -> f64 {
     // Copied from the V8 source
     // Returns the next greater double. Returns +infinity on input +infinity.
     // double NextDouble() const {
@@ -792,6 +890,14 @@ fn next_double(dbl: f64) -> f64 {
 }
 
 fn double_exponent(dbl: f64) -> i32 {
+    // Note: This exponent is not exactly the exponent from IEE-754. This is really more about "are my least significant
+    // values in the unit digit?" I.e.: Since (LARGE % small) == nonsense; we need to do other tricks. This function
+    // helps get us there.
+    //
+    // The exponent returned is what the exponent would be if the double were
+    //      1<significand_bits>.0 x 2^exp
+    // rather than
+    //      1.<significand_bits> x 2^exp
     const PHYSICAL_SIGNIFICAND_SIZE: i32 = 52;
     const EXPONENT_BIAS: i32 = 0x3ff + PHYSICAL_SIGNIFICAND_SIZE;
     const DENORMAL_EXPONENT: i32 = -EXPONENT_BIAS + 1;
@@ -846,6 +952,9 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             // Calculate remainder.
             fraction -= digit as f64;
             // Round to even.
+            if fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0 {
+                panic!("Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
+            }
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
                 loop {
@@ -853,6 +962,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                     if fraction_cursor == KBUFFERSIZE / 2 {
                         // Carry over to the integer part.
                         integer += 1.0;
+                        panic!("Condition B met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
                         break;
                     }
                     let c = buffer[fraction_cursor] as i32;

@@ -571,6 +571,41 @@ fn number_proto_to_string_08() {
     let result = call(&mut agent, &to_string, &ECMAScriptValue::Null, &[]).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
 }
+#[test]
+fn number_proto_to_string_09() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(1.0e100)], None).unwrap();
+
+    let result = invoke(&mut agent, number, &PropertyKey::from("toString"), &[ECMAScriptValue::from(30)]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from("anhmc58j7ljq00000000000000000000000000000000000000000000000000000000"));
+}
+//#[test]
+//fn number_proto_to_string_10() {
+//    let mut agent = test_agent();
+//    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+//
+//    let mut val = 0.0_f64;
+//    while val < 1.0  {
+//        let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(val)], None).unwrap();
+//        let result = invoke(&mut agent, number.clone(), &PropertyKey::from("toString"), &[ECMAScriptValue::from(11)]).unwrap();
+//        assert!(result.is_string());
+//        val = next_double(val);
+//    }
+//
+//    assert!(false);
+//    //assert_eq!(result, ECMAScriptValue::from("0.wm3kq2a7jfj"));
+//}
+//#[test]
+//fn number_tostring_probe() {
+//    let mut agent = test_agent();
+//    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+//    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.665)], None).unwrap();
+//
+//    let result = invoke(&mut agent, number.clone(), &PropertyKey::from("toString"), &[ECMAScriptValue::from(7)]).unwrap();
+//    assert!(result.is_string());
+//}
 
 fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
     let mut agent = test_agent();
@@ -715,4 +750,203 @@ fn number_proto_to_exponential_03() {
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
     let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("1e-1"));
+}
+#[test]
+fn number_proto_to_exponential_04() {
+    // this_number_value is not actually a number
+    let mut agent = test_agent();
+    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&mut agent, &number_prototype, &PropertyKey::from("toExponential")).unwrap();
+
+    let result = call(&mut agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
+}
+#[test]
+fn number_proto_to_exponential_05() {
+    // fractionDigits not convertable to number
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+#[test]
+fn number_proto_to_exponential_06() {
+    number_proto_to_exponent_test(f64::INFINITY, 5, "Infinity");
+}
+#[test]
+fn number_proto_to_exponential_07() {
+    // fractionDigits out of range
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "FractionDigits ‘101’ must lie within the range 0..100");
+}
+#[test]
+fn number_proto_to_exponential_08() {
+    // fractionDigits out of range
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(-1)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "FractionDigits ‘-1’ must lie within the range 0..100");
+}
+#[test]
+fn number_proto_to_exponential_09() {
+    number_proto_to_exponent_test(-89388.13111, 5, "-8.93881e+4");
+}
+
+fn number_proto_to_fixed_test(value: f64, fraction_digits: u32, expected: &str) {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from(expected));
+}
+
+#[test]
+fn number_proto_to_fixed_01() {
+    number_proto_to_fixed_test(8888.922, 2, "8888.92");
+}
+#[test]
+fn number_proto_to_fixed_02() {
+    number_proto_to_fixed_test(999.999, 2, "1000.00");
+}
+#[test]
+fn number_proto_to_fixed_03() {
+    number_proto_to_fixed_test(999.999, 3, "999.999");
+}
+#[test]
+fn number_proto_to_fixed_04() {
+    number_proto_to_fixed_test(-8888.922, 2, "-8888.92");
+}
+#[test]
+fn number_proto_to_fixed_05() {
+    // The example from the spec
+    number_proto_to_fixed_test(1000000000000000128.0, 0, "1000000000000000128");
+}
+#[test]
+fn number_proto_to_fixed_06() {
+    number_proto_to_fixed_test(0.0, 5, "0.00000");
+}
+#[test]
+fn number_proto_to_fixed_07() {
+    number_proto_to_fixed_test(-0.0000011, 4, "-0.0000");
+}
+#[test]
+fn number_proto_to_fixed_08() {
+    number_proto_to_fixed_test(-0.0011, 4, "-0.0011");
+}
+#[test]
+fn number_proto_to_fixed_09() {
+    number_proto_to_fixed_test(1.23, 4, "1.2300");
+}
+#[test]
+fn number_proto_to_fixed_10() {
+    number_proto_to_fixed_test(100.0, 0, "100");
+}
+#[test]
+fn number_proto_to_fixed_11() {
+    number_proto_to_fixed_test(f64::INFINITY, 0, "Infinity");
+}
+#[test]
+fn number_proto_to_fixed_12() {
+    number_proto_to_fixed_test(f64::NEG_INFINITY, 0, "-Infinity");
+}
+#[test]
+fn number_proto_to_fixed_13() {
+    number_proto_to_fixed_test(f64::NAN, 0, "NaN");
+}
+#[test]
+fn number_proto_to_fixed_14() {
+    number_proto_to_fixed_test(33.0e302, 10, "3.3e+303");
+}
+#[test]
+fn number_proto_to_fixed_15() {
+    number_proto_to_fixed_test(-3.0e21, 10, "-3e+21");
+}
+#[test]
+fn number_proto_to_fixed_16() {
+    // empty arg list
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[]).unwrap();
+    assert_eq!(result, ECMAScriptValue::from("0"));
+}
+#[test]
+fn number_proto_to_fixed_17() {
+    // bad argument
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+    let sym = ECMAScriptValue::from(Symbol::new(&mut agent, None));
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[sym]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
+}
+#[test]
+fn number_proto_to_fixed_18() {
+    // bad argument
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(-1)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "Argument for Number.toFixed must be in the range 0..100");
+}
+#[test]
+fn number_proto_to_fixed_19() {
+    // bad argument
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    assert_eq!(unwind_range_error(&mut agent, result), "Argument for Number.toFixed must be in the range 0..100");
+}
+#[test]
+fn number_proto_to_fixed_20() {
+    // 100 digits
+    number_proto_to_fixed_test(0.7483901789587938, 100, "0.7483901789587937836145670189580414444208145141601562500000000000000000000000000000000000000000000000");
+}
+#[test]
+fn number_proto_to_fixed_21() {
+    // this_number_value is not actually a number
+    let mut agent = test_agent();
+    let number_prototype = agent.intrinsic(IntrinsicId::NumberPrototype);
+    let func = get(&mut agent, &number_prototype, &PropertyKey::from("toFixed")).unwrap();
+
+    let result = call(&mut agent, &func, &ECMAScriptValue::Null, &[]).unwrap_err();
+    assert_eq!(unwind_type_error(&mut agent, result), "Number method called with non-number receiver");
+}
+
+#[test]
+fn double_exponent_test() {
+    // 1.0 -> 1<52 zeros> x 2^(-52)
+    assert_eq!(double_exponent(1.0), -52);
+    // 3e-323 -> denormal; just gets -1074...
+    assert_eq!(double_exponent(3e-323), -1074)
+}
+
+#[test]
+fn next_double_test() {
+    // Infinity -> Infinity
+    assert_eq!(next_double(f64::INFINITY), f64::INFINITY);
+    // -0.0 -> 0.0
+    assert_eq!(next_double(-0.0), 0.0);
+    assert_eq!(next_double(-0.0).to_bits(), 0u64);
+    // 0.0 -> 5e-324
+    assert_eq!(next_double(0.0), 5e-324);
+    assert_eq!(next_double(0.0).to_bits(), 1u64);
+    // -1.0 -> -0.9999999999999999
+    assert_eq!(next_double(-1.0), -0.9999999999999999);
+    assert_eq!(next_double(-1.0).to_bits(), 0xBFEFFFFFFFFFFFFF);
 }
