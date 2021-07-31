@@ -581,31 +581,13 @@ fn number_proto_to_string_09() {
 
     assert_eq!(result, ECMAScriptValue::from("anhmc58j7ljq00000000000000000000000000000000000000000000000000000000"));
 }
-//#[test]
-//fn number_proto_to_string_10() {
-//    let mut agent = test_agent();
-//    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-//
-//    let mut val = 0.0_f64;
-//    while val < 1.0  {
-//        let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(val)], None).unwrap();
-//        let result = invoke(&mut agent, number.clone(), &PropertyKey::from("toString"), &[ECMAScriptValue::from(11)]).unwrap();
-//        assert!(result.is_string());
-//        val = next_double(val);
-//    }
-//
-//    assert!(false);
-//    //assert_eq!(result, ECMAScriptValue::from("0.wm3kq2a7jfj"));
-//}
-//#[test]
-//fn number_tostring_probe() {
-//    let mut agent = test_agent();
-//    let number_constructor = agent.intrinsic(IntrinsicId::Number);
-//    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.665)], None).unwrap();
-//
-//    let result = invoke(&mut agent, number.clone(), &PropertyKey::from("toString"), &[ECMAScriptValue::from(7)]).unwrap();
-//    assert!(result.is_string());
-//}
+
+#[test]
+fn double_to_radix_string_01() {
+    assert_eq!(double_to_radix_string(-2048.0, 16), "-800");
+    assert_eq!(double_to_radix_string(0.99999999, 3), "0.2222222222222222120101012010002");
+    assert_eq!(double_to_radix_string(0.9999999999999, 26), "0.pppppppppbn");
+}
 
 fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
     let mut agent = test_agent();
@@ -937,6 +919,7 @@ fn double_exponent_test() {
 }
 
 #[test]
+#[allow(clippy::float_cmp)]
 fn next_double_test() {
     // Infinity -> Infinity
     assert_eq!(next_double(f64::INFINITY), f64::INFINITY);
@@ -961,4 +944,15 @@ fn number_proto_to_locale_string_01() {
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(10)], None).unwrap();
     let result = invoke(&mut agent, number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("10"));
+}
+
+#[test]
+fn number_proto_value_of() {
+    let mut agent = test_agent();
+    let number_constructor = agent.intrinsic(IntrinsicId::Number);
+
+    let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(0.1)], None).unwrap();
+    let result = invoke(&mut agent, number, &PropertyKey::from("valueOf"), &[]).unwrap();
+
+    assert_eq!(result, ECMAScriptValue::from(0.1));
 }

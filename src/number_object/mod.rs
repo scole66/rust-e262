@@ -974,6 +974,8 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
                         buffer[fraction_cursor] = chars[digit as usize + 1];
                         fraction_cursor += 1;
                         break;
+                    } else {
+                        panic!("Condition C met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
                     }
                 }
                 break;
