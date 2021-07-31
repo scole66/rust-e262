@@ -672,11 +672,14 @@ fn to_object_03() {
     assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
 }
 #[test]
-#[should_panic] // An XFAIL. Number objects not yet implemented.
+#[allow(clippy::float_cmp)]
 fn to_object_04() {
     let mut agent = test_agent();
-    let test_value = 1337;
-    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let test_value = 1337.0;
+    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+
+    let number_obj = result.o.to_number_obj().unwrap();
+    assert_eq!(*number_obj.number_data().borrow(), test_value);
 }
 #[test]
 #[should_panic] // An XFAIL. String objects not yet implemented.
