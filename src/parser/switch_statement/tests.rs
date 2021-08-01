@@ -48,6 +48,12 @@ fn switch_statement_test_contains() {
     switch_contains_check("switch(0){default: ;}", true);
     switch_contains_check("switch(a){default: 0;}", true);
 }
+#[test]
+fn switch_statement_test_contains_duplicate_labels() {
+    let (item, _) = SwitchStatement::parse(&mut newparser("switch(a){default:t:;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
 
 // CASE BLOCK
 #[test]
@@ -175,6 +181,24 @@ fn case_block_test_contains() {
     caseblock_contains_check("{case a:;default:0;case b:;}", true);
     caseblock_contains_check("{case a:;default:;case b:0;}", true);
 }
+fn cb_cdl_check(src: &str, has_label: bool) {
+    let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), has_label);
+}
+#[test]
+fn case_block_test_contains_duplicate_labels() {
+    cb_cdl_check("{}", false);
+    cb_cdl_check("{case a:t:;}", true);
+    cb_cdl_check("{default:t:;}", true);
+    cb_cdl_check("{case a:t:;default:}", true);
+    cb_cdl_check("{case a:default:t:;}", true);
+    cb_cdl_check("{default:t:;case a:}", true);
+    cb_cdl_check("{default:case a:t:;}", true);
+    cb_cdl_check("{case a:t:;default:case b:}", true);
+    cb_cdl_check("{case a:default:t:;case b:}", true);
+    cb_cdl_check("{case a:default:case b:t:;}", true);
+}
 
 // CASE CLAUSES
 #[test]
@@ -238,6 +262,17 @@ fn case_clauses_test_contains() {
     caseclauses_contains_check("case a:;case b:;", false);
     caseclauses_contains_check("case a:0;case b:;", true);
     caseclauses_contains_check("case a:;case b:0;", true);
+}
+fn ccs_cdl_check(src: &str) {
+    let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn case_clauses_test_contains_duplicate_labels() {
+    ccs_cdl_check("case 0:t:;");
+    ccs_cdl_check("case 0:t:;case 1:");
+    ccs_cdl_check("case 0:case 1:t:;");
 }
 
 // CASE CLAUSE
@@ -304,6 +339,16 @@ fn case_clause_test_contains() {
     caseclause_contains_check("case 0:;", true);
     caseclause_contains_check("case a:0;", true);
 }
+fn cc_cdl_check(src: &str, has_label: bool) {
+    let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), has_label);
+}
+#[test]
+fn case_clause_test_contains_duplicate_labels() {
+    cc_cdl_check("case 0:", false);
+    cc_cdl_check("case 0:t:;", true);
+}
 
 // DEFAULT CLAUSE
 #[test]
@@ -365,4 +410,14 @@ fn default_clause_test_contains() {
     defclause_contains_check("default:", false);
     defclause_contains_check("default:;", false);
     defclause_contains_check("default:0;", true);
+}
+fn def_cdl_check(src: &str, has_label: bool) {
+    let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), has_label);
+}
+#[test]
+fn default_clause_test_contains_duplicate_labels() {
+    def_cdl_check("default:", false);
+    def_cdl_check("default:t:;", true);
 }

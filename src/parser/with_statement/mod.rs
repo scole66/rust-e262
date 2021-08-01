@@ -68,6 +68,10 @@ impl WithStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.statement.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        self.statement.contains_duplicate_labels(label_set)
+    }
 }
 
 #[cfg(test)]

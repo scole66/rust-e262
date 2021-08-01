@@ -66,3 +66,10 @@ fn with_statement_test_contains() {
     with_contains_check("with(a)0;", true);
     with_contains_check("with(a);", false);
 }
+
+#[test]
+fn with_statement_test_contains_duplicate_labels() {
+    let (item, _) = WithStatement::parse(&mut newparser("with(0) lbl: { 0; }"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("lbl")]), true);
+}

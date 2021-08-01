@@ -77,6 +77,20 @@ fn labelled_statement_test_contains_02() {
     let (item, _) = LabelledStatement::parse(&mut newparser("i:a;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn labelled_statement_test_contains_duplicate_labels_01() {
+    let (item, _) = LabelledStatement::parse(&mut newparser("t:;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("u")]), false);
+}
+#[test]
+fn labelled_statement_test_contains_duplicate_labels_02() {
+    let (item, _) = LabelledStatement::parse(&mut newparser("t:t:;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), true);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("u")]), true);
+}
 
 // LABELLED ITEM
 #[test]
@@ -185,4 +199,15 @@ fn labelled_item_test_contains_02() {
 fn labelled_item_test_contains_03() {
     let (item, _) = LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn labelled_item_test_contains_duplicate_labels_01() {
+    let (item, _) = LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+}
+#[test]
+fn labelled_item_test_contains_duplicate_labels_02() {
+    let (item, _) = LabelledItem::parse(&mut newparser("t:;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }

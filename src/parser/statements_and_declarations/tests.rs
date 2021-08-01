@@ -376,6 +376,28 @@ fn statement_test_contains_01() {
     statement_contains_check("debugger;", ParseNodeKind::DebuggerStatement, false);
     statement_contains_check("return 0;", ParseNodeKind::ReturnStatement, true);
 }
+fn stmt_cdl_check(src: &str, has_label: bool) {
+    let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), has_label);
+}
+#[test]
+fn statement_test_contains_duplicate_labels() {
+    stmt_cdl_check("{t:;}", true);
+    stmt_cdl_check("break;", false);
+    stmt_cdl_check("for(;;){t:;}", true);
+    stmt_cdl_check("continue;", false);
+    stmt_cdl_check("debugger;", false);
+    stmt_cdl_check(";", false);
+    stmt_cdl_check("0;", false);
+    stmt_cdl_check("if(0)t:;", true);
+    stmt_cdl_check("t:;", true);
+    stmt_cdl_check("return;", false);
+    stmt_cdl_check("throw x;", false);
+    stmt_cdl_check("try{t:;}finally{}", true);
+    stmt_cdl_check("var x;", false);
+    stmt_cdl_check("with(a){t:;}", true);
+}
 
 // DECLARATION
 #[test]
@@ -641,4 +663,14 @@ fn breakable_statement_test_contains() {
     breakable_contains_check("switch(a){default:0;}", true);
     breakable_contains_check("for(;;);", false);
     breakable_contains_check("switch(a){default:;}", false);
+}
+fn bs_cdl_check(src: &str) {
+    let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn breakable_statement_test_contains_duplicate_labels() {
+    bs_cdl_check("do{t:;}while(0);");
+    bs_cdl_check("switch(a){case 3:t:;}");
 }

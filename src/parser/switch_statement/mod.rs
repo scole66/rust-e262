@@ -68,6 +68,10 @@ impl SwitchStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.case_block.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        self.case_block.contains_duplicate_labels(label_set)
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -216,6 +220,18 @@ impl CaseBlock {
             CaseBlock::HasDefault(opt1, def, opt2) => opt1.as_ref().map_or(false, |n| n.contains(kind)) || def.contains(kind) || opt2.as_ref().map_or(false, |n| n.contains(kind)),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            CaseBlock::NoDefault(None) => false,
+            CaseBlock::NoDefault(Some(node)) => node.contains_duplicate_labels(label_set),
+            CaseBlock::HasDefault(pre, def, post) => {
+                pre.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+                    || def.contains_duplicate_labels(label_set)
+                    || post.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+            }
+        }
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -304,6 +320,13 @@ impl CaseClauses {
             CaseClauses::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            CaseClauses::Item(node) => node.contains_duplicate_labels(label_set),
+            CaseClauses::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -386,6 +409,13 @@ impl CaseClause {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.statements.as_ref().map_or(false, |n| n.contains(kind))
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match &self.statements {
+            None => false,
+            Some(s) => s.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -460,6 +490,13 @@ impl DefaultClause {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let DefaultClause(opt) = self;
         opt.as_ref().map_or(false, |n| n.contains(kind))
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            DefaultClause(None) => false,
+            DefaultClause(Some(sl)) => sl.contains_duplicate_labels(label_set),
+        }
     }
 }
 

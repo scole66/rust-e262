@@ -62,6 +62,11 @@ impl BlockStatement {
         let BlockStatement::Block(node) = self;
         node.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        let BlockStatement::Block(node) = self;
+        node.contains_duplicate_labels(label_set)
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -156,6 +161,14 @@ impl Block {
         match node {
             None => false,
             Some(n) => n.contains(kind),
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        let Block::Statements(node) = self;
+        match node {
+            None => false,
+            Some(n) => n.contains_duplicate_labels(label_set),
         }
     }
 }
@@ -279,6 +292,13 @@ impl StatementList {
             StatementList::List(lst, item) => kind == ParseNodeKind::StatementList || kind == ParseNodeKind::StatementListItem || lst.contains(kind) || item.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            StatementList::Item(node) => node.contains_duplicate_labels(label_set),
+            StatementList::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -373,6 +393,13 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(node) => kind == ParseNodeKind::Statement || node.contains(kind),
             StatementListItem::Declaration(node) => kind == ParseNodeKind::Declaration || node.contains(kind),
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            StatementListItem::Statement(node) => node.contains_duplicate_labels(label_set),
+            StatementListItem::Declaration(_) => false,
         }
     }
 }

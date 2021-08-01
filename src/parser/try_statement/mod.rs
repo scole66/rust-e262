@@ -150,6 +150,16 @@ impl TryStatement {
             TryStatement::Full(block, catch, finally) => block.contains(kind) || catch.contains(kind) || finally.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            TryStatement::Catch(block, catch) => block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set),
+            TryStatement::Finally(block, finally) => block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set),
+            TryStatement::Full(block, catch, finally) => {
+                block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
+            }
+        }
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -227,6 +237,10 @@ impl Catch {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.parameter.as_ref().map_or(false, |n| n.contains(kind)) || self.block.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        self.block.contains_duplicate_labels(label_set)
+    }
 }
 
 // Finally[Yield, Await, Return] :
@@ -280,6 +294,10 @@ impl Finally {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.block.contains(kind)
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        self.block.contains_duplicate_labels(label_set)
     }
 }
 

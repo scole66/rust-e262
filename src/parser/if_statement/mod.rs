@@ -112,6 +112,13 @@ impl IfStatement {
             IfStatement::WithoutElse(e, s1) => e.contains(kind) || s1.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            IfStatement::WithElse(_, s1, s2) => s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set),
+            IfStatement::WithoutElse(_, s1) => s1.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 #[cfg(test)]
