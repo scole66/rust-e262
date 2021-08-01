@@ -73,6 +73,16 @@ impl LabelledStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.identifier.contains(kind) || self.item.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        let label = self.identifier.string_value();
+        label_set.contains(&label) || {
+            let mut new_label_set: Vec<JSString> = Vec::new();
+            new_label_set.extend_from_slice(label_set);
+            new_label_set.push(label);
+            self.item.contains_duplicate_labels(&new_label_set)
+        }
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -158,6 +168,13 @@ impl LabelledItem {
         match self {
             LabelledItem::Statement(node) => node.contains(kind),
             LabelledItem::Function(node) => node.contains(kind),
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            LabelledItem::Statement(node) => node.contains_duplicate_labels(label_set),
+            LabelledItem::Function(..) => false,
         }
     }
 }

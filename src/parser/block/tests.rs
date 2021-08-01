@@ -55,6 +55,12 @@ fn block_statement_test_contains_undefined_break_target_03() {
     let (item, _) = BlockStatement::parse(&mut newparser("{ break bob; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("bob")]), false);
 }
+#[test]
+fn block_statement_test_contains_duplicate_labels() {
+    let (item, _) = BlockStatement::parse(&mut newparser("{t:;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
 
 // BLOCK
 #[test]
@@ -149,6 +155,17 @@ fn block_test_contains_undefined_break_target_02() {
 fn block_test_contains_undefined_break_target_03() {
     let (item, _) = Block::parse(&mut newparser("{ break bob; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("bob")]), false);
+}
+#[test]
+fn block_test_contains_duplicate_labels_01() {
+    let (item, _) = Block::parse(&mut newparser("{}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+}
+#[test]
+fn block_test_contains_duplicate_labels_02() {
+    let (item, _) = Block::parse(&mut newparser("{t:;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
 
 // STATEMENT LIST
@@ -290,6 +307,17 @@ fn statement_list_test_contains_undefined_break_target_05() {
     let (item, _) = StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("a"), JSString::from("b")]), false);
 }
+fn statement_list_cdl_check(src: &str) {
+    let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn statement_list_test_contains_duplicate_labels() {
+    statement_list_cdl_check("t:;");
+    statement_list_cdl_check("t:;;");
+    statement_list_cdl_check(";t:;");
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -424,4 +452,16 @@ fn statement_list_item_test_contains_04() {
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
     assert_eq!(item.contains(ParseNodeKind::Statement), true);
     assert_eq!(item.contains(ParseNodeKind::Declaration), false);
+}
+#[test]
+fn statement_list_item_test_contains_duplicate_labels_01() {
+    let (item, _) = StatementListItem::parse(&mut newparser("t:;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn statement_list_item_test_contains_duplicate_labels_02() {
+    let (item, _) = StatementListItem::parse(&mut newparser("let t;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), false);
 }

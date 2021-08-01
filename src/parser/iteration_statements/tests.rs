@@ -187,6 +187,18 @@ fn iteration_statement_test_contains_08() {
     let (item, _) = IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+fn istmt_check_cdl(src: &str) {
+    let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn iteration_statement_test_contains_duplicate_labels() {
+    istmt_check_cdl("do t:;while(0);");
+    istmt_check_cdl("while(0) t:;");
+    istmt_check_cdl("for(;;)t:;");
+    istmt_check_cdl("for(a in b)t:;");
+}
 
 // DO WHILE STATEMENT
 #[test]
@@ -265,6 +277,12 @@ fn do_while_statement_test_contains_03() {
     let (item, _) = DoWhileStatement::parse(&mut newparser("do;while(a);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn do_while_statement_test_contains_duplicate_labels() {
+    let (item, _) = DoWhileStatement::parse(&mut newparser("do t:;while(1);"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
 
 // WHILE STATEMENT
 #[test]
@@ -330,6 +348,12 @@ fn while_statement_test_contains_02() {
 fn while_statement_test_contains_03() {
     let (item, _) = WhileStatement::parse(&mut newparser("while(a);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn while_statement_test_contains_duplicate_labels() {
+    let (item, _) = WhileStatement::parse(&mut newparser("while(1)t:;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
 
 // FOR STATEMENT
@@ -848,6 +872,17 @@ fn for_statement_test_contains_15() {
 fn for_statement_test_contains_16() {
     let (item, _) = ForStatement::parse(&mut newparser("for(let a;;)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+fn for_stmt_cdl_check(src: &str) {
+    let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn for_statement_test_contains_duplicate_labels() {
+    for_stmt_cdl_check("for(;;){t:;}");
+    for_stmt_cdl_check("for(var a;;){t:;}");
+    for_stmt_cdl_check("for(let a;;){t:;}");
 }
 
 // FOR IN-OF STATEMENT
@@ -1455,6 +1490,23 @@ fn for_in_of_statement_test_contains_35() {
 fn for_in_of_statement_test_contains_36() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+fn for_in_of_cdl_check(src: &str) {
+    let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn for_in_of_statement_test_contains_duplicate_labels() {
+    for_in_of_cdl_check("for(a in b){t:;}");
+    for_in_of_cdl_check("for(var a in b){t:;}");
+    for_in_of_cdl_check("for(let a in b){t:;}");
+    for_in_of_cdl_check("for(a of b){t:;}");
+    for_in_of_cdl_check("for(var a of b){t:;}");
+    for_in_of_cdl_check("for(let a of b){t:;}");
+    for_in_of_cdl_check("for await(a of b){t:;}");
+    for_in_of_cdl_check("for await(var a of b){t:;}");
+    for_in_of_cdl_check("for await(let a of b){t:;}");
 }
 
 // FOR DECLARATION

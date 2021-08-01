@@ -111,6 +111,15 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            IterationStatement::DoWhile(node) => node.contains_duplicate_labels(label_set),
+            IterationStatement::While(node) => node.contains_duplicate_labels(label_set),
+            IterationStatement::For(node) => node.contains_duplicate_labels(label_set),
+            IterationStatement::ForInOf(node) => node.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -181,6 +190,11 @@ impl DoWhileStatement {
         let DoWhileStatement::Do(s, e) = self;
         s.contains(kind) || e.contains(kind)
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        let DoWhileStatement::Do(s, _) = self;
+        s.contains_duplicate_labels(label_set)
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -246,6 +260,11 @@ impl WhileStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let WhileStatement::While(e, s) = self;
         e.contains(kind) || s.contains(kind)
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        let WhileStatement::While(_, s) = self;
+        s.contains_duplicate_labels(label_set)
     }
 }
 
@@ -465,6 +484,12 @@ impl ForStatement {
             ForStatement::ForLex(lex, opt1, opt2, s) => {
                 lex.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
             }
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_duplicate_labels(label_set),
         }
     }
 }
@@ -732,6 +757,20 @@ impl ForInOfStatement {
             ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s)
+            | ForInOfStatement::VarIn(_, _, s)
+            | ForInOfStatement::VarOf(_, _, s)
+            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_duplicate_labels(label_set),
         }
     }
 }

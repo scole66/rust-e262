@@ -200,3 +200,7 @@ fn script_body_test_early_errors_05() {
 fn script_body_test_early_errors_06() {
     script_body_ee_check(";", None);
 }
+#[test]
+fn script_body_test_early_errors_07() {
+    script_body_ee_check("t:{t:;}", Some("duplicate labels detected"));
+}

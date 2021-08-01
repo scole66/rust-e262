@@ -177,9 +177,9 @@ impl ScriptBody {
                 errs.push(create_syntax_error_object(agent, "`new.target` not allowed in top-level code"));
             }
         }
-        //if self.statement_list.contains_duplicate_labels(vec![]) {
-        //    errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
-        //}
+        if self.statement_list.contains_duplicate_labels(&[]) {
+            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+        }
         if self.statement_list.contains_undefined_break_target(&[]) {
             errs.push(create_syntax_error_object(agent, "undefined break target detected"));
         }

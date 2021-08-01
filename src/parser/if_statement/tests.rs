@@ -142,3 +142,14 @@ fn if_statement_test_contains_07() {
     let (item, _) = IfStatement::parse(&mut newparser("if (a) {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+fn if_cdl_check(src: &str) {
+    let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn if_statement_test_contains_duplicate_labels() {
+    if_cdl_check("if(0){t:;}");
+    if_cdl_check("if(0){t:;}else{}");
+    if_cdl_check("if(0){}else{t:;}");
+}

@@ -111,6 +111,21 @@ fn try_statement_test_contains() {
     try_contains_check("try{}catch(b){}finally{0;}", true);
     try_contains_check("try{}catch(b){}finally{}", false);
 }
+fn try_cdl_check(src: &str) {
+    let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test]
+fn try_statement_test_contains_duplicate_labels() {
+    try_cdl_check("try{t:;}catch{}");
+    try_cdl_check("try{}catch{t:;}");
+    try_cdl_check("try{t:;}finally{}");
+    try_cdl_check("try{}finally{t:;}");
+    try_cdl_check("try{t:;}catch{}finally{}");
+    try_cdl_check("try{}catch{t:;}finally{}");
+    try_cdl_check("try{}catch{}finally{t:;}");
+}
 
 // CATCH
 #[test]
@@ -192,6 +207,12 @@ fn catch_test_contains() {
     catch_contains_check("catch([a=0]){}", true);
     catch_contains_check("catch(a){0;}", true);
 }
+#[test]
+fn catch_test_contains_duplicate_labels() {
+    let (item, _) = Catch::parse(&mut newparser("catch{t:;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
 
 // FINALLY
 #[test]
@@ -239,6 +260,12 @@ fn finally_contains_check(src: &str, has_literal: bool) {
 fn finally_test_contains() {
     finally_contains_check("finally{}", false);
     finally_contains_check("finally{0;}", true);
+}
+#[test]
+fn finally_test_contains_duplicate_labels() {
+    let (item, _) = Finally::parse(&mut newparser("finally{t:;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_duplicate_labels(&[]), false);
+    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
 
 // CATCH PARAMETER

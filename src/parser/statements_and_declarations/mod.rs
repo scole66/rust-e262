@@ -254,6 +254,25 @@ impl Statement {
             Statement::Return(n) => kind == ParseNodeKind::ReturnStatement || n.contains(kind),
         }
     }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            Statement::Block(n) => n.contains_duplicate_labels(label_set),
+            Statement::Break(_) => false,
+            Statement::Breakable(n) => n.contains_duplicate_labels(label_set),
+            Statement::Continue(_) => false,
+            Statement::Debugger(_) => false,
+            Statement::Empty(_) => false,
+            Statement::Expression(_) => false,
+            Statement::If(n) => n.contains_duplicate_labels(label_set),
+            Statement::Labelled(n) => n.contains_duplicate_labels(label_set),
+            Statement::Return(_) => false,
+            Statement::Throw(_) => false,
+            Statement::Try(n) => n.contains_duplicate_labels(label_set),
+            Statement::Variable(_) => false,
+            Statement::With(n) => n.contains_duplicate_labels(label_set),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -502,6 +521,13 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.contains(kind),
             BreakableStatement::Switch(node) => node.contains(kind),
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self {
+            BreakableStatement::Iteration(node) => node.contains_duplicate_labels(label_set),
+            BreakableStatement::Switch(node) => node.contains_duplicate_labels(label_set),
         }
     }
 }
