@@ -1,8 +1,3 @@
-use num::bigint::BigInt;
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::AssignmentExpression;
 use super::async_function_definitions::AsyncFunctionExpression;
 use super::async_generator_function_definitions::AsyncGeneratorExpression;
@@ -13,11 +8,14 @@ use super::function_definitions::FunctionExpression;
 use super::generator_function_definitions::GeneratorExpression;
 use super::identifiers::{BindingIdentifier, IdentifierReference};
 use super::method_definitions::MethodDefinition;
-use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, TemplateData, Token};
+use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use crate::strings::JSString;
 use crate::values::number_to_string;
+use num::bigint::BigInt;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 //////// 12.2 Primary Expression
 // PrimaryExpression[Yield, Await] :
@@ -941,7 +939,7 @@ impl ComputedPropertyName {
 #[derive(Debug)]
 pub enum LiteralPropertyName {
     IdentifierName(IdentifierData),
-    StringLiteral(JSString),
+    StringLiteral(StringToken),
     NumericLiteral(Numeric),
 }
 
@@ -1383,7 +1381,7 @@ pub enum LiteralKind {
     NullLiteral,
     BooleanLiteral(bool),
     NumericLiteral(Numeric),
-    StringLiteral(JSString),
+    StringLiteral(StringToken),
 }
 #[derive(Debug)]
 pub struct Literal {

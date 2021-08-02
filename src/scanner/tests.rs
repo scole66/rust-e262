@@ -936,17 +936,37 @@ fn string_characters_test() {
 
 #[test]
 fn literal_string_value_test() {
-    let s = literal_string_value("a\\a\\b\\t\\n\\v\\f\\r\\'\\\"\\\\\\x66\\u{211c}\\u211d\\\n\\\u{2028}\\\u{2029}\\\r\\\n\\\r\n\\0");
+    let (s, has_escapes) = literal_string_value("a\\a\\b\\t\\n\\v\\f\\r\\'\\\"\\\\\\x66\\u{211c}\\u211d\\\n\\\u{2028}\\\u{2029}\\\r\\\n\\\r\n\\0");
     assert_eq!(s, "aa\u{8}\t\n\u{b}\u{c}\r'\"\\f\u{211c}\u{211d}\u{0}");
+    assert!(has_escapes);
 }
 
 #[test]
 fn string_literal_test() {
     assert_eq!(string_literal(&Scanner::new(), "not_a_string"), None);
-    assert_eq!(string_literal(&Scanner::new(), "''"), Some((Token::String(JSString::from("")), Scanner { line: 1, column: 3, start_idx: 2 })));
-    assert_eq!(string_literal(&Scanner::new(), "\"\""), Some((Token::String(JSString::from("")), Scanner { line: 1, column: 3, start_idx: 2 })));
-    assert_eq!(string_literal(&Scanner::new(), "'abcd'"), Some((Token::String(JSString::from("abcd")), Scanner { line: 1, column: 7, start_idx: 6 })));
-    assert_eq!(string_literal(&Scanner::new(), "\"abcd\""), Some((Token::String(JSString::from("abcd")), Scanner { line: 1, column: 7, start_idx: 6 })));
+    assert_eq!(
+        string_literal(&Scanner::new(), "''"),
+        Some((Token::String(StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }), Scanner { line: 1, column: 3, start_idx: 2 }))
+    );
+    assert_eq!(
+        string_literal(&Scanner::new(), "\"\""),
+        Some((Token::String(StringToken { value: JSString::from(""), delimiter: StringDelimiter::Double, raw: None }), Scanner { line: 1, column: 3, start_idx: 2 }))
+    );
+    assert_eq!(
+        string_literal(&Scanner::new(), "'abcd'"),
+        Some((Token::String(StringToken { value: JSString::from("abcd"), delimiter: StringDelimiter::Single, raw: None }), Scanner { line: 1, column: 7, start_idx: 6 }))
+    );
+    assert_eq!(
+        string_literal(&Scanner::new(), "\"abcd\""),
+        Some((Token::String(StringToken { value: JSString::from("abcd"), delimiter: StringDelimiter::Double, raw: None }), Scanner { line: 1, column: 7, start_idx: 6 }))
+    );
+    assert_eq!(
+        string_literal(&Scanner::new(), "'\\r\\nboo'"),
+        Some((
+            Token::String(StringToken { value: JSString::from("\r\nboo"), delimiter: StringDelimiter::Single, raw: Some(String::from("\\r\\nboo")) }),
+            Scanner { line: 1, column: 10, start_idx: 9 }
+        ))
+    );
 }
 
 #[test]
@@ -990,7 +1010,10 @@ fn common_token_test() {
     );
     assert_eq!(common_token(&Scanner::new(), "10"), Some((Token::Number(10.0), Scanner { line: 1, column: 3, start_idx: 2 })));
     assert_eq!(common_token(&Scanner::new(), "**"), Some((Token::Punctuator(Punctuator::StarStar), Scanner { line: 1, column: 3, start_idx: 2 })));
-    assert_eq!(common_token(&Scanner::new(), "'truth'"), Some((Token::String(JSString::from("truth")), Scanner { line: 1, column: 8, start_idx: 7 })));
+    assert_eq!(
+        common_token(&Scanner::new(), "'truth'"),
+        Some((Token::String(StringToken { value: JSString::from("truth"), delimiter: StringDelimiter::Single, raw: None }), Scanner { line: 1, column: 8, start_idx: 7 }))
+    );
 }
 #[test]
 fn common_token_test_nstemp() {
@@ -1406,7 +1429,7 @@ fn token_display() {
     assert_eq!(format!("{}", Token::Identifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None, line: 1, column: 1 })), "bob");
     assert_eq!(format!("{}", Token::Number(6.222)), "6.222");
     assert_eq!(format!("{}", Token::BigInt(BigInt::parse_bytes(b"9131551", 10).unwrap())), "9131551");
-    assert_eq!(format!("{}", Token::String(JSString::from("baloney"))), "baloney");
+    assert_eq!(format!("{}", Token::String(StringToken { value: JSString::from("baloney"), delimiter: StringDelimiter::Single, raw: None })), "baloney");
     assert_eq!(format!("{}", Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::TemplateHead(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
