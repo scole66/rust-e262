@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // STATEMENT
 #[test]
@@ -398,6 +399,35 @@ fn statement_test_contains_duplicate_labels() {
     stmt_cdl_check("var x;", false);
     stmt_cdl_check("with(a){t:;}", true);
 }
+#[test_case("{ continue x; }" => (false, true, true, true); "{ continue x; }")]
+#[test_case("{ for (;;) continue x; }" => (false, true, true, true); "{ for (;;) continue x; }")]
+#[test_case("break;" => (false, false, false, false); "break;")]
+#[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
+#[test_case("for (;;) for (;;) continue x;" => (false, true, false, true); "for (;;) for (;;) continue x;")]
+#[test_case("continue x;" => (false, true, true, true); "continue x;")]
+#[test_case("debugger;" => (false, false, false, false); "debugger;")]
+#[test_case(";" => (false, false, false, false); "semicolon")]
+#[test_case("true;" => (false, false, false, false); "true;")]
+#[test_case("if (true) continue x;" => (false, true, true, true); "if (true) continue x;")]
+#[test_case("if (true) for (;;) continue x;" => (false, true, true, true); "if (true) for (;;) continue x;")]
+#[test_case("lbl: continue x;" => (false, true, true, true); "lbl: continue x;")]
+#[test_case("lbl: for (;;) continue x;" => (false, true, false, true); "lbl: for (;;) continue x;")]
+#[test_case("return;" => (false, false, false, false); "return;")]
+#[test_case("throw a;" => (false, false, false, false); "throw a;")]
+#[test_case("try { continue x; } finally {}" => (false, true, true, true); "try { continue x; } finally {}")]
+#[test_case("try { for (;;) continue x; } finally {}" => (false, true, true, true); "try { for (;;) continue x; } finally {}")]
+#[test_case("var a;" => (false, false, false, false); "var a;")]
+#[test_case("with (a) continue x;" => (false, true, true, true); "with (a) continue x;")]
+#[test_case("with (a) for (;;) continue x;" => (false, true, true, true); "with (a) for (;;) continue x;")]
+fn statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
+}
 
 // DECLARATION
 #[test]
@@ -673,4 +703,17 @@ fn bs_cdl_check(src: &str) {
 fn breakable_statement_test_contains_duplicate_labels() {
     bs_cdl_check("do{t:;}while(0);");
     bs_cdl_check("switch(a){case 3:t:;}");
+}
+#[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
+#[test_case("for (;;) for (;;) continue x;" => (false, true, false, true); "for (;;) for (;;) continue x;")]
+#[test_case("switch (a) { case 3: continue x; }" => (false, true, true, true); "switch (a) { case 3: continue x; }")]
+#[test_case("switch (a) { case 3: for (;;) continue x; }" => (false, true, true, true); "switch (a) { case 3: for (;;) continue x; }")]
+fn breakable_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }

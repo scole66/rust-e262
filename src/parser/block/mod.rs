@@ -67,6 +67,11 @@ impl BlockStatement {
         let BlockStatement::Block(node) = self;
         node.contains_duplicate_labels(label_set)
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        let BlockStatement::Block(node) = self;
+        node.contains_undefined_continue_target(iteration_set, label_set)
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -170,6 +175,11 @@ impl Block {
             None => false,
             Some(n) => n.contains_duplicate_labels(label_set),
         }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        let Block::Statements(opt_sl) = self;
+        opt_sl.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set, label_set))
     }
 }
 
@@ -299,6 +309,13 @@ impl StatementList {
             StatementList::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self {
+            StatementList::Item(node) => node.contains_undefined_continue_target(iteration_set, label_set),
+            StatementList::List(lst, item) => lst.contains_undefined_continue_target(iteration_set, &[]) || item.contains_undefined_continue_target(iteration_set, &[]),
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -399,6 +416,13 @@ impl StatementListItem {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             StatementListItem::Statement(node) => node.contains_duplicate_labels(label_set),
+            StatementListItem::Declaration(_) => false,
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self {
+            StatementListItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
             StatementListItem::Declaration(_) => false,
         }
     }

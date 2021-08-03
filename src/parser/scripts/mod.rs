@@ -183,9 +183,9 @@ impl ScriptBody {
         if self.statement_list.contains_undefined_break_target(&[]) {
             errs.push(create_syntax_error_object(agent, "undefined break target detected"));
         }
-        //if self.statement_list.contains_undefined_continue_target(vec![]) {
-        //    errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
-        //}
+        if self.statement_list.contains_undefined_continue_target(&[], &[]) {
+            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+        }
         //if !self.direct && !self.statement_list.all_private_identifier_valid(vec![])  {
         //    errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         //}

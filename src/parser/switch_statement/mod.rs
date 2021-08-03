@@ -72,6 +72,10 @@ impl SwitchStatement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.case_block.contains_duplicate_labels(label_set)
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        self.case_block.contains_undefined_continue_target(iteration_set)
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -232,6 +236,18 @@ impl CaseBlock {
             }
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            CaseBlock::NoDefault(None) => false,
+            CaseBlock::NoDefault(Some(node)) => node.contains_undefined_continue_target(iteration_set),
+            CaseBlock::HasDefault(pre, def, post) => {
+                pre.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+                    || def.contains_undefined_continue_target(iteration_set)
+                    || post.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+            }
+        }
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -327,6 +343,13 @@ impl CaseClauses {
             CaseClauses::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            CaseClauses::Item(node) => node.contains_undefined_continue_target(iteration_set),
+            CaseClauses::List(lst, item) => lst.contains_undefined_continue_target(iteration_set) || item.contains_undefined_continue_target(iteration_set),
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -416,6 +439,13 @@ impl CaseClause {
             Some(s) => s.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match &self.statements {
+            None => false,
+            Some(s) => s.contains_undefined_continue_target(iteration_set, &[]),
+        }
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -496,6 +526,13 @@ impl DefaultClause {
         match self {
             DefaultClause(None) => false,
             DefaultClause(Some(sl)) => sl.contains_duplicate_labels(label_set),
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            DefaultClause(None) => false,
+            DefaultClause(Some(sl)) => sl.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 }

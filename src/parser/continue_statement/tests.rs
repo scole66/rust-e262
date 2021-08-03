@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // CONTINUE STATEMENT
 #[test]
@@ -84,4 +85,10 @@ fn continue_statement_test_contains_01() {
 fn continue_statement_test_contains_02() {
     let (item, _) = ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("continue x;" => (false, true); "continue x;")]
+#[test_case("continue;" => (false, false); "continue;")]
+fn continue_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }

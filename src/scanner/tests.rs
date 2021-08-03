@@ -1402,7 +1402,7 @@ fn scanner_clone() {
 
 #[test]
 fn string_token_debug() {
-    assert_ne!(format!("{:?}", StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Double, raw: None}), "");
+    assert_ne!(format!("{:?}", StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Double, raw: None }), "");
 }
 
 #[test]

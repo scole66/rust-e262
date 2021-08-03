@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // LABELLED STATEMENT
 #[test]
@@ -90,6 +91,19 @@ fn labelled_statement_test_contains_duplicate_labels_02() {
     assert_eq!(item.contains_duplicate_labels(&[]), true);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("u")]), true);
+}
+#[test_case("a:continue x;" => (false, true, true, true); "a: continue x;")]
+#[test_case("a:for(;;)continue x;" => (false, true, false, true); "a: for (;;) continue x;")]
+#[test_case("a:for(;;)continue y;" => (true, false, true, false); "a: for (;;) continue y;")]
+#[test_case("a:for(;;)continue a;" => (false, false, false, false); "a: for (;;) continue a;")]
+fn labelled_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }
 
 // LABELLED ITEM
@@ -210,4 +224,16 @@ fn labelled_item_test_contains_duplicate_labels_02() {
     let (item, _) = LabelledItem::parse(&mut newparser("t:;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("continue x;" => (false, true, true, true); "continue x;")]
+#[test_case("for(;;)continue x;" => (false, true, false, true); "for (;;) continue x;")]
+#[test_case("function x(){}" => (false, false, false, false); "function x() {}")]
+fn labelled_item_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }

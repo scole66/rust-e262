@@ -273,6 +273,25 @@ impl Statement {
             Statement::With(n) => n.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self {
+            Statement::Block(n) => n.contains_undefined_continue_target(iteration_set, &[]),
+            Statement::Break(_) => false,
+            Statement::Breakable(n) => n.contains_undefined_continue_target(iteration_set, label_set),
+            Statement::Continue(n) => n.contains_undefined_continue_target(iteration_set),
+            Statement::Debugger(_) => false,
+            Statement::Empty(_) => false,
+            Statement::Expression(_) => false,
+            Statement::If(n) => n.contains_undefined_continue_target(iteration_set),
+            Statement::Labelled(n) => n.contains_undefined_continue_target(iteration_set, label_set),
+            Statement::Return(_) => false,
+            Statement::Throw(_) => false,
+            Statement::Try(n) => n.contains_undefined_continue_target(iteration_set),
+            Statement::Variable(_) => false,
+            Statement::With(n) => n.contains_undefined_continue_target(iteration_set),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -528,6 +547,18 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.contains_duplicate_labels(label_set),
             BreakableStatement::Switch(node) => node.contains_duplicate_labels(label_set),
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self {
+            BreakableStatement::Iteration(node) => {
+                let mut new_iteration_set: Vec<JSString> = Vec::new();
+                new_iteration_set.extend_from_slice(iteration_set);
+                new_iteration_set.extend_from_slice(label_set);
+                node.contains_undefined_continue_target(&new_iteration_set)
+            }
+            BreakableStatement::Switch(node) => node.contains_undefined_continue_target(iteration_set),
         }
     }
 }
