@@ -455,8 +455,8 @@ fn literal_test_string() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("'string'"), Scanner::new()));
     chk_scan(&scanner, 8);
     assert!(matches!(lit.kind, LiteralKind::StringLiteral(_)));
-    pretty_check(&*lit, "Literal: \"string\"", vec![]);
-    concise_check(&*lit, "String: \"string\"", vec![]);
+    pretty_check(&*lit, "Literal: 'string'", vec![]);
+    concise_check(&*lit, "String: 'string'", vec![]);
 }
 #[test]
 fn literal_test_keyword() {
@@ -1177,8 +1177,8 @@ fn literal_property_name_test_02() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("'b'"), Scanner::new()));
     chk_scan(&scanner, 3);
     assert!(matches!(&*lpn, LiteralPropertyName::StringLiteral(_)));
-    pretty_check(&*lpn, "LiteralPropertyName: \"b\"", vec![]);
-    concise_check(&*lpn, "String: \"b\"", vec![]);
+    pretty_check(&*lpn, "LiteralPropertyName: 'b'", vec![]);
+    concise_check(&*lpn, "String: 'b'", vec![]);
 }
 #[test]
 fn literal_property_name_test_03() {

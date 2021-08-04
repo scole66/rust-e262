@@ -231,7 +231,15 @@ pub struct StringToken {
 
 impl fmt::Display for StringToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.value.fmt(f)
+        // The "as source" form
+        let delim = match self.delimiter {
+            StringDelimiter::Single => '\'',
+            StringDelimiter::Double => '"',
+        };
+        match &self.raw {
+            None => write!(f, "{}{}{}", delim, self.value, delim),
+            Some(s) => write!(f, "{}{}{}", delim, s, delim),
+        }
     }
 }
 
@@ -328,8 +336,8 @@ impl fmt::Display for Token {
                 number_to_string(&mut s, *val).unwrap();
                 String::from_utf8(s).unwrap().fmt(f)
             }
-            Token::BigInt(val) => val.fmt(f),                 // This needs a better "render as source" algorithm.
-            Token::String(val) => val.fmt(f),                 // This needs a better "render as source" algorithm.
+            Token::BigInt(val) => val.fmt(f), // This needs a better "render as source" algorithm.
+            Token::String(val) => val.fmt(f),
             Token::NoSubstitutionTemplate(val) => val.fmt(f), // This needs a better "render as source" algorithm.
             Token::TemplateHead(val) => val.fmt(f),
             Token::TemplateMiddle(val) => val.fmt(f),

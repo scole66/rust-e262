@@ -1429,7 +1429,8 @@ fn token_display() {
     assert_eq!(format!("{}", Token::Identifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None, line: 1, column: 1 })), "bob");
     assert_eq!(format!("{}", Token::Number(6.222)), "6.222");
     assert_eq!(format!("{}", Token::BigInt(BigInt::parse_bytes(b"9131551", 10).unwrap())), "9131551");
-    assert_eq!(format!("{}", Token::String(StringToken { value: JSString::from("baloney"), delimiter: StringDelimiter::Single, raw: None })), "baloney");
+    assert_eq!(format!("{}", Token::String(StringToken { value: JSString::from("baloney"), delimiter: StringDelimiter::Single, raw: None })), "'baloney'");
+    assert_eq!(format!("{}", Token::String(StringToken { value: JSString::from("baloney"), delimiter: StringDelimiter::Double, raw: Some(String::from("\\x62aloney")) })), "\"\\x62aloney\"");
     assert_eq!(format!("{}", Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::TemplateHead(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");

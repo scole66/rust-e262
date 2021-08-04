@@ -46,8 +46,8 @@ fn member_expression_test_new_me_args() {
     assert!(matches!(me.kind, MemberExpressionKind::NewArguments(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: new shoes ( \"red\" , \"leather\" )", vec!["MemberExpression: shoes", "Arguments: ( \"red\" , \"leather\" )"]);
-    concise_check(&*me, "MemberExpression: new shoes ( \"red\" , \"leather\" )", vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( \"red\" , \"leather\" )"]);
+    pretty_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"]);
+    concise_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"]);
     assert_eq!(me.is_function_definition(), false);
     assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
 }

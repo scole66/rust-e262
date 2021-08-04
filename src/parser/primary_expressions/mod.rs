@@ -947,7 +947,7 @@ impl fmt::Display for LiteralPropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             LiteralPropertyName::IdentifierName(id) => write!(f, "{}", id),
-            LiteralPropertyName::StringLiteral(s) => write!(f, "{:?}", s),
+            LiteralPropertyName::StringLiteral(s) => write!(f, "{}", s),
             LiteralPropertyName::NumericLiteral(Numeric::Number(n)) => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
@@ -972,7 +972,7 @@ impl PrettyPrint for LiteralPropertyName {
     {
         match self {
             LiteralPropertyName::IdentifierName(id) => pprint_token(writer, id, TokenType::IdentifierName, pad, state),
-            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{:?}", s), TokenType::String, pad, state),
+            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{}", s), TokenType::String, pad, state),
             LiteralPropertyName::NumericLiteral(n) => pprint_token(writer, n, TokenType::Numeric, pad, state),
         }
     }
@@ -1405,7 +1405,7 @@ impl fmt::Display for Literal {
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
             LiteralKind::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", *b),
-            LiteralKind::StringLiteral(s) => write!(f, "{:?}", *s),
+            LiteralKind::StringLiteral(s) => write!(f, "{}", *s),
         }
     }
 }
