@@ -218,13 +218,39 @@ pub enum Punctuator {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum StringDelimiter {
+    Single,
+    Double,
+}
+#[derive(Debug, PartialEq)]
+pub struct StringToken {
+    pub value: JSString,
+    pub delimiter: StringDelimiter,
+    pub raw: Option<String>, // None if the string token had no escapes (in which case value == raw).
+}
+
+impl fmt::Display for StringToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // The "as source" form
+        let delim = match self.delimiter {
+            StringDelimiter::Single => '\'',
+            StringDelimiter::Double => '"',
+        };
+        match &self.raw {
+            None => write!(f, "{}{}{}", delim, self.value, delim),
+            Some(s) => write!(f, "{}{}{}", delim, s, delim),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Eof,
     Punctuator(Punctuator),
     Identifier(IdentifierData),
     Number(f64),
     BigInt(BigInt),
-    String(JSString),
+    String(StringToken),
     NoSubstitutionTemplate(TemplateData),
     TemplateHead(TemplateData),
     TemplateMiddle(TemplateData),
@@ -310,8 +336,8 @@ impl fmt::Display for Token {
                 number_to_string(&mut s, *val).unwrap();
                 String::from_utf8(s).unwrap().fmt(f)
             }
-            Token::BigInt(val) => val.fmt(f),                 // This needs a better "render as source" algorithm.
-            Token::String(val) => val.fmt(f),                 // This needs a better "render as source" algorithm.
+            Token::BigInt(val) => val.fmt(f), // This needs a better "render as source" algorithm.
+            Token::String(val) => val.fmt(f),
             Token::NoSubstitutionTemplate(val) => val.fmt(f), // This needs a better "render as source" algorithm.
             Token::TemplateHead(val) => val.fmt(f),
             Token::TemplateMiddle(val) => val.fmt(f),
@@ -1451,9 +1477,10 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
     }
 }
 
-fn literal_string_value(source: &str) -> JSString {
+fn literal_string_value(source: &str) -> (JSString, bool) {
     let mut result: Vec<u16> = Vec::with_capacity(source.len());
     let mut chars = source.chars().peekable();
+    let mut escapes: bool = false;
     loop {
         let ch = chars.next();
         match ch {
@@ -1461,6 +1488,7 @@ fn literal_string_value(source: &str) -> JSString {
                 break;
             }
             Some('\\') => {
+                escapes = true;
                 let ch2 = chars.next().unwrap(); // Guaranteed not to panic, as string has already been validated.
                 match ch2 {
                     '0' => result.push(0),
@@ -1524,20 +1552,28 @@ fn literal_string_value(source: &str) -> JSString {
         }
     }
 
-    JSString::from(result)
+    (JSString::from(result), escapes)
 }
 
 fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    let after = match_char(scanner, source, '"')
+    let (after, delimiter) = match_char(scanner, source, '"')
         .and_then(|r| string_characters(&r, source, '"').or(Some(r)))
         .and_then(|r| match_char(&r, source, '"'))
-        .or_else(|| match_char(scanner, source, '\'').and_then(|r| string_characters(&r, source, '\'').or(Some(r))).and_then(|r| match_char(&r, source, '\'')))?;
+        .map(|after| (after, StringDelimiter::Double))
+        .or_else(|| {
+            match_char(scanner, source, '\'')
+                .and_then(|r| string_characters(&r, source, '\'').or(Some(r)))
+                .and_then(|r| match_char(&r, source, '\''))
+                .map(|after| (after, StringDelimiter::Single))
+        })?;
     let start_idx = scanner.start_idx + 1;
     let after_idx = after.start_idx - 1;
     assert!(after_idx >= start_idx);
-    let value = literal_string_value(&source[start_idx..after_idx]);
+    let (value, contains_escapes_or_continuations) = literal_string_value(&source[start_idx..after_idx]);
 
-    Some((Token::String(value), after))
+    let st = StringToken { value, delimiter, raw: if contains_escapes_or_continuations { Some(String::from(&source[start_idx..after_idx])) } else { None } };
+
+    Some((Token::String(st), after))
 }
 
 #[derive(Debug, PartialEq)]

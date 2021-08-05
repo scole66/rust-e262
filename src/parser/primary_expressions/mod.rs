@@ -1,8 +1,3 @@
-use num::bigint::BigInt;
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::AssignmentExpression;
 use super::async_function_definitions::AsyncFunctionExpression;
 use super::async_generator_function_definitions::AsyncGeneratorExpression;
@@ -13,11 +8,14 @@ use super::function_definitions::FunctionExpression;
 use super::generator_function_definitions::GeneratorExpression;
 use super::identifiers::{BindingIdentifier, IdentifierReference};
 use super::method_definitions::MethodDefinition;
-use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, TemplateData, Token};
+use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use crate::strings::JSString;
 use crate::values::number_to_string;
+use num::bigint::BigInt;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 //////// 12.2 Primary Expression
 // PrimaryExpression[Yield, Await] :
@@ -941,7 +939,7 @@ impl ComputedPropertyName {
 #[derive(Debug)]
 pub enum LiteralPropertyName {
     IdentifierName(IdentifierData),
-    StringLiteral(JSString),
+    StringLiteral(StringToken),
     NumericLiteral(Numeric),
 }
 
@@ -949,7 +947,7 @@ impl fmt::Display for LiteralPropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             LiteralPropertyName::IdentifierName(id) => write!(f, "{}", id),
-            LiteralPropertyName::StringLiteral(s) => write!(f, "{:?}", s),
+            LiteralPropertyName::StringLiteral(s) => write!(f, "{}", s),
             LiteralPropertyName::NumericLiteral(Numeric::Number(n)) => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
@@ -974,7 +972,7 @@ impl PrettyPrint for LiteralPropertyName {
     {
         match self {
             LiteralPropertyName::IdentifierName(id) => pprint_token(writer, id, TokenType::IdentifierName, pad, state),
-            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{:?}", s), TokenType::String, pad, state),
+            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{}", s), TokenType::String, pad, state),
             LiteralPropertyName::NumericLiteral(n) => pprint_token(writer, n, TokenType::Numeric, pad, state),
         }
     }
@@ -1383,7 +1381,7 @@ pub enum LiteralKind {
     NullLiteral,
     BooleanLiteral(bool),
     NumericLiteral(Numeric),
-    StringLiteral(JSString),
+    StringLiteral(StringToken),
 }
 #[derive(Debug)]
 pub struct Literal {
@@ -1407,7 +1405,7 @@ impl fmt::Display for Literal {
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
             LiteralKind::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", *b),
-            LiteralKind::StringLiteral(s) => write!(f, "{:?}", *s),
+            LiteralKind::StringLiteral(s) => write!(f, "{}", *s),
         }
     }
 }
