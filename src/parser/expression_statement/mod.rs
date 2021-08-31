@@ -1,11 +1,10 @@
+use super::comma_operator::Expression;
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
+use super::*;
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
-
-use super::comma_operator::Expression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ExpressionStatement[Yield, Await] :
 //      [lookahead ∉ { {, function, async [no LineTerminator here] function, class, let [ }] Expression[+In, ?Yield, ?Await] ;
@@ -77,6 +76,11 @@ impl ExpressionStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let ExpressionStatement::Expression(node) = self;
         node.contains(kind)
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        let ExpressionStatement::Expression(node) = self;
+        node.as_string_literal()
     }
 }
 

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::exponentiation_operator::ExponentiationExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -148,6 +148,13 @@ impl MultiplicativeExpression {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.contains(kind),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, op, r) => l.contains(kind) || op.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

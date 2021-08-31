@@ -7,7 +7,7 @@ use super::async_arrow_function_definitions::AsyncArrowFunction;
 use super::conditional_operator::ConditionalExpression;
 use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -237,6 +237,13 @@ impl AssignmentExpression {
             AssignmentExpression::LandAssignment(left, right) => left.contains(kind) || right.contains(kind),
             AssignmentExpression::LorAssignment(left, right) => left.contains(kind) || right.contains(kind),
             AssignmentExpression::CoalAssignment(left, right) => left.contains(kind) || right.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            AssignmentExpression::FallThru(node) => node.as_string_literal(),
+            _ => None,
         }
     }
 }

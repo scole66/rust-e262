@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // MEMBER EXPRESSION
 #[test]
@@ -288,6 +289,12 @@ fn member_expression_test_contains_17() {
     let (item, _) = MemberExpression::parse(&mut newparser("this.#blue"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
     assert_eq!(item.contains(ParseNodeKind::NewTarget), false);
+}
+#[test_case("'string'" => Some(String::from("string")); "String Token")]
+#[test_case("a.b" => None; "Not token")]
+fn member_expression_test_as_string_literal(src: &str) -> Option<String> {
+    let (item, _) = MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| String::from(st.value))
 }
 
 // SUPER PROPERTY
@@ -774,6 +781,12 @@ fn new_expression_test_contains_03() {
 fn new_expression_test_contains_04() {
     let (item, _) = NewExpression::parse(&mut newparser("new 0"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("'string'" => Some(String::from("string")); "String Token")]
+#[test_case("new b" => None; "Not token")]
+fn new_expression_test_as_string_literal(src: &str) -> Option<String> {
+    let (item, _) = NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| String::from(st.value))
 }
 
 // CALL MEMBER EXPRESSION
@@ -1727,4 +1740,10 @@ fn left_hand_side_expression_test_contains_05() {
 fn left_hand_side_expression_test_contains_06() {
     let (item, _) = LeftHandSideExpression::parse(&mut newparser("a?.n"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("'string'" => Some(String::from("string")); "String Token")]
+#[test_case("die()" => None; "Not token")]
+fn left_hand_side_expression_test_as_string_literal(src: &str) -> Option<String> {
+    let (item, _) = LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| String::from(st.value))
 }

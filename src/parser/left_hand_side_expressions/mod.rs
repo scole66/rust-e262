@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::comma_operator::Expression;
 use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
-use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -270,6 +270,13 @@ impl MemberExpression {
             MemberExpressionKind::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
             MemberExpressionKind::MetaProperty(n) => n.contains(kind),
             MemberExpressionKind::NewArguments(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }
@@ -798,6 +805,13 @@ impl NewExpression {
             NewExpressionKind::NewExpression(boxed) => boxed.contains(kind),
         }
     }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(n) => n.as_string_literal(),
+            _ => None,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1229,6 +1243,13 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::New(boxed) => boxed.contains(kind),
             LeftHandSideExpression::Call(boxed) => boxed.contains(kind),
             LeftHandSideExpression::Optional(boxed) => boxed.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            LeftHandSideExpression::New(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

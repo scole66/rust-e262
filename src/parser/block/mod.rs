@@ -1,11 +1,10 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // BlockStatement[Yield, Await, Return] :
 //      Block[?Yield, ?Await, ?Return]
@@ -316,6 +315,32 @@ impl StatementList {
             StatementList::List(lst, item) => lst.contains_undefined_continue_target(iteration_set, &[]) || item.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
+
+    // Returns the list of string tokens which comprise the first expression statements of a statement list, along with
+    // a boolean value which is true if all of the items in the statement list were string literal expressions.
+    fn initial_string_tokens_internal(&self) -> (Vec<StringToken>, bool) {
+        match self {
+            StatementList::Item(node) => node.as_string_literal().map_or((Vec::new(), false), |token| (vec![token], true)),
+            StatementList::List(lst, item) => {
+                let (mut head, all) = lst.initial_string_tokens_internal();
+                if all {
+                    let next = item.as_string_literal();
+                    match next {
+                        None => (head, false),
+                        Some(token) => {
+                            head.push(token);
+                            (head, true)
+                        }
+                    }
+                } else {
+                    (head, false)
+                }
+            }
+        }
+    }
+    pub fn initial_string_tokens(&self) -> Vec<StringToken> {
+        self.initial_string_tokens_internal().0
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -424,6 +449,13 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
             StatementListItem::Declaration(_) => false,
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            StatementListItem::Statement(node) => node.as_string_literal(),
+            StatementListItem::Declaration(_) => None,
         }
     }
 }

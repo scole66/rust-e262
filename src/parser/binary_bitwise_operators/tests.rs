@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 #[test]
 fn bitwise_and_expression_test_01() {
@@ -74,6 +75,12 @@ fn bitwise_and_expression_test_contains_05() {
     let (item, _) = BitwiseANDExpression::parse(&mut newparser("0 & 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("'string'" => Some(JSString::from("string")); "String Token")]
+#[test_case("a&b" => None; "Not token")]
+fn bitwise_and_expression_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
+}
 
 #[test]
 fn bitwise_xor_expression_test_01() {
@@ -146,6 +153,12 @@ fn bitwise_xor_expression_test_contains_04() {
 fn bitwise_xor_expression_test_contains_05() {
     let (item, _) = BitwiseXORExpression::parse(&mut newparser("0 ^ 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("'string'" => Some(JSString::from("string")); "String Token")]
+#[test_case("a^b" => None; "Not token")]
+fn bitwise_xor_expression_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
 }
 
 #[test]
@@ -227,4 +240,10 @@ fn bitwise_or_expression_test_contains_04() {
 fn bitwise_or_expression_test_contains_05() {
     let (item, _) = BitwiseORExpression::parse(&mut newparser("0 | 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("'string'" => Some(JSString::from("string")); "String Token")]
+#[test_case("a|b" => None; "Not token")]
+fn bitwise_or_expression_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
 }

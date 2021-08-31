@@ -333,6 +333,13 @@ impl PrimaryExpression {
             PrimaryExpressionKind::RegularExpression(..) => false,
         }
     }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match &self.kind {
+            PrimaryExpressionKind::Literal(n) => n.as_string_literal(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1447,6 +1454,14 @@ impl Literal {
 
     pub fn contains(&self, _: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        if let LiteralKind::StringLiteral(s) = &self.kind {
+            Some(s.clone())
+        } else {
+            None
+        }
     }
 }
 

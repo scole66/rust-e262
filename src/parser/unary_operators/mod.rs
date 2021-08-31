@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::async_function_definitions::AwaitExpression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::update_expressions::UpdateExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
@@ -170,6 +170,13 @@ impl UnaryExpression {
             UnaryExpression::Complement(n) => n.contains(kind),
             UnaryExpression::Not(n) => n.contains(kind),
             UnaryExpression::Await(n) => n.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            UnaryExpression::UpdateExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

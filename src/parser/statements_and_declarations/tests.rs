@@ -428,6 +428,24 @@ fn statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool, 
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
 }
+#[test_case("'string';" => Some(JSString::from("string")); "String Token")]
+#[test_case(";" => None; "Empty Statement")]
+#[test_case("{}" => None; "Block Statement")]
+#[test_case("break;" => None; "Break Statement")]
+#[test_case("for (;;) {}" => None; "Breakable Statement")]
+#[test_case("continue;" => None; "Continue Statement")]
+#[test_case("debugger;" => None; "Debugger Statement")]
+#[test_case("if (true) a();" => None; "If Statement")]
+#[test_case("blue: debugger;" => None; "Labelled Statement")]
+#[test_case("return;" => None; "Return Statement")]
+#[test_case("throw a;" => None; "Throw Statement")]
+#[test_case("try{} catch(e) {}" => None; "Try Statement")]
+#[test_case("var a;" => None; "Var Statement")]
+#[test_case("with(a){};" => None; "With Statement")]
+fn statement_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
+}
 
 // DECLARATION
 #[test]

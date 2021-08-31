@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::bitwise_shift_operators::ShiftExpression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -153,6 +153,13 @@ impl RelationalExpression {
             RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            RelationalExpression::ShiftExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

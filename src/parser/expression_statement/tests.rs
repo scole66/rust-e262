@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // EXPRESSION STATEMENT
 #[test]
@@ -70,4 +71,10 @@ fn expression_statement_test_contains_01() {
 fn expression_statement_test_contains_02() {
     let (item, _) = ExpressionStatement::parse(&mut newparser("a;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("'string';" => Some(JSString::from("string")); "String Token")]
+#[test_case("a??b;" => None; "Not token")]
+fn expression_statement_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
 }

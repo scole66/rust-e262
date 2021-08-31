@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::relational_operators::RelationalExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -127,6 +127,13 @@ impl EqualityExpression {
             EqualityExpression::NotEqual(l, r) => l.contains(kind) || r.contains(kind),
             EqualityExpression::StrictEqual(l, r) => l.contains(kind) || r.contains(kind),
             EqualityExpression::NotStrictEqual(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            EqualityExpression::RelationalExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

@@ -1,7 +1,3 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::async_function_definitions::AsyncFunctionDeclaration;
 use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::block::BlockStatement;
@@ -18,13 +14,16 @@ use super::if_statement::IfStatement;
 use super::iteration_statements::IterationStatement;
 use super::labelled_statements::LabelledStatement;
 use super::return_statement::ReturnStatement;
-use super::scanner::Scanner;
+use super::scanner::{Scanner, StringToken};
 use super::switch_statement::SwitchStatement;
 use super::throw_statement::ThrowStatement;
 use super::try_statement::TryStatement;
 use super::with_statement::WithStatement;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // Statement[Yield, Await, Return] :
 //      BlockStatement[?Yield, ?Await, ?Return]
@@ -290,6 +289,25 @@ impl Statement {
             Statement::Try(n) => n.contains_undefined_continue_target(iteration_set),
             Statement::Variable(_) => false,
             Statement::With(n) => n.contains_undefined_continue_target(iteration_set),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            Statement::Block(_)
+            | Statement::Break(_)
+            | Statement::Breakable(_)
+            | Statement::Continue(_)
+            | Statement::Debugger(_)
+            | Statement::Empty(_)
+            | Statement::If(_)
+            | Statement::Labelled(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Try(_)
+            | Statement::Variable(_)
+            | Statement::With(_) => None,
+            Statement::Expression(n) => n.as_string_literal(),
         }
     }
 }

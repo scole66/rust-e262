@@ -1,10 +1,10 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use crate::scanner::StringToken;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // Script :
 //      ScriptBody opt
@@ -195,6 +195,10 @@ impl ScriptBody {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         kind == ParseNodeKind::StatementList || self.statement_list.contains(kind)
+    }
+
+    pub fn directive_prologue(&self) -> Vec<StringToken> {
+        self.statement_list.initial_string_tokens()
     }
 }
 

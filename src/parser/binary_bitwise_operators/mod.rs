@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::equality_operators::EqualityExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -97,6 +97,13 @@ impl BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
+            _ => None,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -187,6 +194,13 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.contains(kind),
             BitwiseXORExpression::BitwiseXOR(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }
@@ -290,6 +304,13 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.contains(kind),
             BitwiseORExpression::BitwiseOR(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }
