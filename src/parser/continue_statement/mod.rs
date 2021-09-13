@@ -69,6 +69,13 @@ impl ContinueStatement {
             ContinueStatement::Labelled(label) => label.contains(kind),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            ContinueStatement::Bare => false,
+            ContinueStatement::Labelled(label) => !iteration_set.contains(&label.string_value()),
+        }
+    }
 }
 
 #[cfg(test)]

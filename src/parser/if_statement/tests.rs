@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // IF STATEMENT
 #[test]
@@ -152,4 +153,11 @@ fn if_statement_test_contains_duplicate_labels() {
     if_cdl_check("if(0){t:;}");
     if_cdl_check("if(0){t:;}else{}");
     if_cdl_check("if(0){}else{t:;}");
+}
+#[test_case("if(1)continue x;" => (false, true); "if (1) continue x;")]
+#[test_case("if(1)continue x; else 0;" => (false, true); "if (1) continue x; else 0;")]
+#[test_case("if(1)0; else continue x;" => (false, true); "if (1) 0; else continue x;")]
+fn if_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }

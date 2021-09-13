@@ -119,6 +119,13 @@ impl IfStatement {
             IfStatement::WithoutElse(_, s1) => s1.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_continue_target(iteration_set, &[]) || s2.contains_undefined_continue_target(iteration_set, &[]),
+            IfStatement::WithoutElse(_, s1) => s1.contains_undefined_continue_target(iteration_set, &[]),
+        }
+    }
 }
 
 #[cfg(test)]

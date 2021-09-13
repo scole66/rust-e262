@@ -72,6 +72,10 @@ impl WithStatement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.statement.contains_duplicate_labels(label_set)
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        self.statement.contains_undefined_continue_target(iteration_set, &[])
+    }
 }
 
 #[cfg(test)]

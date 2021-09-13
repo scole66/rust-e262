@@ -83,6 +83,14 @@ impl LabelledStatement {
             self.item.contains_duplicate_labels(&new_label_set)
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        let label = self.identifier.string_value();
+        let mut new_label_set: Vec<JSString> = Vec::new();
+        new_label_set.extend_from_slice(label_set);
+        new_label_set.push(label);
+        self.item.contains_undefined_continue_target(iteration_set, &new_label_set)
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -174,6 +182,13 @@ impl LabelledItem {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             LabelledItem::Statement(node) => node.contains_duplicate_labels(label_set),
+            LabelledItem::Function(..) => false,
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self {
+            LabelledItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
             LabelledItem::Function(..) => false,
         }
     }

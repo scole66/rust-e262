@@ -160,6 +160,18 @@ impl TryStatement {
             }
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            TryStatement::Catch(block, catch) => block.contains_undefined_continue_target(iteration_set, &[]) || catch.contains_undefined_continue_target(iteration_set),
+            TryStatement::Finally(block, finally) => block.contains_undefined_continue_target(iteration_set, &[]) || finally.contains_undefined_continue_target(iteration_set),
+            TryStatement::Full(block, catch, finally) => {
+                block.contains_undefined_continue_target(iteration_set, &[])
+                    || catch.contains_undefined_continue_target(iteration_set)
+                    || finally.contains_undefined_continue_target(iteration_set)
+            }
+        }
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -241,6 +253,10 @@ impl Catch {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.block.contains_duplicate_labels(label_set)
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        self.block.contains_undefined_continue_target(iteration_set, &[])
+    }
 }
 
 // Finally[Yield, Await, Return] :
@@ -298,6 +314,10 @@ impl Finally {
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.block.contains_duplicate_labels(label_set)
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        self.block.contains_undefined_continue_target(iteration_set, &[])
     }
 }
 

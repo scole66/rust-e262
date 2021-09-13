@@ -204,3 +204,7 @@ fn script_body_test_early_errors_06() {
 fn script_body_test_early_errors_07() {
     script_body_ee_check("t:{t:;}", Some("duplicate labels detected"));
 }
+#[test]
+fn script_body_test_early_errors_08() {
+    script_body_ee_check("continue bob;", Some("undefined continue target detected"));
+}

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // TRY STATEMENT
 #[test]
@@ -126,6 +127,17 @@ fn try_statement_test_contains_duplicate_labels() {
     try_cdl_check("try{}catch{t:;}finally{}");
     try_cdl_check("try{}catch{}finally{t:;}");
 }
+#[test_case("try { continue x; } catch { }" => (false, true); "try { continue x; } catch { }")]
+#[test_case("try { } catch { continue x; }" => (false, true); "try { } catch { continue x; }")]
+#[test_case("try { continue x; } finally { }" => (false, true); "try { continue x; } finally { }")]
+#[test_case("try { } finally { continue x; }" => (false, true); "try { } finally { continue x; }")]
+#[test_case("try { continue x; } catch { } finally { }" => (false, true); "try { continue x; } catch { } finally { }")]
+#[test_case("try { } catch { continue x; } finally { }" => (false, true); "try { } catch { continue x; } finally { }")]
+#[test_case("try { } catch { } finally { continue x; }" => (false, true); "try { } catch { } finally { continue x; }")]
+fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // CATCH
 #[test]
@@ -213,6 +225,12 @@ fn catch_test_contains_duplicate_labels() {
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
+#[test_case("catch { continue x; }" => (false, true); "catch { continue x; }")]
+#[test_case("catch (e) { continue x; }" => (false, true); "catch (e) { continue x; }")]
+fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // FINALLY
 #[test]
@@ -266,6 +284,11 @@ fn finally_test_contains_duplicate_labels() {
     let (item, _) = Finally::parse(&mut newparser("finally{t:;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("finally { continue x; }" => (false, true); "finally { continue x; }")]
+fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // CATCH PARAMETER

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 #[test]
 fn switch_statement_test_01() {
@@ -53,6 +54,12 @@ fn switch_statement_test_contains_duplicate_labels() {
     let (item, _) = SwitchStatement::parse(&mut newparser("switch(a){default:t:;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("switch (a) { case 3: continue x; }" => (false, true); "switch (a) { case 3: continue x; }")]
+#[test_case("switch (a) { case 3: for (;;) continue x; }" => (false, true); "switch (a) { case 3: for (;;) continue x; }")]
+fn switch_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = SwitchStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // CASE BLOCK
@@ -199,6 +206,20 @@ fn case_block_test_contains_duplicate_labels() {
     cb_cdl_check("{case a:default:t:;case b:}", true);
     cb_cdl_check("{case a:default:case b:t:;}", true);
 }
+#[test_case("{ /* empty */ }" => (false, false); "{ /* empty */ }")]
+#[test_case("{ case a: continue x; }" => (false, true); "{ case a: continue x; }")]
+#[test_case("{ default: continue x; }" => (false, true); "{ default: continue x; }")]
+#[test_case("{ case a: continue x; default: ;}" => (false, true); "{ case a: continue x; } default: ;")]
+#[test_case("{ case a: ; default: continue x; }" => (false, true); "{ case a: ; default: continue x; }")]
+#[test_case("{ default: ; case a: continue x; }" => (false, true); "{ default: ; case a: continue x; }")]
+#[test_case("{ default: continue x; case a: ; }" => (false, true); "{ default: continue x; case a: ; }")]
+#[test_case("{ case a: continue x; default: ; case b: ; }" => (false, true); "{ case a: continue x; default: ; case b: ; }")]
+#[test_case("{ case a: ; default: continue x; case b: ; }" => (false, true); "{ case a: ; default: continue x; case b: ; }")]
+#[test_case("{ case a: ; default: ; case b: continue x; }" => (false, true); "{ case a: ; default: ; case b: continue x; }")]
+fn case_block_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // CASE CLAUSES
 #[test]
@@ -273,6 +294,13 @@ fn case_clauses_test_contains_duplicate_labels() {
     ccs_cdl_check("case 0:t:;");
     ccs_cdl_check("case 0:t:;case 1:");
     ccs_cdl_check("case 0:case 1:t:;");
+}
+#[test_case("case a: continue x;" => (false, true); "case a: continue x;")]
+#[test_case("case a: continue x; case b: ;" => (false, true); "case a: continue x; case b: ;")]
+#[test_case("case a: ; case b: continue x;" => (false, true); "case a: ; case b: continue x;")]
+fn case_clauses_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // CASE CLAUSE
@@ -349,6 +377,12 @@ fn case_clause_test_contains_duplicate_labels() {
     cc_cdl_check("case 0:", false);
     cc_cdl_check("case 0:t:;", true);
 }
+#[test_case("case a:" => (false, false); "case a:")]
+#[test_case("case a: continue x;" => (false, true); "case a: continue x;")]
+fn case_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // DEFAULT CLAUSE
 #[test]
@@ -420,4 +454,10 @@ fn def_cdl_check(src: &str, has_label: bool) {
 fn default_clause_test_contains_duplicate_labels() {
     def_cdl_check("default:", false);
     def_cdl_check("default:t:;", true);
+}
+#[test_case("default:" => (false, false); "default:")]
+#[test_case("default: continue x;" => (false, true); "default: continue x;")]
+fn default_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // BLOCK STATEMENT
 #[test]
@@ -60,6 +61,17 @@ fn block_statement_test_contains_duplicate_labels() {
     let (item, _) = BlockStatement::parse(&mut newparser("{t:;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("{continue x;}" => (false, true, true, true); "{ continue x; }")]
+#[test_case("{for(;;)continue x;}" => (false, true, false, true); "{ for (;;) continue x; }")]
+fn block_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }
 
 // BLOCK
@@ -166,6 +178,18 @@ fn block_test_contains_duplicate_labels_02() {
     let (item, _) = Block::parse(&mut newparser("{t:;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("{continue x;}" => (false, true, true, true); "{ continue x; }")]
+#[test_case("{for(;;)continue x;}" => (false, true, false, true); "{ for (;;) continue x; }")]
+#[test_case("{}" => (false, false, false, false); "empty")]
+fn block_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }
 
 // STATEMENT LIST
@@ -318,6 +342,21 @@ fn statement_list_test_contains_duplicate_labels() {
     statement_list_cdl_check("t:;;");
     statement_list_cdl_check(";t:;");
 }
+#[test_case("continue x;" => (false, true, true, true); "continue x;")]
+#[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
+#[test_case("0;continue x;" => (false, true, true, true); "0; continue x;")]
+#[test_case("0;for (;;) continue x;" => (false, true, true, true); "0; for (;;) continue x;")]
+#[test_case("continue x;0;" => (false, true, true, true); "continue x; 0;")]
+#[test_case("for (;;) continue x;0;" => (false, true, true, true); "for (;;) continue x; 0;")]
+fn statement_list_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -464,4 +503,16 @@ fn statement_list_item_test_contains_duplicate_labels_02() {
     let (item, _) = StatementListItem::parse(&mut newparser("let t;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), false);
+}
+#[test_case("continue x;" => (false, true, true, true); "continue x;")]
+#[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
+#[test_case("let x;" => (false, false, false, false); "let x;")]
+fn statement_list_item_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+    )
 }

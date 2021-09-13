@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // WITH STATEMENT
 #[test]
@@ -72,4 +73,9 @@ fn with_statement_test_contains_duplicate_labels() {
     let (item, _) = WithStatement::parse(&mut newparser("with(0) lbl: { 0; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("lbl")]), true);
+}
+#[test_case("with(0)continue x;" => (false, true); "with (0) continue x;")]
+fn with_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = WithStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }

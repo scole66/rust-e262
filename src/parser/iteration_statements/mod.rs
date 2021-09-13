@@ -120,6 +120,15 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.contains_duplicate_labels(label_set),
         }
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            IterationStatement::DoWhile(node) => node.contains_undefined_continue_target(iteration_set),
+            IterationStatement::While(node) => node.contains_undefined_continue_target(iteration_set),
+            IterationStatement::For(node) => node.contains_undefined_continue_target(iteration_set),
+            IterationStatement::ForInOf(node) => node.contains_undefined_continue_target(iteration_set),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -195,6 +204,11 @@ impl DoWhileStatement {
         let DoWhileStatement::Do(s, _) = self;
         s.contains_duplicate_labels(label_set)
     }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        let DoWhileStatement::Do(s, _) = self;
+        s.contains_undefined_continue_target(iteration_set, &[])
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -265,6 +279,11 @@ impl WhileStatement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         let WhileStatement::While(_, s) = self;
         s.contains_duplicate_labels(label_set)
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        let WhileStatement::While(_, s) = self;
+        s.contains_undefined_continue_target(iteration_set, &[])
     }
 }
 
@@ -490,6 +509,12 @@ impl ForStatement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_duplicate_labels(label_set),
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 }
@@ -771,6 +796,20 @@ impl ForInOfStatement {
             | ForInOfStatement::VarIn(_, _, s)
             | ForInOfStatement::VarOf(_, _, s)
             | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_duplicate_labels(label_set),
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+        match self {
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s)
+            | ForInOfStatement::VarIn(_, _, s)
+            | ForInOfStatement::VarOf(_, _, s)
+            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 }

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // ITERATION STATEMENT
 #[test]
@@ -199,6 +200,14 @@ fn iteration_statement_test_contains_duplicate_labels() {
     istmt_check_cdl("for(;;)t:;");
     istmt_check_cdl("for(a in b)t:;");
 }
+#[test_case("do continue x; while (false);" => (false, true); "do continue x; while (false);")]
+#[test_case("while (true) continue x;" => (false, true); "while (true) continue x;")]
+#[test_case("for (;;) continue x;" => (false, true); "for (;;) continue x;")]
+#[test_case("for (a in b) continue x;" => (false, true); "for (a in b) continue x;")]
+fn iteration_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // DO WHILE STATEMENT
 #[test]
@@ -283,6 +292,11 @@ fn do_while_statement_test_contains_duplicate_labels() {
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
+#[test_case("do continue x; while (true);" => (false, true); "do continue x; while (true);")]
+fn do_while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
 
 // WHILE STATEMENT
 #[test]
@@ -354,6 +368,11 @@ fn while_statement_test_contains_duplicate_labels() {
     let (item, _) = WhileStatement::parse(&mut newparser("while(1)t:;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
+}
+#[test_case("while (true) continue x;" => (false, true); "do continue x; while (true);")]
+fn while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // FOR STATEMENT
@@ -883,6 +902,13 @@ fn for_statement_test_contains_duplicate_labels() {
     for_stmt_cdl_check("for(;;){t:;}");
     for_stmt_cdl_check("for(var a;;){t:;}");
     for_stmt_cdl_check("for(let a;;){t:;}");
+}
+#[test_case("for (;;) continue x;" => (false, true); "for (;;) continue x;")]
+#[test_case("for (var a;;) continue x;" => (false, true); "for (var a;;) continue x;")]
+#[test_case("for (let a;;) continue x;" => (false, true); "for (let a;;) continue x;")]
+fn for_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // FOR IN-OF STATEMENT
@@ -1507,6 +1533,19 @@ fn for_in_of_statement_test_contains_duplicate_labels() {
     for_in_of_cdl_check("for await(a of b){t:;}");
     for_in_of_cdl_check("for await(var a of b){t:;}");
     for_in_of_cdl_check("for await(let a of b){t:;}");
+}
+#[test_case("for (a in b) continue x;" => (false, true); "for (a in b) continue x;")]
+#[test_case("for (var a in b) continue x;" => (false, true); "for (var a in b) continue x;")]
+#[test_case("for (let a in b) continue x;" => (false, true); "for (let a in b) continue x;")]
+#[test_case("for (a of b) continue x;" => (false, true); "for (a of b) continue x;")]
+#[test_case("for (var a of b) continue x;" => (false, true); "for (var a of b) continue x;")]
+#[test_case("for (let a of b) continue x;" => (false, true); "for (let a of b) continue x;")]
+#[test_case("for await (a of b) continue x;" => (false, true); "for await (a of b) continue x;")]
+#[test_case("for await (var a of b) continue x;" => (false, true); "for await (var a of b) continue x;")]
+#[test_case("for await (let a of b) continue x;" => (false, true); "for await (let a of b) continue x;")]
+fn for_in_of_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
+    let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
 
 // FOR DECLARATION
