@@ -9,13 +9,24 @@ function objects() {
     echo
 }
 
-function z() {
+
+function tst() {
   pushd ~/*/rust-e262 > /dev/null
   rm -f res-*.profraw
   RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
+  popd > /dev/null
+}
+
+function summary() {
+  pushd ~/*/rust-e262 > /dev/null
   cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' --instr-profile=res.profdata $(objects)
   popd > /dev/null
+}
+
+function z() {
+  tst "$@"
+  summary
 }
 
 # show the routines with uncovered regions:
