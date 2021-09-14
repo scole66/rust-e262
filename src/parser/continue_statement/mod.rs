@@ -76,6 +76,12 @@ impl ContinueStatement {
             ContinueStatement::Labelled(label) => !iteration_set.contains(&label.string_value()),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 #[cfg(test)]

@@ -92,6 +92,12 @@ impl LexicalDeclaration {
         let LexicalDeclaration::List(_, node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // LetOrConst :
@@ -410,6 +416,12 @@ impl VariableStatement {
         //  2. Return true.
         let VariableStatement::Var(node) = self;
         node.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

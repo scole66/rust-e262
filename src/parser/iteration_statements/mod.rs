@@ -144,6 +144,12 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :

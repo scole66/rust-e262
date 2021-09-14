@@ -335,6 +335,25 @@ impl Statement {
             Statement::Expression(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            Statement::Block(node) => node.early_errors(agent),
+            Statement::Break(node) => node.early_errors(agent),
+            Statement::Breakable(node) => node.early_errors(agent),
+            Statement::Continue(node) => node.early_errors(agent),
+            Statement::Debugger(node) => node.early_errors(agent),
+            Statement::Empty(node) => node.early_errors(agent),
+            Statement::Expression(node) => node.early_errors(agent),
+            Statement::If(node) => node.early_errors(agent),
+            Statement::Labelled(node) => node.early_errors(agent),
+            Statement::Return(node) => node.early_errors(agent),
+            Statement::Throw(node) => node.early_errors(agent),
+            Statement::Try(node) => node.early_errors(agent),
+            Statement::Variable(node) => node.early_errors(agent),
+            Statement::With(node) => node.early_errors(agent),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -428,6 +447,14 @@ impl Declaration {
             Declaration::Hoistable(node) => node.all_private_identifiers_valid(names),
             Declaration::Class(node) => node.all_private_identifiers_valid(names),
             Declaration::Lexical(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            Declaration::Hoistable(node) => node.early_errors(agent),
+            Declaration::Class(node) => node.early_errors(agent),
+            Declaration::Lexical(node) => node.early_errors(agent),
         }
     }
 }
@@ -537,6 +564,15 @@ impl HoistableDeclaration {
             HoistableDeclaration::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            HoistableDeclaration::Function(node) => node.early_errors(agent),
+            HoistableDeclaration::Generator(node) => node.early_errors(agent),
+            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent),
+            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent),
+        }
+    }
 }
 
 // BreakableStatement[Yield, Await, Return] :
@@ -644,6 +680,13 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.all_private_identifiers_valid(names),
             BreakableStatement::Switch(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            BreakableStatement::Iteration(node) => node.early_errors(agent),
+            BreakableStatement::Switch(node) => node.early_errors(agent),
         }
     }
 }

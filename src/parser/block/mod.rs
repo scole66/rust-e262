@@ -2,6 +2,7 @@ use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use ahash::AHashSet;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -81,6 +82,11 @@ impl BlockStatement {
         //  2. Return true.
         let BlockStatement::Block(node) = self;
         node.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        let BlockStatement::Block(node) = self;
+        node.early_errors(agent)
     }
 }
 
@@ -203,6 +209,33 @@ impl Block {
             node.all_private_identifiers_valid(names)
         } else {
             true
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        if let Block::Statements(Some(sl)) = self {
+            // Static Semantics: Early Errors
+            // Block : { StatementList }
+            //  * It is a Syntax Error if the LexicallyDeclaredNames of StatementList contains any duplicate entries.
+            //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of StatementList also occurs in
+            //    the VarDeclaredNames of StatementList.
+            let mut errs = Vec::new();
+            let ldn = sl.lexically_declared_names();
+            let lexname_count = ldn.len();
+            let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
+            let unique_lexname_count = lex_names_set.len();
+            if lexname_count != unique_lexname_count {
+                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names"));
+            }
+            let vdn = sl.var_declared_names();
+            let var_names_set: AHashSet<JSString> = vdn.into_iter().collect();
+            if !lex_names_set.is_disjoint(&var_names_set) {
+                errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
+            }
+            errs.extend(sl.early_errors(agent));
+            errs
+        } else {
+            Vec::new()
         }
     }
 }
@@ -399,6 +432,17 @@ impl StatementList {
             StatementList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            StatementList::Item(node) => node.early_errors(agent),
+            StatementList::List(lst, item) => {
+                let mut errs = lst.early_errors(agent);
+                errs.extend(item.early_errors(agent));
+                errs
+            }
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -547,6 +591,13 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(node) => node.all_private_identifiers_valid(names),
             StatementListItem::Declaration(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            StatementListItem::Statement(node) => node.early_errors(agent),
+            StatementListItem::Declaration(node) => node.early_errors(agent),
         }
     }
 }
