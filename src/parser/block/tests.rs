@@ -364,6 +364,13 @@ fn statement_list_test_initial_string_tokens(src: &str) -> Vec<JSString> {
     let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.initial_string_tokens().into_iter().map(|st| st.value).collect()
 }
+#[test_case("let a;" => vec![JSString::from("a")]; "One Decl")]
+#[test_case("a; let b; c;" => vec![JSString::from("b")]; "Decl In List")]
+#[test_case("let a; b; let q;" => vec![JSString::from("a"), JSString::from("q")]; "Decl In head, tail")]
+fn statement_list_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.lexically_declared_names()
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -528,4 +535,12 @@ fn statement_list_item_test_contains_undefined_continue_target(src: &str) -> (bo
 fn statement_list_item_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
+}
+#[test_case("a: b;" => Vec::<JSString>::new(); "Labelled Plain")]
+#[test_case("b;" => Vec::<JSString>::new(); "Plain")]
+#[test_case("a: function f(){}" => vec![JSString::from("f")]; "Labelled Function")]
+#[test_case("const t=true,f=false;" => vec![JSString::from("t"), JSString::from("f")]; "Unlabelled Decl")]
+fn statement_list_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.lexically_declared_names()
 }

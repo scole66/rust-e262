@@ -105,6 +105,11 @@ fn labelled_statement_test_contains_undefined_continue_target(src: &str) -> (boo
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
 }
+#[test_case("a: function a(){}" => vec![JSString::from("a")]; "Function Def")]
+fn labelled_statement_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.lexically_declared_names()
+}
 
 // LABELLED ITEM
 #[test]
@@ -236,4 +241,10 @@ fn labelled_item_test_contains_undefined_continue_target(src: &str) -> (bool, bo
         item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
+}
+#[test_case("a;" => Vec::<JSString>::new(); "Statement")]
+#[test_case("function a(){}" => vec![JSString::from("a")]; "Function Def")]
+fn labelled_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.lexically_declared_names()
 }
