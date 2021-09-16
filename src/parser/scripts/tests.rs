@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::scanner::StringDelimiter;
 use crate::tests::unwind_syntax_error_object;
 
 // SCRIPT
@@ -207,4 +208,26 @@ fn script_body_test_early_errors_07() {
 #[test]
 fn script_body_test_early_errors_08() {
     script_body_ee_check("continue bob;", Some("undefined continue target detected"));
+}
+#[test]
+fn script_body_test_directive_prologue_01() {
+    let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
+
+    let dp = item.directive_prologue();
+    assert_eq!(
+        dp,
+        vec![
+            StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Single, raw: None },
+            StringToken { value: JSString::from("green"), delimiter: StringDelimiter::Single, raw: None },
+            StringToken { value: JSString::from("orange"), delimiter: StringDelimiter::Single, raw: None },
+            StringToken { value: JSString::from("use strict"), delimiter: StringDelimiter::Single, raw: Some(String::from("use\\x20strict")) }
+        ]
+    );
+}
+#[test]
+fn script_body_test_directive_prologue_02() {
+    let (item, _) = ScriptBody::parse(&mut newparser("print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
+
+    let dp = item.directive_prologue();
+    assert_eq!(dp, &[]);
 }

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // UPDATE EXPRESSION
 #[test]
@@ -197,4 +198,10 @@ fn update_expression_test_contains_09() {
 fn update_expression_test_contains_10() {
     let (item, _) = UpdateExpression::parse(&mut newparser("--0"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("\"string\"" => Some(String::from("string")); "String Token")]
+#[test_case("--a" => None; "Not token")]
+fn update_expression_test_as_string_literal(src: &str) -> Option<String> {
+    let (item, _) = UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| String::from(st.value))
 }

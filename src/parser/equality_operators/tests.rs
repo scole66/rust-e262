@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // EQUALITY EXPRESSION
 #[test]
@@ -182,4 +183,10 @@ fn equality_expression_test_contains_13() {
 fn equality_expression_test_contains_14() {
     let (item, _) = EqualityExpression::parse(&mut newparser("0 !== 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("'string'" => Some(JSString::from("string")); "String Token")]
+#[test_case("a==b" => None; "Not token")]
+fn equality_expression_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
 }

@@ -217,12 +217,12 @@ pub enum Punctuator {
     QQEq,         // ??=
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum StringDelimiter {
     Single,
     Double,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StringToken {
     pub value: JSString,
     pub delimiter: StringDelimiter,

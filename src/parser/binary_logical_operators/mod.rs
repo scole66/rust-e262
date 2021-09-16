@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::binary_bitwise_operators::BitwiseORExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -97,6 +97,13 @@ impl LogicalANDExpression {
             LogicalANDExpression::LogicalAND(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
+            _ => None,
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -187,6 +194,13 @@ impl LogicalORExpression {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.contains(kind),
             LogicalORExpression::LogicalOR(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }
@@ -394,6 +408,13 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.contains(kind),
             ShortCircuitExpression::CoalesceExpression(n) => n.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

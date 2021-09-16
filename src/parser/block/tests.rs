@@ -357,6 +357,13 @@ fn statement_list_test_contains_undefined_continue_target(src: &str) -> (bool, b
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
 }
+#[test_case("'use strict';" => vec![JSString::from("use strict")]; "One String")]
+#[test_case("'blue'; 'green'; true; 0; 'hello';" => vec![JSString::from("blue"), JSString::from("green")]; "Many Statements")]
+#[test_case("0; 1; 2;" => Vec::<JSString>::new(); "No strings")]
+fn statement_list_test_initial_string_tokens(src: &str) -> Vec<JSString> {
+    let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.initial_string_tokens().into_iter().map(|st| st.value).collect()
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -515,4 +522,10 @@ fn statement_list_item_test_contains_undefined_continue_target(src: &str) -> (bo
         item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
+}
+#[test_case("'string';" => Some(JSString::from("string")); "String Token")]
+#[test_case("let a;" => None; "Declaration")]
+fn statement_list_item_test_as_string_literal(src: &str) -> Option<JSString> {
+    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.as_string_literal().map(|st| st.value)
 }

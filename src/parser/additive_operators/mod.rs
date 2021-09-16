@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::multiplicative_operators::MultiplicativeExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -109,6 +109,13 @@ impl AdditiveExpression {
             AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),
             AdditiveExpression::Add(l, r) => l.contains(kind) || r.contains(kind),
             AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

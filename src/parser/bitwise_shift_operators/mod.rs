@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::additive_operators::AdditiveExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -115,6 +115,13 @@ impl ShiftExpression {
             ShiftExpression::LeftShift(l, r) => l.contains(kind) || r.contains(kind),
             ShiftExpression::SignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
             ShiftExpression::UnsignedRightShift(l, r) => l.contains(kind) || r.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            ShiftExpression::AdditiveExpression(n) => n.as_string_literal(),
+            _ => None,
         }
     }
 }

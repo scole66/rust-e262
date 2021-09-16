@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -108,6 +108,13 @@ impl Expression {
         match self {
             Expression::FallThru(node) => node.contains(kind),
             Expression::Comma(left, right) => left.contains(kind) || right.contains(kind),
+        }
+    }
+
+    pub fn as_string_literal(&self) -> Option<StringToken> {
+        match self {
+            Expression::FallThru(node) => node.as_string_literal(),
+            Expression::Comma(..) => None,
         }
     }
 }

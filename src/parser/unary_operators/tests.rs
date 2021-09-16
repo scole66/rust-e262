@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // UNARY EXPRESSION
 #[test]
@@ -295,4 +296,10 @@ fn unary_expression_test_contains_17() {
 fn unary_expression_test_contains_18() {
     let (item, _) = UnaryExpression::parse(&mut newparser("await p"), Scanner::new(), false, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("\"string\"" => Some(String::from("string")); "String Token")]
+#[test_case("-a" => None; "Not token")]
+fn unary_expression_test_as_string_literal(src: &str) -> Option<String> {
+    let (item, _) = UnaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.as_string_literal().map(|st| String::from(st.value))
 }
