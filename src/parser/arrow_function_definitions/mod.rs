@@ -62,6 +62,16 @@ impl ArrowFunction {
         (kind == ParseNodeKind::Super || kind == ParseNodeKind::This || kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall)
             && (self.parameters.contains(kind) || self.body.contains(kind))
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        todo!()
+    }
 }
 
 // ArrowParameters[Yield, Await] :
@@ -196,6 +206,16 @@ impl ArrowFormalParameters {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        todo!()
+    }
 }
 
 // ConciseBody[In] :
@@ -328,6 +348,16 @@ impl ExpressionBody {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        todo!()
     }
 }
 

@@ -180,6 +180,22 @@ impl FormalParameters {
             FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            FormalParameters::Empty => true,
+            FormalParameters::Rest(node) => node.all_private_identifiers_valid(names),
+            FormalParameters::List(node) => node.all_private_identifiers_valid(names),
+            FormalParameters::ListComma(node) => node.all_private_identifiers_valid(names),
+            FormalParameters::ListRest(list, rest) => list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -253,6 +269,19 @@ impl FormalParameterList {
             FormalParameterList::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            FormalParameterList::Item(node) => node.all_private_identifiers_valid(names),
+            FormalParameterList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -294,6 +323,16 @@ impl FunctionRestParameter {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.element.all_private_identifiers_valid(names)
     }
 }
 
@@ -348,6 +387,16 @@ impl FormalParameter {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.element.all_private_identifiers_valid(names)
     }
 }
 

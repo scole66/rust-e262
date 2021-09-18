@@ -126,6 +126,19 @@ impl IfStatement {
             IfStatement::WithoutElse(_, s1) => s1.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            IfStatement::WithElse(e, s1, s2) => e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names) && s2.all_private_identifiers_valid(names),
+            IfStatement::WithoutElse(e, s1) => e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 #[cfg(test)]

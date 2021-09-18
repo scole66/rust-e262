@@ -129,6 +129,21 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.contains_undefined_continue_target(iteration_set),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            IterationStatement::DoWhile(node) => node.all_private_identifiers_valid(names),
+            IterationStatement::While(node) => node.all_private_identifiers_valid(names),
+            IterationStatement::For(node) => node.all_private_identifiers_valid(names),
+            IterationStatement::ForInOf(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -209,6 +224,17 @@ impl DoWhileStatement {
         let DoWhileStatement::Do(s, _) = self;
         s.contains_undefined_continue_target(iteration_set, &[])
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let DoWhileStatement::Do(s, e) = self;
+        s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -284,6 +310,17 @@ impl WhileStatement {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         let WhileStatement::While(_, s) = self;
         s.contains_undefined_continue_target(iteration_set, &[])
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let WhileStatement::While(e, s) = self;
+        e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
     }
 }
 
@@ -515,6 +552,35 @@ impl ForStatement {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ForStatement::For(opt1, opt2, opt3, s) => {
+                opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt3.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && s.all_private_identifiers_valid(names)
+            }
+            ForStatement::ForVar(v, opt1, opt2, s) => {
+                v.all_private_identifiers_valid(names)
+                    && opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && s.all_private_identifiers_valid(names)
+            }
+            ForStatement::ForLex(lex, opt1, opt2, s) => {
+                lex.all_private_identifiers_valid(names)
+                    && opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && s.all_private_identifiers_valid(names)
+            }
         }
     }
 }
@@ -812,6 +878,29 @@ impl ForInOfStatement {
             | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ForInOfStatement::In(lhs, e, s) => lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
+            ForInOfStatement::VarIn(v, e, s) => v.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
+            ForInOfStatement::LexIn(lex, e, s) => lex.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
+            ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => {
+                lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => {
+                v.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => {
+                lex.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+            }
+        }
+    }
 }
 
 fn pp_two<T, U, UU, V, VV>(writer: &mut T, pad: &str, n1: &U, n2: &V) -> IoResult<()>
@@ -912,6 +1001,17 @@ impl ForDeclaration {
         let ForDeclaration::Binding(loc, node) = self;
         loc.contains(kind) || node.contains(kind)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let ForDeclaration::Binding(loc, node) = self;
+        loc.all_private_identifiers_valid(names) && node.all_private_identifiers_valid(names)
+    }
 }
 
 // ForBinding[Yield, Await] :
@@ -992,6 +1092,19 @@ impl ForBinding {
         match self {
             ForBinding::Identifier(node) => node.contains(kind),
             ForBinding::Pattern(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ForBinding::Identifier(node) => node.all_private_identifiers_valid(names),
+            ForBinding::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }
 }

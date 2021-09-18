@@ -92,6 +92,16 @@ impl ClassDeclaration {
             ClassDeclaration::Unnamed(ct) => ct.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        todo!()
+    }
 }
 
 // ClassExpression[Yield, Await] :
@@ -158,6 +168,16 @@ impl ClassExpression {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.ident.as_ref().map_or(false, |n| n.contains(kind)) || self.tail.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        todo!()
     }
 }
 

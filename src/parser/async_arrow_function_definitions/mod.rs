@@ -117,6 +117,19 @@ impl AsyncArrowFunction {
                 AsyncArrowFunction::Formals(params, body) => params.contains(kind) || body.contains(kind),
             }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AsyncArrowFunction::IdentOnly(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            AsyncArrowFunction::Formals(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // AsyncArrowHead :
@@ -162,6 +175,16 @@ impl AsyncArrowHead {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 
@@ -241,6 +264,19 @@ impl AsyncConciseBody {
             AsyncConciseBody::Function(node) => node.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AsyncConciseBody::Expression(node) => node.all_private_identifiers_valid(names),
+            AsyncConciseBody::Function(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :
@@ -281,6 +317,16 @@ impl AsyncArrowBindingIdentifier {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 

@@ -76,6 +76,16 @@ impl WithStatement {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.statement.contains_undefined_continue_target(iteration_set, &[])
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.expression.all_private_identifiers_valid(names) && self.statement.all_private_identifiers_valid(names)
+    }
 }
 
 #[cfg(test)]

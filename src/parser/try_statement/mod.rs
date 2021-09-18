@@ -172,6 +172,20 @@ impl TryStatement {
             }
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            TryStatement::Catch(block, catch) => block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names),
+            TryStatement::Finally(block, finally) => block.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names),
+            TryStatement::Full(block, catch, finally) => block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -257,6 +271,16 @@ impl Catch {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.block.contains_undefined_continue_target(iteration_set, &[])
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
+    }
 }
 
 // Finally[Yield, Await, Return] :
@@ -318,6 +342,16 @@ impl Finally {
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.block.contains_undefined_continue_target(iteration_set, &[])
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.block.all_private_identifiers_valid(names)
     }
 }
 
@@ -392,6 +426,19 @@ impl CatchParameter {
         match self {
             CatchParameter::Ident(node) => node.contains(kind),
             CatchParameter::Pattern(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            CatchParameter::Ident(node) => node.all_private_identifiers_valid(names),
+            CatchParameter::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }
 }

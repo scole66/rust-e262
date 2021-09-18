@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 

@@ -246,6 +246,26 @@ impl AssignmentExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AssignmentExpression::FallThru(node) => node.all_private_identifiers_valid(names),
+            AssignmentExpression::Yield(node) => node.all_private_identifiers_valid(names),
+            AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
+            AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
+            AssignmentExpression::Assignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            AssignmentExpression::OpAssignment(left, op, right) => left.all_private_identifiers_valid(names) && op.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            AssignmentExpression::LandAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            AssignmentExpression::LorAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            AssignmentExpression::CoalAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // AssignmentOperator : one of
@@ -304,6 +324,16 @@ impl PrettyPrint for AssignmentOperator {
 impl AssignmentOperator {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        true
     }
 }
 

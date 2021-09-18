@@ -81,6 +81,17 @@ impl LexicalDeclaration {
         let LexicalDeclaration::List(loc, bl) = self;
         loc.contains(kind) || bl.contains(kind)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let LexicalDeclaration::List(node1, node2) = self;
+        node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+    }
 }
 
 // LetOrConst :
@@ -121,6 +132,16 @@ impl PrettyPrint for LetOrConst {
 impl LetOrConst {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        true
     }
 }
 
@@ -205,6 +226,19 @@ impl BindingList {
         match self {
             BindingList::Item(node) => node.contains(kind),
             BindingList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingList::Item(node) => node.all_private_identifiers_valid(names),
+            BindingList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
 }
@@ -304,6 +338,20 @@ impl LexicalBinding {
             LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            LexicalBinding::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            LexicalBinding::Identifier(node, None) => node.all_private_identifiers_valid(names),
+            LexicalBinding::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // VariableStatement[Yield, Await] :
@@ -361,6 +409,17 @@ impl VariableStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let VariableStatement::Var(node) = self;
         node.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let VariableStatement::Var(node) = self;
+        node.all_private_identifiers_valid(names)
     }
 }
 
@@ -456,6 +515,19 @@ impl VariableDeclarationList {
         match self {
             VariableDeclarationList::Item(node) => node.contains(kind),
             VariableDeclarationList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            VariableDeclarationList::Item(node) => node.all_private_identifiers_valid(names),
+            VariableDeclarationList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
 }
@@ -557,6 +629,20 @@ impl VariableDeclaration {
             VariableDeclaration::Pattern(bp, init) => bp.contains(kind) || init.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            VariableDeclaration::Identifier(node, None) => node.all_private_identifiers_valid(names),
+            VariableDeclaration::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            VariableDeclaration::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // BindingPattern[Yield, Await] :
@@ -631,6 +717,19 @@ impl BindingPattern {
         match self {
             BindingPattern::Object(node) => node.contains(kind),
             BindingPattern::Array(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingPattern::Object(node) => node.all_private_identifiers_valid(names),
+            BindingPattern::Array(node) => node.all_private_identifiers_valid(names),
         }
     }
 }
@@ -763,6 +862,22 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::ListOnly(node) => node.contains(kind),
             ObjectBindingPattern::ListRest(list, None) => list.contains(kind),
             ObjectBindingPattern::ListRest(list, Some(n)) => list.contains(kind) || n.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ObjectBindingPattern::Empty => true,
+            ObjectBindingPattern::RestOnly(node) => node.all_private_identifiers_valid(names),
+            ObjectBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
+            ObjectBindingPattern::ListRest(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            ObjectBindingPattern::ListRest(node, None) => node.all_private_identifiers_valid(names),
         }
     }
 }
@@ -953,6 +1068,26 @@ impl ArrayBindingPattern {
             }
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ArrayBindingPattern::RestOnly(onode_a, onode_b) => {
+                onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && onode_b.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+            }
+            ArrayBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
+            ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
+                node.all_private_identifiers_valid(names)
+                    && onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+                    && onode_b.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+            }
+        }
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
@@ -1019,6 +1154,17 @@ impl BindingRestProperty {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let BindingRestProperty::Id(node) = self;
         node.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let BindingRestProperty::Id(node) = self;
+        node.all_private_identifiers_valid(names)
     }
 }
 
@@ -1103,6 +1249,19 @@ impl BindingPropertyList {
         match self {
             BindingPropertyList::Item(node) => node.contains(kind),
             BindingPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingPropertyList::Item(node) => node.all_private_identifiers_valid(names),
+            BindingPropertyList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
 }
@@ -1197,6 +1356,19 @@ impl BindingElementList {
             BindingElementList::List(l, i) => l.contains(kind) || i.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingElementList::Item(node) => node.all_private_identifiers_valid(names),
+            BindingElementList::List(l, i) => l.all_private_identifiers_valid(names) && i.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -1266,6 +1438,17 @@ impl BindingElisionElement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let BindingElisionElement::Element(opt, n) = self;
         opt.as_ref().map_or(false, |n| n.contains(kind)) || n.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let BindingElisionElement::Element(opt, n) = self;
+        opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && n.all_private_identifiers_valid(names)
     }
 }
 
@@ -1347,6 +1530,19 @@ impl BindingProperty {
         match self {
             BindingProperty::Single(node) => node.contains(kind),
             BindingProperty::Property(node1, node2) => node1.contains(kind) || node2.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingProperty::Single(node) => node.all_private_identifiers_valid(names),
+            BindingProperty::Property(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
 }
@@ -1446,6 +1642,19 @@ impl BindingElement {
             BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingElement::Single(n) => n.all_private_identifiers_valid(names),
+            BindingElement::Pattern(n, opt) => n.all_private_identifiers_valid(names) && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)),
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -1527,6 +1736,17 @@ impl SingleNameBinding {
         let SingleNameBinding::Id(ident, opt) = self;
         ident.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let SingleNameBinding::Id(ident, opt) = self;
+        ident.all_private_identifiers_valid(names) && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+    }
 }
 
 // BindingRestElement[Yield, Await] :
@@ -1605,6 +1825,19 @@ impl BindingRestElement {
         match self {
             BindingRestElement::Identifier(node) => node.contains(kind),
             BindingRestElement::Pattern(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BindingRestElement::Identifier(node) => node.all_private_identifiers_valid(names),
+            BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }
 }

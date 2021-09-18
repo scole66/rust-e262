@@ -71,6 +71,17 @@ impl BlockStatement {
         let BlockStatement::Block(node) = self;
         node.contains_undefined_continue_target(iteration_set, label_set)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        let BlockStatement::Block(node) = self;
+        node.all_private_identifiers_valid(names)
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -179,6 +190,20 @@ impl Block {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
         let Block::Statements(opt_sl) = self;
         opt_sl.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set, label_set))
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        if let Block::Statements(Some(node)) = self {
+            node.all_private_identifiers_valid(names)
+        } else {
+            true
+        }
     }
 }
 
@@ -361,6 +386,19 @@ impl StatementList {
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {
         self.initial_string_tokens_internal().0
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            StatementList::Item(node) => node.all_private_identifiers_valid(names),
+            StatementList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -496,6 +534,19 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(node) => node.as_string_literal(),
             StatementListItem::Declaration(_) => None,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            StatementListItem::Statement(node) => node.all_private_identifiers_valid(names),
+            StatementListItem::Declaration(node) => node.all_private_identifiers_valid(names),
         }
     }
 }

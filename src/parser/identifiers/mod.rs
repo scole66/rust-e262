@@ -164,6 +164,16 @@ impl Identifier {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        true
+    }
 }
 
 // IdentifierReference[Yield, Await]:
@@ -296,6 +306,20 @@ impl IdentifierReference {
             IdentifierReferenceKind::Await => false,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            IdentifierReferenceKind::Identifier(boxed) => boxed.all_private_identifiers_valid(names),
+            IdentifierReferenceKind::Yield => true,
+            IdentifierReferenceKind::Await => true,
+        }
+    }
 }
 
 // BindingIdentifier[Yield, Await] :
@@ -412,6 +436,20 @@ impl BindingIdentifier {
             BindingIdentifierKind::Identifier(id) => id.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            BindingIdentifierKind::Yield => true,
+            BindingIdentifierKind::Await => true,
+            BindingIdentifierKind::Identifier(id) => id.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // LabelIdentifier[Yield, Await] :
@@ -507,6 +545,19 @@ impl LabelIdentifier {
             LabelIdentifier::Identifier(node) => node.contains(kind),
             LabelIdentifier::Yield => false,
             LabelIdentifier::Await => false,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            LabelIdentifier::Identifier(node) => node.all_private_identifiers_valid(names),
+            LabelIdentifier::Yield | LabelIdentifier::Await => true,
         }
     }
 }
