@@ -276,6 +276,16 @@ impl AsyncMethod {
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.ident.private_bound_identifiers()
     }
+    
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.ident.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
 }
 
 // AsyncFunctionBody :

@@ -113,7 +113,7 @@ impl FunctionDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.ident.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 }
 
@@ -201,7 +201,7 @@ impl FunctionExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.ident.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 }
 
@@ -266,7 +266,7 @@ impl FunctionBody {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.statements.all_private_identifiers_valid(names)
     }
 }
 
@@ -322,6 +322,16 @@ impl FunctionStatementList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.statements.as_ref().map_or(false, |n| n.contains(kind))
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
     }
 }
 

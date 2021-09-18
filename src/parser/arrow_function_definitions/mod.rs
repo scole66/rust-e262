@@ -70,7 +70,7 @@ impl ArrowFunction {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 }
 
@@ -147,6 +147,19 @@ impl ArrowParameters {
             ArrowParameters::Formals(node) => node.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ArrowParameters::Identifier(node) => node.all_private_identifiers_valid(names),
+            ArrowParameters::Formals(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -214,7 +227,7 @@ impl ArrowFormalParameters {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.0.all_private_identifiers_valid(names)
     }
 }
 
@@ -294,6 +307,19 @@ impl ConciseBody {
             ConciseBody::Function(node) => node.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ConciseBody::Expression(node) => node.all_private_identifiers_valid(names),
+            ConciseBody::Function(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :
@@ -357,7 +383,7 @@ impl ExpressionBody {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.expression.all_private_identifiers_valid(names)
     }
 }
 

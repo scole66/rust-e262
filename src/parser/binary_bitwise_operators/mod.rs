@@ -104,6 +104,19 @@ impl BitwiseANDExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BitwiseANDExpression::EqualityExpression(n) => n.all_private_identifiers_valid(names),
+            BitwiseANDExpression::BitwiseAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -201,6 +214,19 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
             _ => None,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.all_private_identifiers_valid(names),
+            BitwiseXORExpression::BitwiseXOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
 }
@@ -311,6 +337,19 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
             _ => None,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(n) => n.all_private_identifiers_valid(names),
+            BitwiseORExpression::BitwiseOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
 }
