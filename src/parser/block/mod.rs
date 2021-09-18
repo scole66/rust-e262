@@ -266,6 +266,26 @@ impl StatementList {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        match self {
+            StatementList::Item(node) => {
+                // StatementList : StatementListItem
+                //  1. Return LexicallyDeclaredNames of StatementListItem
+                node.lexically_declared_names()
+            }
+            StatementList::List(list, item) => {
+                // StatementList : StatementList StatementListItem
+                //  1. Let names1 be LexicallyDeclaredNames of StatementList.
+                //  2. Let names2 be LexicallyDeclaredNames of StatementListItem.
+                //  3. Return the list-concatenation of names1 and names2.
+                let mut result = list.lexically_declared_names();
+                result.extend(item.lexically_declared_names());
+                result
+            }
+        }
+    }
+
     pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
         match self {
             StatementList::Item(node) => node.top_level_var_declared_names(),
@@ -401,6 +421,26 @@ impl StatementListItem {
                 Declaration::Hoistable(_) => vec![],
                 _ => node.bound_names(),
             },
+        }
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        match self {
+            StatementListItem::Statement(node) => {
+                // StatementListItem : Statement
+                //  1. If Statement is Statement : LabelledStatement , return LexicallyDeclaredNames of LabelledStatement.
+                //  2. Return a new empty List.
+                match &**node {
+                    Statement::Labelled(node) => node.lexically_declared_names(),
+                    _ => vec![],
+                }
+            }
+            StatementListItem::Declaration(node) => {
+                // StatementListItem : Declaration
+                //  1. Return the BoundNames of Declaration.
+                node.bound_names()
+            }
         }
     }
 

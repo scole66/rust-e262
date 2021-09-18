@@ -54,6 +54,12 @@ impl LabelledStatement {
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // LabelledStatement : LabelIdentifier : LabelledItem
+        //  1. Return the LexicallyDeclaredNames of LabelledItem.
+        self.item.lexically_declared_names()
+    }
+
     pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
         self.item.top_level_var_declared_names()
     }
@@ -146,6 +152,21 @@ impl LabelledItem {
                 let (fcn, after_fcn) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
                 Ok((Rc::new(LabelledItem::Function(fcn)), after_fcn))
             })
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        match self {
+            LabelledItem::Statement(_) => {
+                // LabelledItem : Statement
+                //  1. Return a new empty List.
+                vec![]
+            }
+            LabelledItem::Function(node) => {
+                // LabelledItem : FunctionDeclaration
+                //  1. Return BoundNames of FunctionDeclaration.
+                node.bound_names()
+            }
+        }
     }
 
     pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
