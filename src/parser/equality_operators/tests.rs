@@ -61,7 +61,7 @@ fn equality_expression_test_05() {
 }
 #[test]
 fn equality_expression_test_06() {
-    check_err(EqualityExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(EqualityExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
 }
 #[test]
 fn equality_expression_test_08() {

@@ -15,6 +15,7 @@ use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 //      RelationalExpression[?In, ?Yield, ?Await] >= ShiftExpression[?Yield, ?Await]
 //      RelationalExpression[?In, ?Yield, ?Await] instanceof ShiftExpression[?Yield, ?Await]
 //      [+In] RelationalExpression[+In, ?Yield, ?Await] in ShiftExpression[?Yield, ?Await]
+//      [+In] PrivateIdentifier in ShiftExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub enum RelationalExpression {
     ShiftExpression(Rc<ShiftExpression>),
@@ -24,6 +25,7 @@ pub enum RelationalExpression {
     GreaterEqual(Rc<RelationalExpression>, Rc<ShiftExpression>),
     InstanceOf(Rc<RelationalExpression>, Rc<ShiftExpression>),
     In(Rc<RelationalExpression>, Rc<ShiftExpression>),
+    PrivateIn(IdentifierData, Rc<ShiftExpression>),
 }
 
 impl fmt::Display for RelationalExpression {
@@ -36,6 +38,7 @@ impl fmt::Display for RelationalExpression {
             RelationalExpression::GreaterEqual(re, se) => write!(f, "{} >= {}", re, se),
             RelationalExpression::InstanceOf(re, se) => write!(f, "{} instanceof {}", re, se),
             RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
+            RelationalExpression::PrivateIn(id, se) => write!(f, "#{} in {}", id, se),
         }
     }
 }
@@ -58,6 +61,7 @@ impl PrettyPrint for RelationalExpression {
                 re.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
+            RelationalExpression::PrivateIn(_, se) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -81,6 +85,13 @@ impl PrettyPrint for RelationalExpression {
             RelationalExpression::GreaterEqual(re, se) => work(re, se, ">=", TokenType::Punctuator),
             RelationalExpression::InstanceOf(re, se) => work(re, se, "instanceof", TokenType::Keyword),
             RelationalExpression::In(re, se) => work(re, se, "in", TokenType::Keyword),
+            RelationalExpression::PrivateIn(id, se) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}RelationalExpression: {}", first, self)?;
+                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::NotFinal)?;
+                pprint_token(writer, "in", TokenType::Keyword, &successive, Spot::NotFinal)?;
+                se.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 }
@@ -114,34 +125,49 @@ impl RelationalExpression {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (se, after_se) = ShiftExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
-        let mut current_scanner = after_se;
-        loop {
-            let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
-            let make_re = match &op {
-                Token::Punctuator(Punctuator::Lt) => |re, se| RelationalExpression::Less(re, se),
-                Token::Punctuator(Punctuator::Gt) => |re, se| RelationalExpression::Greater(re, se),
-                Token::Punctuator(Punctuator::LtEq) => |re, se| RelationalExpression::LessEqual(re, se),
-                Token::Punctuator(Punctuator::GtEq) => |re, se| RelationalExpression::GreaterEqual(re, se),
-                Token::Identifier(id) if id.matches(Keyword::Instanceof) => |re, se| RelationalExpression::InstanceOf(re, se),
-                _ => |re, se| RelationalExpression::In(re, se),
-            };
-            if Self::is_relational_token(&op, in_flag) {
-                match ShiftExpression::parse(parser, after_op, yield_flag, await_flag) {
-                    Err(_) => {
-                        break;
+        Err(ParseError::new("RelationalExpression expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                ShiftExpression::parse(parser, scanner, yield_flag, await_flag).map(|(se, after_se)| {
+                    let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
+                    let mut current_scanner = after_se;
+                    loop {
+                        let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+                        let make_re = match &op {
+                            Token::Punctuator(Punctuator::Lt) => |re, se| RelationalExpression::Less(re, se),
+                            Token::Punctuator(Punctuator::Gt) => |re, se| RelationalExpression::Greater(re, se),
+                            Token::Punctuator(Punctuator::LtEq) => |re, se| RelationalExpression::LessEqual(re, se),
+                            Token::Punctuator(Punctuator::GtEq) => |re, se| RelationalExpression::GreaterEqual(re, se),
+                            Token::Identifier(id) if id.matches(Keyword::Instanceof) => |re, se| RelationalExpression::InstanceOf(re, se),
+                            _ => |re, se| RelationalExpression::In(re, se),
+                        };
+                        if Self::is_relational_token(&op, in_flag) {
+                            match ShiftExpression::parse(parser, after_op, yield_flag, await_flag) {
+                                Err(_) => {
+                                    break;
+                                }
+                                Ok((se2, after_se2)) => {
+                                    current = Rc::new(make_re(current, se2));
+                                    current_scanner = after_se2;
+                                }
+                            }
+                        } else {
+                            break;
+                        }
                     }
-                    Ok((se2, after_se2)) => {
-                        current = Rc::new(make_re(current, se2));
-                        current_scanner = after_se2;
-                    }
+                    (current, current_scanner)
+                })
+            })
+            .otherwise(|| {
+                if in_flag {
+                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(|(pid, after_pid)| {
+                        scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(|after_in| {
+                            ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(|(se, after_se)| (Rc::new(RelationalExpression::PrivateIn(pid, se)), after_se))
+                        })
+                    })
+                } else {
+                    Err(ParseError::new("", 0, 0))
                 }
-            } else {
-                break;
-            }
-        }
-        Ok((current, current_scanner))
+            })
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -153,6 +179,7 @@ impl RelationalExpression {
             RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
+            RelationalExpression::PrivateIn(_, r) => r.contains(kind),
         }
     }
 

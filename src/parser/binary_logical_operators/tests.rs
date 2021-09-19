@@ -202,7 +202,7 @@ fn coalesce_expression_test_cache_01() {
 }
 #[test]
 fn coalesce_expression_test_03() {
-    check_err(CoalesceExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(CoalesceExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
 }
 #[test]
 fn coalesce_expression_test_04() {

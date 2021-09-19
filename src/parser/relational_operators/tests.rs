@@ -105,7 +105,30 @@ fn relational_expression_test_09() {
 }
 #[test]
 fn relational_expression_test_10() {
-    check_err(RelationalExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(RelationalExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+}
+#[test]
+fn relational_expression_test_11() {
+    let (se, scanner) = check(RelationalExpression::parse(&mut newparser("#a in b"), Scanner::new(), true, false, false));
+    chk_scan(&scanner, 7);
+    assert!(matches!(&*se, RelationalExpression::PrivateIn(..)));
+    pretty_check(&*se, "RelationalExpression: #a in b", vec!["ShiftExpression: b"]);
+    concise_check(&*se, "RelationalExpression: #a in b", vec!["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"]);
+    format!("{:?}", se);
+    assert_eq!(se.is_function_definition(), false);
+    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
+}
+#[test]
+fn relational_expression_test_12() {
+    check_err(RelationalExpression::parse(&mut newparser("#a in b"), Scanner::new(), false, false, false), "RelationalExpression expected", 1, 1);
+}
+#[test]
+fn relational_expression_test_13() {
+    check_err(RelationalExpression::parse(&mut newparser("#a"), Scanner::new(), true, false, false), "‘in’ expected", 1, 3);
+}
+#[test]
+fn relational_expression_test_14() {
+    check_err(RelationalExpression::parse(&mut newparser("#a in"), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 6);
 }
 #[test]
 fn relational_expression_test_prettycheck_1() {
@@ -138,6 +161,11 @@ fn relational_expression_test_prettycheck_6() {
     pretty_error_validate(&*item);
 }
 #[test]
+fn relational_expression_test_prettycheck_7() {
+    let (item, _) = RelationalExpression::parse(&mut newparser("#b in 4"), Scanner::new(), true, false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
 fn relational_expression_test_concisecheck_1() {
     let (item, _) = RelationalExpression::parse(&mut newparser("3>4"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
@@ -165,6 +193,11 @@ fn relational_expression_test_concisecheck_5() {
 #[test]
 fn relational_expression_test_concisecheck_6() {
     let (item, _) = RelationalExpression::parse(&mut newparser("3 in 4"), Scanner::new(), true, false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn relational_expression_test_concisecheck_7() {
+    let (item, _) = RelationalExpression::parse(&mut newparser("#b in 4"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -266,6 +299,11 @@ fn relational_expression_test_contains_19() {
 fn relational_expression_test_contains_20() {
     let (item, _) = RelationalExpression::parse(&mut newparser("0 in 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test]
+fn relational_expression_test_contains_21() {
+    let (item, _) = RelationalExpression::parse(&mut newparser("#a in this"), Scanner::new(), true, false, false).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
 #[test_case("a>b" => None; "Not token")]
