@@ -1,6 +1,8 @@
 use super::testhelp::{check, check_parse_error, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
+
 fn id_kwd_test(kwd: &str) {
     let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
     check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
@@ -395,6 +397,11 @@ fn identifier_test_cache_01() {
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
+#[test]
+fn identifier_test_all_private_identifiers_valid() {
+    let (item, _) = Identifier::parse(&mut newparser("a"), Scanner::new()).unwrap();
+    assert_eq!(item.all_private_identifiers_valid(), true);
+}
 
 #[test]
 fn identifier_reference_test_debug() {
@@ -531,6 +538,13 @@ fn identifier_reference_test_cache_01() {
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
+#[test_case("id" => true; "Id")]
+#[test_case("yield" => true; "Keyword Yield")]
+#[test_case("await" => true; "Keyword Await")]
+fn identifier_reference_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = IdentifierReference::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid()
+}
 
 fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
     let yield_syntax = y;
@@ -631,6 +645,13 @@ fn binding_identifier_test_cache_01() {
     let (node2, scanner2) = BindingIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
+}
+#[test_case("id" => true; "Id")]
+#[test_case("yield" => true; "Keyword Yield")]
+#[test_case("await" => true; "Keyword Await")]
+fn binding_identifier_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingIdentifier::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid()
 }
 
 // LABEL IDENTIFIER
@@ -775,4 +796,11 @@ fn label_identifier_test_cache_01() {
     let (node2, scanner2) = LabelIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
+}
+#[test_case("id" => true; "Id")]
+#[test_case("yield" => true; "Keyword Yield")]
+#[test_case("await" => true; "Keyword Await")]
+fn label_identifier_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LabelIdentifier::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid()
 }
