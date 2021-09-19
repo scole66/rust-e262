@@ -249,6 +249,13 @@ impl AsyncMethod {
     pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.ident.computed_property_contains(kind)
     }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        // AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
+        //  1. Return PrivateBoundIdentifiers of ClassElementName.
+        self.ident.private_bound_identifiers()
+    }
 }
 
 // AsyncFunctionBody :

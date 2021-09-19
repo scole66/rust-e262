@@ -344,6 +344,13 @@ impl ClassBody {
     pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.0.computed_property_contains(kind)
     }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        // ClassBody : ClassElementList
+        //  1. Return PrivateBoundIdentifiers of ClassElementList.
+        self.0.private_bound_identifiers()
+    }
 }
 
 // ClassElementList[Yield, Await] :
@@ -420,6 +427,26 @@ impl ClassElementList {
         match self {
             ClassElementList::Item(item) => item.computed_property_contains(kind),
             ClassElementList::List(list, item) => list.computed_property_contains(kind) || item.computed_property_contains(kind),
+        }
+    }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        match self {
+            ClassElementList::List(lst, elem) => {
+                // ClassElementList : ClassElementList ClassElement
+                //  1. Let names1 be PrivateBoundIdentifiers of ClassElementList.
+                //  2. Let names2 be PrivateBoundIdentifiers of ClassElement.
+                //  3. Return the list-concatenation of names1 and names2.
+                let mut ids = lst.private_bound_identifiers();
+                ids.extend(elem.private_bound_identifiers());
+                ids
+            }
+            ClassElementList::Item(node) => {
+                // ClassElementList : ClassElement
+                //  1. Return PrivateBoundIdentifiers of ClassElement.
+                node.private_bound_identifiers()
+            }
         }
     }
 }
@@ -547,6 +574,26 @@ impl ClassElement {
             ClassElement::StaticBlock(_) => false,
         }
     }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        match self {
+            // ClassElement : ClassStaticBlock
+            // ClassElement : ;
+            //  1. Return a new empty List.
+            ClassElement::Empty | ClassElement::StaticBlock(_) => Vec::new(),
+
+            // ClassElement : MethodDefinition
+            // ClassElement : static MethodDefinition
+            //  1. Return PrivateBoundIdentifiers of MethodDefinition.
+            ClassElement::Standard(md) | ClassElement::Static(md) => md.private_bound_identifiers(),
+
+            // ClassElement : FieldDefinition
+            // ClassElement : static FieldDefinition
+            //  1. Return PrivateBoundIdentifiers of FieldDefinition.
+            ClassElement::Field(fd) | ClassElement::StaticField(fd) => fd.private_bound_identifiers(),
+        }
+    }
 }
 
 // FieldDefinition[Yield, Await] :
@@ -616,6 +663,13 @@ impl FieldDefinition {
     pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.name.computed_property_contains(kind)
     }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        // FieldDefinition : ClassElementName Initializer [opt]
+        //  1. Return PrivateBoundIdentifiers of ClassElementName.
+        self.name.private_bound_identifiers()
+    }
 }
 
 // ClassElementName[Yield, Await] :
@@ -680,6 +734,19 @@ impl ClassElementName {
         match self {
             ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
             ClassElementName::PrivateIdentifier(_) => false,
+        }
+    }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        match self {
+            // ClassElementName : PropertyName
+            //  1. Return a new empty List.
+            ClassElementName::PropertyName(_) => Vec::new(),
+
+            // ClassElementName : PrivateIdentifier
+            //  1. Return a List whose sole element is the StringValue of PrivateIdentifier.
+            ClassElementName::PrivateIdentifier(pid) => vec![pid.string_value.clone()],
         }
     }
 }

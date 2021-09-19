@@ -93,6 +93,11 @@ fn async_generator_method_test_comptued_property_contains_04() {
     let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn async_generator_method_test_private_bound_identifiers() {
+    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * #private() { return; }"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("private")]);
+}
 
 // ASYNC GENERATOR DECLARATION
 #[test]

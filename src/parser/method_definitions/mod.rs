@@ -189,6 +189,29 @@ impl MethodDefinition {
             MethodDefinition::Setter(name, ..) => name.computed_property_contains(kind),
         }
     }
+
+    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+        // Static Semantics: PrivateBoundIdentifiers
+        match self {
+            // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+            // MethodDefinition : get ClassElementName ( ) { FunctionBody }
+            // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+            //  1. Return PrivateBoundIdentifiers of ClassElementName.
+            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifiers(),
+
+            // MethodDefinition : GeneratorMethod
+            //  1. Return PrivateBoundIdentifiers of GeneratorMethod.
+            MethodDefinition::Generator(node) => node.private_bound_identifiers(),
+
+            // MethodDefinition : AsyncMethod
+            //  1. Return PrivateBoundIdentifiers of AsyncMethod.
+            MethodDefinition::Async(node) => node.private_bound_identifiers(),
+
+            // MethodDefinition : AsyncGeneratorMethod
+            //  1. Return PrivateBoundIdentifiers of AsyncGeneratorMethod.
+            MethodDefinition::AsyncGenerator(node) => node.private_bound_identifiers(),
+        }
+    }
 }
 
 // PropertySetParameterList :

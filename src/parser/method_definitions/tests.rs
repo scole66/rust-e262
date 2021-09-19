@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // METHOD DEFINITION
 #[test]
@@ -375,4 +376,14 @@ fn method_definition_test_computed_property_contains_11() {
 fn method_definition_test_computed_property_contains_12() {
     let (item, _) = MethodDefinition::parse(&mut newparser("set [0](b){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+#[test_case("#standard_method(){}" => vec![JSString::from("standard_method")]; "Standard Method")]
+#[test_case("*#generator(){}" => vec![JSString::from("generator")]; "Generator")]
+#[test_case("async #async_method(){}" => vec![JSString::from("async_method")]; "Async Method")]
+#[test_case("async *#async_gen(){}" => vec![JSString::from("async_gen")]; "Async Generator")]
+#[test_case("get #getter(){}" => vec![JSString::from("getter")]; "Getter")]
+#[test_case("set #setter(val){}" => vec![JSString::from("setter")]; "Setter")]
+fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
+    let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.private_bound_identifiers()
 }

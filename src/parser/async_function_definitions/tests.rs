@@ -334,6 +334,11 @@ fn async_method_test_computed_property_contains_02() {
     let (item, _) = AsyncMethod::parse(&mut newparser("async [name]() {}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn async_method_test_private_bound_identifiers() {
+    let (item, _) = AsyncMethod::parse(&mut newparser("async #blue() {}"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("blue")]);
+}
 
 // ASYNC FUNCTION BODY
 #[test]

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // CLASS DECLARATION
 #[test]
@@ -337,6 +338,11 @@ fn class_body_test_computed_property_contains_02() {
     let (item, _) = ClassBody::parse(&mut newparser("a(){;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn class_body_test_private_bound_identifiers() {
+    let (item, _) = ClassBody::parse(&mut newparser("a(){} #b(){} async *#c(){}"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("b"), JSString::from("c")]);
+}
 
 // CLASS ELEMENT LIST
 #[test]
@@ -418,6 +424,12 @@ fn class_element_list_test_computed_property_contains_04() {
 fn class_element_list_test_computed_property_contains_05() {
     let (item, _) = ClassElementList::parse(&mut newparser("a(){0;} b(){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test_case("#one_item(){}" => vec![JSString::from("one_item")]; "Item")]
+#[test_case("#a; #b; #c;" => vec![JSString::from("a"), JSString::from("b"), JSString::from("c")]; "List")]
+fn class_element_list_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
+    let (item, _) = ClassElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.private_bound_identifiers()
 }
 
 // CLASS ELEMENT
@@ -641,6 +653,16 @@ fn class_element_test_computed_property_contains_10() {
     let (item, _) = ClassElement::parse(&mut newparser("static {0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test_case(";" => Vec::<JSString>::new(); "Empty")]
+#[test_case("static { do_thing(); }" => Vec::<JSString>::new(); "Static Block")]
+#[test_case("#method(){}" => vec![JSString::from("method")]; "Method")]
+#[test_case("static #sm(){}" => vec![JSString::from("sm")]; "Static Method")]
+#[test_case("#field=77;" => vec![JSString::from("field")]; "Field")]
+#[test_case("static #sf=88;" => vec![JSString::from("sf")]; "Static Field")]
+fn class_element_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
+    let (item, _) = ClassElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.private_bound_identifiers()
+}
 
 // FIELD DEFINITION
 #[test]
@@ -723,6 +745,11 @@ fn field_definition_test_computed_property_contains_03() {
     let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn field_definition_test_private_bound_identifiers() {
+    let (item, _) = FieldDefinition::parse(&mut newparser("#private"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("private")]);
+}
 
 // CLASS ELEMENT NAME
 #[test]
@@ -794,6 +821,12 @@ fn class_element_name_test_computed_property_contains_02() {
 fn class_element_name_test_computed_property_contains_03() {
     let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+#[test_case("public" => Vec::<JSString>::new(); "PropertyName")]
+#[test_case("#private" => vec![JSString::from("private")]; "PrivateIdentifier")]
+fn class_element_name_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
+    let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.private_bound_identifiers()
 }
 
 mod class_static_block {
