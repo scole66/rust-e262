@@ -193,11 +193,25 @@ impl RelationalExpression {
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
-        //  1. For each child node child of this Parse Node, do
-        //      a. If child is an instance of a nonterminal, then
-        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
-        //  2. Return true.
-        todo!()
+        match self {
+            //  1. For each child node child of this Parse Node, do
+            //      a. If child is an instance of a nonterminal, then
+            //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+            //  2. Return true.
+            RelationalExpression::ShiftExpression(n) => n.all_private_identifiers_valid(names),
+            RelationalExpression::Less(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::Greater(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::LessEqual(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::GreaterEqual(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::InstanceOf(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::In(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+
+            // RelationalExpression : PrivateIdentifier in ShiftExpression
+            //  1. If names contains the StringValue of PrivateIdentifier, then
+            //      a. Return AllPrivateIdentifiersValid of ShiftExpression with argument names.
+            //  2. Return false.
+            RelationalExpression::PrivateIn(pid, r) => names.contains(&pid.string_value) && r.all_private_identifiers_valid(names),
+        }
     }
 }
 
