@@ -183,7 +183,9 @@ impl TryStatement {
         match self {
             TryStatement::Catch(block, catch) => block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names),
             TryStatement::Finally(block, finally) => block.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names),
-            TryStatement::Full(block, catch, finally) => block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names),
+            TryStatement::Full(block, catch, finally) => {
+                block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names)
+            }
         }
     }
 }

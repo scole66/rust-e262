@@ -260,7 +260,9 @@ impl AssignmentExpression {
             AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::Assignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::OpAssignment(left, op, right) => left.all_private_identifiers_valid(names) && op.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            AssignmentExpression::OpAssignment(left, op, right) => {
+                left.all_private_identifiers_valid(names) && op.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
             AssignmentExpression::LandAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             AssignmentExpression::LorAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             AssignmentExpression::CoalAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),

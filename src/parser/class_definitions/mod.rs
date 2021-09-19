@@ -100,7 +100,10 @@ impl ClassDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        match self {
+            ClassDeclaration::Named(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            ClassDeclaration::Unnamed(node) => node.all_private_identifiers_valid(names),
+        }
     }
 }
 
@@ -177,7 +180,7 @@ impl ClassExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        self.ident.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.tail.all_private_identifiers_valid(names)
     }
 }
 
@@ -276,6 +279,16 @@ impl ClassTail {
             _ => self.heritage.as_ref().map_or(false, |n| n.contains(kind)) || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind)),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+    }
 }
 
 // ClassHeritage[Yield, Await] :
@@ -319,6 +332,16 @@ impl ClassHeritage {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 
@@ -370,6 +393,15 @@ impl ClassBody {
         // ClassBody : ClassElementList
         //  1. Return PrivateBoundIdentifiers of ClassElementList.
         self.0.private_bound_identifiers()
+    }
+    
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        // ClassBody : ClassElementList
+        //  1. Let newNames be the list-concatenation of names and PrivateBoundIdentifiers of ClassBody.
+        //  2. Return AllPrivateIdentifiersValid of ClassElementList with argument newNames.
+        todo!()
     }
 }
 
@@ -777,7 +809,10 @@ impl ClassElementName {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        todo!()
+        match self {
+            ClassElementName::PropertyName(node) => node.all_private_identifiers_valid(names),
+            ClassElementName::PrivateIdentifier(_) => true,
+        }
     }
 }
 
