@@ -429,6 +429,7 @@ impl ClassElementList {
 //      static MethodDefinition[?Yield, ?Await]
 //      FieldDefinition[?Yield, ?Await] ;
 //      static FieldDefinition[?Yield, ?Await] ;
+//      ClassStaticBlock
 //      ;
 #[derive(Debug)]
 pub enum ClassElement {
@@ -436,6 +437,7 @@ pub enum ClassElement {
     Static(Rc<MethodDefinition>),
     Field(Rc<FieldDefinition>),
     StaticField(Rc<FieldDefinition>),
+    StaticBlock(Rc<ClassStaticBlock>),
     Empty,
 }
 
@@ -446,6 +448,7 @@ impl fmt::Display for ClassElement {
             ClassElement::Static(n) => write!(f, "static {}", n),
             ClassElement::Field(n) => write!(f, "{} ;", n),
             ClassElement::StaticField(n) => write!(f, "static {} ;", n),
+            ClassElement::StaticBlock(n) => n.fmt(f),
             ClassElement::Empty => f.write_str(";"),
         }
     }
@@ -464,6 +467,7 @@ impl PrettyPrint for ClassElement {
             ClassElement::Empty => Ok(()),
             ClassElement::Field(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
             ClassElement::StaticField(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ClassElement::StaticBlock(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -498,28 +502,32 @@ impl PrettyPrint for ClassElement {
                 n.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ";", TokenType::Punctuator, &successive, Spot::Final)
             }
+            ClassElement::StaticBlock(n) => n.concise_with_leftpad(writer, pad, state),
         }
     }
 }
 
 impl ClassElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("ClassElement expected", scanner.line, scanner.column)).otherwise(|| {
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
-                .and_then(|after_static| {
-                    MethodDefinition::parse(parser, after_static, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md)).otherwise(|| {
-                        FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(|(fd, after_fd)| {
-                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+        Err(ParseError::new("ClassElement expected", scanner.line, scanner.column))
+            .otherwise(|| ClassStaticBlock::parse(parser, scanner).map(|(sb, after_sb)| (Rc::new(ClassElement::StaticBlock(sb)), after_sb)))
+            .otherwise(|| {
+                scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
+                    .and_then(|after_static| {
+                        MethodDefinition::parse(parser, after_static, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md)).otherwise(|| {
+                            FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(|(fd, after_fd)| {
+                                scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+                            })
                         })
                     })
-                })
-                .otherwise(|| scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(ClassElement::Empty), after_semi)))
-                .otherwise(|| MethodDefinition::parse(parser, scanner, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Standard(md)), after_md)))
-                .otherwise(|| {
-                    FieldDefinition::parse(parser, scanner, yield_flag, await_flag)
-                        .and_then(|(fd, after_fd)| scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi)))
-                })
-        })
+                    .otherwise(|| scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(ClassElement::Empty), after_semi)))
+                    .otherwise(|| MethodDefinition::parse(parser, scanner, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Standard(md)), after_md)))
+                    .otherwise(|| {
+                        FieldDefinition::parse(parser, scanner, yield_flag, await_flag).and_then(|(fd, after_fd)| {
+                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi))
+                        })
+                    })
+            })
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -527,6 +535,7 @@ impl ClassElement {
             ClassElement::Standard(n) | ClassElement::Static(n) => kind == ParseNodeKind::MethodDefinition || n.contains(kind),
             ClassElement::Empty => false,
             ClassElement::Field(n) | ClassElement::StaticField(n) => n.contains(kind),
+            ClassElement::StaticBlock(sb) => sb.contains(),
         }
     }
 
@@ -535,6 +544,7 @@ impl ClassElement {
             ClassElement::Standard(n) | ClassElement::Static(n) => n.computed_property_contains(kind),
             ClassElement::Empty => false,
             ClassElement::Field(n) | ClassElement::StaticField(n) => n.computed_property_contains(kind),
+            ClassElement::StaticBlock(_) => false,
         }
     }
 }
@@ -670,6 +680,128 @@ impl ClassElementName {
         match self {
             ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
             ClassElementName::PrivateIdentifier(_) => false,
+        }
+    }
+}
+
+// ClassStaticBlock :
+//      static { ClassStaticBlockBody }
+#[derive(Debug)]
+pub struct ClassStaticBlock(Rc<ClassStaticBlockBody>);
+
+impl fmt::Display for ClassStaticBlock {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "static {{ {} }}", self.0)
+    }
+}
+
+impl PrettyPrint for ClassStaticBlock {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassStaticBlock: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassStaticBlock: {}", first, self)?;
+        pprint_token(writer, "static", TokenType::Keyword, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        self.0.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
+    }
+}
+
+impl ClassStaticBlock {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        let after_static = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Static)?;
+        let after_lb = scan_for_punct(after_static, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let (block, after_block) = ClassStaticBlockBody::parse(parser, after_lb);
+        let after_close = scan_for_punct(after_block, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Rc::new(ClassStaticBlock(block)), after_close))
+    }
+
+    pub fn contains(&self) -> bool {
+        false
+    }
+}
+
+// ClassStaticBlockBody :
+//      ClassStaticBlockStatementList
+#[derive(Debug)]
+pub struct ClassStaticBlockBody(Rc<ClassStaticBlockStatementList>);
+
+impl fmt::Display for ClassStaticBlockBody {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl PrettyPrint for ClassStaticBlockBody {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassStaticBlockBody: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.0.concise_with_leftpad(writer, pad, state)
+    }
+}
+
+impl ClassStaticBlockBody {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+        let (sl, after_sl) = ClassStaticBlockStatementList::parse(parser, scanner);
+        (Rc::new(ClassStaticBlockBody(sl)), after_sl)
+    }
+}
+
+// ClassStaticBlockStatementList :
+//      StatementList[~Yield, +Await, ~Return]opt
+#[derive(Debug)]
+pub struct ClassStaticBlockStatementList(Option<Rc<StatementList>>);
+
+impl fmt::Display for ClassStaticBlockStatementList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.as_ref().map_or(Ok(()), |node| node.fmt(f))
+    }
+}
+
+impl PrettyPrint for ClassStaticBlockStatementList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ClassStaticBlockStatementList: {}", first, self)?;
+        self.0.as_ref().map_or(Ok(()), |node| node.pprint_with_leftpad(writer, &successive, Spot::Final))
+    }
+
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.0.as_ref().map_or(Ok(()), |node| node.concise_with_leftpad(writer, pad, state))
+    }
+}
+
+impl ClassStaticBlockStatementList {
+    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+        match StatementList::parse(parser, scanner, false, true, false) {
+            Ok((sl, after)) => (Rc::new(ClassStaticBlockStatementList(Some(sl))), after),
+            Err(_) => (Rc::new(ClassStaticBlockStatementList(None)), scanner),
         }
     }
 }
