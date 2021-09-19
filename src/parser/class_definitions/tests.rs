@@ -469,7 +469,14 @@ fn class_element_test_06() {
     concise_check(&*node, "ClassElement: static ;", vec!["IdentifierName: static", "Punctuator: ;"]);
     assert_ne!(format!("{:?}", node), "");
 }
-
+#[test]
+fn class_element_test_07() {
+    let (node, scanner) = check(ClassElement::parse(&mut newparser("static {}"), Scanner::new(), false, false));
+    chk_scan(&scanner, 9);
+    pretty_check(&*node, "ClassElement: static {  }", vec!["ClassStaticBlock: static {  }"]);
+    concise_check(&*node, "ClassStaticBlock: static {  }", vec!["Keyword: static", "Punctuator: {", "Punctuator: }"]);
+    assert_ne!(format!("{:?}", node), "");
+}
 #[test]
 fn class_element_test_err_01() {
     check_err(ClassElement::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElement expected", 1, 1);
@@ -500,6 +507,11 @@ fn class_element_test_prettyerrors_5() {
     pretty_error_validate(&*item);
 }
 #[test]
+fn class_element_test_prettyerrors_6() {
+    let (item, _) = ClassElement::parse(&mut newparser("static {a;}"), Scanner::new(), false, false).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
 fn class_element_test_conciseerrors_1() {
     let (item, _) = ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
@@ -522,6 +534,11 @@ fn class_element_test_conciseerrors_4() {
 #[test]
 fn class_element_test_conciseerrors_5() {
     let (item, _) = ClassElement::parse(&mut newparser("static a;"), Scanner::new(), false, false).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn class_element_test_conciseerrors_6() {
+    let (item, _) = ClassElement::parse(&mut newparser("static {a;}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -570,6 +587,11 @@ fn class_element_test_contains_09() {
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
+fn class_element_test_contains_10() {
+    let (item, _) = ClassElement::parse(&mut newparser("static {a=0};"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
 fn class_element_test_computed_property_contains_01() {
     let (item, _) = ClassElement::parse(&mut newparser("[0](){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
@@ -613,6 +635,11 @@ fn class_element_test_computed_property_contains_08() {
 fn class_element_test_computed_property_contains_09() {
     let (item, _) = ClassElement::parse(&mut newparser("static [0];"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn class_element_test_computed_property_contains_10() {
+    let (item, _) = ClassElement::parse(&mut newparser("static {0;}"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 
 // FIELD DEFINITION
@@ -767,4 +794,96 @@ fn class_element_name_test_computed_property_contains_02() {
 fn class_element_name_test_computed_property_contains_03() {
     let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
+}
+
+mod class_static_block {
+    // CLASS STATIC BLOCK
+    use super::*;
+    use test_case::test_case;
+    #[test]
+    fn parse() {
+        let (node, scanner) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
+        chk_scan(&scanner, 13);
+        pretty_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["ClassStaticBlockBody: 0 ;"]);
+        concise_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"]);
+        assert_ne!(format!("{:?}", node), "");
+    }
+    #[test_case("", "‘static’ expected", 1; "Empty Source")]
+    #[test_case("static", "‘{’ expected", 7; "Missing Leading Brace")]
+    #[test_case("static {", "‘}’ expected", 9; "Missing Trailing Brace")]
+    fn err(src: &str, expected_error: &str, err_column: u32) {
+        check_err(ClassStaticBlock::parse(&mut newparser(src), Scanner::new()), expected_error, 1, err_column);
+    }
+    #[test]
+    fn contains() {
+        let (node, _) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
+        assert_eq!(node.contains(), false);
+    }
+    #[test]
+    fn prettyerrors() {
+        let (item, _) = ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn conciseerrors() {
+        let (item, _) = ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()).unwrap();
+        concise_error_validate(&*item);
+    }
+}
+
+mod class_static_block_body {
+    // CLASS STATIC BLOCK BODY
+    use super::*;
+    #[test]
+    fn parse() {
+        let (node, scanner) = ClassStaticBlockBody::parse(&mut newparser("0;"), Scanner::new());
+        chk_scan(&scanner, 2);
+        pretty_check(&*node, "ClassStaticBlockBody: 0 ;", vec!["ClassStaticBlockStatementList: 0 ;"]);
+        concise_check(&*node, "ExpressionStatement: 0 ;", vec!["Numeric: 0", "Punctuator: ;"]);
+        assert_ne!(format!("{:?}", node), "");
+    }
+    #[test]
+    fn prettyerrors() {
+        let (item, _) = ClassStaticBlockBody::parse(&mut newparser("0;"), Scanner::new());
+        pretty_error_validate(&*item);
+    }
+    #[test]
+    fn conciseerrors() {
+        let (item, _) = ClassStaticBlockBody::parse(&mut newparser("0;"), Scanner::new());
+        concise_error_validate(&*item);
+    }
+}
+
+mod class_static_block_statement_list {
+    // CLASS STATIC BLOCK STATEMENT LIST
+    use super::*;
+    use test_case::test_case;
+    #[test]
+    fn parse_01() {
+        let (node, scanner) = ClassStaticBlockStatementList::parse(&mut newparser("0;"), Scanner::new());
+        chk_scan(&scanner, 2);
+        pretty_check(&*node, "ClassStaticBlockStatementList: 0 ;", vec!["StatementList: 0 ;"]);
+        concise_check(&*node, "ExpressionStatement: 0 ;", vec!["Numeric: 0", "Punctuator: ;"]);
+        assert_ne!(format!("{:?}", node), "");
+    }
+    #[test]
+    fn parse_02() {
+        let (node, scanner) = ClassStaticBlockStatementList::parse(&mut newparser(""), Scanner::new());
+        chk_scan(&scanner, 0);
+        pretty_check(&*node, "ClassStaticBlockStatementList: ", vec![]);
+        concise_check(&*node, "", vec![]);
+        assert_ne!(format!("{:?}", node), "");
+    }
+    #[test_case("0;"; "Has statements")]
+    #[test_case(""; "Empty")]
+    fn prettyerrors(src: &str) {
+        let (item, _) = ClassStaticBlockStatementList::parse(&mut newparser(src), Scanner::new());
+        pretty_error_validate(&*item);
+    }
+    #[test_case("0;"; "Has statements")]
+    #[test_case(""; "Empty")]
+    fn conciseerrors(src: &str) {
+        let (item, _) = ClassStaticBlockStatementList::parse(&mut newparser(src), Scanner::new());
+        concise_error_validate(&*item);
+    }
 }
