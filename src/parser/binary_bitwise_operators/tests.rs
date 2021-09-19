@@ -38,7 +38,7 @@ fn bitwise_and_expression_test_03() {
 }
 #[test]
 fn bitwise_and_expression_test_04() {
-    check_err(BitwiseANDExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(BitwiseANDExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
 }
 #[test]
 fn bitwise_and_expression_test_prettyerrors() {
@@ -117,7 +117,7 @@ fn bitwise_xor_expression_test_03() {
 }
 #[test]
 fn bitwise_xor_expression_test_04() {
-    check_err(BitwiseXORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(BitwiseXORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
 }
 #[test]
 fn bitwise_xor_expression_test_prettyerrors() {
@@ -204,7 +204,7 @@ fn bitwise_or_expression_test_cache_01() {
 }
 #[test]
 fn bitwise_or_expression_test_04() {
-    check_err(BitwiseORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(BitwiseORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
 }
 #[test]
 fn bitwise_or_expression_test_prettyerrors() {
