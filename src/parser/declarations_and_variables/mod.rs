@@ -90,7 +90,7 @@ impl LexicalDeclaration {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         let LexicalDeclaration::List(node1, node2) = self;
-        node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+        node1.all_private_identifiers_valid() && node2.all_private_identifiers_valid(names)
     }
 }
 
@@ -134,7 +134,7 @@ impl LetOrConst {
         false
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -347,8 +347,8 @@ impl LexicalBinding {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            LexicalBinding::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
-            LexicalBinding::Identifier(node, None) => node.all_private_identifiers_valid(names),
+            LexicalBinding::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid() && node2.all_private_identifiers_valid(names),
+            LexicalBinding::Identifier(node, None) => node.all_private_identifiers_valid(),
             LexicalBinding::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
@@ -638,8 +638,8 @@ impl VariableDeclaration {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            VariableDeclaration::Identifier(node, None) => node.all_private_identifiers_valid(names),
-            VariableDeclaration::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            VariableDeclaration::Identifier(node, None) => node.all_private_identifiers_valid(),
+            VariableDeclaration::Identifier(node1, Some(node2)) => node1.all_private_identifiers_valid() && node2.all_private_identifiers_valid(names),
             VariableDeclaration::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
@@ -874,9 +874,9 @@ impl ObjectBindingPattern {
         //  2. Return true.
         match self {
             ObjectBindingPattern::Empty => true,
-            ObjectBindingPattern::RestOnly(node) => node.all_private_identifiers_valid(names),
+            ObjectBindingPattern::RestOnly(node) => node.all_private_identifiers_valid(),
             ObjectBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
-            ObjectBindingPattern::ListRest(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            ObjectBindingPattern::ListRest(node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(),
             ObjectBindingPattern::ListRest(node, None) => node.all_private_identifiers_valid(names),
         }
     }
@@ -1078,12 +1078,12 @@ impl ArrayBindingPattern {
         //  2. Return true.
         match self {
             ArrayBindingPattern::RestOnly(onode_a, onode_b) => {
-                onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && onode_b.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+                onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid()) && onode_b.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
             }
             ArrayBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
             ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
                 node.all_private_identifiers_valid(names)
-                    && onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+                    && onode_a.as_ref().map_or(true, |node| node.all_private_identifiers_valid())
                     && onode_b.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
             }
         }
@@ -1156,7 +1156,7 @@ impl BindingRestProperty {
         node.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1164,7 +1164,7 @@ impl BindingRestProperty {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         let BindingRestProperty::Id(node) = self;
-        node.all_private_identifiers_valid(names)
+        node.all_private_identifiers_valid()
     }
 }
 
@@ -1448,7 +1448,7 @@ impl BindingElisionElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         let BindingElisionElement::Element(opt, n) = self;
-        opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && n.all_private_identifiers_valid(names)
+        opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && n.all_private_identifiers_valid(names)
     }
 }
 
@@ -1745,7 +1745,7 @@ impl SingleNameBinding {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         let SingleNameBinding::Id(ident, opt) = self;
-        ident.all_private_identifiers_valid(names) && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+        ident.all_private_identifiers_valid() && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
     }
 }
 
@@ -1836,7 +1836,7 @@ impl BindingRestElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            BindingRestElement::Identifier(node) => node.all_private_identifiers_valid(names),
+            BindingRestElement::Identifier(node) => node.all_private_identifiers_valid(),
             BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }

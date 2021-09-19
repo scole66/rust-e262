@@ -165,7 +165,7 @@ impl Identifier {
         false
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -307,7 +307,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -315,7 +315,7 @@ impl IdentifierReference {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match &self.kind {
-            IdentifierReferenceKind::Identifier(boxed) => boxed.all_private_identifiers_valid(names),
+            IdentifierReferenceKind::Identifier(boxed) => boxed.all_private_identifiers_valid(),
             IdentifierReferenceKind::Yield => true,
             IdentifierReferenceKind::Await => true,
         }
@@ -437,7 +437,7 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -447,7 +447,7 @@ impl BindingIdentifier {
         match &self.kind {
             BindingIdentifierKind::Yield => true,
             BindingIdentifierKind::Await => true,
-            BindingIdentifierKind::Identifier(id) => id.all_private_identifiers_valid(names),
+            BindingIdentifierKind::Identifier(id) => id.all_private_identifiers_valid(),
         }
     }
 }
@@ -548,7 +548,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -556,7 +556,7 @@ impl LabelIdentifier {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            LabelIdentifier::Identifier(node) => node.all_private_identifiers_valid(names),
+            LabelIdentifier::Identifier(node) => node.all_private_identifiers_valid(),
             LabelIdentifier::Yield | LabelIdentifier::Await => true,
         }
     }

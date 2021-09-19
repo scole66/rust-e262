@@ -105,7 +105,7 @@ impl LabelledStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.identifier.all_private_identifiers_valid(names) && self.item.all_private_identifiers_valid(names)
+        self.identifier.all_private_identifiers_valid() && self.item.all_private_identifiers_valid(names)
     }
 }
 

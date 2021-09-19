@@ -260,9 +260,7 @@ impl AssignmentExpression {
             AssignmentExpression::Arrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::AsyncArrow(node) => node.all_private_identifiers_valid(names),
             AssignmentExpression::Assignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            AssignmentExpression::OpAssignment(left, op, right) => {
-                left.all_private_identifiers_valid(names) && op.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
-            }
+            AssignmentExpression::OpAssignment(left, _, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             AssignmentExpression::LandAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             AssignmentExpression::LorAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             AssignmentExpression::CoalAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
@@ -328,7 +326,7 @@ impl AssignmentOperator {
         false
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do

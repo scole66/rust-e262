@@ -44,7 +44,7 @@ impl EmptyStatement {
         false
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do

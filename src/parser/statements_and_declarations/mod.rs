@@ -320,11 +320,11 @@ impl Statement {
         //  2. Return true.
         match self {
             Statement::Block(node) => node.all_private_identifiers_valid(names),
-            Statement::Break(node) => node.all_private_identifiers_valid(names),
+            Statement::Break(node) => node.all_private_identifiers_valid(),
             Statement::Breakable(node) => node.all_private_identifiers_valid(names),
-            Statement::Continue(node) => node.all_private_identifiers_valid(names),
-            Statement::Debugger(node) => node.all_private_identifiers_valid(names),
-            Statement::Empty(node) => node.all_private_identifiers_valid(names),
+            Statement::Continue(node) => node.all_private_identifiers_valid(),
+            Statement::Debugger(node) => node.all_private_identifiers_valid(),
+            Statement::Empty(node) => node.all_private_identifiers_valid(),
             Statement::If(node) => node.all_private_identifiers_valid(names),
             Statement::Labelled(node) => node.all_private_identifiers_valid(names),
             Statement::Return(node) => node.all_private_identifiers_valid(names),

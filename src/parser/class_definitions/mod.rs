@@ -101,7 +101,7 @@ impl ClassDeclaration {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ClassDeclaration::Named(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            ClassDeclaration::Named(node1, node2) => node1.all_private_identifiers_valid() && node2.all_private_identifiers_valid(names),
             ClassDeclaration::Unnamed(node) => node.all_private_identifiers_valid(names),
         }
     }
@@ -180,7 +180,7 @@ impl ClassExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.ident.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.tail.all_private_identifiers_valid(names)
+        self.ident.as_ref().map_or(true, |node| node.all_private_identifiers_valid()) && self.tail.all_private_identifiers_valid(names)
     }
 }
 

@@ -293,7 +293,7 @@ impl MemberExpression {
             MemberExpressionKind::IdentifierName(n, _) => n.all_private_identifiers_valid(names),
             MemberExpressionKind::TemplateLiteral(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
             MemberExpressionKind::SuperProperty(n) => n.all_private_identifiers_valid(names),
-            MemberExpressionKind::MetaProperty(n) => n.all_private_identifiers_valid(names),
+            MemberExpressionKind::MetaProperty(n) => n.all_private_identifiers_valid(),
             MemberExpressionKind::NewArguments(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
 
             // MemberExpression : MemberExpression . PrivateIdentifier
@@ -483,7 +483,7 @@ impl MetaProperty {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub fn all_private_identifiers_valid(&self) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
