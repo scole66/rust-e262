@@ -394,14 +394,17 @@ impl ClassBody {
         //  1. Return PrivateBoundIdentifiers of ClassElementList.
         self.0.private_bound_identifiers()
     }
-    
+
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         // ClassBody : ClassElementList
         //  1. Let newNames be the list-concatenation of names and PrivateBoundIdentifiers of ClassBody.
         //  2. Return AllPrivateIdentifiersValid of ClassElementList with argument newNames.
-        todo!()
+        let mut new_names = Vec::<JSString>::new();
+        new_names.extend_from_slice(names);
+        new_names.extend(self.private_bound_identifiers());
+        self.0.all_private_identifiers_valid(&new_names)
     }
 }
 
@@ -499,6 +502,19 @@ impl ClassElementList {
                 //  1. Return PrivateBoundIdentifiers of ClassElement.
                 node.private_bound_identifiers()
             }
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ClassElementList::Item(node) => node.all_private_identifiers_valid(names),
+            ClassElementList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
 }
@@ -646,6 +662,21 @@ impl ClassElement {
             ClassElement::Field(fd) | ClassElement::StaticField(fd) => fd.private_bound_identifiers(),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ClassElement::Standard(md) | ClassElement::Static(md) => md.all_private_identifiers_valid(names),
+            ClassElement::Field(fd) | ClassElement::StaticField(fd) => fd.all_private_identifiers_valid(names),
+            ClassElement::StaticBlock(sb) => sb.all_private_identifiers_valid(names),
+            ClassElement::Empty => true,
+        }
+    }
 }
 
 // FieldDefinition[Yield, Await] :
@@ -721,6 +752,16 @@ impl FieldDefinition {
         // FieldDefinition : ClassElementName Initializer [opt]
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifiers()
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
     }
 }
 
@@ -801,7 +842,7 @@ impl ClassElementName {
             ClassElementName::PrivateIdentifier(pid) => vec![pid.string_value.clone()],
         }
     }
-    
+
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
@@ -862,6 +903,16 @@ impl ClassStaticBlock {
     pub fn contains(&self) -> bool {
         false
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
+    }
 }
 
 // ClassStaticBlockBody :
@@ -897,6 +948,16 @@ impl ClassStaticBlockBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         let (sl, after_sl) = ClassStaticBlockStatementList::parse(parser, scanner);
         (Rc::new(ClassStaticBlockBody(sl)), after_sl)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 
@@ -935,6 +996,16 @@ impl ClassStaticBlockStatementList {
             Ok((sl, after)) => (Rc::new(ClassStaticBlockStatementList(Some(sl))), after),
             Err(_) => (Rc::new(ClassStaticBlockStatementList(None)), scanner),
         }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
     }
 }
 

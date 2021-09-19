@@ -84,7 +84,7 @@ impl AsyncGeneratorMethod {
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifiers()
     }
-    
+
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
