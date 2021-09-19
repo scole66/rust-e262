@@ -75,6 +75,11 @@ fn generator_method_test_computed_property_contains_02() {
     let (item, _) = GeneratorMethod::parse(&mut newparser("*[a](x=0){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn generator_method_test_private_bound_identifiers() {
+    let (item, _) = GeneratorMethod::parse(&mut newparser("*#PRIVATE(x=0){0;}"), Scanner::new(), true, true).unwrap();
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("PRIVATE")]);
+}
 
 // GENERATOR DECLARATION
 #[test]
