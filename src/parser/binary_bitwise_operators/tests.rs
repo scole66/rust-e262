@@ -81,6 +81,16 @@ fn bitwise_and_expression_test_as_string_literal(src: &str) -> Option<JSString> 
     let (item, _) = BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid & 0" => true; "Left valid")]
+#[test_case("0 & item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid & 0" => false; "Left invalid")]
+#[test_case("0 & item.#invalid" => false; "Right invalid")]
+fn bitwise_and_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 #[test]
 fn bitwise_xor_expression_test_01() {
@@ -159,6 +169,16 @@ fn bitwise_xor_expression_test_contains_05() {
 fn bitwise_xor_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
+}
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid ^ 0" => true; "Left valid")]
+#[test_case("0 ^ item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid ^ 0" => false; "Left invalid")]
+#[test_case("0 ^ item.#invalid" => false; "Right invalid")]
+fn bitwise_xor_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 #[test]
@@ -246,4 +266,14 @@ fn bitwise_or_expression_test_contains_05() {
 fn bitwise_or_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
+}
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid | 0" => true; "Left valid")]
+#[test_case("0 | item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid | 0" => false; "Left invalid")]
+#[test_case("0 | item.#invalid" => false; "Right invalid")]
+fn bitwise_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
