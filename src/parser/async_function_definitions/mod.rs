@@ -107,7 +107,7 @@ impl AsyncFunctionDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.ident.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 }
 
@@ -199,7 +199,7 @@ impl AsyncFunctionExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.ident.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 }
 

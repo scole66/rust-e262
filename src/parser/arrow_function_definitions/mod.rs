@@ -156,7 +156,7 @@ impl ArrowParameters {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrowParameters::Identifier(node) => node.all_private_identifiers_valid(),
+            ArrowParameters::Identifier(_) => true,
             ArrowParameters::Formals(node) => node.all_private_identifiers_valid(names),
         }
     }

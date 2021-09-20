@@ -350,8 +350,8 @@ impl PrimaryExpression {
         //  2. Return true.
         match &self.kind {
             PrimaryExpressionKind::This => true,
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.all_private_identifiers_valid(),
-            PrimaryExpressionKind::Literal(boxed) => boxed.all_private_identifiers_valid(),
+            PrimaryExpressionKind::IdentifierReference(_) => true,
+            PrimaryExpressionKind::Literal(_) => true,
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.all_private_identifiers_valid(names),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.all_private_identifiers_valid(names),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.all_private_identifiers_valid(names),
@@ -432,16 +432,6 @@ impl Elisions {
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
-    }
-
-    pub fn all_private_identifiers_valid(&self) -> bool {
-        // Static Semantics: AllPrivateIdentifiersValid
-        // With parameter names.
-        //  1. For each child node child of this Parse Node, do
-        //      a. If child is an instance of a nonterminal, then
-        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
-        //  2. Return true.
-        true
     }
 }
 
@@ -708,14 +698,10 @@ impl ElementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ElementList::AssignmentExpression((elisions, ae)) => elisions.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && ae.all_private_identifiers_valid(names),
-            ElementList::SpreadElement((elisions, se)) => elisions.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && se.all_private_identifiers_valid(names),
-            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => {
-                el.all_private_identifiers_valid(names) && elisions.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && ae.all_private_identifiers_valid(names)
-            }
-            ElementList::ElementListSpreadElement((el, elisions, se)) => {
-                el.all_private_identifiers_valid(names) && elisions.as_ref().map_or(true, |n| n.all_private_identifiers_valid()) && se.all_private_identifiers_valid(names)
-            }
+            ElementList::AssignmentExpression((_, ae)) => ae.all_private_identifiers_valid(names),
+            ElementList::SpreadElement((_, se)) => se.all_private_identifiers_valid(names),
+            ElementList::ElementListAssignmentExpression((el, _, ae)) => el.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names),
+            ElementList::ElementListSpreadElement((el, _, se)) => el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names),
         }
     }
 }
@@ -848,9 +834,9 @@ impl ArrayLiteral {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(true, |n| n.all_private_identifiers_valid()),
+            ArrayLiteral::Empty(_) => true,
             ArrayLiteral::ElementList(boxed) => boxed.all_private_identifiers_valid(names),
-            ArrayLiteral::ElementListElision(boxed, pot_elision) => boxed.all_private_identifiers_valid(names) && pot_elision.as_ref().map_or(true, |n| n.all_private_identifiers_valid()),
+            ArrayLiteral::ElementListElision(boxed, _) => boxed.all_private_identifiers_valid(names),
         }
     }
 }
@@ -983,8 +969,8 @@ impl CoverInitializedName {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let CoverInitializedName::InitializedName(idref, izer) = self;
-        idref.all_private_identifiers_valid() && izer.all_private_identifiers_valid(names)
+        let CoverInitializedName::InitializedName(_, izer) = self;
+        izer.all_private_identifiers_valid(names)
     }
 }
 
@@ -1111,16 +1097,6 @@ impl LiteralPropertyName {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
-
-    pub fn all_private_identifiers_valid(&self) -> bool {
-        // Static Semantics: AllPrivateIdentifiersValid
-        // With parameter names.
-        //  1. For each child node child of this Parse Node, do
-        //      a. If child is an instance of a nonterminal, then
-        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
-        //  2. Return true.
-        true
-    }
 }
 
 // PropertyName[Yield, Await] :
@@ -1205,7 +1181,7 @@ impl PropertyName {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            PropertyName::LiteralPropertyName(n) => n.all_private_identifiers_valid(),
+            PropertyName::LiteralPropertyName(_) => true,
             PropertyName::ComputedPropertyName(n) => n.all_private_identifiers_valid(names),
         }
     }
@@ -1342,7 +1318,7 @@ impl PropertyDefinition {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            PropertyDefinition::IdentifierReference(idref) => idref.all_private_identifiers_valid(),
+            PropertyDefinition::IdentifierReference(_) => true,
             PropertyDefinition::CoverInitializedName(cin) => cin.all_private_identifiers_valid(names),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names),
             PropertyDefinition::MethodDefinition(md) => md.all_private_identifiers_valid(names),
@@ -1639,16 +1615,6 @@ impl Literal {
         } else {
             None
         }
-    }
-
-    pub fn all_private_identifiers_valid(&self) -> bool {
-        // Static Semantics: AllPrivateIdentifiersValid
-        // With parameter names.
-        //  1. For each child node child of this Parse Node, do
-        //      a. If child is an instance of a nonterminal, then
-        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
-        //  2. Return true.
-        true
     }
 }
 

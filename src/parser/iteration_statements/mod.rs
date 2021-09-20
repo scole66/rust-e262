@@ -1009,8 +1009,8 @@ impl ForDeclaration {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let ForDeclaration::Binding(loc, node) = self;
-        loc.all_private_identifiers_valid() && node.all_private_identifiers_valid(names)
+        let ForDeclaration::Binding(_, node) = self;
+        node.all_private_identifiers_valid(names)
     }
 }
 
@@ -1103,7 +1103,7 @@ impl ForBinding {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ForBinding::Identifier(node) => node.all_private_identifiers_valid(),
+            ForBinding::Identifier(_) => true,
             ForBinding::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }

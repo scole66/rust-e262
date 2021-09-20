@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // ASYNC ARROW FUNCTION
 #[test]
@@ -139,6 +140,16 @@ fn async_arrow_function_test_contains_10() {
     let (item, _) = AsyncArrowFunction::parse(&mut newparser("async (b) => 2048"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("async x => item.#valid" => true; "Simple valid")]
+#[test_case("async (a=item.#valid) => a" => true; "WithParams AsyncArrowHead valid")]
+#[test_case("async (a,b) => a.#valid - b" => true; "WithParams AsyncConciseBody valid")]
+#[test_case("async x => item.#invalid" => false; "Simple invalid")]
+#[test_case("async (a=item.#invalid) => a" => false; "WithParams AsyncArrowHead invalid")]
+#[test_case("async (a,b) => a.#invalid - b" => false; "WithParams AsyncConciseBody invalid")]
+fn async_arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = AsyncArrowFunction::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // ASYNC CONCISE BODY
 #[test]
@@ -206,6 +217,14 @@ fn async_concise_body_test_contains_03() {
 fn async_concise_body_test_contains_04() {
     let (item, _) = AsyncConciseBody::parse(&mut newparser("{ return a; }"), Scanner::new(), true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("item.#valid" => true; "Expression valid")]
+#[test_case("{ return item.#valid; }" => true; "Function valid")]
+#[test_case("item.#invalid" => false; "Expression invalid")]
+#[test_case("{ return item.#invalid; }" => false; "Function invalid")]
+fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = AsyncConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // ASYNC ARROW BINDING IDENTIFIER
@@ -328,4 +347,10 @@ fn async_arrow_head_test_contains_01() {
 fn async_arrow_head_test_contains_02() {
     let (item, _) = AsyncArrowHead::parse(&mut newparser("async (b)"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("async (a=item.#valid)" => true; "ArrowFormalParameters valid")]
+#[test_case("async (a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
+fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = AsyncArrowHead::parse(&mut newparser(src), Scanner::new()).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

@@ -552,6 +552,38 @@ fn assignment_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("yield item.#valid" => true; "Yield valid")]
+#[test_case("x => x.#valid" => true; "ArrowFunction valid")]
+#[test_case("async x => x.#valid" => true; "AsyncArrowFunction valid")]
+#[test_case("a.#valid = 0" => true; "Assignment/Left valid")]
+#[test_case("a = item.#valid" => true; "Assignment/Right valid")]
+#[test_case("a.#valid += 0" => true; "AssignmentOp/Left valid")]
+#[test_case("a += item.#valid" => true; "AssignmentOp/Right valid")]
+#[test_case("a.#valid &&= 0" => true; "AssignmentLand/Left valid")]
+#[test_case("a &&= item.#valid" => true; "AssignmentLand/Right valid")]
+#[test_case("a.#valid ||= 0" => true; "AssignmentLor/Left valid")]
+#[test_case("a ||= item.#valid" => true; "AssignmentLor/Right valid")]
+#[test_case("a.#valid ??= 0" => true; "AssignmentCoal/Left valid")]
+#[test_case("a ??= item.#valid" => true; "AssignmentCoal/Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("yield item.#invalid" => false; "Yield invalid")]
+#[test_case("x => x.#invalid" => false; "ArrowFunction invalid")]
+#[test_case("async x => x.#invalid" => false; "AsyncArrowFunction invalid")]
+#[test_case("a.#invalid = 0" => false; "Assignment/Left invalid")]
+#[test_case("a = item.#invalid" => false; "Assignment/Right invalid")]
+#[test_case("a.#invalid += 0" => false; "AssignmentOp/Left invalid")]
+#[test_case("a += item.#invalid" => false; "AssignmentOp/Right invalid")]
+#[test_case("a.#invalid &&= 0" => false; "AssignmentLand/Left invalid")]
+#[test_case("a &&= item.#invalid" => false; "AssignmentLand/Right invalid")]
+#[test_case("a.#invalid ||= 0" => false; "AssignmentLor/Left invalid")]
+#[test_case("a ||= item.#invalid" => false; "AssignmentLor/Right invalid")]
+#[test_case("a.#invalid ??= 0" => false; "AssignmentCoal/Left invalid")]
+#[test_case("a ??= item.#invalid" => false; "AssignmentCoal/Right invalid")]
+fn assignment_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 #[test]
 fn assignment_operator_test_contains_01() {

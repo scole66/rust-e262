@@ -439,7 +439,7 @@ impl CatchParameter {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            CatchParameter::Ident(node) => node.all_private_identifiers_valid(),
+            CatchParameter::Ident(_) => true,
             CatchParameter::Pattern(node) => node.all_private_identifiers_valid(names),
         }
     }

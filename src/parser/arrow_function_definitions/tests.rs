@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // ARROW FUNCTION
 #[test]
@@ -82,6 +83,14 @@ fn arrow_function_test_contains_09() {
     let (item, _) = ArrowFunction::parse(&mut newparser("(a=10)=>a"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("(x=item.#valid) => x*2" => true; "Parameter valid")]
+#[test_case("(x=item.#invalid) => x*2" => false; "Parameter invalid")]
+#[test_case("x => x.#valid" => true; "Body valid")]
+#[test_case("x => x.#invalid" => false; "Body invalid")]
+fn arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArrowFunction::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // ARROW PARAMETERS
 #[test]
@@ -154,6 +163,13 @@ fn arrow_parameters_test_contains_03() {
     let (item, _) = ArrowParameters::parse(&mut newparser("(a=0)"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("identifier" => true; "BindingIdentifier")]
+#[test_case("(a=item.#valid)" => true; "ArrowFormalParameters valid")]
+#[test_case("(a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
+fn arrow_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // CONCISE BODY
 #[test]
@@ -223,6 +239,14 @@ fn concise_body_test_contains_04() {
     let (item, _) = ConciseBody::parse(&mut newparser("a"), Scanner::new(), true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("item.#valid" => true; "ExpressionBody valid")]
+#[test_case("item.#invalid" => false; "ExpressionBody invalid")]
+#[test_case("{ item.#valid }" => true; "FunctionBody valid")]
+#[test_case("{ item.#invalid }" => false; "FunctionBody invalid")]
+fn concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // EXPRESSION BODY
 #[test]
@@ -264,6 +288,12 @@ fn expression_body_test_contains_01() {
 fn expression_body_test_contains_02() {
     let (item, _) = ExpressionBody::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("item.#valid" => true; "ExpressionBody valid")]
+#[test_case("item.#invalid" => false; "ExpressionBody invalid")]
+fn expression_body_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ExpressionBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // ARROW FORMAL PARAMETERS
@@ -310,4 +340,10 @@ fn arrow_formal_parameters_test_contains_01() {
 fn arrow_formal_parameters_test_contains_02() {
     let (item, _) = ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("(a=item.#valid)" => true; "UniqueFormalParameters valid")]
+#[test_case("(a=item.#invalid)" => false; "UniqueFormalParameters invalid")]
+fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

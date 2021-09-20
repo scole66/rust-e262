@@ -55,16 +55,6 @@ impl MultiplicativeOperator {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
-
-    pub fn all_private_identifiers_valid(&self) -> bool {
-        // Static Semantics: AllPrivateIdentifiersValid
-        // With parameter names.
-        //  1. For each child node child of this Parse Node, do
-        //      a. If child is an instance of a nonterminal, then
-        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
-        //  2. Return true.
-        true
-    }
 }
 
 // MultiplicativeExpression[Yield, Await] :
@@ -177,9 +167,7 @@ impl MultiplicativeExpression {
         //  2. Return true.
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.all_private_identifiers_valid(names),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, op, r) => {
-                l.all_private_identifiers_valid(names) && op.all_private_identifiers_valid() && r.all_private_identifiers_valid(names)
-            }
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
 }
