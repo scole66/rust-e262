@@ -79,3 +79,11 @@ fn with_statement_test_contains_undefined_continue_target(src: &str) -> (bool, b
     let (item, _) = WithStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("with (a.#valid) {}" => true; "Expression valid")]
+#[test_case("with (a) {a.#valid}" => true; "Statement valid")]
+#[test_case("with (a.#invalid) {}" => false; "Expression invalid")]
+#[test_case("with (a) {a.#invalid}" => false; "Statement invalid")]
+fn with_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = WithStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
