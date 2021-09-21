@@ -88,6 +88,16 @@ fn logical_and_expression_test_as_string_literal(src: &str) -> Option<JSString> 
     let (item, _) = LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid && a" => true; "Left valid")]
+#[test_case("a && item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid && a" => false; "Left invalid")]
+#[test_case("a && item.#invalid" => false; "Right invalid")]
+fn logical_and_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // LOGICAL OR EXPRESSION
 #[test]
@@ -174,6 +184,16 @@ fn logical_or_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid || a" => true; "Left valid")]
+#[test_case("a || item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid || a" => false; "Left invalid")]
+#[test_case("a || item.#invalid" => false; "Right invalid")]
+fn logical_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // COALESCE EXPRESSION
 #[test]
@@ -232,6 +252,14 @@ fn coalesce_expression_test_contains_02() {
 fn coalesce_expression_test_contains_03() {
     let (item, _) = CoalesceExpression::parse(&mut newparser("0 ?? 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("item.#valid ?? a" => true; "Left valid")]
+#[test_case("a ?? item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid ?? a" => false; "Left invalid")]
+#[test_case("a ?? item.#invalid" => false; "Right invalid")]
+fn coalesce_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // COALESCE EXPRESSION HEAD
@@ -294,6 +322,15 @@ fn coalesce_expression_head_test_contains_04() {
     let (item_ce, _) = CoalesceExpression::parse(&mut newparser("a ?? 0 ?? 1"), Scanner::new(), true, false, false).unwrap();
     let item = &item_ce.head;
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("item.#valid ?? a" => true; "BitwiseOR valid")]
+#[test_case("item.#valid ?? a ?? b" => true; "Coalesce valid")]
+#[test_case("item.#invalid ?? a" => false; "BitwiseOR invalid")]
+#[test_case("item.#invalid ?? a ?? b" => false; "Coalesce invalid")]
+fn coalesce_expression_head_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item_ce, _) = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
+    let item = &item_ce.head;
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // SHORT CIRCUIT EXPRESSION
@@ -368,4 +405,12 @@ fn short_circuit_expression_test_contains_04() {
 fn short_circuit_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
+}
+#[test_case("item.#valid" => true; "fallthru valid")]
+#[test_case("item.#valid ?? a" => true; "coalesce valid")]
+#[test_case("item.#invalid" => false; "fallthru invalid")]
+#[test_case("item.#invalid ?? a" => false; "coalesce invalid")]
+fn short_circuit_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

@@ -73,6 +73,12 @@ fn block_statement_test_contains_undefined_continue_target(src: &str) -> (bool, 
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
 }
+#[test_case("{item.#valid;}" => true; "StatementList valid")]
+#[test_case("{item.#invalid;}" => false; "StatementList invalid")]
+fn block_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BLOCK
 #[test]
@@ -190,6 +196,13 @@ fn block_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool
         item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
+}
+#[test_case("{}" => true; "No statements")]
+#[test_case("{item.#valid;}" => true; "StatementList valid")]
+#[test_case("{item.#invalid;}" => false; "StatementList invalid")]
+fn block_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // STATEMENT LIST
@@ -371,6 +384,16 @@ fn statement_list_test_lexically_declared_names(src: &str) -> Vec<JSString> {
     let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.lexically_declared_names()
 }
+#[test_case("item.#valid" => true; "One item valid")]
+#[test_case("item.#valid; a;" => true; "Multi first valid")]
+#[test_case("a; item.#valid;" => true; "Multi second valid")]
+#[test_case("item.#invalid" => false; "One item invalid")]
+#[test_case("item.#invalid; a;" => false; "Multi first invalid")]
+#[test_case("a; item.#invalid;" => false; "Multi second invalid")]
+fn statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -543,4 +566,12 @@ fn statement_list_item_test_as_string_literal(src: &str) -> Option<JSString> {
 fn statement_list_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
     let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.lexically_declared_names()
+}
+#[test_case("item.#valid;" => true; "Statement valid")]
+#[test_case("const a=item.#valid;" => true; "Declaration valid")]
+#[test_case("item.#invalid;" => false; "Statement invalid")]
+#[test_case("const a=item.#invalid;" => false; "Declaration invalid")]
+fn statement_list_item_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
