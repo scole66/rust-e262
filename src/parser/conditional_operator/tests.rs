@@ -97,3 +97,15 @@ fn conditional_expression_test_as_string_literal(src: &str) -> Option<JSString> 
     let (item, _) = ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid?a:b" => true; "Condition valid")]
+#[test_case("a?item.#valid:b" => true; "Truthy valid")]
+#[test_case("a?b:item.#valid" => true; "Falsey valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid?a:b" => false; "Condition invalid")]
+#[test_case("a?item.#invalid:b" => false; "Truthy invalid")]
+#[test_case("a?b:item.#invalid" => false; "Falsey invalid")]
+fn conditional_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // LEXICAL DECLARATION
 #[test]
@@ -66,6 +67,12 @@ fn lexical_declaration_test_bound_names_01() {
 fn lexical_declaration_test_contains_01() {
     let (item, _) = LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("let a=item.#valid;" => true; "valid")]
+#[test_case("let a=item.#invalid;" => false; "invalid")]
+fn lexical_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // LET OR CONST
@@ -139,6 +146,16 @@ fn binding_list_test_contains_01() {
 fn binding_list_test_contains_02() {
     let (item, _) = BindingList::parse(&mut newparser("a,b"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a=item.#valid" => true; "single valid")]
+#[test_case("a=item.#valid, b" => true; "multi first valid")]
+#[test_case("a, b=item.#valid" => true; "multi second valid")]
+#[test_case("a=item.#invalid" => false; "single invalid")]
+#[test_case("a=item.#invalid, b" => false; "multi first invalid")]
+#[test_case("a, b=item.#invalid" => false; "multi second invalid")]
+fn binding_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // LEXICAL BINDING
@@ -218,6 +235,17 @@ fn lexical_binding_test_contains_05() {
     let (item, _) = LexicalBinding::parse(&mut newparser("[a]=[b]"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("a" => true; "Identifer only")]
+#[test_case("a=item.#valid" => true; "Initializer valid")]
+#[test_case("[a=item.#valid]=[0]" => true; "Pattern valid")]
+#[test_case("[a]=[item.#valid]" => true; "pattern init valid")]
+#[test_case("a=item.#invalid" => false; "Initializer invalid")]
+#[test_case("[a=item.#invalid]=[0]" => false; "Pattern invalid")]
+#[test_case("[a]=[item.#invalid]" => false; "pattern init invalid")]
+fn lexical_binding_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // VARIABLE STATMENT
 #[test]
@@ -266,6 +294,12 @@ fn variable_statement_test_contains_01() {
 fn variable_statement_test_contains_02() {
     let (item, _) = VariableStatement::parse(&mut newparser("var a=b;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("var a=item.#valid;" => true; "valid")]
+#[test_case("var a=item.#invalid;" => false; "invalid")]
+fn variable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // VARIABLE DECLARATION LIST
@@ -337,6 +371,16 @@ fn variable_declaration_list_test_contains_04() {
 fn variable_declaration_list_test_contains_05() {
     let (item, _) = VariableDeclarationList::parse(&mut newparser("a=x,b=y"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a=item.#valid" => true; "Item valid")]
+#[test_case("a=item.#valid, b" => true; "multi first valid")]
+#[test_case("a,b=item.#valid" => true; "multi last valid")]
+#[test_case("a=item.#invalid" => false; "Item invalid")]
+#[test_case("a=item.#invalid, b" => false; "multi first invalid")]
+#[test_case("a,b=item.#invalid" => false; "multi last invalid")]
+fn variable_declaration_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // VARIABLE DECLARATION
@@ -421,6 +465,17 @@ fn variable_declaration_test_contains_06() {
     let (item, _) = VariableDeclaration::parse(&mut newparser("[a]=[x]"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("a" => true; "ident only")]
+#[test_case("a=item.#valid" => true; "izer valid")]
+#[test_case("[a=item.#valid]=[b]" => true; "pattern valid")]
+#[test_case("[a]=[item.#valid]" => true; "pattern izer valid")]
+#[test_case("a=item.#invalid" => false; "izer invalid")]
+#[test_case("[a=item.#invalid]=[b]" => false; "pattern invalid")]
+#[test_case("[a]=[item.#invalid]" => false; "pattern izer invalid")]
+fn variable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BINDING PATTERN
 #[test]
@@ -486,6 +541,14 @@ fn binding_pattern_test_contains_03() {
 fn binding_pattern_test_contains_04() {
     let (item, _) = BindingPattern::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("{a=item.#valid}" => true; "OBP valid")]
+#[test_case("[a=item.#valid]" => true; "ABP valid")]
+#[test_case("{a=item.#invalid}" => false; "OBP invalid")]
+#[test_case("[a=item.#invalid]" => false; "ABP invalid")]
+fn binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // OBJECT BINDING PATTERN
@@ -632,6 +695,18 @@ fn object_binding_pattern_test_contains_07() {
 fn object_binding_pattern_test_contains_08() {
     let (item, _) = ObjectBindingPattern::parse(&mut newparser("{a,...b}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("{}" => true; "Empty")]
+#[test_case("{...a}" => true; "BindingRestProperty")]
+#[test_case("{a=item.#valid}" => true; "BindingList valid")]
+#[test_case("{a=item.#valid,}" => true; "BindingListComma valid")]
+#[test_case("{a=item.#valid,...b}" => true; "BindingListRest valid")]
+#[test_case("{a=item.#invalid}" => false; "BindingList invalid")]
+#[test_case("{a=item.#invalid,}" => false; "BindingListComma invalid")]
+#[test_case("{a=item.#invalid,...b}" => false; "BindingListRest invalid")]
+fn object_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // ARRAY BINDING PATTERN
@@ -881,6 +956,30 @@ fn array_binding_pattern_test_contains_18() {
     let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("[]" => true; "Empty")]
+#[test_case("[,,]" => true; "Commas")]
+#[test_case("[...[a=item.#valid]]" => true; "RestOnly valid")]
+#[test_case("[,,...[a=item.#valid]]" => true; "Commas + Rest valid")]
+#[test_case("[a=item.#valid]" => true; "Element valid")]
+#[test_case("[a=item.#valid,]" => true; "ElementComma valid")]
+#[test_case("[a=item.#valid,,]" => true; "ElementElision valid")]
+#[test_case("[a=item.#valid,...b]" => true; "ElementRest valid")]
+#[test_case("[a=item.#valid,,...b]" => true; "ElementERest valid")]
+#[test_case("[a,...[b=item.#valid]]" => true; "ElementRest rest valid")]
+#[test_case("[a,,...[b=item.#valid]]" => true; "ElementERest rest valid")]
+#[test_case("[...[a=item.#invalid]]" => false; "RestOnly invalid")]
+#[test_case("[,,...[a=item.#invalid]]" => false; "Commas + Rest invalid")]
+#[test_case("[a=item.#invalid]" => false; "Element invalid")]
+#[test_case("[a=item.#invalid,]" => false; "ElementComma invalid")]
+#[test_case("[a=item.#invalid,,]" => false; "ElementElision invalid")]
+#[test_case("[a=item.#invalid,...b]" => false; "ElementRest invalid")]
+#[test_case("[a=item.#invalid,,...b]" => false; "ElementERest invalid")]
+#[test_case("[a,...[b=item.#invalid]]" => false; "ElementRest rest invalid")]
+#[test_case("[a,,...[b=item.#invalid]]" => false; "ElementERest rest invalid")]
+fn array_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BINDING REST PROPERTY
 #[test]
@@ -993,6 +1092,16 @@ fn binding_property_list_test_contains_05() {
     let (item, _) = BindingPropertyList::parse(&mut newparser("a,b"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("a=item.#valid" => true; "Single valid")]
+#[test_case("a=item.#valid,b" => true; "Multi first valid")]
+#[test_case("a,b=item.#valid" => true; "Multi second valid")]
+#[test_case("a=item.#invalid" => false; "Single invalid")]
+#[test_case("a=item.#invalid,b" => false; "Multi first invalid")]
+#[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
+fn binding_property_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BINDING ELEMENT LIST
 #[test]
@@ -1067,6 +1176,16 @@ fn binding_element_list_test_contains_05() {
     let (item, _) = BindingElementList::parse(&mut newparser("a,b"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("a=item.#valid" => true; "Single valid")]
+#[test_case("a=item.#valid,b" => true; "Multi first valid")]
+#[test_case("a,b=item.#valid" => true; "Multi second valid")]
+#[test_case("a=item.#invalid" => false; "Single invalid")]
+#[test_case("a=item.#invalid,b" => false; "Multi first invalid")]
+#[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
+fn binding_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BINDING ELISION ELEMENT
 #[test]
@@ -1119,6 +1238,14 @@ fn binding_elision_element_test_contains_03() {
 fn binding_elision_element_test_contains_04() {
     let (item, _) = BindingElisionElement::parse(&mut newparser(",a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a=item.#valid" => true; "No commas valid")]
+#[test_case(",a=item.#valid" => true; "Commas valid")]
+#[test_case("a=item.#invalid" => false; "No commas invalid")]
+#[test_case(",a=item.#invalid" => false; "Commas invalid")]
+fn binding_elision_element_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // BINDING PROPERTY
@@ -1193,6 +1320,16 @@ fn binding_property_test_contains_04() {
 fn binding_property_test_contains_05() {
     let (item, _) = BindingProperty::parse(&mut newparser("a:b"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a=item.#valid" => true; "Single valid")]
+#[test_case("a:b=item.#valid" => true; "Element valid")]
+#[test_case("[item.#valid]:b" => true; "Name valid")]
+#[test_case("a=item.#invalid" => false; "Single invalid")]
+#[test_case("a:b=item.#invalid" => false; "Element invalid")]
+#[test_case("[item.#invalid]:b" => false; "Name invalid")]
+fn binding_property_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // BINDING ELEMENT
@@ -1286,6 +1423,18 @@ fn binding_element_test_contains_07() {
     let (item, _) = BindingElement::parse(&mut newparser("{a}={a}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("a=item.#valid" => true; "Single valid")]
+#[test_case("[a=item.#valid]" => true; "PatternOnly valid")]
+#[test_case("[a=item.#valid]=[0]" => true; "Pattern valid")]
+#[test_case("[a]=[item.#valid]" => true; "Izer valid")]
+#[test_case("a=item.#invalid" => false; "Single invalid")]
+#[test_case("[a=item.#invalid]" => false; "PatternOnly invalid")]
+#[test_case("[a=item.#invalid]=[0]" => false; "Pattern invalid")]
+#[test_case("[a]=[item.#invalid]" => false; "Izer invalid")]
+fn binding_element_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // SINGLE NAME BINDING
 #[test]
@@ -1346,6 +1495,13 @@ fn single_name_binding_test_contains_02() {
 fn single_name_binding_test_contains_03() {
     let (item, _) = SingleNameBinding::parse(&mut newparser("a=x"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a" => true; "Name Only")]
+#[test_case("a=item.#valid" => true; "Izer valid")]
+#[test_case("a=item.#invalid" => false; "Izer invalid")]
+fn single_name_binding_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // BINDING REST ELEMENT
@@ -1411,4 +1567,11 @@ fn binding_rest_element_test_contains_02() {
 fn binding_rest_element_test_contains_03() {
     let (item, _) = BindingRestElement::parse(&mut newparser("...[a]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("...a" => true; "Name only")]
+#[test_case("...[a=item.#valid]" => true; "Pattern valid")]
+#[test_case("...[a=item.#invalid]" => false; "Pattern invalid")]
+fn binding_rest_element_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
