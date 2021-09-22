@@ -92,3 +92,13 @@ fn exponentiation_expression_test_as_string_literal(src: &str) -> Option<String>
     let (item, _) = ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("a.#valid" => true; "Fallthru valid")]
+#[test_case("a.#valid ** b" => true; "Left valid")]
+#[test_case("a ** b.#valid" => true; "Right valid")]
+#[test_case("a.#invalid" => false; "Fallthru invalid")]
+#[test_case("a.#invalid ** b" => false; "Left invalid")]
+#[test_case("a ** b.#invalid" => false; "Right invalid")]
+fn exponentiation_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // FUNCTION DECLARATION
 #[test]
@@ -107,6 +108,14 @@ fn function_declaration_test_contains_01() {
     let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("function a(a=b.#valid){}" => true; "Params valid")]
+#[test_case("function a(b){c.#valid;}" => true; "Body valid")]
+#[test_case("function a(a=b.#invalid){}" => false; "Params invalid")]
+#[test_case("function a(b){c.#invalid;}" => false; "Body invalid")]
+fn function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // FUNCTION EXPRESSION
 #[test]
@@ -193,6 +202,14 @@ fn function_expression_test_contains_01() {
     let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a=0) { 0; }"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("function a(a=b.#valid){}" => true; "Params valid")]
+#[test_case("function a(b){c.#valid;}" => true; "Body valid")]
+#[test_case("function a(a=b.#invalid){}" => false; "Params invalid")]
+#[test_case("function a(b){c.#invalid;}" => false; "Body invalid")]
+fn function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // FUNCTION BODY
 #[test]
@@ -230,6 +247,12 @@ fn function_body_test_contains_01() {
 fn function_body_test_contains_02() {
     let (item, _) = FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a.#valid;" => true; "Statement valid")]
+#[test_case("a.#invalid;" => false; "Statement invalid")]
+fn function_body_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // FUNCTION STATEMENT LIST
@@ -275,4 +298,11 @@ fn function_statement_list_test_contains_02() {
 fn function_statement_list_test_contains_03() {
     let (item, _) = FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("" => true; "empty")]
+#[test_case("a.#valid;" => true; "statement valid")]
+#[test_case("a.#invalid;" => false; "statement invalid")]
+fn function_statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
