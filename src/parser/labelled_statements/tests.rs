@@ -110,6 +110,12 @@ fn labelled_statement_test_lexically_declared_names(src: &str) -> Vec<JSString> 
     let (item, _) = LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.lexically_declared_names()
 }
+#[test_case("a: b.#valid;" => true; "valid")]
+#[test_case("a: b.#invalid;" => false; "invalid")]
+fn labelled_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // LABELLED ITEM
 #[test]
@@ -247,4 +253,12 @@ fn labelled_item_test_contains_undefined_continue_target(src: &str) -> (bool, bo
 fn labelled_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
     let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.lexically_declared_names()
+}
+#[test_case("a.#valid;" => true; "stmt valid")]
+#[test_case("function a(){b.#valid;}" => true; "fcn valid")]
+#[test_case("a.#invalid;" => false; "stmt invalid")]
+#[test_case("function a(){b.#invalid;}" => false; "fcn invalid")]
+fn labelled_item_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
