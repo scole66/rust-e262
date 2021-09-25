@@ -296,6 +296,34 @@ fn member_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("new.target" => true; "new.target")]
+#[test_case("(a.#valid)" => true; "PrimaryExpression valid")]
+#[test_case("a[b.#valid]" => true; "ME Expression valid")]
+#[test_case("a.#valid[b]" => true; "ME valid Expression")]
+#[test_case("a.#valid.c" => true; "ME valid id")]
+#[test_case("a`${b.#valid}`" => true; "ME template valid")]
+#[test_case("a.#valid`${b}`" => true; "ME valid template")]
+#[test_case("super[a.#valid]" => true; "super valid")]
+#[test_case("new a(b.#valid)" => true; "new args valid")]
+#[test_case("new a.#valid(b)" => true; "new me valid")]
+#[test_case("a.#valid" => true; "me private valid")]
+#[test_case("a.#valid.#valid2" => true; "me valid private")]
+#[test_case("(a.#invalid)" => false; "PrimaryExpression invalid")]
+#[test_case("a[b.#invalid]" => false; "ME Expression invalid")]
+#[test_case("a.#invalid[b]" => false; "ME invalid Expression")]
+#[test_case("a.#invalid.c" => false; "ME invalid id")]
+#[test_case("a`${b.#invalid}`" => false; "ME template invalid")]
+#[test_case("a.#invalid`${b}`" => false; "ME invalid template")]
+#[test_case("super[a.#invalid]" => false; "super invalid")]
+#[test_case("new a(b.#invalid)" => false; "new args invalid")]
+#[test_case("new a.#invalid(b)" => false; "new me invalid")]
+#[test_case("a.#invalid" => false; "me private invalid")]
+#[test_case("a.#invalid.#valid2" => false; "me invalid private")]
+#[test_case("a.#valid.#invalid2" => false; "me invalid private2")]
+fn member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("valid2")])
+}
 
 // SUPER PROPERTY
 #[test]
@@ -378,6 +406,13 @@ fn super_property_test_contains_03() {
     let (item, _) = SuperProperty::parse(&mut newparser("super.a"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
     assert_eq!(item.contains(ParseNodeKind::Super), true);
+}
+#[test_case("super.a" => true; "super identifier")]
+#[test_case("super[a.#valid]" => true; "expression valid")]
+#[test_case("super[a.#invalid]" => false; "expression invalid")]
+fn super_property_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SuperProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // META PROPERTY
@@ -551,6 +586,15 @@ fn arguments_test_contains_05() {
     let (item, _) = Arguments::parse(&mut newparser("(0,)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("()" => true; "empty")]
+#[test_case("(a=b.#valid)" => true; "arg valid")]
+#[test_case("(a=b.#valid,)" => true; "comma valid")]
+#[test_case("(a=b.#invalid)" => false; "arg invalid")]
+#[test_case("(a=b.#invalid,)" => false; "comma invalid")]
+fn arguments_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Arguments::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // ARGUMENT LIST
 #[test]
@@ -699,6 +743,22 @@ fn argument_list_test_contains_10() {
     let (item, _) = ArgumentList::parse(&mut newparser("0,...1"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("a.#valid" => true; "fallthru valid")]
+#[test_case("...a.#valid" => true; "dots valid")]
+#[test_case("a.#valid,b" => true; "list left valid")]
+#[test_case("a,b.#valid" => true; "list right valid")]
+#[test_case("a.#valid,...b" => true; "dotlist lft valid")]
+#[test_case("a,...b.#valid" => true; "dotlist rgt valid")]
+#[test_case("a.#invalid" => false; "fallthru invalid")]
+#[test_case("...a.#invalid" => false; "dots invalid")]
+#[test_case("a.#invalid,b" => false; "list left invalid")]
+#[test_case("a,b.#invalid" => false; "list right invalid")]
+#[test_case("a.#invalid,...b" => false; "dotlist lft invalid")]
+#[test_case("a,...b.#invalid" => false; "dotlist rgt invalid")]
+fn argument_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArgumentList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // NEW EXPRESSION
 #[test]
@@ -788,6 +848,15 @@ fn new_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("a.#valid" => true; "fallthru valid")]
+#[test_case("new a.#valid" => true; "new valid")]
+#[test_case("a.#invalid" => false; "fallthru invalid")]
+#[test_case("new a.#invalid" => false; "new invalid")]
+fn new_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
 
 // CALL MEMBER EXPRESSION
 #[test]
@@ -831,6 +900,15 @@ fn call_member_expression_test_contains_03() {
     let (item, _) = CallMemberExpression::parse(&mut newparser("Math.sin(angle)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("a.#valid()" => true; "MemberExpression valid")]
+#[test_case("a(b.#valid)" => true; "Arguments valid")]
+#[test_case("a.#invalid()" => false; "MemberExpression invalid")]
+#[test_case("a(b.#invalid)" => false; "Arguments invalid")]
+fn call_member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
 
 // SUPER CALL
 #[test]
@@ -871,6 +949,12 @@ fn super_call_test_contains_02() {
     let (item, _) = SuperCall::parse(&mut newparser("super(zyz)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
     assert_eq!(item.contains(ParseNodeKind::Super), true);
+}
+#[test_case("super(a.#valid)" => true; "valid")]
+#[test_case("super(a.#invalid)" => false; "invalid")]
+fn super_call_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SuperCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // IMPORT CALL
@@ -917,6 +1001,12 @@ fn import_call_test_contains_01() {
 fn import_call_test_contains_02() {
     let (item, _) = ImportCall::parse(&mut newparser("import(this)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+}
+#[test_case("import(a.#valid)" => true; "valid")]
+#[test_case("import(a.#invalid)" => false; "invalid")]
+fn import_call_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ImportCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // CALL EXPRESSION
