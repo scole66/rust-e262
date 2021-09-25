@@ -576,8 +576,9 @@ fn string_to_number(string: JSString) -> f64 {
 
 // ToIntegerOrInfinity ( argument )
 //
-// The abstract operation ToIntegerOrInfinity takes argument argument. It converts argument to an integer, +∞, or -∞. It
-// performs the following steps when called:
+// The abstract operation ToIntegerOrInfinity takes argument argument (an ECMAScript language value). It converts
+// argument to an integer representing its Number value with fractional part truncated, or to +∞ or -∞ when that Number
+// value is infinite. It performs the following steps when called:
 //
 //  1. Let number be ? ToNumber(argument).
 //  2. If number is NaN, +0𝔽, or -0𝔽, return 0.
