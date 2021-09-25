@@ -126,6 +126,3 @@ impl ConditionalExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -82,6 +82,3 @@ impl ReturnStatement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

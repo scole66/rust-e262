@@ -237,6 +237,3 @@ impl LabelledItem {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

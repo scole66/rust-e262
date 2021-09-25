@@ -334,6 +334,3 @@ impl FunctionStatementList {
         self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
     }
 }
-
-#[cfg(test)]
-mod tests;

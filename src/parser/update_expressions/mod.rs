@@ -177,6 +177,3 @@ impl UpdateExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

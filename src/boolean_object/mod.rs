@@ -198,6 +198,3 @@ pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> AltComp
         _ => Err(create_type_error(agent, "Value is not boolean")),
     }
 }
-
-#[cfg(test)]
-mod tests;

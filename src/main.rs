@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+//#![allow(dead_code)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::enum_variant_names)]
 
@@ -43,14 +43,6 @@ struct VM {
 impl VM {
     fn new() -> VM {
         VM {}
-    }
-
-    //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
-    //    Ok(0)
-    //}
-
-    fn run(&mut self) -> Result<i32, String> {
-        Ok(0)
     }
 }
 
@@ -123,6 +115,3 @@ fn main() {
         Err(err) => err,
     });
 }
-
-#[cfg(test)]
-mod tests;

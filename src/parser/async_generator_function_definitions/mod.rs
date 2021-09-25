@@ -358,6 +358,3 @@ impl AsyncGeneratorBody {
         self.0.all_private_identifiers_valid(names)
     }
 }
-
-#[cfg(test)]
-mod tests;

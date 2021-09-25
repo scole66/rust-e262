@@ -77,6 +77,3 @@ impl BreakStatement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

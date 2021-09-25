@@ -1108,6 +1108,3 @@ impl ForBinding {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

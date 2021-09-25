@@ -480,6 +480,3 @@ impl ShortCircuitExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

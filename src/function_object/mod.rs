@@ -530,6 +530,3 @@ pub fn create_builtin_function(
     set_function_name(agent, &func, FunctionName::from(name), prefix);
     func
 }
-
-#[cfg(test)]
-mod tests;

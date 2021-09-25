@@ -49,6 +49,3 @@ impl DebuggerStatement {
         false
     }
 }
-
-#[cfg(test)]
-mod tests;

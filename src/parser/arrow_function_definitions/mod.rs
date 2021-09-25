@@ -386,6 +386,3 @@ impl ExpressionBody {
         self.expression.all_private_identifiers_valid(names)
     }
 }
-
-#[cfg(test)]
-mod tests;

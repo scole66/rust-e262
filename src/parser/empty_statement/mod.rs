@@ -44,6 +44,3 @@ impl EmptyStatement {
         false
     }
 }
-
-#[cfg(test)]
-mod tests;

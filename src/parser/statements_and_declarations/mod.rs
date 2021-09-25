@@ -647,6 +647,3 @@ impl BreakableStatement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

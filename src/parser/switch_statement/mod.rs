@@ -606,6 +606,3 @@ impl DefaultClause {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

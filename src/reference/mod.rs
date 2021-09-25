@@ -1,11 +1,12 @@
-use super::agent::Agent;
-use super::cr::{AltCompletion, Completion};
+//use super::agent::Agent;
+//use super::cr::{AltCompletion, Completion};
 use super::environment_record::EnvironmentRecord;
-use super::errors::{create_reference_error, create_type_error};
-use super::execution_context::get_global_object;
-use super::object::set;
-use super::values::{to_object, ECMAScriptValue, PropertyKey};
-use std::convert::TryInto;
+//use super::errors::{create_reference_error, create_type_error};
+//use super::execution_context::get_global_object;
+//use super::object::set;
+//use super::values::{to_object, ECMAScriptValue, PropertyKey};
+use super::values::{ECMAScriptValue, PropertyKey};
+//use std::convert::TryInto;
 use std::rc::Rc;
 
 // The Reference Record Specification Type
@@ -74,13 +75,13 @@ impl Reference {
 //  1. Assert: V is a Reference Record.
 //  2. If V.[[Base]] is unresolvable, return false.
 //  3. If Type(V.[[Base]]) is Boolean, String, Symbol, BigInt, Number, or Object, return true; otherwise return false.
-pub fn is_property_reference(v: &Reference) -> bool {
-    match &v.base {
-        Base::Unresolvable => false,
-        Base::Environment(_) => false,
-        Base::Value(val) => val.is_boolean() || val.is_string() || val.is_symbol() || val.is_bigint() || val.is_number() || val.is_object(),
-    }
-}
+//pub fn is_property_reference(v: &Reference) -> bool {
+//    match &v.base {
+//        Base::Unresolvable => false,
+//        Base::Environment(_) => false,
+//        Base::Value(val) => val.is_boolean() || val.is_string() || val.is_symbol() || val.is_bigint() || val.is_number() || val.is_object(),
+//    }
+//}
 
 // IsUnresolvableReference ( V )
 //
@@ -88,9 +89,9 @@ pub fn is_property_reference(v: &Reference) -> bool {
 //
 //  1. Assert: V is a Reference Record.
 //  2. If V.[[Base]] is unresolvable, return true; otherwise return false.
-pub fn is_unresolvable_reference(v: &Reference) -> bool {
-    matches!(&v.base, Base::Unresolvable)
-}
+//pub fn is_unresolvable_reference(v: &Reference) -> bool {
+//    matches!(&v.base, Base::Unresolvable)
+//}
 
 // IsSuperReference ( V )
 //
@@ -98,9 +99,9 @@ pub fn is_unresolvable_reference(v: &Reference) -> bool {
 //
 //  1. Assert: V is a Reference Record.
 //  2. If V.[[ThisValue]] is not empty, return true; otherwise return false.
-pub fn is_super_reference(v: &Reference) -> bool {
-    v.this_value.is_some()
-}
+//pub fn is_super_reference(v: &Reference) -> bool {
+//    v.this_value.is_some()
+//}
 
 // GetValue ( V )
 //
@@ -120,24 +121,24 @@ pub fn is_super_reference(v: &Reference) -> bool {
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
 //          object.
-pub enum SuperValue {
-    Value(ECMAScriptValue),
-    Reference(Reference),
-}
-pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> Completion {
-    let v = v_completion?;
-    match v {
-        SuperValue::Value(val) => Ok(val),
-        SuperValue::Reference(reference) => match &reference.base {
-            Base::Value(val) => {
-                let base_obj = to_object(agent, val.clone()).unwrap();
-                base_obj.o.get(agent, &reference.referenced_name, &get_this_value(&reference))
-            }
-            Base::Unresolvable => Err(create_reference_error(agent, "Unresolvable Reference")),
-            Base::Environment(env) => env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict),
-        },
-    }
-}
+//pub enum SuperValue {
+//    Value(ECMAScriptValue),
+//    Reference(Reference),
+//}
+//pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> Completion {
+//    let v = v_completion?;
+//    match v {
+//        SuperValue::Value(val) => Ok(val),
+//        SuperValue::Reference(reference) => match &reference.base {
+//            Base::Value(val) => {
+//                let base_obj = to_object(agent, val.clone()).unwrap();
+//                base_obj.o.get(agent, &reference.referenced_name, &get_this_value(&reference))
+//            }
+//            Base::Unresolvable => Err(create_reference_error(agent, "Unresolvable Reference")),
+//            Base::Environment(env) => env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict),
+//        },
+//    }
+//}
 
 // PutValue ( V, W )
 //
@@ -163,34 +164,34 @@ pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> 
 // NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
-    let v = v_completion?;
-    let w = w_completion?;
-    match v {
-        SuperValue::Value(_) => Err(create_reference_error(agent, "Invalid Reference")),
-        SuperValue::Reference(r) => match &r.base {
-            Base::Unresolvable => {
-                if r.strict {
-                    Err(create_reference_error(agent, "Unknown reference"))
-                } else {
-                    let global_object = get_global_object(agent);
-                    set(agent, &global_object, r.referenced_name, w, false)?;
-                    Ok(())
-                }
-            }
-            Base::Value(val) => {
-                let base_obj = to_object(agent, val.clone()).unwrap();
-                let succeeded = base_obj.o.set(agent, r.referenced_name.clone(), w, &get_this_value(&r))?;
-                if !succeeded && r.strict {
-                    Err(create_type_error(agent, "Invalid Assignment Target"))
-                } else {
-                    Ok(())
-                }
-            }
-            Base::Environment(env) => env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict),
-        },
-    }
-}
+//pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
+//    let v = v_completion?;
+//    let w = w_completion?;
+//    match v {
+//        SuperValue::Value(_) => Err(create_reference_error(agent, "Invalid Reference")),
+//        SuperValue::Reference(r) => match &r.base {
+//            Base::Unresolvable => {
+//                if r.strict {
+//                    Err(create_reference_error(agent, "Unknown reference"))
+//                } else {
+//                    let global_object = get_global_object(agent);
+//                    set(agent, &global_object, r.referenced_name, w, false)?;
+//                    Ok(())
+//                }
+//            }
+//            Base::Value(val) => {
+//                let base_obj = to_object(agent, val.clone()).unwrap();
+//                let succeeded = base_obj.o.set(agent, r.referenced_name.clone(), w, &get_this_value(&r))?;
+//                if !succeeded && r.strict {
+//                    Err(create_type_error(agent, "Invalid Assignment Target"))
+//                } else {
+//                    Ok(())
+//                }
+//            }
+//            Base::Environment(env) => env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict),
+//        },
+//    }
+//}
 
 // GetThisValue ( V )
 //
@@ -198,15 +199,15 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
 //
 //  1. Assert: IsPropertyReference(V) is true.
 //  2. If IsSuperReference(V) is true, return V.[[ThisValue]]; otherwise return V.[[Base]].
-pub fn get_this_value(v: &Reference) -> ECMAScriptValue {
-    match &v.this_value {
-        Some(val) => val.clone(),
-        None => match &v.base {
-            Base::Value(val) => val.clone(),
-            _ => unreachable!(),
-        },
-    }
-}
+//pub fn get_this_value(v: &Reference) -> ECMAScriptValue {
+//    match &v.this_value {
+//        Some(val) => val.clone(),
+//        None => match &v.base {
+//            Base::Value(val) => val.clone(),
+//            _ => unreachable!(),
+//        },
+//    }
+//}
 
 // InitializeReferencedBinding ( V, W )
 //
@@ -220,14 +221,14 @@ pub fn get_this_value(v: &Reference) -> ECMAScriptValue {
 //  5. Let base be V.[[Base]].
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
-pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
-    let v = v_completion?;
-    let w = w_completion?;
-    match v {
-        SuperValue::Reference(reference) => match &reference.base {
-            Base::Environment(base) => base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w),
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
-    }
-}
+//pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
+//    let v = v_completion?;
+//    let w = w_completion?;
+//    match v {
+//        SuperValue::Reference(reference) => match &reference.base {
+//            Base::Environment(base) => base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w),
+//            _ => unreachable!(),
+//        },
+//        _ => unreachable!(),
+//    }
+//}

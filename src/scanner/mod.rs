@@ -1994,6 +1994,3 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Sc
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

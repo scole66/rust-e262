@@ -1007,6 +1007,3 @@ impl ClassStaticBlockStatementList {
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -444,6 +444,3 @@ impl CatchParameter {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

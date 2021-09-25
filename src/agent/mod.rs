@@ -182,6 +182,3 @@ pub struct WellKnownSymbols {
     pub to_string_tag_: Symbol,
     pub unscopables_: Symbol,
 }
-
-#[cfg(test)]
-mod tests;

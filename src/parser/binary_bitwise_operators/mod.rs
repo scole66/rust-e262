@@ -353,6 +353,3 @@ impl BitwiseORExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -1050,6 +1050,3 @@ fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
 fn number_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     this_number_value(agent, this_value).map(ECMAScriptValue::Number)
 }
-
-#[cfg(test)]
-mod tests;

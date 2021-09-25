@@ -201,6 +201,3 @@ impl ScriptBody {
         self.statement_list.initial_string_tokens()
     }
 }
-
-#[cfg(test)]
-mod tests;

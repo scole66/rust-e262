@@ -77,6 +77,3 @@ impl ContinueStatement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

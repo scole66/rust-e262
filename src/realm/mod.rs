@@ -444,6 +444,3 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
 
     fcn
 }
-
-#[cfg(test)]
-mod tests;

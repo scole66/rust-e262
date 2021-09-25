@@ -691,6 +691,3 @@ pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<Objec
 pub fn is_callable(value: &ECMAScriptValue) -> bool {
     to_callable(value).is_some()
 }
-
-#[cfg(test)]
-mod tests;

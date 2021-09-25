@@ -1349,6 +1349,3 @@ pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn En
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -41,6 +41,3 @@ pub fn is_integral_number(argument: &ECMAScriptValue) -> bool {
         _ => false,
     }
 }
-
-#[cfg(test)]
-mod tests;

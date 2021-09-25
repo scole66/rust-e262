@@ -379,6 +379,3 @@ impl CoverCallExpressionAndAsyncArrowHead {
         self.expression.contains(kind) || self.args.contains(kind)
     }
 }
-
-#[cfg(test)]
-mod tests;

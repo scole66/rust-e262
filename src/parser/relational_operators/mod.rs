@@ -214,6 +214,3 @@ impl RelationalExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

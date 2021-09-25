@@ -2257,6 +2257,3 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

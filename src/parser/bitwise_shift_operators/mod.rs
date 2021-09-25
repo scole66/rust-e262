@@ -140,6 +140,3 @@ impl ShiftExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

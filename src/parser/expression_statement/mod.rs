@@ -94,6 +94,3 @@ impl ExpressionStatement {
         node.all_private_identifiers_valid(names)
     }
 }
-
-#[cfg(test)]
-mod tests;

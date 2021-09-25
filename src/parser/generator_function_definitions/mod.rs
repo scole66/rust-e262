@@ -446,6 +446,3 @@ impl YieldExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

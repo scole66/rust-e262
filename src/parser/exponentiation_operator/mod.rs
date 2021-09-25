@@ -119,6 +119,3 @@ impl ExponentiationExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

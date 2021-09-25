@@ -1811,6 +1811,3 @@ impl BindingRestElement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -414,29 +414,29 @@ pub enum ParsedText {
     // ... more to come
 }
 
-pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
-    let mut parser = Parser::new(src, false, false, goal_symbol);
-    match goal_symbol {
-        ParseGoal::Script => {
-            let potential_script = Script::parse(&mut parser, Scanner::new());
-            match potential_script {
-                Err(pe) => {
-                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.line, pe.column, pe.msg).as_str());
-                    ParsedText::Errors(vec![syntax_error])
-                }
-                Ok((node, _)) => {
-                    let errs = node.early_errors(agent);
-                    if errs.is_empty() {
-                        ParsedText::Script(node)
-                    } else {
-                        ParsedText::Errors(errs)
-                    }
-                }
-            }
-        }
-        _ => todo!(),
-    }
-}
+// pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
+//     let mut parser = Parser::new(src, false, false, goal_symbol);
+//     match goal_symbol {
+//         ParseGoal::Script => {
+//             let potential_script = Script::parse(&mut parser, Scanner::new());
+//             match potential_script {
+//                 Err(pe) => {
+//                     let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.line, pe.column, pe.msg).as_str());
+//                     ParsedText::Errors(vec![syntax_error])
+//                 }
+//                 Ok((node, _)) => {
+//                     let errs = node.early_errors(agent);
+//                     if errs.is_empty() {
+//                         ParsedText::Script(node)
+//                     } else {
+//                         ParsedText::Errors(errs)
+//                     }
+//                 }
+//             }
+//         }
+//         _ => todo!(),
+//     }
+// }
 
 pub mod additive_operators;
 pub mod arrow_function_definitions;
@@ -483,6 +483,3 @@ pub mod with_statement;
 
 #[cfg(test)]
 pub mod testhelp;
-
-#[cfg(test)]
-mod tests;

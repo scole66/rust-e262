@@ -510,6 +510,3 @@ impl LabelIdentifier {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

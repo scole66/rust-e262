@@ -89,9 +89,3 @@ pub trait PrettyPrint {
     where
         T: Write;
 }
-
-#[cfg(test)]
-pub mod testhelp;
-
-#[cfg(test)]
-pub mod tests;

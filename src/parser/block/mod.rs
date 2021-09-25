@@ -550,6 +550,3 @@ impl StatementListItem {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -140,6 +140,3 @@ impl IfStatement {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

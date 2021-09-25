@@ -200,6 +200,3 @@ impl UnaryExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

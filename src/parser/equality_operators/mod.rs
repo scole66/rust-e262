@@ -152,6 +152,3 @@ impl EqualityExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

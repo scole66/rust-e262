@@ -171,6 +171,3 @@ impl MultiplicativeExpression {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -128,21 +128,6 @@ impl DescriptorKind for PotentialPropertyDescriptor {
     }
 }
 
-// IsAccessorDescriptor ( Desc )
-//
-// The abstract operation IsAccessorDescriptor takes argument Desc (a Property Descriptor or undefined). It performs the
-// following steps when called:
-//
-//  1. If Desc is undefined, return false.
-//  2. If both Desc.[[Get]] and Desc.[[Set]] are absent, return false.
-//  3. Return true.
-fn is_accessor_descriptor<T>(desc: &T) -> bool
-where
-    T: DescriptorKind,
-{
-    desc.is_accessor_descriptor()
-}
-
 // IsDataDescriptor ( Desc )
 //
 // The abstract operation IsDataDescriptor takes argument Desc (a Property Descriptor or undefined). It performs the
@@ -1306,44 +1291,6 @@ pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptVa
     }
 }
 
-// Construct ( F [ , argumentsList [ , newTarget ] ] )
-//
-// The abstract operation Construct takes argument F (a function object) and optional arguments argumentsList and
-// newTarget. It is used to call the [[Construct]] internal method of a function object. argumentsList and newTarget are
-// the values to be passed as the corresponding arguments of the internal method. If argumentsList is not present, a new
-// empty List is used as its value. If newTarget is not present, F is used as its value. It performs the following steps
-// when called:
-//
-//    1. If newTarget is not present, set newTarget to F.
-//    2. If argumentsList is not present, set argumentsList to a new empty List.
-//    3. Assert: IsConstructor(F) is true.
-//    4. Assert: IsConstructor(newTarget) is true.
-//    5. Return ? F.[[Construct]](argumentsList, newTarget).
-//
-// NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
-pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion {
-    let nt = new_target.unwrap_or(func);
-    let cstr = func.o.to_constructable().unwrap();
-    cstr.construct(agent, func, args, nt)
-}
-
-// Invoke ( V, P [ , argumentsList ] )
-//
-// The abstract operation Invoke takes arguments V (an ECMAScript language value) and P (a property key) and optional
-// argument argumentsList (a List of ECMAScript language values). It is used to call a method property of an ECMAScript
-// language value. V serves as both the lookup point for the property and the this value of the call. argumentsList is
-// the list of arguments values passed to the method. If argumentsList is not present, a new empty List is used as its
-// value. It performs the following steps when called:
-//
-//  1. Assert: IsPropertyKey(P) is true.
-//  2. If argumentsList is not present, set argumentsList to a new empty List.
-//  3. Let func be ? GetV(V, P).
-//  4. Return ? Call(func, V, argumentsList).
-pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion {
-    let func = getv(agent, &v, p)?;
-    call(agent, &func, &v, arguments_list)
-}
-
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )
 //
 // The abstract operation OrdinaryObjectCreate takes argument proto (an Object or null) and optional argument
@@ -1664,6 +1611,3 @@ pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<
         Ok(_agent.running_execution_context().unwrap().realm.clone())
     }
 }
-
-#[cfg(test)]
-mod tests;
