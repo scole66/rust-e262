@@ -446,6 +446,34 @@ fn statement_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case(";" => true; "empty")]
+#[test_case("break;" => true; "break_")]
+#[test_case("continue;" => true; "continue_")]
+#[test_case("debugger;" => true; "debugger")]
+#[test_case("{ a.#valid; }" => true; "block valid")]
+#[test_case("for (;;) a.#valid;" => true; "breakable valid")]
+#[test_case("if (1) a.#valid;" => true; "if valid")]
+#[test_case("blue: a.#valid;" => true; "labelled valid")]
+#[test_case("return a.#valid;" => true; "return valid")]
+#[test_case("throw a.#valid;" => true; "throw valid")]
+#[test_case("try { a.#valid; } catch {}" => true; "try valid")]
+#[test_case("var a=b.#valid;" => true; "var valid")]
+#[test_case("with (a) b.#valid;" => true; "with valid")]
+#[test_case("a.#valid;" => true; "expression valid")]
+#[test_case("{ a.#invalid; }" => false; "block invalid")]
+#[test_case("for (;;) a.#invalid;" => false; "breakable invalid")]
+#[test_case("if (1) a.#invalid;" => false; "if invalid")]
+#[test_case("blue: a.#invalid;" => false; "labelled invalid")]
+#[test_case("return a.#invalid;" => false; "return invalid")]
+#[test_case("throw a.#invalid;" => false; "throw invalid")]
+#[test_case("try { a.#invalid; } catch {}" => false; "try invalid")]
+#[test_case("var a=b.#invalid;" => false; "var invalid")]
+#[test_case("with (a) b.#invalid;" => false; "with invalid")]
+#[test_case("a.#invalid;" => false; "expression invalid")]
+fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // DECLARATION
 #[test]
@@ -527,6 +555,16 @@ fn declaration_test_contains() {
     declaration_contains_check("class a{}", false);
     declaration_contains_check("let a=0;", true);
     declaration_contains_check("let a;", false);
+}
+#[test_case("function b(a){a.#valid;}" => true; "Hoistable valid")]
+#[test_case("class a {b=c.#valid;}" => true; "ClassDefinition valid")]
+#[test_case("let a=b.#valid;" => true; "LexicalDeclaration valid")]
+#[test_case("function b(a){a.#invalid;}" => false; "Hoistable invalid")]
+#[test_case("class a {b=c.#invalid;}" => false; "ClassDefinition invalid")]
+#[test_case("let a=b.#invalid;" => false; "LexicalDeclaration invalid")]
+fn declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // HOISTABLE DECLARATION
@@ -640,6 +678,18 @@ fn hoistable_declaration_test_contains() {
     hoistable_contains_check("async function a(b=0){0;}");
     hoistable_contains_check("async function *a(b=0){0;}");
 }
+#[test_case("function a(b){b.#valid;}" => true; "function valid")]
+#[test_case("function *a(b){b.#valid;}" => true; "generator valid")]
+#[test_case("async function a(b){b.#valid;}" => true; "async function valid")]
+#[test_case("async function *a(b){b.#valid;}" => true; "async generator valid")]
+#[test_case("function a(b){b.#invalid;}" => false; "function invalid")]
+#[test_case("function *a(b){b.#invalid;}" => false; "generator invalid")]
+#[test_case("async function a(b){b.#invalid;}" => false; "async function invalid")]
+#[test_case("async function *a(b){b.#invalid;}" => false; "async generator invalid")]
+fn hoistable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // BREAKABLE STATEMENT
 #[test]
@@ -734,4 +784,12 @@ fn breakable_statement_test_contains_undefined_continue_target(src: &str) -> (bo
         item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
         item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
     )
+}
+#[test_case("while(a.#valid);" => true; "iteration statement valid")]
+#[test_case("switch(a.#valid){}" => true; "switch statement valid")]
+#[test_case("while(a.#invalid);" => false; "iteration statement invalid")]
+#[test_case("switch(a.#invalid){}" => false; "switch statement invalid")]
+fn breakable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
