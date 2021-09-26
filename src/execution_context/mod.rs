@@ -1,4 +1,4 @@
-use super::agent::Agent;
+//use super::agent::Agent;
 use super::object::Object;
 use super::realm::Realm;
 use std::cell::RefCell;
@@ -31,6 +31,6 @@ impl ExecutionContext {
     pub fn resume(&mut self) {}
 }
 
-pub fn get_global_object(_agent: &mut Agent) -> Object {
-    todo!()
-}
+// pub fn get_global_object(_agent: &mut Agent) -> Object {
+//     todo!()
+// }

@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::unary_operators::UnaryExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
@@ -147,22 +147,22 @@ impl UpdateExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            UpdateExpression::LeftHandSideExpression(n) => n.contains(kind),
-            UpdateExpression::PostIncrement(n) => n.contains(kind),
-            UpdateExpression::PostDecrement(n) => n.contains(kind),
-            UpdateExpression::PreIncrement(n) => n.contains(kind),
-            UpdateExpression::PreDecrement(n) => n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         UpdateExpression::LeftHandSideExpression(n) => n.contains(kind),
+    //         UpdateExpression::PostIncrement(n) => n.contains(kind),
+    //         UpdateExpression::PostDecrement(n) => n.contains(kind),
+    //         UpdateExpression::PreIncrement(n) => n.contains(kind),
+    //         UpdateExpression::PreDecrement(n) => n.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            UpdateExpression::LeftHandSideExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         UpdateExpression::LeftHandSideExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

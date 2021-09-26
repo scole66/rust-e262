@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::multiplicative_operators::MultiplicativeExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -104,20 +104,20 @@ impl AdditiveExpression {
         Ok((current, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),
-            AdditiveExpression::Add(l, r) => l.contains(kind) || r.contains(kind),
-            AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),
+    //         AdditiveExpression::Add(l, r) => l.contains(kind) || r.contains(kind),
+    //         AdditiveExpression::Subtract(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            AdditiveExpression::MultiplicativeExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         AdditiveExpression::MultiplicativeExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

@@ -86,12 +86,12 @@ impl ClassDeclaration {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassDeclaration::Named(bi, ct) => bi.contains(kind) || ct.contains(kind),
-            ClassDeclaration::Unnamed(ct) => ct.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassDeclaration::Named(bi, ct) => bi.contains(kind) || ct.contains(kind),
+    //         ClassDeclaration::Unnamed(ct) => ct.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -168,9 +168,9 @@ impl ClassExpression {
         Ok((Rc::new(ClassExpression { ident: bi, tail: ct }), after_ct))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.ident.as_ref().map_or(false, |n| n.contains(kind)) || self.tail.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.ident.as_ref().map_or(false, |n| n.contains(kind)) || self.tail.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -271,13 +271,13 @@ impl ClassTail {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match kind {
-            ParseNodeKind::ClassBody => self.body.is_some(),
-            ParseNodeKind::ClassHeritage => self.heritage.is_some(),
-            _ => self.heritage.as_ref().map_or(false, |n| n.contains(kind)) || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind)),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match kind {
+    //         ParseNodeKind::ClassBody => self.body.is_some(),
+    //         ParseNodeKind::ClassHeritage => self.heritage.is_some(),
+    //         _ => self.heritage.as_ref().map_or(false, |n| n.contains(kind)) || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind)),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -329,9 +329,9 @@ impl ClassHeritage {
         Ok((Rc::new(ClassHeritage(lhs)), after_lhs))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -379,13 +379,13 @@ impl ClassBody {
         Ok((Rc::new(ClassBody(el)), after_el))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.computed_property_contains(kind)
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.computed_property_contains(kind)
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -470,19 +470,19 @@ impl ClassElementList {
         Ok((current, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElementList::Item(item) => item.contains(kind),
-            ClassElementList::List(list, item) => list.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElementList::Item(item) => item.contains(kind),
+    //         ClassElementList::List(list, item) => list.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElementList::Item(item) => item.computed_property_contains(kind),
-            ClassElementList::List(list, item) => list.computed_property_contains(kind) || item.computed_property_contains(kind),
-        }
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElementList::Item(item) => item.computed_property_contains(kind),
+    //         ClassElementList::List(list, item) => list.computed_property_contains(kind) || item.computed_property_contains(kind),
+    //     }
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -624,23 +624,23 @@ impl ClassElement {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElement::Standard(n) | ClassElement::Static(n) => kind == ParseNodeKind::MethodDefinition || n.contains(kind),
-            ClassElement::Empty => false,
-            ClassElement::Field(n) | ClassElement::StaticField(n) => n.contains(kind),
-            ClassElement::StaticBlock(sb) => sb.contains(),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElement::Standard(n) | ClassElement::Static(n) => kind == ParseNodeKind::MethodDefinition || n.contains(kind),
+    //         ClassElement::Empty => false,
+    //         ClassElement::Field(n) | ClassElement::StaticField(n) => n.contains(kind),
+    //         ClassElement::StaticBlock(sb) => sb.contains(),
+    //     }
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElement::Standard(n) | ClassElement::Static(n) => n.computed_property_contains(kind),
-            ClassElement::Empty => false,
-            ClassElement::Field(n) | ClassElement::StaticField(n) => n.computed_property_contains(kind),
-            ClassElement::StaticBlock(_) => false,
-        }
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElement::Standard(n) | ClassElement::Static(n) => n.computed_property_contains(kind),
+    //         ClassElement::Empty => false,
+    //         ClassElement::Field(n) | ClassElement::StaticField(n) => n.computed_property_contains(kind),
+    //         ClassElement::StaticBlock(_) => false,
+    //     }
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -738,13 +738,13 @@ impl FieldDefinition {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.contains(kind) || self.init.as_ref().map_or(false, |n| n.contains(kind))
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.contains(kind) || self.init.as_ref().map_or(false, |n| n.contains(kind))
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.computed_property_contains(kind)
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.computed_property_contains(kind)
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -815,19 +815,19 @@ impl ClassElementName {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElementName::PropertyName(n) => n.contains(kind),
-            ClassElementName::PrivateIdentifier(_) => false,
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElementName::PropertyName(n) => n.contains(kind),
+    //         ClassElementName::PrivateIdentifier(_) => false,
+    //     }
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
-            ClassElementName::PrivateIdentifier(_) => false,
-        }
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
+    //         ClassElementName::PrivateIdentifier(_) => false,
+    //     }
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers

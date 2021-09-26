@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::unary_operators::UnaryExpression;
 use super::update_expressions::UpdateExpression;
 use super::*;
@@ -92,19 +92,19 @@ impl ExponentiationExpression {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ExponentiationExpression::UnaryExpression(n) => n.contains(kind),
-            ExponentiationExpression::Exponentiation(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ExponentiationExpression::UnaryExpression(n) => n.contains(kind),
+    //         ExponentiationExpression::Exponentiation(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            ExponentiationExpression::UnaryExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         ExponentiationExpression::UnaryExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

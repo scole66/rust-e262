@@ -6,7 +6,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::comma_operator::Expression;
 use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
-use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -261,24 +261,24 @@ impl MemberExpression {
         Ok((me, args, after_args))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.contains(kind),
-            MemberExpressionKind::Expression(l, r) => l.contains(kind) || r.contains(kind),
-            MemberExpressionKind::IdentifierName(n, _) | MemberExpressionKind::PrivateId(n, _) => n.contains(kind),
-            MemberExpressionKind::TemplateLiteral(l, r) => l.contains(kind) || r.contains(kind),
-            MemberExpressionKind::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
-            MemberExpressionKind::MetaProperty(n) => n.contains(kind),
-            MemberExpressionKind::NewArguments(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         MemberExpressionKind::PrimaryExpression(n) => n.contains(kind),
+    //         MemberExpressionKind::Expression(l, r) => l.contains(kind) || r.contains(kind),
+    //         MemberExpressionKind::IdentifierName(n, _) | MemberExpressionKind::PrivateId(n, _) => n.contains(kind),
+    //         MemberExpressionKind::TemplateLiteral(l, r) => l.contains(kind) || r.contains(kind),
+    //         MemberExpressionKind::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
+    //         MemberExpressionKind::MetaProperty(n) => n.contains(kind),
+    //         MemberExpressionKind::NewArguments(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match &self.kind {
+    //         MemberExpressionKind::PrimaryExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -379,12 +379,12 @@ impl SuperProperty {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            SuperPropertyKind::Expression(n) => kind == ParseNodeKind::Super || n.contains(kind),
-            SuperPropertyKind::IdentifierName(_) => kind == ParseNodeKind::Super,
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         SuperPropertyKind::Expression(n) => kind == ParseNodeKind::Super || n.contains(kind),
+    //         SuperPropertyKind::IdentifierName(_) => kind == ParseNodeKind::Super,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -573,13 +573,13 @@ impl Arguments {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            ArgumentsKind::Empty => false,
-            ArgumentsKind::ArgumentList(n) => n.contains(kind),
-            ArgumentsKind::ArgumentListComma(n) => n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         ArgumentsKind::Empty => false,
+    //         ArgumentsKind::ArgumentList(n) => n.contains(kind),
+    //         ArgumentsKind::ArgumentListComma(n) => n.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -757,14 +757,14 @@ impl ArgumentList {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) => boxed.contains(kind),
-            ArgumentListKind::Dots(boxed) => boxed.contains(kind),
-            ArgumentListKind::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
-            ArgumentListKind::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         ArgumentListKind::FallThru(boxed) => boxed.contains(kind),
+    //         ArgumentListKind::Dots(boxed) => boxed.contains(kind),
+    //         ArgumentListKind::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
+    //         ArgumentListKind::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -865,19 +865,19 @@ impl NewExpression {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.contains(kind),
-            NewExpressionKind::NewExpression(boxed) => boxed.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         NewExpressionKind::MemberExpression(boxed) => boxed.contains(kind),
+    //         NewExpressionKind::NewExpression(boxed) => boxed.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match &self.kind {
+    //         NewExpressionKind::MemberExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -935,9 +935,9 @@ impl CallMemberExpression {
         Ok((Rc::new(CallMemberExpression { member_expression: me, arguments: args }), after_args))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.member_expression.contains(kind) || self.arguments.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.member_expression.contains(kind) || self.arguments.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -990,9 +990,9 @@ impl SuperCall {
         Ok((Rc::new(Self { arguments: args }), after_args))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        kind == ParseNodeKind::Super || self.arguments.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     kind == ParseNodeKind::Super || self.arguments.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1049,9 +1049,9 @@ impl ImportCall {
         Ok((Rc::new(Self { assignment_expression: ae }), after_rp))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.assignment_expression.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.assignment_expression.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         self.assignment_expression.all_private_identifiers_valid(names)
@@ -1243,17 +1243,17 @@ impl CallExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(boxed) => boxed.contains(kind),
-            CallExpressionKind::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
-            CallExpressionKind::ImportCall(boxed) => boxed.contains(kind),
-            CallExpressionKind::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
-            CallExpressionKind::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains(kind),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         CallExpressionKind::CallMemberExpression(boxed) => boxed.contains(kind),
+    //         CallExpressionKind::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
+    //         CallExpressionKind::ImportCall(boxed) => boxed.contains(kind),
+    //         CallExpressionKind::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
+    //         CallExpressionKind::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
+    //         CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains(kind),
+    //         CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1365,20 +1365,20 @@ impl LeftHandSideExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LeftHandSideExpression::New(boxed) => boxed.contains(kind),
-            LeftHandSideExpression::Call(boxed) => boxed.contains(kind),
-            LeftHandSideExpression::Optional(boxed) => boxed.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         LeftHandSideExpression::New(boxed) => boxed.contains(kind),
+    //         LeftHandSideExpression::Call(boxed) => boxed.contains(kind),
+    //         LeftHandSideExpression::Optional(boxed) => boxed.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            LeftHandSideExpression::New(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         LeftHandSideExpression::New(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1488,13 +1488,13 @@ impl OptionalExpression {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            OptionalExpression::Member(left, right) => left.contains(kind) || right.contains(kind),
-            OptionalExpression::Call(left, right) => left.contains(kind) || right.contains(kind),
-            OptionalExpression::Opt(left, right) => left.contains(kind) || right.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         OptionalExpression::Member(left, right) => left.contains(kind) || right.contains(kind),
+    //         OptionalExpression::Call(left, right) => left.contains(kind) || right.contains(kind),
+    //         OptionalExpression::Opt(left, right) => left.contains(kind) || right.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1712,20 +1712,20 @@ impl OptionalChain {
         Ok((current, current_scan))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            OptionalChain::Args(node) => node.contains(kind),
-            OptionalChain::Exp(node) => node.contains(kind),
-            OptionalChain::Ident(_) => false,
-            OptionalChain::Template(node) => node.contains(kind),
-            OptionalChain::PrivateId(_) => false,
-            OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusExp(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusIdent(lst, _) => lst.contains(kind),
-            OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusPrivateId(lst, _) => lst.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         OptionalChain::Args(node) => node.contains(kind),
+    //         OptionalChain::Exp(node) => node.contains(kind),
+    //         OptionalChain::Ident(_) => false,
+    //         OptionalChain::Template(node) => node.contains(kind),
+    //         OptionalChain::PrivateId(_) => false,
+    //         OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
+    //         OptionalChain::PlusExp(lst, item) => lst.contains(kind) || item.contains(kind),
+    //         OptionalChain::PlusIdent(lst, _) => lst.contains(kind),
+    //         OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
+    //         OptionalChain::PlusPrivateId(lst, _) => lst.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

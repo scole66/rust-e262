@@ -255,9 +255,9 @@ impl FunctionBody {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.statements.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.statements.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -320,9 +320,9 @@ impl FunctionStatementList {
         (Rc::new(FunctionStatementList { statements: stmts }), after_stmts)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.statements.as_ref().map_or(false, |n| n.contains(kind))
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.statements.as_ref().map_or(false, |n| n.contains(kind))
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

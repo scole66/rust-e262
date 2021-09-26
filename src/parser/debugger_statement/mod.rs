@@ -45,7 +45,7 @@ impl DebuggerStatement {
         Ok((Rc::new(DebuggerStatement), after_semi))
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
+    // pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+    //     false
+    // }
 }

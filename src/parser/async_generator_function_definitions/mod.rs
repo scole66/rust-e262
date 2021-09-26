@@ -70,13 +70,13 @@ impl AsyncGeneratorMethod {
         Ok((Rc::new(AsyncGeneratorMethod { name, params, body }), after_rb))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.computed_property_contains(kind)
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.computed_property_contains(kind)
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -344,9 +344,9 @@ impl AsyncGeneratorBody {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

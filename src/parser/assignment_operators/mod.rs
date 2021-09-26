@@ -7,7 +7,7 @@ use super::async_arrow_function_definitions::AsyncArrowFunction;
 use super::conditional_operator::ConditionalExpression;
 use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};//, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -226,26 +226,26 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            AssignmentExpression::FallThru(node) => node.contains(kind),
-            AssignmentExpression::Yield(node) => node.contains(kind),
-            AssignmentExpression::Arrow(node) => node.contains(kind),
-            AssignmentExpression::AsyncArrow(node) => node.contains(kind),
-            AssignmentExpression::Assignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::OpAssignment(left, op, right) => left.contains(kind) || op.contains(kind) || right.contains(kind),
-            AssignmentExpression::LandAssignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::LorAssignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::CoalAssignment(left, right) => left.contains(kind) || right.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         AssignmentExpression::FallThru(node) => node.contains(kind),
+    //         AssignmentExpression::Yield(node) => node.contains(kind),
+    //         AssignmentExpression::Arrow(node) => node.contains(kind),
+    //         AssignmentExpression::AsyncArrow(node) => node.contains(kind),
+    //         AssignmentExpression::Assignment(left, right) => left.contains(kind) || right.contains(kind),
+    //         AssignmentExpression::OpAssignment(left, op, right) => left.contains(kind) || op.contains(kind) || right.contains(kind),
+    //         AssignmentExpression::LandAssignment(left, right) => left.contains(kind) || right.contains(kind),
+    //         AssignmentExpression::LorAssignment(left, right) => left.contains(kind) || right.contains(kind),
+    //         AssignmentExpression::CoalAssignment(left, right) => left.contains(kind) || right.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            AssignmentExpression::FallThru(node) => node.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         AssignmentExpression::FallThru(node) => node.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

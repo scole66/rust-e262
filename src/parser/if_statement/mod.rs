@@ -88,44 +88,44 @@ impl IfStatement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            IfStatement::WithElse(_, s1, s2) => {
-                let mut names = s1.var_declared_names();
-                names.extend(s2.var_declared_names());
-                names
-            }
-            IfStatement::WithoutElse(_, s1) => s1.var_declared_names(),
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         IfStatement::WithElse(_, s1, s2) => {
+    //             let mut names = s1.var_declared_names();
+    //             names.extend(s2.var_declared_names());
+    //             names
+    //         }
+    //         IfStatement::WithoutElse(_, s1) => s1.var_declared_names(),
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_break_target(label_set) || s2.contains_undefined_break_target(label_set),
-            IfStatement::WithoutElse(_, s1) => s1.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_break_target(label_set) || s2.contains_undefined_break_target(label_set),
+    //         IfStatement::WithoutElse(_, s1) => s1.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            IfStatement::WithElse(e, s1, s2) => e.contains(kind) || s1.contains(kind) || s2.contains(kind),
-            IfStatement::WithoutElse(e, s1) => e.contains(kind) || s1.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         IfStatement::WithElse(e, s1, s2) => e.contains(kind) || s1.contains(kind) || s2.contains(kind),
+    //         IfStatement::WithoutElse(e, s1) => e.contains(kind) || s1.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set),
-            IfStatement::WithoutElse(_, s1) => s1.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         IfStatement::WithElse(_, s1, s2) => s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set),
+    //         IfStatement::WithoutElse(_, s1) => s1.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_continue_target(iteration_set, &[]) || s2.contains_undefined_continue_target(iteration_set, &[]),
-            IfStatement::WithoutElse(_, s1) => s1.contains_undefined_continue_target(iteration_set, &[]),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_continue_target(iteration_set, &[]) || s2.contains_undefined_continue_target(iteration_set, &[]),
+    //         IfStatement::WithoutElse(_, s1) => s1.contains_undefined_continue_target(iteration_set, &[]),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

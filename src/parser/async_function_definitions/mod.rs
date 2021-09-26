@@ -262,13 +262,13 @@ impl AsyncMethod {
         Ok((Rc::new(AsyncMethod { ident, params, body }), after_rb))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.ident.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.ident.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        self.ident.computed_property_contains(kind)
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.ident.computed_property_contains(kind)
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -334,9 +334,9 @@ impl AsyncFunctionBody {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -394,10 +394,10 @@ impl AwaitExpression {
         Ok((Rc::new(AwaitExpression::Await(ue)), after_ue))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let AwaitExpression::Await(boxed) = self;
-        boxed.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let AwaitExpression::Await(boxed) = self;
+    //     boxed.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

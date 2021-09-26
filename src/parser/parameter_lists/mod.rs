@@ -56,9 +56,9 @@ impl UniqueFormalParameters {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.formals.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.formals.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -181,15 +181,15 @@ impl FormalParameters {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            FormalParameters::Empty => false,
-            FormalParameters::Rest(node) => node.contains(kind),
-            FormalParameters::List(node) => node.contains(kind),
-            FormalParameters::ListComma(node) => node.contains(kind),
-            FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         FormalParameters::Empty => false,
+    //         FormalParameters::Rest(node) => node.contains(kind),
+    //         FormalParameters::List(node) => node.contains(kind),
+    //         FormalParameters::ListComma(node) => node.contains(kind),
+    //         FormalParameters::ListRest(list, rest) => list.contains(kind) || rest.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -273,12 +273,12 @@ impl FormalParameterList {
         Ok((current, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            FormalParameterList::Item(node) => node.contains(kind),
-            FormalParameterList::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         FormalParameterList::Item(node) => node.contains(kind),
+    //         FormalParameterList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -331,9 +331,9 @@ impl FunctionRestParameter {
         Ok((Rc::new(FunctionRestParameter { element }), after_bre))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.element.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.element.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -395,9 +395,9 @@ impl FormalParameter {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.element.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.element.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

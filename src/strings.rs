@@ -118,10 +118,10 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  1. Assert: lead is a leading surrogate and trail is a trailing surrogate.
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
-fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
-    let cp: u32 = ((lead - 0xD800) as u32) * 0x400 + ((trail - 0xDC00) as u32) + 0x10000;
-    cp
-}
+// fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
+//     let cp: u32 = ((lead - 0xD800) as u32) * 0x400 + ((trail - 0xDC00) as u32) + 0x10000;
+//     cp
+// }
 
 // Static Semantics: CodePointAt ( string, position )
 //
@@ -148,24 +148,24 @@ struct CodePointAtResult {
     code_unit_count: u8,
     is_unpaired_surrogate: bool,
 }
-fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
-    let size = string.len();
-    let first = string[position];
-    let cp: u32 = first as u32;
-    if !(0xD800..=0xDFFF).contains(&first) {
-        CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: false }
-    } else if first >= 0xDC00 || position + 1 == size {
-        CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
-    } else {
-        let second = string[position + 1];
-        if !(0xDC00..=0xDFFF).contains(&second) {
-            CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
-        } else {
-            let cp = utf16_surrogate_pair_to_code_point(first, second);
-            CodePointAtResult { code_point: cp, code_unit_count: 2, is_unpaired_surrogate: false }
-        }
-    }
-}
+// fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
+//     let size = string.len();
+//     let first = string[position];
+//     let cp: u32 = first as u32;
+//     if !(0xD800..=0xDFFF).contains(&first) {
+//         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: false }
+//     } else if first >= 0xDC00 || position + 1 == size {
+//         CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
+//     } else {
+//         let second = string[position + 1];
+//         if !(0xDC00..=0xDFFF).contains(&second) {
+//             CodePointAtResult { code_point: cp, code_unit_count: 1, is_unpaired_surrogate: true }
+//         } else {
+//             let cp = utf16_surrogate_pair_to_code_point(first, second);
+//             CodePointAtResult { code_point: cp, code_unit_count: 2, is_unpaired_surrogate: false }
+//         }
+//     }
+// }
 
 // Static Semantics: StringToCodePoints ( string )
 //
@@ -181,18 +181,18 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      b. Append cp.[[CodePoint]] to codePoints.
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
-fn string_to_code_points(string: &JSString) -> Vec<u32> {
-    // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
-    let size = string.len();
-    let mut code_points: Vec<u32> = Vec::with_capacity(size);
-    let mut position = 0;
-    while position < size {
-        let cp = code_point_at(string, position);
-        code_points.push(cp.code_point);
-        position += cp.code_unit_count as usize;
-    }
-    code_points
-}
+// fn string_to_code_points(string: &JSString) -> Vec<u32> {
+//     // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
+//     let size = string.len();
+//     let mut code_points: Vec<u32> = Vec::with_capacity(size);
+//     let mut position = 0;
+//     while position < size {
+//         let cp = code_point_at(string, position);
+//         code_points.push(cp.code_point);
+//         position += cp.code_unit_count as usize;
+//     }
+//     code_points
+// }
 
 // #[cfg(test)]
 // mod tests {

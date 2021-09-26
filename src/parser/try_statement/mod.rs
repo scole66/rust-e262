@@ -112,66 +112,66 @@ impl TryStatement {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            TryStatement::Catch(block, catch) => {
-                let mut names = block.var_declared_names();
-                names.extend(catch.var_declared_names());
-                names
-            }
-            TryStatement::Finally(block, finally) => {
-                let mut names = block.var_declared_names();
-                names.extend(finally.var_declared_names());
-                names
-            }
-            TryStatement::Full(block, catch, finally) => {
-                let mut names = block.var_declared_names();
-                names.extend(catch.var_declared_names());
-                names.extend(finally.var_declared_names());
-                names
-            }
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         TryStatement::Catch(block, catch) => {
+    //             let mut names = block.var_declared_names();
+    //             names.extend(catch.var_declared_names());
+    //             names
+    //         }
+    //         TryStatement::Finally(block, finally) => {
+    //             let mut names = block.var_declared_names();
+    //             names.extend(finally.var_declared_names());
+    //             names
+    //         }
+    //         TryStatement::Full(block, catch, finally) => {
+    //             let mut names = block.var_declared_names();
+    //             names.extend(catch.var_declared_names());
+    //             names.extend(finally.var_declared_names());
+    //             names
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            TryStatement::Catch(block, catch) => block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set),
-            TryStatement::Finally(block, finally) => block.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set),
-            TryStatement::Full(block, catch, finally) => {
-                block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set)
-            }
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         TryStatement::Catch(block, catch) => block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set),
+    //         TryStatement::Finally(block, finally) => block.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set),
+    //         TryStatement::Full(block, catch, finally) => {
+    //             block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set)
+    //         }
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            TryStatement::Catch(block, catch) => block.contains(kind) || catch.contains(kind),
-            TryStatement::Finally(block, finally) => block.contains(kind) || finally.contains(kind),
-            TryStatement::Full(block, catch, finally) => block.contains(kind) || catch.contains(kind) || finally.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         TryStatement::Catch(block, catch) => block.contains(kind) || catch.contains(kind),
+    //         TryStatement::Finally(block, finally) => block.contains(kind) || finally.contains(kind),
+    //         TryStatement::Full(block, catch, finally) => block.contains(kind) || catch.contains(kind) || finally.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            TryStatement::Catch(block, catch) => block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set),
-            TryStatement::Finally(block, finally) => block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set),
-            TryStatement::Full(block, catch, finally) => {
-                block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
-            }
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         TryStatement::Catch(block, catch) => block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set),
+    //         TryStatement::Finally(block, finally) => block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set),
+    //         TryStatement::Full(block, catch, finally) => {
+    //             block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            TryStatement::Catch(block, catch) => block.contains_undefined_continue_target(iteration_set, &[]) || catch.contains_undefined_continue_target(iteration_set),
-            TryStatement::Finally(block, finally) => block.contains_undefined_continue_target(iteration_set, &[]) || finally.contains_undefined_continue_target(iteration_set),
-            TryStatement::Full(block, catch, finally) => {
-                block.contains_undefined_continue_target(iteration_set, &[])
-                    || catch.contains_undefined_continue_target(iteration_set)
-                    || finally.contains_undefined_continue_target(iteration_set)
-            }
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         TryStatement::Catch(block, catch) => block.contains_undefined_continue_target(iteration_set, &[]) || catch.contains_undefined_continue_target(iteration_set),
+    //         TryStatement::Finally(block, finally) => block.contains_undefined_continue_target(iteration_set, &[]) || finally.contains_undefined_continue_target(iteration_set),
+    //         TryStatement::Full(block, catch, finally) => {
+    //             block.contains_undefined_continue_target(iteration_set, &[])
+    //                 || catch.contains_undefined_continue_target(iteration_set)
+    //                 || finally.contains_undefined_continue_target(iteration_set)
+    //         }
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -254,25 +254,25 @@ impl Catch {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        self.block.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     self.block.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.block.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     self.block.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.parameter.as_ref().map_or(false, |n| n.contains(kind)) || self.block.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.parameter.as_ref().map_or(false, |n| n.contains(kind)) || self.block.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.block.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     self.block.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        self.block.contains_undefined_continue_target(iteration_set, &[])
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     self.block.contains_undefined_continue_target(iteration_set, &[])
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -326,25 +326,25 @@ impl Finally {
         Ok((Rc::new(Finally { block }), after_block))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        self.block.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     self.block.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.block.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     self.block.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.block.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.block.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.block.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     self.block.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        self.block.contains_undefined_continue_target(iteration_set, &[])
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     self.block.contains_undefined_continue_target(iteration_set, &[])
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -424,12 +424,12 @@ impl CatchParameter {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CatchParameter::Ident(node) => node.contains(kind),
-            CatchParameter::Pattern(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         CatchParameter::Ident(node) => node.contains(kind),
+    //         CatchParameter::Pattern(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

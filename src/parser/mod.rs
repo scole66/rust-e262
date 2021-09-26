@@ -403,16 +403,16 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 // 3. Otherwise, return a List of one or more SyntaxError objects representing the parsing errors and/or early errors.
 //    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
 //    implementation-defined, but at least one must be present.
-use super::agent::Agent;
-use super::errors::create_syntax_error_object;
-use super::object::Object;
-use scripts::Script;
+//use super::agent::Agent;
+//use super::errors::create_syntax_error_object;
+// use super::object::Object;
+// use scripts::Script;
 
-pub enum ParsedText {
-    Errors(Vec<Object>),
-    Script(Rc<Script>),
-    // ... more to come
-}
+//pub enum ParsedText {
+//    Errors(Vec<Object>),
+//    Script(Rc<Script>),
+//    // ... more to come
+//}
 
 // pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
 //     let mut parser = Parser::new(src, false, false, goal_symbol);

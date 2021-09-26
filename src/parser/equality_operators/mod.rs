@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::relational_operators::RelationalExpression;
-use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, StringToken, Token};
+use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -120,22 +120,22 @@ impl EqualityExpression {
         Ok((current, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            EqualityExpression::RelationalExpression(n) => n.contains(kind),
-            EqualityExpression::Equal(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::NotEqual(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::StrictEqual(l, r) => l.contains(kind) || r.contains(kind),
-            EqualityExpression::NotStrictEqual(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         EqualityExpression::RelationalExpression(n) => n.contains(kind),
+    //         EqualityExpression::Equal(l, r) => l.contains(kind) || r.contains(kind),
+    //         EqualityExpression::NotEqual(l, r) => l.contains(kind) || r.contains(kind),
+    //         EqualityExpression::StrictEqual(l, r) => l.contains(kind) || r.contains(kind),
+    //         EqualityExpression::NotStrictEqual(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            EqualityExpression::RelationalExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         EqualityExpression::RelationalExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

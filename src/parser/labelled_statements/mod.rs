@@ -54,49 +54,49 @@ impl LabelledStatement {
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        // LabelledStatement : LabelIdentifier : LabelledItem
-        //  1. Return the LexicallyDeclaredNames of LabelledItem.
-        self.item.lexically_declared_names()
-    }
+    // pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    //     // LabelledStatement : LabelIdentifier : LabelledItem
+    //     //  1. Return the LexicallyDeclaredNames of LabelledItem.
+    //     self.item.lexically_declared_names()
+    // }
 
-    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
-        self.item.top_level_var_declared_names()
-    }
+    // pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+    //     self.item.top_level_var_declared_names()
+    // }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        self.item.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     self.item.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let label = self.identifier.string_value();
-        let mut new_label_set: Vec<JSString> = Vec::new();
-        new_label_set.extend_from_slice(label_set);
-        new_label_set.push(label);
-        self.item.contains_undefined_break_target(&new_label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     let label = self.identifier.string_value();
+    //     let mut new_label_set: Vec<JSString> = Vec::new();
+    //     new_label_set.extend_from_slice(label_set);
+    //     new_label_set.push(label);
+    //     self.item.contains_undefined_break_target(&new_label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.identifier.contains(kind) || self.item.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.identifier.contains(kind) || self.item.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let label = self.identifier.string_value();
-        label_set.contains(&label) || {
-            let mut new_label_set: Vec<JSString> = Vec::new();
-            new_label_set.extend_from_slice(label_set);
-            new_label_set.push(label);
-            self.item.contains_duplicate_labels(&new_label_set)
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     let label = self.identifier.string_value();
+    //     label_set.contains(&label) || {
+    //         let mut new_label_set: Vec<JSString> = Vec::new();
+    //         new_label_set.extend_from_slice(label_set);
+    //         new_label_set.push(label);
+    //         self.item.contains_duplicate_labels(&new_label_set)
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        let label = self.identifier.string_value();
-        let mut new_label_set: Vec<JSString> = Vec::new();
-        new_label_set.extend_from_slice(label_set);
-        new_label_set.push(label);
-        self.item.contains_undefined_continue_target(iteration_set, &new_label_set)
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    //     let label = self.identifier.string_value();
+    //     let mut new_label_set: Vec<JSString> = Vec::new();
+    //     new_label_set.extend_from_slice(label_set);
+    //     new_label_set.push(label);
+    //     self.item.contains_undefined_continue_target(iteration_set, &new_label_set)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -164,65 +164,65 @@ impl LabelledItem {
             })
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        match self {
-            LabelledItem::Statement(_) => {
-                // LabelledItem : Statement
-                //  1. Return a new empty List.
-                vec![]
-            }
-            LabelledItem::Function(node) => {
-                // LabelledItem : FunctionDeclaration
-                //  1. Return BoundNames of FunctionDeclaration.
-                node.bound_names()
-            }
-        }
-    }
+    // pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         LabelledItem::Statement(_) => {
+    //             // LabelledItem : Statement
+    //             //  1. Return a new empty List.
+    //             vec![]
+    //         }
+    //         LabelledItem::Function(node) => {
+    //             // LabelledItem : FunctionDeclaration
+    //             //  1. Return BoundNames of FunctionDeclaration.
+    //             node.bound_names()
+    //         }
+    //     }
+    // }
 
-    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            LabelledItem::Statement(node) => match &**node {
-                Statement::Labelled(stmt) => stmt.top_level_var_declared_names(),
-                _ => node.var_declared_names(),
-            },
-            LabelledItem::Function(node) => node.bound_names(),
-        }
-    }
+    // pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         LabelledItem::Statement(node) => match &**node {
+    //             Statement::Labelled(stmt) => stmt.top_level_var_declared_names(),
+    //             _ => node.var_declared_names(),
+    //         },
+    //         LabelledItem::Function(node) => node.bound_names(),
+    //     }
+    // }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            LabelledItem::Statement(node) => node.var_declared_names(),
-            LabelledItem::Function(..) => vec![],
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         LabelledItem::Statement(node) => node.var_declared_names(),
+    //         LabelledItem::Function(..) => vec![],
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            LabelledItem::Statement(node) => node.contains_undefined_break_target(label_set),
-            LabelledItem::Function(..) => false,
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         LabelledItem::Statement(node) => node.contains_undefined_break_target(label_set),
+    //         LabelledItem::Function(..) => false,
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LabelledItem::Statement(node) => node.contains(kind),
-            LabelledItem::Function(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         LabelledItem::Statement(node) => node.contains(kind),
+    //         LabelledItem::Function(node) => node.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            LabelledItem::Statement(node) => node.contains_duplicate_labels(label_set),
-            LabelledItem::Function(..) => false,
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         LabelledItem::Statement(node) => node.contains_duplicate_labels(label_set),
+    //         LabelledItem::Function(..) => false,
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        match self {
-            LabelledItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
-            LabelledItem::Function(..) => false,
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    //     match self {
+    //         LabelledItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
+    //         LabelledItem::Function(..) => false,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

@@ -62,12 +62,12 @@ impl ReturnStatement {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ReturnStatement::Bare => false,
-            ReturnStatement::Expression(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ReturnStatement::Bare => false,
+    //         ReturnStatement::Expression(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

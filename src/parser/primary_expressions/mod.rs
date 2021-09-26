@@ -316,30 +316,30 @@ impl PrimaryExpression {
             .otherwise(|| Self::parse_regex(parser, scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            PrimaryExpressionKind::This => kind == ParseNodeKind::This,
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Function(node) => node.contains(kind),
-            PrimaryExpressionKind::Class(node) => node.contains(kind),
-            PrimaryExpressionKind::Generator(node) => node.contains(kind),
-            PrimaryExpressionKind::AsyncFunction(node) => node.contains(kind),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.contains(kind),
-            PrimaryExpressionKind::RegularExpression(..) => false,
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match &self.kind {
+    //         PrimaryExpressionKind::This => kind == ParseNodeKind::This,
+    //         PrimaryExpressionKind::IdentifierReference(boxed) => boxed.contains(kind),
+    //         PrimaryExpressionKind::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
+    //         PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.contains(kind),
+    //         PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.contains(kind),
+    //         PrimaryExpressionKind::Parenthesized(boxed) => boxed.contains(kind),
+    //         PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.contains(kind),
+    //         PrimaryExpressionKind::Function(node) => node.contains(kind),
+    //         PrimaryExpressionKind::Class(node) => node.contains(kind),
+    //         PrimaryExpressionKind::Generator(node) => node.contains(kind),
+    //         PrimaryExpressionKind::AsyncFunction(node) => node.contains(kind),
+    //         PrimaryExpressionKind::AsyncGenerator(node) => node.contains(kind),
+    //         PrimaryExpressionKind::RegularExpression(..) => false,
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            PrimaryExpressionKind::Literal(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match &self.kind {
+    //         PrimaryExpressionKind::Literal(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -478,10 +478,10 @@ impl SpreadElement {
         Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let SpreadElement::AssignmentExpression(boxed) = self;
-        boxed.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let SpreadElement::AssignmentExpression(boxed) = self;
+    //     boxed.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -681,14 +681,14 @@ impl ElementList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ElementList::AssignmentExpression((elisions, ae)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
-            ElementList::SpreadElement((elisions, se)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
-            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
-            ElementList::ElementListSpreadElement((el, elisions, se)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ElementList::AssignmentExpression((elisions, ae)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
+    //         ElementList::SpreadElement((elisions, se)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
+    //         ElementList::ElementListAssignmentExpression((el, elisions, ae)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
+    //         ElementList::ElementListSpreadElement((el, elisions, se)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -818,13 +818,13 @@ impl ArrayLiteral {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
-            ArrayLiteral::ElementList(boxed) => boxed.contains(kind),
-            ArrayLiteral::ElementListElision(boxed, pot_elision) => boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
+    //         ArrayLiteral::ElementList(boxed) => boxed.contains(kind),
+    //         ArrayLiteral::ElementListElision(boxed, pot_elision) => boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -896,10 +896,10 @@ impl Initializer {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let Initializer::AssignmentExpression(node) = self;
-        node.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let Initializer::AssignmentExpression(node) = self;
+    //     node.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -957,10 +957,10 @@ impl CoverInitializedName {
         Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let CoverInitializedName::InitializedName(idref, izer) = self;
-        idref.contains(kind) || izer.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let CoverInitializedName::InitializedName(idref, izer) = self;
+    //     idref.contains(kind) || izer.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1019,10 +1019,10 @@ impl ComputedPropertyName {
         Ok((Rc::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ComputedPropertyName::AssignmentExpression(n) = self;
-        n.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let ComputedPropertyName::AssignmentExpression(n) = self;
+    //     n.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1094,9 +1094,9 @@ impl LiteralPropertyName {
         }
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
+    // pub fn contains(&self, _kind: ParseNodeKind) -> bool {
+    //     false
+    // }
 }
 
 // PropertyName[Yield, Await] :
@@ -1159,19 +1159,19 @@ impl PropertyName {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            PropertyName::LiteralPropertyName(n) => n.contains(kind),
-            PropertyName::ComputedPropertyName(n) => n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         PropertyName::LiteralPropertyName(n) => n.contains(kind),
+    //         PropertyName::ComputedPropertyName(n) => n.contains(kind),
+    //     }
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            PropertyName::LiteralPropertyName(..) => false,
-            PropertyName::ComputedPropertyName(n) => n.contains(kind),
-        }
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         PropertyName::LiteralPropertyName(..) => false,
+    //         PropertyName::ComputedPropertyName(n) => n.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1300,15 +1300,15 @@ impl PropertyDefinition {
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
-            PropertyDefinition::CoverInitializedName(cin) => cin.contains(kind),
-            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains(kind) || ae.contains(kind),
-            PropertyDefinition::MethodDefinition(md) => kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind),
-            PropertyDefinition::AssignmentExpression(ae) => ae.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
+    //         PropertyDefinition::CoverInitializedName(cin) => cin.contains(kind),
+    //         PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains(kind) || ae.contains(kind),
+    //         PropertyDefinition::MethodDefinition(md) => kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind),
+    //         PropertyDefinition::AssignmentExpression(ae) => ae.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1391,12 +1391,12 @@ impl PropertyDefinitionList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            PropertyDefinitionList::OneDef(pd) => pd.contains(kind),
-            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains(kind) || pd.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         PropertyDefinitionList::OneDef(pd) => pd.contains(kind),
+    //         PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains(kind) || pd.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1487,13 +1487,13 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ObjectLiteral::Empty => false,
-            ObjectLiteral::Normal(pdl) => pdl.contains(kind),
-            ObjectLiteral::TrailingComma(pdl) => pdl.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ObjectLiteral::Empty => false,
+    //         ObjectLiteral::Normal(pdl) => pdl.contains(kind),
+    //         ObjectLiteral::TrailingComma(pdl) => pdl.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1693,12 +1693,12 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => false,
-            TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         TemplateLiteral::NoSubstitutionTemplate(..) => false,
+    //         TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1764,9 +1764,9 @@ impl SubstitutionTemplate {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.template_spans.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.expression.contains(kind) || self.template_spans.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1853,12 +1853,12 @@ impl TemplateSpans {
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            TemplateSpans::Tail(..) => false,
-            TemplateSpans::List(tml, _, _) => tml.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         TemplateSpans::Tail(..) => false,
+    //         TemplateSpans::List(tml, _, _) => tml.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1956,12 +1956,12 @@ impl TemplateMiddleList {
         Ok((current_node, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            TemplateMiddleList::ListHead(_, exp, _) => exp.contains(kind),
-            TemplateMiddleList::ListMid(tml, _, exp, _) => tml.contains(kind) || exp.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         TemplateMiddleList::ListHead(_, exp, _) => exp.contains(kind),
+    //         TemplateMiddleList::ListMid(tml, _, exp, _) => tml.contains(kind) || exp.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -2037,10 +2037,10 @@ impl ParenthesizedExpression {
         Ok((Rc::new(ParenthesizedExpression::Expression(exp)), after_rp))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let ParenthesizedExpression::Expression(e) = self;
+    //     e.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -2245,15 +2245,15 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => false,
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => exp.contains(kind) || id.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => exp.contains(kind) || pat.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.contains(kind),
+    //         CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.contains(kind),
+    //         CoverParenthesizedExpressionAndArrowParameterList::Empty => false,
+    //         CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.contains(kind),
+    //         CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.contains(kind),
+    //         CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => exp.contains(kind) || id.contains(kind),
+    //         CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => exp.contains(kind) || pat.contains(kind),
+    //     }
+    // }
 }

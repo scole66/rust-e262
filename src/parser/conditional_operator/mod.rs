@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};//, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -97,19 +97,19 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ConditionalExpression::FallThru(node) => node.contains(kind),
-            ConditionalExpression::Conditional(cond, truthy, falsey) => cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ConditionalExpression::FallThru(node) => node.contains(kind),
+    //         ConditionalExpression::Conditional(cond, truthy, falsey) => cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            ConditionalExpression::FallThru(node) => node.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         ConditionalExpression::FallThru(node) => node.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

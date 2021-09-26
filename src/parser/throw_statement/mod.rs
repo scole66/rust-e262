@@ -49,9 +49,9 @@ impl ThrowStatement {
         Ok((Rc::new(ThrowStatement(exp)), after_semi))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

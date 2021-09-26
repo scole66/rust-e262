@@ -57,25 +57,25 @@ impl WithStatement {
         Ok((Rc::new(WithStatement { expression: exp, statement: stmt }), after_stmt))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        self.statement.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     self.statement.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.statement.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     self.statement.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.statement.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.expression.contains(kind) || self.statement.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.statement.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     self.statement.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        self.statement.contains_undefined_continue_target(iteration_set, &[])
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     self.statement.contains_undefined_continue_target(iteration_set, &[])
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

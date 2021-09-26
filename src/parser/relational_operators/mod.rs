@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::bitwise_shift_operators::ShiftExpression;
-use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
+use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -170,25 +170,25 @@ impl RelationalExpression {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            RelationalExpression::ShiftExpression(n) => n.contains(kind),
-            RelationalExpression::Less(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::Greater(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::LessEqual(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::PrivateIn(_, r) => r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         RelationalExpression::ShiftExpression(n) => n.contains(kind),
+    //         RelationalExpression::Less(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::Greater(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::LessEqual(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
+    //         RelationalExpression::PrivateIn(_, r) => r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            RelationalExpression::ShiftExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         RelationalExpression::ShiftExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

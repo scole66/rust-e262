@@ -68,13 +68,13 @@ impl GeneratorMethod {
         Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.computed_property_contains(kind)
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.name.computed_property_contains(kind)
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -328,9 +328,9 @@ impl GeneratorBody {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -424,13 +424,13 @@ impl YieldExpression {
             .otherwise(|| Ok((Rc::new(YieldExpression::Simple), after_yield)))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            YieldExpression::Simple => false,
-            YieldExpression::Expression(node) => node.contains(kind),
-            YieldExpression::From(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         YieldExpression::Simple => false,
+    //         YieldExpression::Expression(node) => node.contains(kind),
+    //         YieldExpression::From(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

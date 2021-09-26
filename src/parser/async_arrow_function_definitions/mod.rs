@@ -110,13 +110,13 @@ impl AsyncArrowFunction {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        (kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall || kind == ParseNodeKind::Super || kind == ParseNodeKind::This)
-            && match self {
-                AsyncArrowFunction::IdentOnly(_, body) => body.contains(kind),
-                AsyncArrowFunction::Formals(params, body) => params.contains(kind) || body.contains(kind),
-            }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     (kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall || kind == ParseNodeKind::Super || kind == ParseNodeKind::This)
+    //         && match self {
+    //             AsyncArrowFunction::IdentOnly(_, body) => body.contains(kind),
+    //             AsyncArrowFunction::Formals(params, body) => params.contains(kind) || body.contains(kind),
+    //         }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -173,9 +173,9 @@ impl AsyncArrowHead {
         Ok((Rc::new(AsyncArrowHead(params)), after_params))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.0.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -258,12 +258,12 @@ impl AsyncConciseBody {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            AsyncConciseBody::Expression(node) => node.contains(kind),
-            AsyncConciseBody::Function(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         AsyncConciseBody::Expression(node) => node.contains(kind),
+    //         AsyncConciseBody::Function(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -375,7 +375,7 @@ impl CoverCallExpressionAndAsyncArrowHead {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.args.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.expression.contains(kind) || self.args.contains(kind)
+    // }
 }

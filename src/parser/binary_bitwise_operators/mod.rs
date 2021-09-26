@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::equality_operators::EqualityExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -91,19 +91,19 @@ impl BitwiseANDExpression {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BitwiseANDExpression::EqualityExpression(n) => n.contains(kind),
-            BitwiseANDExpression::BitwiseAND(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BitwiseANDExpression::EqualityExpression(n) => n.contains(kind),
+    //         BitwiseANDExpression::BitwiseAND(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -203,19 +203,19 @@ impl BitwiseXORExpression {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BitwiseXORExpression::BitwiseANDExpression(n) => n.contains(kind),
-            BitwiseXORExpression::BitwiseXOR(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BitwiseXORExpression::BitwiseANDExpression(n) => n.contains(kind),
+    //         BitwiseXORExpression::BitwiseXOR(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -326,19 +326,19 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BitwiseORExpression::BitwiseXORExpression(n) => n.contains(kind),
-            BitwiseORExpression::BitwiseOR(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BitwiseORExpression::BitwiseXORExpression(n) => n.contains(kind),
+    //         BitwiseORExpression::BitwiseOR(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

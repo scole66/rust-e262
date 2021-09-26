@@ -168,27 +168,27 @@ impl MethodDefinition {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            MethodDefinition::NamedFunction(name, params, body) => name.contains(kind) || params.contains(kind) || body.contains(kind),
-            MethodDefinition::Generator(node) => node.contains(kind),
-            MethodDefinition::Async(node) => node.contains(kind),
-            MethodDefinition::AsyncGenerator(node) => node.contains(kind),
-            MethodDefinition::Getter(name, body) => name.contains(kind) || body.contains(kind),
-            MethodDefinition::Setter(name, args, body) => name.contains(kind) || args.contains(kind) || body.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         MethodDefinition::NamedFunction(name, params, body) => name.contains(kind) || params.contains(kind) || body.contains(kind),
+    //         MethodDefinition::Generator(node) => node.contains(kind),
+    //         MethodDefinition::Async(node) => node.contains(kind),
+    //         MethodDefinition::AsyncGenerator(node) => node.contains(kind),
+    //         MethodDefinition::Getter(name, body) => name.contains(kind) || body.contains(kind),
+    //         MethodDefinition::Setter(name, args, body) => name.contains(kind) || args.contains(kind) || body.contains(kind),
+    //     }
+    // }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            MethodDefinition::NamedFunction(name, ..) => name.computed_property_contains(kind),
-            MethodDefinition::Generator(node) => node.computed_property_contains(kind),
-            MethodDefinition::Async(node) => node.computed_property_contains(kind),
-            MethodDefinition::AsyncGenerator(node) => node.computed_property_contains(kind),
-            MethodDefinition::Getter(name, ..) => name.computed_property_contains(kind),
-            MethodDefinition::Setter(name, ..) => name.computed_property_contains(kind),
-        }
-    }
+    // pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         MethodDefinition::NamedFunction(name, ..) => name.computed_property_contains(kind),
+    //         MethodDefinition::Generator(node) => node.computed_property_contains(kind),
+    //         MethodDefinition::Async(node) => node.computed_property_contains(kind),
+    //         MethodDefinition::AsyncGenerator(node) => node.computed_property_contains(kind),
+    //         MethodDefinition::Getter(name, ..) => name.computed_property_contains(kind),
+    //         MethodDefinition::Setter(name, ..) => name.computed_property_contains(kind),
+    //     }
+    // }
 
     pub fn private_bound_identifiers(&self) -> Vec<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
@@ -269,9 +269,9 @@ impl PropertySetParameterList {
         FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.node.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.node.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

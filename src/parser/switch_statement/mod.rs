@@ -57,25 +57,25 @@ impl SwitchStatement {
         Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb }), after_cases))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        self.case_block.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     self.case_block.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.case_block.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     self.case_block.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.case_block.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.expression.contains(kind) || self.case_block.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.case_block.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     self.case_block.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        self.case_block.contains_undefined_continue_target(iteration_set)
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     self.case_block.contains_undefined_continue_target(iteration_set)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -198,66 +198,66 @@ impl CaseBlock {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            CaseBlock::NoDefault(None) => vec![],
-            CaseBlock::NoDefault(Some(node)) => node.var_declared_names(),
-            CaseBlock::HasDefault(pre, def, post) => {
-                let mut names = match pre {
-                    None => vec![],
-                    Some(node) => node.var_declared_names(),
-                };
-                names.extend(def.var_declared_names());
-                if let Some(node) = post {
-                    names.extend(node.var_declared_names());
-                }
-                names
-            }
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         CaseBlock::NoDefault(None) => vec![],
+    //         CaseBlock::NoDefault(Some(node)) => node.var_declared_names(),
+    //         CaseBlock::HasDefault(pre, def, post) => {
+    //             let mut names = match pre {
+    //                 None => vec![],
+    //                 Some(node) => node.var_declared_names(),
+    //             };
+    //             names.extend(def.var_declared_names());
+    //             if let Some(node) = post {
+    //                 names.extend(node.var_declared_names());
+    //             }
+    //             names
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_undefined_break_target(label_set),
-            CaseBlock::HasDefault(pre, def, post) => {
-                pre.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
-                    || def.contains_undefined_break_target(label_set)
-                    || post.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
-            }
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseBlock::NoDefault(None) => false,
+    //         CaseBlock::NoDefault(Some(node)) => node.contains_undefined_break_target(label_set),
+    //         CaseBlock::HasDefault(pre, def, post) => {
+    //             pre.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
+    //                 || def.contains_undefined_break_target(label_set)
+    //                 || post.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
+    //         }
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CaseBlock::NoDefault(opt) => opt.as_ref().map_or(false, |n| n.contains(kind)),
-            CaseBlock::HasDefault(opt1, def, opt2) => opt1.as_ref().map_or(false, |n| n.contains(kind)) || def.contains(kind) || opt2.as_ref().map_or(false, |n| n.contains(kind)),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         CaseBlock::NoDefault(opt) => opt.as_ref().map_or(false, |n| n.contains(kind)),
+    //         CaseBlock::HasDefault(opt1, def, opt2) => opt1.as_ref().map_or(false, |n| n.contains(kind)) || def.contains(kind) || opt2.as_ref().map_or(false, |n| n.contains(kind)),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_duplicate_labels(label_set),
-            CaseBlock::HasDefault(pre, def, post) => {
-                pre.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
-                    || def.contains_duplicate_labels(label_set)
-                    || post.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
-            }
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseBlock::NoDefault(None) => false,
+    //         CaseBlock::NoDefault(Some(node)) => node.contains_duplicate_labels(label_set),
+    //         CaseBlock::HasDefault(pre, def, post) => {
+    //             pre.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+    //                 || def.contains_duplicate_labels(label_set)
+    //                 || post.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_undefined_continue_target(iteration_set),
-            CaseBlock::HasDefault(pre, def, post) => {
-                pre.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
-                    || def.contains_undefined_continue_target(iteration_set)
-                    || post.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
-            }
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseBlock::NoDefault(None) => false,
+    //         CaseBlock::NoDefault(Some(node)) => node.contains_undefined_continue_target(iteration_set),
+    //         CaseBlock::HasDefault(pre, def, post) => {
+    //             pre.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+    //                 || def.contains_undefined_continue_target(iteration_set)
+    //                 || post.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+    //         }
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -341,44 +341,44 @@ impl CaseClauses {
         Ok((current, current_scanner))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            CaseClauses::Item(node) => node.var_declared_names(),
-            CaseClauses::List(lst, item) => {
-                let mut names = lst.var_declared_names();
-                names.extend(item.var_declared_names());
-                names
-            }
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         CaseClauses::Item(node) => node.var_declared_names(),
+    //         CaseClauses::List(lst, item) => {
+    //             let mut names = lst.var_declared_names();
+    //             names.extend(item.var_declared_names());
+    //             names
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            CaseClauses::Item(node) => node.contains_undefined_break_target(label_set),
-            CaseClauses::List(lst, item) => lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseClauses::Item(node) => node.contains_undefined_break_target(label_set),
+    //         CaseClauses::List(lst, item) => lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CaseClauses::Item(node) => node.contains(kind),
-            CaseClauses::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         CaseClauses::Item(node) => node.contains(kind),
+    //         CaseClauses::List(lst, item) => lst.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            CaseClauses::Item(node) => node.contains_duplicate_labels(label_set),
-            CaseClauses::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseClauses::Item(node) => node.contains_duplicate_labels(label_set),
+    //         CaseClauses::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            CaseClauses::Item(node) => node.contains_undefined_continue_target(iteration_set),
-            CaseClauses::List(lst, item) => lst.contains_undefined_continue_target(iteration_set) || item.contains_undefined_continue_target(iteration_set),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         CaseClauses::Item(node) => node.contains_undefined_continue_target(iteration_set),
+    //         CaseClauses::List(lst, item) => lst.contains_undefined_continue_target(iteration_set) || item.contains_undefined_continue_target(iteration_set),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -457,37 +457,37 @@ impl CaseClause {
         Ok((Rc::new(CaseClause { expression: exp, statements: stmt }), after_stmt))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match &self.statements {
-            None => vec![],
-            Some(s) => s.var_declared_names(),
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match &self.statements {
+    //         None => vec![],
+    //         Some(s) => s.var_declared_names(),
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match &self.statements {
-            None => false,
-            Some(s) => s.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match &self.statements {
+    //         None => false,
+    //         Some(s) => s.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.statements.as_ref().map_or(false, |n| n.contains(kind))
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.expression.contains(kind) || self.statements.as_ref().map_or(false, |n| n.contains(kind))
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match &self.statements {
-            None => false,
-            Some(s) => s.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match &self.statements {
+    //         None => false,
+    //         Some(s) => s.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match &self.statements {
-            None => false,
-            Some(s) => s.contains_undefined_continue_target(iteration_set, &[]),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match &self.statements {
+    //         None => false,
+    //         Some(s) => s.contains_undefined_continue_target(iteration_set, &[]),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -559,38 +559,38 @@ impl DefaultClause {
         Ok((Rc::new(DefaultClause(sl)), after_sl))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            DefaultClause(None) => vec![],
-            DefaultClause(Some(sl)) => sl.var_declared_names(),
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         DefaultClause(None) => vec![],
+    //         DefaultClause(Some(sl)) => sl.var_declared_names(),
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         DefaultClause(None) => false,
+    //         DefaultClause(Some(sl)) => sl.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let DefaultClause(opt) = self;
-        opt.as_ref().map_or(false, |n| n.contains(kind))
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let DefaultClause(opt) = self;
+    //     opt.as_ref().map_or(false, |n| n.contains(kind))
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         DefaultClause(None) => false,
+    //         DefaultClause(Some(sl)) => sl.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_undefined_continue_target(iteration_set, &[]),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         DefaultClause(None) => false,
+    //         DefaultClause(Some(sl)) => sl.contains_undefined_continue_target(iteration_set, &[]),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

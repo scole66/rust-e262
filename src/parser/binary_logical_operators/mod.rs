@@ -91,19 +91,19 @@ impl LogicalANDExpression {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LogicalANDExpression::BitwiseORExpression(n) => n.contains(kind),
-            LogicalANDExpression::LogicalAND(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         LogicalANDExpression::BitwiseORExpression(n) => n.contains(kind),
+    //         LogicalANDExpression::LogicalAND(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -203,19 +203,19 @@ impl LogicalORExpression {
         })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LogicalORExpression::LogicalANDExpression(n) => n.contains(kind),
-            LogicalORExpression::LogicalOR(l, r) => l.contains(kind) || r.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         LogicalORExpression::LogicalANDExpression(n) => n.contains(kind),
+    //         LogicalORExpression::LogicalOR(l, r) => l.contains(kind) || r.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -299,9 +299,9 @@ impl CoalesceExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.head.contains(kind) || self.tail.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     self.head.contains(kind) || self.tail.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -361,12 +361,12 @@ impl CoalesceExpressionHead {
     // together is far simpler than giving each its own parse routine. So there's no independent implementation for
     // CoalesceExpressionHead here; look to CoalesceExpression to find the bundle.
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CoalesceExpressionHead::CoalesceExpression(n) => n.contains(kind),
-            CoalesceExpressionHead::BitwiseORExpression(n) => n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         CoalesceExpressionHead::CoalesceExpression(n) => n.contains(kind),
+    //         CoalesceExpressionHead::BitwiseORExpression(n) => n.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -453,19 +453,19 @@ impl ShortCircuitExpression {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ShortCircuitExpression::LogicalORExpression(n) => n.contains(kind),
-            ShortCircuitExpression::CoalesceExpression(n) => n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ShortCircuitExpression::LogicalORExpression(n) => n.contains(kind),
+    //         ShortCircuitExpression::CoalesceExpression(n) => n.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
-            _ => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

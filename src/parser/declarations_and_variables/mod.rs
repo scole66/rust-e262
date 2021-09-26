@@ -77,10 +77,10 @@ impl LexicalDeclaration {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let LexicalDeclaration::List(loc, bl) = self;
-        loc.contains(kind) || bl.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let LexicalDeclaration::List(loc, bl) = self;
+    //     loc.contains(kind) || bl.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -212,12 +212,12 @@ impl BindingList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingList::Item(node) => node.contains(kind),
-            BindingList::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingList::Item(node) => node.contains(kind),
+    //         BindingList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -322,12 +322,12 @@ impl LexicalBinding {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
-            LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
+    //         LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -391,15 +391,15 @@ impl VariableStatement {
         Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        let VariableStatement::Var(node) = self;
-        node.bound_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     let VariableStatement::Var(node) = self;
+    //     node.bound_names()
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let VariableStatement::Var(node) = self;
-        node.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let VariableStatement::Var(node) = self;
+    //     node.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -501,12 +501,12 @@ impl VariableDeclarationList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            VariableDeclarationList::Item(node) => node.contains(kind),
-            VariableDeclarationList::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         VariableDeclarationList::Item(node) => node.contains(kind),
+    //         VariableDeclarationList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -612,13 +612,13 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            VariableDeclaration::Identifier(bi, None) => bi.contains(kind),
-            VariableDeclaration::Identifier(bi, Some(init)) => bi.contains(kind) || init.contains(kind),
-            VariableDeclaration::Pattern(bp, init) => bp.contains(kind) || init.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         VariableDeclaration::Identifier(bi, None) => bi.contains(kind),
+    //         VariableDeclaration::Identifier(bi, Some(init)) => bi.contains(kind) || init.contains(kind),
+    //         VariableDeclaration::Pattern(bp, init) => bp.contains(kind) || init.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -703,12 +703,12 @@ impl BindingPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingPattern::Object(node) => node.contains(kind),
-            BindingPattern::Array(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingPattern::Object(node) => node.contains(kind),
+    //         BindingPattern::Array(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -845,15 +845,15 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ObjectBindingPattern::Empty => false,
-            ObjectBindingPattern::RestOnly(node) => node.contains(kind),
-            ObjectBindingPattern::ListOnly(node) => node.contains(kind),
-            ObjectBindingPattern::ListRest(list, None) => list.contains(kind),
-            ObjectBindingPattern::ListRest(list, Some(n)) => list.contains(kind) || n.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ObjectBindingPattern::Empty => false,
+    //         ObjectBindingPattern::RestOnly(node) => node.contains(kind),
+    //         ObjectBindingPattern::ListOnly(node) => node.contains(kind),
+    //         ObjectBindingPattern::ListRest(list, None) => list.contains(kind),
+    //         ObjectBindingPattern::ListRest(list, Some(n)) => list.contains(kind) || n.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1046,15 +1046,15 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ArrayBindingPattern::RestOnly(onode_a, onode_b) => onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind)),
-            ArrayBindingPattern::ListOnly(node) => node.contains(kind),
-            ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
-                node.contains(kind) || onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind))
-            }
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ArrayBindingPattern::RestOnly(onode_a, onode_b) => onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind)),
+    //         ArrayBindingPattern::ListOnly(node) => node.contains(kind),
+    //         ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
+    //             node.contains(kind) || onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind))
+    //         }
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1215,12 +1215,12 @@ impl BindingPropertyList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingPropertyList::Item(node) => node.contains(kind),
-            BindingPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingPropertyList::Item(node) => node.contains(kind),
+    //         BindingPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1320,12 +1320,12 @@ impl BindingElementList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingElementList::Item(node) => node.contains(kind),
-            BindingElementList::List(l, i) => l.contains(kind) || i.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingElementList::Item(node) => node.contains(kind),
+    //         BindingElementList::List(l, i) => l.contains(kind) || i.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1405,10 +1405,10 @@ impl BindingElisionElement {
         elem.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let BindingElisionElement::Element(opt, n) = self;
-        opt.as_ref().map_or(false, |n| n.contains(kind)) || n.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let BindingElisionElement::Element(opt, n) = self;
+    //     opt.as_ref().map_or(false, |n| n.contains(kind)) || n.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1496,12 +1496,12 @@ impl BindingProperty {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingProperty::Single(node) => node.contains(kind),
-            BindingProperty::Property(node1, node2) => node1.contains(kind) || node2.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingProperty::Single(node) => node.contains(kind),
+    //         BindingProperty::Property(node1, node2) => node1.contains(kind) || node2.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1606,12 +1606,12 @@ impl BindingElement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingElement::Single(n) => n.contains(kind),
-            BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingElement::Single(n) => n.contains(kind),
+    //         BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1702,10 +1702,10 @@ impl SingleNameBinding {
         ident.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let SingleNameBinding::Id(ident, opt) = self;
-        ident.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let SingleNameBinding::Id(ident, opt) = self;
+    //     ident.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1791,12 +1791,12 @@ impl BindingRestElement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingRestElement::Identifier(node) => node.contains(kind),
-            BindingRestElement::Pattern(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         BindingRestElement::Identifier(node) => node.contains(kind),
+    //         BindingRestElement::Pattern(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

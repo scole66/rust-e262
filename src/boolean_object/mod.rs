@@ -1,6 +1,6 @@
 use super::agent::Agent;
 use super::cr::{AltCompletion, Completion};
-use super::errors::create_type_error;
+//use super::errors::create_type_error;
 use super::object::{
     ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
@@ -183,18 +183,18 @@ pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
 //      b. Assert: Type(b) is Boolean.
 //      c. Return b.
 //  3. Throw a TypeError exception.
-pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> AltCompletion<bool> {
-    match value {
-        ECMAScriptValue::Boolean(b) => Ok(*b),
-        ECMAScriptValue::Object(o) => {
-            let bool_obj = o.o.to_boolean_obj();
-            if let Some(b_obj) = bool_obj {
-                let b = *b_obj.boolean_data().borrow();
-                Ok(b)
-            } else {
-                Err(create_type_error(agent, "Object has no boolean value"))
-            }
-        }
-        _ => Err(create_type_error(agent, "Value is not boolean")),
-    }
-}
+// pub fn this_boolean_value(agent: &mut Agent, value: &ECMAScriptValue) -> AltCompletion<bool> {
+//     match value {
+//         ECMAScriptValue::Boolean(b) => Ok(*b),
+//         ECMAScriptValue::Object(o) => {
+//             let bool_obj = o.o.to_boolean_obj();
+//             if let Some(b_obj) = bool_obj {
+//                 let b = *b_obj.boolean_data().borrow();
+//                 Ok(b)
+//             } else {
+//                 Err(create_type_error(agent, "Object has no boolean value"))
+//             }
+//         }
+//         _ => Err(create_type_error(agent, "Value is not boolean")),
+//     }
+// }

@@ -85,50 +85,50 @@ impl IterationStatement {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            IterationStatement::DoWhile(node) => node.var_declared_names(),
-            IterationStatement::While(node) => node.var_declared_names(),
-            IterationStatement::For(node) => node.var_declared_names(),
-            IterationStatement::ForInOf(node) => node.var_declared_names(),
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         IterationStatement::DoWhile(node) => node.var_declared_names(),
+    //         IterationStatement::While(node) => node.var_declared_names(),
+    //         IterationStatement::For(node) => node.var_declared_names(),
+    //         IterationStatement::ForInOf(node) => node.var_declared_names(),
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            IterationStatement::DoWhile(node) => node.contains_undefined_break_target(label_set),
-            IterationStatement::While(node) => node.contains_undefined_break_target(label_set),
-            IterationStatement::For(node) => node.contains_undefined_break_target(label_set),
-            IterationStatement::ForInOf(node) => node.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         IterationStatement::DoWhile(node) => node.contains_undefined_break_target(label_set),
+    //         IterationStatement::While(node) => node.contains_undefined_break_target(label_set),
+    //         IterationStatement::For(node) => node.contains_undefined_break_target(label_set),
+    //         IterationStatement::ForInOf(node) => node.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            IterationStatement::DoWhile(node) => node.contains(kind),
-            IterationStatement::While(node) => node.contains(kind),
-            IterationStatement::For(node) => node.contains(kind),
-            IterationStatement::ForInOf(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         IterationStatement::DoWhile(node) => node.contains(kind),
+    //         IterationStatement::While(node) => node.contains(kind),
+    //         IterationStatement::For(node) => node.contains(kind),
+    //         IterationStatement::ForInOf(node) => node.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            IterationStatement::DoWhile(node) => node.contains_duplicate_labels(label_set),
-            IterationStatement::While(node) => node.contains_duplicate_labels(label_set),
-            IterationStatement::For(node) => node.contains_duplicate_labels(label_set),
-            IterationStatement::ForInOf(node) => node.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         IterationStatement::DoWhile(node) => node.contains_duplicate_labels(label_set),
+    //         IterationStatement::While(node) => node.contains_duplicate_labels(label_set),
+    //         IterationStatement::For(node) => node.contains_duplicate_labels(label_set),
+    //         IterationStatement::ForInOf(node) => node.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            IterationStatement::DoWhile(node) => node.contains_undefined_continue_target(iteration_set),
-            IterationStatement::While(node) => node.contains_undefined_continue_target(iteration_set),
-            IterationStatement::For(node) => node.contains_undefined_continue_target(iteration_set),
-            IterationStatement::ForInOf(node) => node.contains_undefined_continue_target(iteration_set),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         IterationStatement::DoWhile(node) => node.contains_undefined_continue_target(iteration_set),
+    //         IterationStatement::While(node) => node.contains_undefined_continue_target(iteration_set),
+    //         IterationStatement::For(node) => node.contains_undefined_continue_target(iteration_set),
+    //         IterationStatement::ForInOf(node) => node.contains_undefined_continue_target(iteration_set),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -200,30 +200,30 @@ impl DoWhileStatement {
         Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        let DoWhileStatement::Do(s, _) = self;
-        s.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     let DoWhileStatement::Do(s, _) = self;
+    //     s.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     let DoWhileStatement::Do(s, _) = self;
+    //     s.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let DoWhileStatement::Do(s, e) = self;
-        s.contains(kind) || e.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let DoWhileStatement::Do(s, e) = self;
+    //     s.contains(kind) || e.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     let DoWhileStatement::Do(s, _) = self;
+    //     s.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_undefined_continue_target(iteration_set, &[])
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     let DoWhileStatement::Do(s, _) = self;
+    //     s.contains_undefined_continue_target(iteration_set, &[])
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -287,30 +287,30 @@ impl WhileStatement {
         Ok((Rc::new(WhileStatement::While(exp, stmt)), after_stmt))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        let WhileStatement::While(_, s) = self;
-        s.var_declared_names()
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     let WhileStatement::While(_, s) = self;
+    //     s.var_declared_names()
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_undefined_break_target(label_set)
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     let WhileStatement::While(_, s) = self;
+    //     s.contains_undefined_break_target(label_set)
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let WhileStatement::While(e, s) = self;
-        e.contains(kind) || s.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let WhileStatement::While(e, s) = self;
+    //     e.contains(kind) || s.contains(kind)
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_duplicate_labels(label_set)
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     let WhileStatement::While(_, s) = self;
+    //     s.contains_duplicate_labels(label_set)
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_undefined_continue_target(iteration_set, &[])
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     let WhileStatement::While(_, s) = self;
+    //     s.contains_undefined_continue_target(iteration_set, &[])
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -508,52 +508,52 @@ impl ForStatement {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            ForStatement::For(_, _, _, s) => s.var_declared_names(),
-            ForStatement::ForVar(v, _, _, s) => {
-                let mut names = v.bound_names();
-                names.extend(s.var_declared_names());
-                names
-            }
-            ForStatement::ForLex(_, _, _, s) => s.var_declared_names(),
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         ForStatement::For(_, _, _, s) => s.var_declared_names(),
+    //         ForStatement::ForVar(v, _, _, s) => {
+    //             let mut names = v.bound_names();
+    //             names.extend(s.var_declared_names());
+    //             names
+    //         }
+    //         ForStatement::ForLex(_, _, _, s) => s.var_declared_names(),
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ForStatement::For(opt1, opt2, opt3, s) => {
-                opt1.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt3.as_ref().map_or(false, |n| n.contains(kind))
-                    || s.contains(kind)
-            }
-            ForStatement::ForVar(v, opt1, opt2, s) => {
-                v.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
-            }
-            ForStatement::ForLex(lex, opt1, opt2, s) => {
-                lex.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
-            }
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ForStatement::For(opt1, opt2, opt3, s) => {
+    //             opt1.as_ref().map_or(false, |n| n.contains(kind))
+    //                 || opt2.as_ref().map_or(false, |n| n.contains(kind))
+    //                 || opt3.as_ref().map_or(false, |n| n.contains(kind))
+    //                 || s.contains(kind)
+    //         }
+    //         ForStatement::ForVar(v, opt1, opt2, s) => {
+    //             v.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
+    //         }
+    //         ForStatement::ForLex(lex, opt1, opt2, s) => {
+    //             lex.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
+    //         }
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -810,74 +810,74 @@ impl ForInOfStatement {
             })
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
-        match self {
-            ForInOfStatement::In(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::LexIn(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::Of(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::LexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::AwaitOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::VarIn(v, _, s) | ForInOfStatement::VarOf(v, _, s) | ForInOfStatement::AwaitVarOf(v, _, s) => {
-                let mut names = v.bound_names();
-                names.extend(s.var_declared_names());
-                names
-            }
-        }
-    }
+    // pub fn var_declared_names(&self) -> Vec<JSString> {
+    //     match self {
+    //         ForInOfStatement::In(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::LexIn(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::Of(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::LexOf(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::AwaitOf(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
+    //         ForInOfStatement::VarIn(v, _, s) | ForInOfStatement::VarOf(v, _, s) | ForInOfStatement::AwaitVarOf(v, _, s) => {
+    //             let mut names = v.bound_names();
+    //             names.extend(s.var_declared_names());
+    //             names
+    //         }
+    //     }
+    // }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        match self {
-            ForInOfStatement::In(_, _, s)
-            | ForInOfStatement::LexIn(_, _, s)
-            | ForInOfStatement::Of(_, _, s)
-            | ForInOfStatement::LexOf(_, _, s)
-            | ForInOfStatement::AwaitOf(_, _, s)
-            | ForInOfStatement::AwaitLexOf(_, _, s)
-            | ForInOfStatement::VarIn(_, _, s)
-            | ForInOfStatement::VarOf(_, _, s)
-            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_break_target(label_set),
-        }
-    }
+    // pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForInOfStatement::In(_, _, s)
+    //         | ForInOfStatement::LexIn(_, _, s)
+    //         | ForInOfStatement::Of(_, _, s)
+    //         | ForInOfStatement::LexOf(_, _, s)
+    //         | ForInOfStatement::AwaitOf(_, _, s)
+    //         | ForInOfStatement::AwaitLexOf(_, _, s)
+    //         | ForInOfStatement::VarIn(_, _, s)
+    //         | ForInOfStatement::VarOf(_, _, s)
+    //         | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_break_target(label_set),
+    //     }
+    // }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ForInOfStatement::In(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::VarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::LexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ForInOfStatement::In(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+    //         ForInOfStatement::VarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+    //         ForInOfStatement::LexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+    //         ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+    //         ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
+    //         ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+    //     }
+    // }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        match self {
-            ForInOfStatement::In(_, _, s)
-            | ForInOfStatement::LexIn(_, _, s)
-            | ForInOfStatement::Of(_, _, s)
-            | ForInOfStatement::LexOf(_, _, s)
-            | ForInOfStatement::AwaitOf(_, _, s)
-            | ForInOfStatement::AwaitLexOf(_, _, s)
-            | ForInOfStatement::VarIn(_, _, s)
-            | ForInOfStatement::VarOf(_, _, s)
-            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_duplicate_labels(label_set),
-        }
-    }
+    // pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForInOfStatement::In(_, _, s)
+    //         | ForInOfStatement::LexIn(_, _, s)
+    //         | ForInOfStatement::Of(_, _, s)
+    //         | ForInOfStatement::LexOf(_, _, s)
+    //         | ForInOfStatement::AwaitOf(_, _, s)
+    //         | ForInOfStatement::AwaitLexOf(_, _, s)
+    //         | ForInOfStatement::VarIn(_, _, s)
+    //         | ForInOfStatement::VarOf(_, _, s)
+    //         | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_duplicate_labels(label_set),
+    //     }
+    // }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        match self {
-            ForInOfStatement::In(_, _, s)
-            | ForInOfStatement::LexIn(_, _, s)
-            | ForInOfStatement::Of(_, _, s)
-            | ForInOfStatement::LexOf(_, _, s)
-            | ForInOfStatement::AwaitOf(_, _, s)
-            | ForInOfStatement::AwaitLexOf(_, _, s)
-            | ForInOfStatement::VarIn(_, _, s)
-            | ForInOfStatement::VarOf(_, _, s)
-            | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
-        }
-    }
+    // pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    //     match self {
+    //         ForInOfStatement::In(_, _, s)
+    //         | ForInOfStatement::LexIn(_, _, s)
+    //         | ForInOfStatement::Of(_, _, s)
+    //         | ForInOfStatement::LexOf(_, _, s)
+    //         | ForInOfStatement::AwaitOf(_, _, s)
+    //         | ForInOfStatement::AwaitLexOf(_, _, s)
+    //         | ForInOfStatement::VarIn(_, _, s)
+    //         | ForInOfStatement::VarOf(_, _, s)
+    //         | ForInOfStatement::AwaitVarOf(_, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -997,10 +997,10 @@ impl ForDeclaration {
         Ok((Rc::new(ForDeclaration::Binding(loc, binding)), after_binding))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ForDeclaration::Binding(loc, node) = self;
-        loc.contains(kind) || node.contains(kind)
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     let ForDeclaration::Binding(loc, node) = self;
+    //     loc.contains(kind) || node.contains(kind)
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
@@ -1088,12 +1088,12 @@ impl ForBinding {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ForBinding::Identifier(node) => node.contains(kind),
-            ForBinding::Pattern(node) => node.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         ForBinding::Identifier(node) => node.contains(kind),
+    //         ForBinding::Pattern(node) => node.contains(kind),
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

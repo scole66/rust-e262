@@ -3,7 +3,7 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner};//, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -104,19 +104,19 @@ impl Expression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            Expression::FallThru(node) => node.contains(kind),
-            Expression::Comma(left, right) => left.contains(kind) || right.contains(kind),
-        }
-    }
+    // pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    //     match self {
+    //         Expression::FallThru(node) => node.contains(kind),
+    //         Expression::Comma(left, right) => left.contains(kind) || right.contains(kind),
+    //     }
+    // }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        match self {
-            Expression::FallThru(node) => node.as_string_literal(),
-            Expression::Comma(..) => None,
-        }
-    }
+    // pub fn as_string_literal(&self) -> Option<StringToken> {
+    //     match self {
+    //         Expression::FallThru(node) => node.as_string_literal(),
+    //         Expression::Comma(..) => None,
+    //     }
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
