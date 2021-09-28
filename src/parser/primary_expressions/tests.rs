@@ -410,6 +410,32 @@ fn primary_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("this" => true; "this")]
+#[test_case("a" => true; "identifier reference")]
+#[test_case("10" => true; "literal")]
+#[test_case("/bob/" => true; "regular expression")]
+#[test_case("[a.#valid]" => true; "ArrayLiteral valid")]
+#[test_case("{a=b.#valid}" => true; "ObjectLiteral valid")]
+#[test_case("function (){a.#valid;}" => true; "FunctionExpression valid")]
+#[test_case("class {a=b.#valid;}" => true; "ClassExpression valid")]
+#[test_case("function *(){a.#valid;}" => true; "GeneratorExpression valid")]
+#[test_case("async function (){a.#valid;}" => true; "AsyncFunctionExpression valid")]
+#[test_case("async function *(){a.#valid;}" => true; "AsyncGeneratorExpression valid")]
+#[test_case("`${a.#valid}`" => true; "TemplateLiteral valid")]
+#[test_case("(a.#valid)" => true; "Grouping valid")]
+#[test_case("[a.#invalid]" => false; "ArrayLiteral invalid")]
+#[test_case("{a=b.#invalid}" => false; "ObjectLiteral invalid")]
+#[test_case("function (){a.#invalid;}" => false; "FunctionExpression invalid")]
+#[test_case("class {a=b.#invalid;}" => false; "ClassExpression invalid")]
+#[test_case("function *(){a.#invalid;}" => false; "GeneratorExpression invalid")]
+#[test_case("async function (){a.#invalid;}" => false; "AsyncFunctionExpression invalid")]
+#[test_case("async function *(){a.#invalid;}" => false; "AsyncGeneratorExpression invalid")]
+#[test_case("`${a.#invalid}`" => false; "TemplateLiteral invalid")]
+#[test_case("(a.#invalid)" => false; "Grouping invalid")]
+fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
+    let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // LITERAL
 #[test]
@@ -617,6 +643,12 @@ fn spread_element_test_contains_01() {
 fn spread_element_test_contains_02() {
     let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("...a.#valid" => true; "valid")]
+#[test_case("...a.#invalid" => false; "invalid")]
+fn spread_element_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SpreadElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // ELEMENT LIST
@@ -887,6 +919,34 @@ fn element_list_test_contains_20() {
     let (item, _) = ElementList::parse(&mut newparser("this,,,...c"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
+#[test_case("a.#valid" => true; "AssignmentExpression: valid")]
+#[test_case(",a.#valid" => true; "Elision AssignmentExpression: valid")]
+#[test_case("...a.#valid" => true; "SpreadElement: valid")]
+#[test_case(",...a.#valid" => true; "Elision SpreadElement: valid")]
+#[test_case("a.#valid,b" => true; "ElementList AssignmentExpression: list valid")]
+#[test_case("a,b.#valid" => true; "ElementList AssignmentExpression: expression valid")]
+#[test_case("a.#valid,,b" => true; "ElementList Elision AssignmentExpression: list valid")]
+#[test_case("a,,b.#valid" => true; "ElementList Elision AssignmentExpression: expression valid")]
+#[test_case("a.#valid,...b" => true; "ElementList SpreadElement: list valid")]
+#[test_case("a,...b.#valid" => true; "ElementList SpreadElement: element valid")]
+#[test_case("a.#valid,,...b" => true; "ElementList Elision SpreadElement: list valid")]
+#[test_case("a,,...b.#valid" => true; "ElementList Elision SpreadElement: element valid")]
+#[test_case("a.#invalid" => false; "AssignmentExpression: invalid")]
+#[test_case(",a.#invalid" => false; "Elision AssignmentExpression: invalid")]
+#[test_case("...a.#invalid" => false; "SpreadElement: invalid")]
+#[test_case(",...a.#invalid" => false; "Elision SpreadElement: invalid")]
+#[test_case("a.#invalid,b" => false; "ElementList AssignmentExpression: list invalid")]
+#[test_case("a,b.#invalid" => false; "ElementList AssignmentExpression: expression invalid")]
+#[test_case("a.#invalid,,b" => false; "ElementList Elision AssignmentExpression: list invalid")]
+#[test_case("a,,b.#invalid" => false; "ElementList Elision AssignmentExpression: expression invalid")]
+#[test_case("a.#invalid,...b" => false; "ElementList SpreadElement: list invalid")]
+#[test_case("a,...b.#invalid" => false; "ElementList SpreadElement: element invalid")]
+#[test_case("a.#invalid,,...b" => false; "ElementList Elision SpreadElement: list invalid")]
+#[test_case("a,,...b.#invalid" => false; "ElementList Elision SpreadElement: element invalid")]
+fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // ARRAY LITERAL
 #[test]
@@ -1044,6 +1104,18 @@ fn array_literal_test_contains_08() {
     let (item, _) = ArrayLiteral::parse(&mut newparser("[0,,,,]"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("[]" => true; "empty brackets")]
+#[test_case("[,]" => true; "Elision")]
+#[test_case("[a.#valid]" => true; "ElementList valid")]
+#[test_case("[a.#valid,]" => true; "ElementList <comma> valid")]
+#[test_case("[a.#valid,,]" => true; "ElementList Elision valid")]
+#[test_case("[a.#invalid]" => false; "ElementList invalid")]
+#[test_case("[a.#invalid,]" => false; "ElementList <comma> invalid")]
+#[test_case("[a.#invalid,,]" => false; "ElementList Elision invalid")]
+fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // INITIALIZER
 #[test]
@@ -1088,6 +1160,12 @@ fn initializer_test_contains_02() {
     let (item, _) = Initializer::parse(&mut newparser("=0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("=a.#valid" => true; "valid")]
+#[test_case("=a.#invalid" => false; "invalid")]
+fn initializer_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Initializer::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // COVER INITIALIZED NAME
 #[test]
@@ -1126,6 +1204,12 @@ fn cover_initialized_name_test_contains_01() {
 fn cover_initialized_name_test_contains_02() {
     let (item, _) = CoverInitializedName::parse(&mut newparser("a=0"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("a=b.#valid" => true; "valid")]
+#[test_case("a=b.#invalid" => false; "invalid")]
+fn cover_initialized_name_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // COMPUTED PROPERTY NAME
@@ -1169,6 +1253,12 @@ fn computed_property_name_test_contains_01() {
 fn computed_property_name_test_contains_02() {
     let (item, _) = ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("[a.#valid]" => true; "valid")]
+#[test_case("[a.#invalid]" => false; "invalid")]
+fn computed_property_name_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // LITERAL PROPERTY NAME
@@ -1317,6 +1407,13 @@ fn property_name_test_computed_property_contains_02() {
 fn property_name_test_computed_property_contains_03() {
     let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::This), false);
+}
+#[test_case("a" => true; "literal property name")]
+#[test_case("[a.#valid]" => true; "computed property name valid")]
+#[test_case("[a.#invalid]" => false; "computed property name invalid")]
+fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // PROPERTY DEFINITION
@@ -1477,6 +1574,21 @@ fn property_definition_test_contains_10() {
     let (item, _) = PropertyDefinition::parse(&mut newparser("...obj"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("a" => true; "IdentifierReference")]
+#[test_case("a=b.#valid" => true; "CoverInitializedName valid")]
+#[test_case("[a.#valid]:b" => true; "PropertyName:AssignmentExpression name valid")]
+#[test_case("a:b.#valid" => true; "PropertyName:AssignmentExpression expr valid")]
+#[test_case("a(){b.#valid;}" => true; "MethodDefinition valid")]
+#[test_case("...a.#valid" => true; "...AssignmentExpression valid")]
+#[test_case("a=b.#invalid" => false; "CoverInitializedName invalid")]
+#[test_case("[a.#invalid]:b" => false; "PropertyName:AssignmentExpression name invalid")]
+#[test_case("a:b.#invalid" => false; "PropertyName:AssignmentExpression expr invalid")]
+#[test_case("a(){b.#invalid;}" => false; "MethodDefinition invalid")]
+#[test_case("...a.#invalid" => false; "...AssignmentExpression invalid")]
+fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // PROPERTY DEFINITION LIST
 #[test]
@@ -1552,6 +1664,16 @@ fn property_definition_list_test_contains_04() {
 fn property_definition_list_test_contains_05() {
     let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=0,b=2"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("a:b.#valid" => true; "Item valid")]
+#[test_case("a:b.#valid,c" => true; "List head valid")]
+#[test_case("a,b:c.#valid" => true; "List tail vaild")]
+#[test_case("a:b.#invalid" => false; "Item invalid")]
+#[test_case("a:b.#invalid,c" => false; "List head invalid")]
+#[test_case("a,b:c.#invalid" => false; "List tail invalid")]
+fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // OBJECT LITERAL
@@ -1651,6 +1773,15 @@ fn object_literal_test_contains_05() {
     let (item, _) = ObjectLiteral::parse(&mut newparser("{a=0,}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("{}" => true; "empty")]
+#[test_case("{a:b.#valid}" => true; "List valid")]
+#[test_case("{a:b.#valid,}" => true; "List comma valid")]
+#[test_case("{a:b.#invalid}" => false; "List invalid")]
+#[test_case("{a:b.#invalid,}" => false; "List comma invalid")]
+fn object_literal_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // PARENTHESIZED EXPRESSION
 #[test]
@@ -1695,6 +1826,12 @@ fn parenthesized_expression_test_contains_01() {
 fn parenthesized_expression_test_contains_02() {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser("(1)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("(a.#valid)" => true; "valid")]
+#[test_case("(a.#invalid)" => false; "invalid")]
+fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // TEMPLATE MIDDLE LIST
@@ -1776,6 +1913,16 @@ fn template_middle_list_test_contains_05() {
     let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${a"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("}${a.#valid" => true; "Item valid")]
+#[test_case("}${a.#valid}${b" => true; "List head valid")]
+#[test_case("}${a}${b.#valid" => true; "List tail valid")]
+#[test_case("}${a.#invalid" => false; "Item invalid")]
+#[test_case("}${a.#invalid}${b" => false; "List head invalid")]
+#[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
+fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // TEMPLATE SPANS
 #[test]
@@ -1836,6 +1983,13 @@ fn template_spans_test_contains_03() {
     let (item, _) = TemplateSpans::parse(&mut newparser("} ${ a }`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("}`" => true; "TemplateTail")]
+#[test_case("}${a.#valid}`" => true; "valid")]
+#[test_case("}${a.#invalid}`" => false; "invalid")]
+fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // SUBSTITUTION TEMPLATE
 #[test]
@@ -1883,6 +2037,14 @@ fn substitution_template_test_contains_02() {
 fn substitution_template_test_contains_03() {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("`${a.#valid}${b}`" => true; "expr valid")]
+#[test_case("`${a}${b.#valid}`" => true; "spans valid")]
+#[test_case("`${a.#invalid}${b}`" => false; "expr invalid")]
+#[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
+fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // TEMPLATE LITERAL
@@ -1954,6 +2116,13 @@ fn template_literal_test_contains_02() {
 fn template_literal_test_contains_03() {
     let (item, _) = TemplateLiteral::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("`a`" => true; "no substitution")]
+#[test_case("`${a.#valid}`" => true; "sub valid")]
+#[test_case("`${a.#invalid}`" => false; "sub invalid")]
+fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
