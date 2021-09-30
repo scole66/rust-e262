@@ -212,6 +212,25 @@ impl MethodDefinition {
             MethodDefinition::AsyncGenerator(node) => node.private_bound_identifiers(),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            MethodDefinition::NamedFunction(name, params, body) => {
+                name.all_private_identifiers_valid(names) && params.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names)
+            }
+            MethodDefinition::Generator(node) => node.all_private_identifiers_valid(names),
+            MethodDefinition::Async(node) => node.all_private_identifiers_valid(names),
+            MethodDefinition::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
+            MethodDefinition::Getter(name, body) => name.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
+            MethodDefinition::Setter(name, args, body) => name.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // PropertySetParameterList :
@@ -252,6 +271,16 @@ impl PropertySetParameterList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.node.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.node.all_private_identifiers_valid(names)
     }
 }
 

@@ -76,6 +76,16 @@ impl SwitchStatement {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.case_block.contains_undefined_continue_target(iteration_set)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -248,6 +258,25 @@ impl CaseBlock {
             }
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            CaseBlock::NoDefault(Some(node)) => node.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(None, node, None) => node.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(Some(node1), node2, None) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(None, node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(Some(node1), node2, Some(node3)) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names) && node3.all_private_identifiers_valid(names)
+            }
+            _ => true,
+        }
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -350,6 +379,19 @@ impl CaseClauses {
             CaseClauses::List(lst, item) => lst.contains_undefined_continue_target(iteration_set) || item.contains_undefined_continue_target(iteration_set),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            CaseClauses::Item(node) => node.all_private_identifiers_valid(names),
+            CaseClauses::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -446,6 +488,20 @@ impl CaseClause {
             Some(s) => s.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.expression.all_private_identifiers_valid(names)
+            && match &self.statements {
+                None => true,
+                Some(node) => node.all_private_identifiers_valid(names),
+            }
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -533,6 +589,20 @@ impl DefaultClause {
         match self {
             DefaultClause(None) => false,
             DefaultClause(Some(sl)) => sl.contains_undefined_continue_target(iteration_set, &[]),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        if let Some(node) = &self.0 {
+            node.all_private_identifiers_valid(names)
+        } else {
+            true
         }
     }
 }

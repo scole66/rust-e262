@@ -62,6 +62,16 @@ impl ArrowFunction {
         (kind == ParseNodeKind::Super || kind == ParseNodeKind::This || kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall)
             && (self.parameters.contains(kind) || self.body.contains(kind))
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
 }
 
 // ArrowParameters[Yield, Await] :
@@ -137,6 +147,19 @@ impl ArrowParameters {
             ArrowParameters::Formals(node) => node.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ArrowParameters::Identifier(_) => true,
+            ArrowParameters::Formals(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -195,6 +218,16 @@ impl ArrowFormalParameters {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 
@@ -274,6 +307,19 @@ impl ConciseBody {
             ConciseBody::Function(node) => node.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ConciseBody::Expression(node) => node.all_private_identifiers_valid(names),
+            ConciseBody::Function(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :
@@ -328,6 +374,16 @@ impl ExpressionBody {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.expression.all_private_identifiers_valid(names)
     }
 }
 

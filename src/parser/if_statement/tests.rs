@@ -161,3 +161,17 @@ fn if_statement_test_contains_undefined_continue_target(src: &str) -> (bool, boo
     let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("if(a.#valid){}" => true; "elseless cond valid")]
+#[test_case("if(a){b.#valid;}" => true; "elseless truthy valid")]
+#[test_case("if(a.#valid){}else{}" => true; "else cond valid")]
+#[test_case("if(a){b.#valid;}else{}" => true; "else truthy valid")]
+#[test_case("if(a){}else{b.#valid;}" => true; "else falsey valid")]
+#[test_case("if(a.#invalid){}" => false; "elseless cond invalid")]
+#[test_case("if(a){b.#invalid;}" => false; "elseless truthy invalid")]
+#[test_case("if(a.#invalid){}else{}" => false; "else cond invalid")]
+#[test_case("if(a){b.#invalid;}else{}" => false; "else truthy invalid")]
+#[test_case("if(a){}else{b.#invalid;}" => false; "else falsey invalid")]
+fn if_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

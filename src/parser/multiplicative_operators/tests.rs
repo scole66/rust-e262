@@ -158,3 +158,13 @@ fn multiplicative_expression_test_as_string_literal(src: &str) -> Option<String>
     let (item, _) = MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid * b" => true; "Left valid")]
+#[test_case("a * item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid * b" => false; "Left invalid")]
+#[test_case("a * item.#invalid" => false; "Right invalid")]
+fn multiplicative_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

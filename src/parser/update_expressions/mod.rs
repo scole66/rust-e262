@@ -163,6 +163,19 @@ impl UpdateExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            UpdateExpression::LeftHandSideExpression(n) | UpdateExpression::PostIncrement(n) | UpdateExpression::PostDecrement(n) => n.all_private_identifiers_valid(names),
+            UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => n.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 #[cfg(test)]

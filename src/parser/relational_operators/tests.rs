@@ -311,3 +311,36 @@ fn relational_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("a.#valid" => true; "fallthru valid")]
+#[test_case("a.#valid<b" => true; "lt left valid")]
+#[test_case("a<b.#valid" => true; "lt right valid")]
+#[test_case("a.#valid>b" => true; "gt left valid")]
+#[test_case("a>b.#valid" => true; "gt right valid")]
+#[test_case("a.#valid<=b" => true; "le left valid")]
+#[test_case("a<=b.#valid" => true; "le right valid")]
+#[test_case("a.#valid>=b" => true; "ge left valid")]
+#[test_case("a>=b.#valid" => true; "ge right valid")]
+#[test_case("a.#valid instanceof b" => true; "instanceof left valid")]
+#[test_case("a instanceof b.#valid" => true; "instanceof right valid")]
+#[test_case("a.#valid in b" => true; "in left valid")]
+#[test_case("a in b.#valid" => true; "in right valid")]
+#[test_case("a.#invalid" => false; "fallthru invalid")]
+#[test_case("a.#invalid<b" => false; "lt left invalid")]
+#[test_case("a<b.#invalid" => false; "lt right invalid")]
+#[test_case("a.#invalid>b" => false; "gt left invalid")]
+#[test_case("a>b.#invalid" => false; "gt right invalid")]
+#[test_case("a.#invalid<=b" => false; "le left invalid")]
+#[test_case("a<=b.#invalid" => false; "le right invalid")]
+#[test_case("a.#invalid>=b" => false; "ge left invalid")]
+#[test_case("a>=b.#invalid" => false; "ge right invalid")]
+#[test_case("a.#invalid instanceof b" => false; "instanceof left invalid")]
+#[test_case("a instanceof b.#invalid" => false; "instanceof right invalid")]
+#[test_case("a.#invalid in b" => false; "in left invalid")]
+#[test_case("a in b.#invalid" => false; "in right invalid")]
+#[test_case("#other in a.#valid" => true; "privateid: both valid")]
+#[test_case("#nonsense in a.#valid" => false; "privateid: id invalid")]
+#[test_case("#other in a.#invalid" => false; "privateid: expr invalid")]
+fn relational_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("other"), JSString::from("valid")])
+}

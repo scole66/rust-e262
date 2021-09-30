@@ -310,6 +310,31 @@ impl Statement {
             Statement::Expression(n) => n.as_string_literal(),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            Statement::Block(node) => node.all_private_identifiers_valid(names),
+            Statement::Break(_) => true,
+            Statement::Breakable(node) => node.all_private_identifiers_valid(names),
+            Statement::Continue(_) => true,
+            Statement::Debugger(_) => true,
+            Statement::Empty(_) => true,
+            Statement::If(node) => node.all_private_identifiers_valid(names),
+            Statement::Labelled(node) => node.all_private_identifiers_valid(names),
+            Statement::Return(node) => node.all_private_identifiers_valid(names),
+            Statement::Throw(node) => node.all_private_identifiers_valid(names),
+            Statement::Try(node) => node.all_private_identifiers_valid(names),
+            Statement::Variable(node) => node.all_private_identifiers_valid(names),
+            Statement::With(node) => node.all_private_identifiers_valid(names),
+            Statement::Expression(node) => node.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -389,6 +414,20 @@ impl Declaration {
             Declaration::Hoistable(node) => node.contains(kind),
             Declaration::Class(node) => node.contains(kind),
             Declaration::Lexical(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            Declaration::Hoistable(node) => node.all_private_identifiers_valid(names),
+            Declaration::Class(node) => node.all_private_identifiers_valid(names),
+            Declaration::Lexical(node) => node.all_private_identifiers_valid(names),
         }
     }
 }
@@ -481,6 +520,21 @@ impl HoistableDeclaration {
             HoistableDeclaration::Generator(node) => node.contains(kind),
             HoistableDeclaration::AsyncFunction(node) => node.contains(kind),
             HoistableDeclaration::AsyncGenerator(node) => node.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            HoistableDeclaration::Function(node) => node.all_private_identifiers_valid(names),
+            HoistableDeclaration::Generator(node) => node.all_private_identifiers_valid(names),
+            HoistableDeclaration::AsyncFunction(node) => node.all_private_identifiers_valid(names),
+            HoistableDeclaration::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
         }
     }
 }
@@ -577,6 +631,19 @@ impl BreakableStatement {
                 node.contains_undefined_continue_target(&new_iteration_set)
             }
             BreakableStatement::Switch(node) => node.contains_undefined_continue_target(iteration_set),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            BreakableStatement::Iteration(node) => node.all_private_identifiers_valid(names),
+            BreakableStatement::Switch(node) => node.all_private_identifiers_valid(names),
         }
     }
 }

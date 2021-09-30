@@ -190,3 +190,25 @@ fn equality_expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "fallthru valid")]
+#[test_case("item.#valid==a" => true; "Eq Left valid")]
+#[test_case("a==item.#valid" => true; "Eq Right valid")]
+#[test_case("item.#valid!=a" => true; "Ne Left valid")]
+#[test_case("a!=item.#valid" => true; "Ne Right valid")]
+#[test_case("item.#valid===a" => true; "StrictEq Left valid")]
+#[test_case("a===item.#valid" => true; "StrictEq Right valid")]
+#[test_case("item.#valid!==a" => true; "StrictNe Left valid")]
+#[test_case("a!==item.#valid" => true; "StrictNe Right valid")]
+#[test_case("item.#invalid" => false; "fallthru invalid")]
+#[test_case("item.#invalid==a" => false; "Eq Left invalid")]
+#[test_case("a==item.#invalid" => false; "Eq Right invalid")]
+#[test_case("item.#invalid!=a" => false; "Ne Left invalid")]
+#[test_case("a!=item.#invalid" => false; "Ne Right invalid")]
+#[test_case("item.#invalid===a" => false; "StrictEq Left invalid")]
+#[test_case("a===item.#invalid" => false; "StrictEq Right invalid")]
+#[test_case("item.#invalid!==a" => false; "StrictNe Left invalid")]
+#[test_case("a!==item.#invalid" => false; "StrictNe Right invalid")]
+fn equality_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = EqualityExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

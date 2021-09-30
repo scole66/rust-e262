@@ -104,6 +104,19 @@ impl LogicalANDExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            LogicalANDExpression::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
+            LogicalANDExpression::LogicalAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -203,6 +216,19 @@ impl LogicalORExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            LogicalORExpression::LogicalANDExpression(n) => n.all_private_identifiers_valid(names),
+            LogicalORExpression::LogicalOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
@@ -276,6 +302,16 @@ impl CoalesceExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.head.contains(kind) || self.tail.contains(kind)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
+    }
 }
 
 // CoalesceExpressionHead[In, Yield, Await] :
@@ -329,6 +365,19 @@ impl CoalesceExpressionHead {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.contains(kind),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
+            CoalesceExpressionHead::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
         }
     }
 }
@@ -415,6 +464,19 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
             _ => None,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ShortCircuitExpression::LogicalORExpression(n) => n.all_private_identifiers_valid(names),
+            ShortCircuitExpression::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
         }
     }
 }

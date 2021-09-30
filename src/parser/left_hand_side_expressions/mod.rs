@@ -279,6 +279,30 @@ impl MemberExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        match &self.kind {
+            //  1. For each child node child of this Parse Node, do
+            //      a. If child is an instance of a nonterminal, then
+            //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+            //  2. Return true.
+            MemberExpressionKind::PrimaryExpression(n) => n.all_private_identifiers_valid(names),
+            MemberExpressionKind::Expression(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpressionKind::IdentifierName(n, _) => n.all_private_identifiers_valid(names),
+            MemberExpressionKind::TemplateLiteral(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpressionKind::SuperProperty(n) => n.all_private_identifiers_valid(names),
+            MemberExpressionKind::MetaProperty(_) => true,
+            MemberExpressionKind::NewArguments(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+
+            // MemberExpression : MemberExpression . PrivateIdentifier
+            //  1. If names contains the StringValue of PrivateIdentifier, then
+            //      a. Return AllPrivateIdentifiersValid of MemberExpression with argument names.
+            //  2. Return false.
+            MemberExpressionKind::PrivateId(n, id) => names.contains(&id.string_value) && n.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -359,6 +383,19 @@ impl SuperProperty {
         match &self.kind {
             SuperPropertyKind::Expression(n) => kind == ParseNodeKind::Super || n.contains(kind),
             SuperPropertyKind::IdentifierName(_) => kind == ParseNodeKind::Super,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            SuperPropertyKind::Expression(n) => n.all_private_identifiers_valid(names),
+            SuperPropertyKind::IdentifierName(_) => true,
         }
     }
 }
@@ -543,6 +580,20 @@ impl Arguments {
             ArgumentsKind::ArgumentListComma(n) => n.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            ArgumentsKind::Empty => true,
+            ArgumentsKind::ArgumentList(n) => n.all_private_identifiers_valid(names),
+            ArgumentsKind::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // ArgumentList[Yield, Await] :
@@ -714,6 +765,21 @@ impl ArgumentList {
             ArgumentListKind::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            ArgumentListKind::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentListKind::Dots(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentListKind::ArgumentList(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            ArgumentListKind::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // NewExpression[Yield, Await] :
@@ -812,6 +878,19 @@ impl NewExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            NewExpressionKind::NewExpression(boxed) => boxed.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -859,6 +938,16 @@ impl CallMemberExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.member_expression.contains(kind) || self.arguments.contains(kind)
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
+    }
 }
 
 // SuperCall[Yield, Await] :
@@ -903,6 +992,16 @@ impl SuperCall {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         kind == ParseNodeKind::Super || self.arguments.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.arguments.all_private_identifiers_valid(names)
     }
 }
 
@@ -952,6 +1051,16 @@ impl ImportCall {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.assignment_expression.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.assignment_expression.all_private_identifiers_valid(names)
     }
 }
 
@@ -1151,6 +1260,30 @@ impl CallExpression {
             CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        match &self.kind {
+            //  1. For each child node child of this Parse Node, do
+            //      a. If child is an instance of a nonterminal, then
+            //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+            //  2. Return true.
+            CallExpressionKind::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpressionKind::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpressionKind::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpressionKind::CallExpressionArguments(ce, args) => ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names),
+            CallExpressionKind::CallExpressionExpression(ce, exp) => ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            CallExpressionKind::CallExpressionIdentifierName(ce, _) => ce.all_private_identifiers_valid(names),
+            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names),
+
+            // CallExpression : CallExpression . PrivateIdentifier
+            //  1. If names contains the StringValue of PrivateIdentifier, then
+            //      a. Return AllPrivateIdentifiersValid of CallExpression with argument names.
+            //  2. Return false.
+            CallExpressionKind::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
+        }
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -1250,6 +1383,20 @@ impl LeftHandSideExpression {
         match self {
             LeftHandSideExpression::New(n) => n.as_string_literal(),
             _ => None,
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            LeftHandSideExpression::New(boxed) => boxed.all_private_identifiers_valid(names),
+            LeftHandSideExpression::Call(boxed) => boxed.all_private_identifiers_valid(names),
+            LeftHandSideExpression::Optional(boxed) => boxed.all_private_identifiers_valid(names),
         }
     }
 }
@@ -1352,6 +1499,20 @@ impl OptionalExpression {
             OptionalExpression::Member(left, right) => left.contains(kind) || right.contains(kind),
             OptionalExpression::Call(left, right) => left.contains(kind) || right.contains(kind),
             OptionalExpression::Opt(left, right) => left.contains(kind) || right.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            OptionalExpression::Member(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            OptionalExpression::Call(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            OptionalExpression::Opt(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
         }
     }
 }
@@ -1569,6 +1730,35 @@ impl OptionalChain {
             OptionalChain::PlusIdent(lst, _) => lst.contains(kind),
             OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
             OptionalChain::PlusPrivateId(lst, _) => lst.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        match self {
+            //  1. For each child node child of this Parse Node, do
+            //      a. If child is an instance of a nonterminal, then
+            //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+            //  2. Return true.
+            OptionalChain::Args(node) => node.all_private_identifiers_valid(names),
+            OptionalChain::Exp(node) => node.all_private_identifiers_valid(names),
+            OptionalChain::Ident(_) => true,
+            OptionalChain::Template(node) => node.all_private_identifiers_valid(names),
+            OptionalChain::PlusArgs(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            OptionalChain::PlusExp(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            OptionalChain::PlusIdent(lst, _) => lst.all_private_identifiers_valid(names),
+            OptionalChain::PlusTemplate(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+
+            // OptionalChain : ?. PrivateIdentifier
+            //  1. If names contains the StringValue of PrivateIdentifier, return true.
+            //  2. Return false.
+            OptionalChain::PrivateId(pid) => names.contains(&pid.string_value),
+            // OptionalChain : OptionalChain . PrivateIdentifier
+            //  1. If names contains the StringValue of PrivateIdentifier, then
+            //      a. Return AllPrivateIdentifiersValid of OptionalChain with argument names.
+            //  2. Return false.
+            OptionalChain::PlusPrivateId(lst, pid) => names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names),
         }
     }
 }

@@ -161,3 +161,21 @@ fn shift_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid << a" => true; "LeftShift Left valid")]
+#[test_case("a << item.#valid" => true; "LeftShift Right valid")]
+#[test_case("item.#valid >> a" => true; "SignedRightShift Left valid")]
+#[test_case("a >> item.#valid" => true; "SignedRightShift Right valid")]
+#[test_case("item.#valid >>> a" => true; "UnsignedRightShift Left valid")]
+#[test_case("a >>> item.#valid" => true; "UnsignedRightShift Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid << a" => false; "LeftShift Left invalid")]
+#[test_case("a << item.#invalid" => false; "LeftShift Right invalid")]
+#[test_case("item.#invalid >> a" => false; "SignedRightShift Left invalid")]
+#[test_case("a >> item.#invalid" => false; "SignedRightShift Right invalid")]
+#[test_case("item.#invalid >>> a" => false; "UnsignedRightShift Left invalid")]
+#[test_case("a >>> item.#invalid" => false; "UnsignedRightShift Right invalid")]
+fn shift_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_parse_error, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+
 fn id_kwd_test(kwd: &str) {
     let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
     check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));

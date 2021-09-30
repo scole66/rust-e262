@@ -90,3 +90,13 @@ fn expression_test_as_string_literal(src: &str) -> Option<JSString> {
     let (item, _) = Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.as_string_literal().map(|st| st.value)
 }
+#[test_case("item.#valid" => true; "Fallthru valid")]
+#[test_case("item.#valid,a" => true; "Left valid")]
+#[test_case("a, item.#valid" => true; "Right valid")]
+#[test_case("item.#invalid" => false; "Fallthru invalid")]
+#[test_case("item.#invalid,a" => false; "Left invalid")]
+#[test_case("a, item.#invalid" => false; "Right invalid")]
+fn expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

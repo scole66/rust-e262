@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // THROW STATEMENT
 #[test]
@@ -33,4 +34,10 @@ fn throw_contains_check(src: &str, has_literal: bool) {
 fn throw_statement_test_contains() {
     throw_contains_check("throw 0;", true);
     throw_contains_check("throw a;", false);
+}
+#[test_case("throw a.#valid;" => true; "valid")]
+#[test_case("throw a.#invalid;" => false; "invalid")]
+fn throw_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ThrowStatement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // GENERATOR METHOD
 #[test]
@@ -79,6 +80,16 @@ fn generator_method_test_computed_property_contains_02() {
 fn generator_method_test_private_bound_identifiers() {
     let (item, _) = GeneratorMethod::parse(&mut newparser("*#PRIVATE(x=0){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.private_bound_identifiers(), vec![JSString::from("PRIVATE")]);
+}
+#[test_case("*[a.#valid](){}" => true; "name valid")]
+#[test_case("*a(b=c.#valid){}" => true; "params valid")]
+#[test_case("*a(){b.#valid;}" => true; "body valid")]
+#[test_case("*[a.#invalid](){}" => false; "name invalid")]
+#[test_case("*a(b=c.#invalid){}" => false; "params invalid")]
+#[test_case("*a(){b.#invalid;}" => false; "body invalid")]
+fn generator_method_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // GENERATOR DECLARATION
@@ -181,6 +192,14 @@ fn generator_declaration_test_contains_01() {
     let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("function *a(b=c.#valid){}" => true; "params valid")]
+#[test_case("function *a(){b.#valid;}" => true; "body valid")]
+#[test_case("function *a(b=c.#invalid){}" => false; "params invalid")]
+#[test_case("function *a(){b.#invalid;}" => false; "body invalid")]
+fn generator_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = GeneratorDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // GENERATOR EXPRESSION
 #[test]
@@ -266,6 +285,14 @@ fn generator_expression_test_contains_01() {
     let (item, _) = GeneratorExpression::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test_case("function *a(b=c.#valid){}" => true; "params valid")]
+#[test_case("function *a(){b.#valid;}" => true; "body valid")]
+#[test_case("function *a(b=c.#invalid){}" => false; "params invalid")]
+#[test_case("function *a(){b.#invalid;}" => false; "body invalid")]
+fn generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = GeneratorExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // GENERATOR BODY
 #[test]
@@ -303,6 +330,12 @@ fn generator_body_test_contains_01() {
 fn generator_body_test_contains_02() {
     let (item, _) = GeneratorBody::parse(&mut newparser("yield a;"), Scanner::new());
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a.#valid" => true; "valid")]
+#[test_case("a.#invalid" => false; "invalid")]
+fn generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = GeneratorBody::parse(&mut newparser(src), Scanner::new());
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // YIELD EXPRESSION
@@ -418,4 +451,13 @@ fn yield_expression_test_contains_04() {
 fn yield_expression_test_contains_05() {
     let (item, _) = YieldExpression::parse(&mut newparser("yield;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("yield" => true; "Yield only")]
+#[test_case("yield a.#valid" => true; "expression valid")]
+#[test_case("yield *a.#valid" => true; "from valid")]
+#[test_case("yield a.#invalid" => false; "expression invalid")]
+#[test_case("yield *a.#invalid" => false; "from invalid")]
+fn yield_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = YieldExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

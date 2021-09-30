@@ -84,6 +84,16 @@ impl AsyncGeneratorMethod {
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifiers()
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
 }
 
 // AsyncGeneratorDeclaration[Yield, Await, Default] :
@@ -182,6 +192,16 @@ impl AsyncGeneratorDeclaration {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
 }
 
 // AsyncGeneratorExpression :
@@ -266,6 +286,16 @@ impl AsyncGeneratorExpression {
     pub fn contains(&self, _: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
 }
 
 // AsyncGeneratorBody :
@@ -316,6 +346,16 @@ impl AsyncGeneratorBody {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
     }
 }
 

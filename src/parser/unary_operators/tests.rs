@@ -303,3 +303,25 @@ fn unary_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = UnaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("item.#valid" => true; "FallThru valid")]
+#[test_case("delete item.#valid" => true; "Delete valid")]
+#[test_case("void item.#valid" => true; "Void valid")]
+#[test_case("typeof item.#valid" => true; "Typeof valid")]
+#[test_case("+item.#valid" => true; "NoOp valid")]
+#[test_case("-item.#valid" => true; "Negate valid")]
+#[test_case("~item.#valid" => true; "Complement valid")]
+#[test_case("!item.#valid" => true; "Not valid")]
+#[test_case("await item.#valid" => true; "Await valid")]
+#[test_case("item.#invalid" => false; "FallThru invalid")]
+#[test_case("delete item.#invalid" => false; "Delete invalid")]
+#[test_case("void item.#invalid" => false; "Void invalid")]
+#[test_case("typeof item.#invalid" => false; "Typeof invalid")]
+#[test_case("+item.#invalid" => false; "NoOp invalid")]
+#[test_case("-item.#invalid" => false; "Negate invalid")]
+#[test_case("~item.#invalid" => false; "Complement invalid")]
+#[test_case("!item.#invalid" => false; "Not invalid")]
+#[test_case("await item.#invalid" => false; "Await invalid")]
+fn unary_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = UnaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

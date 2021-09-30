@@ -136,6 +136,21 @@ impl EqualityExpression {
             _ => None,
         }
     }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            EqualityExpression::RelationalExpression(n) => n.all_private_identifiers_valid(names),
+            EqualityExpression::Equal(l, r) | EqualityExpression::NotEqual(l, r) | EqualityExpression::StrictEqual(l, r) | EqualityExpression::NotStrictEqual(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -138,6 +138,24 @@ fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bo
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("try {a.#valid;} catch{}" => true; "tc: block valid")]
+#[test_case("try {} catch{a.#valid;}" => true; "tc: catch valid")]
+#[test_case("try {a.#valid} finally{}" => true; "tf: block valid")]
+#[test_case("try {} finally{a.#valid;}" => true; "tf: finally valid")]
+#[test_case("try{a.#valid;} catch{} finally{}" => true; "tcf: block valid")]
+#[test_case("try{} catch{a.#valid;} finally{}" => true; "tcf: catch valid")]
+#[test_case("try{} catch{} finally{a.#valid;}" => true; "tcf: finally valid")]
+#[test_case("try {a.#invalid;} catch{}" => false; "tc: block invalid")]
+#[test_case("try {} catch{a.#invalid;}" => false; "tc: catch invalid")]
+#[test_case("try {a.#invalid} finally{}" => false; "tf: block invalid")]
+#[test_case("try {} finally{a.#invalid;}" => false; "tf: finally invalid")]
+#[test_case("try{a.#invalid;} catch{} finally{}" => false; "tcf: block invalid")]
+#[test_case("try{} catch{a.#invalid;} finally{}" => false; "tcf: catch invalid")]
+#[test_case("try{} catch{} finally{a.#invalid;}" => false; "tcf: finally invalid")]
+fn try_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // CATCH
 #[test]
@@ -231,6 +249,16 @@ fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("catch([a=b.#valid]){}" => true; "cpb: param valid")]
+#[test_case("catch([a=b]){c.#valid;}" => true; "cpb: block valid")]
+#[test_case("catch{a.#valid;}" => true; "cb: block valid")]
+#[test_case("catch([a=b.#invalid]){}" => false; "cpb: param invalid")]
+#[test_case("catch([a=b]){c.#invalid;}" => false; "cpb: block invalid")]
+#[test_case("catch{a.#invalid;}" => false; "cb: block invalid")]
+fn catch_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // FINALLY
 #[test]
@@ -289,6 +317,12 @@ fn finally_test_contains_duplicate_labels() {
 fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
+#[test_case("finally {a.#valid;}" => true; "valid")]
+#[test_case("finally {a.#invalid;}" => false; "invalid")]
+fn finally_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // CATCH PARAMETER
@@ -349,4 +383,11 @@ fn catch_parameter_test_contains() {
     cp_contains_check("a", false);
     cp_contains_check("[a]", false);
     cp_contains_check("[a=0]", true);
+}
+#[test_case("a" => true; "identifier")]
+#[test_case("[a=b.#valid]" => true; "pattern valid")]
+#[test_case("[a=b.#invalid]" => false; "pattern invalid")]
+fn catch_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

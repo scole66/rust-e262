@@ -61,6 +61,14 @@ fn switch_statement_test_contains_undefined_continue_target(src: &str) -> (bool,
     let (item, _) = SwitchStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("switch (a.#valid) {default:;}" => true; "Expression valid")]
+#[test_case("switch (a) {default: b.#valid;}" => true; "CaseBlock valid")]
+#[test_case("switch (a.#invalid) {default:;}" => false; "Expression invalid")]
+#[test_case("switch (a) {default: b.#invalid;}" => false; "CaseBlock invalid")]
+fn switch_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = SwitchStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // CASE BLOCK
 #[test]
@@ -220,6 +228,29 @@ fn case_block_test_contains_undefined_continue_target(src: &str) -> (bool, bool)
     let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("{}" => true; "empty")]
+#[test_case("{ case 1: a.#valid; }" => true; "nodef valid")]
+#[test_case("{ case 1:a.#valid; default:; case 2:; }" => true; "cdc c1 valid")]
+#[test_case("{ case 1:; default:;a.#valid; case 2:; }" => true; "cdc d valid")]
+#[test_case("{ case 1:; default:; case 2:a.#valid; }" => true; "cdc c2 valid")]
+#[test_case("{ case 1:a.#valid; default:; }" => true; "cd c valid")]
+#[test_case("{ case 1:; default:;a.#valid; }" => true; "cd d valid")]
+#[test_case("{ default:;a.#valid; case 2:; }" => true; "dc d valid")]
+#[test_case("{ default:; case 2:a.#valid; }" => true; "dc c valid")]
+#[test_case("{ default:a.#valid; }" => true; "d valid")]
+#[test_case("{ case 1: a.#invalid; }" => false; "nodef invalid")]
+#[test_case("{ case 1:a.#invalid; default:; case 2:; }" => false; "cdc c1 invalid")]
+#[test_case("{ case 1:; default:;a.#invalid; case 2:; }" => false; "cdc d invalid")]
+#[test_case("{ case 1:; default:; case 2:a.#invalid; }" => false; "cdc c2 invalid")]
+#[test_case("{ case 1:a.#invalid; default:; }" => false; "cd c invalid")]
+#[test_case("{ case 1:; default:;a.#invalid; }" => false; "cd d invalid")]
+#[test_case("{ default:;a.#invalid; case 2:; }" => false; "dc d invalid")]
+#[test_case("{ default:; case 2:a.#invalid; }" => false; "dc c invalid")]
+#[test_case("{ default:a.#invalid; }" => false; "d invalid")]
+fn case_block_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // CASE CLAUSES
 #[test]
@@ -302,6 +333,16 @@ fn case_clauses_test_contains_undefined_continue_target(src: &str) -> (bool, boo
     let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("case 1: a.#valid;" => true; "single valid")]
+#[test_case("case 1: a.#valid; case 2: ;" => true; "multi left valid")]
+#[test_case("case 1: ; case 2: a.#valid;" => true; "multi second valid")]
+#[test_case("case 1: a.#invalid;" => false; "single invalid")]
+#[test_case("case 1: a.#invalid; case 2: ;" => false; "multi left invalid")]
+#[test_case("case 1: ; case 2: a.#invalid;" => false; "multi second invalid")]
+fn case_clauses_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // CASE CLAUSE
 #[test]
@@ -383,6 +424,16 @@ fn case_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool
     let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("case a.#valid:" => true; "Exp Only valid")]
+#[test_case("case a.#valid: ;" => true; "Expression valid")]
+#[test_case("case a: b.#valid;" => true; "Statement valid")]
+#[test_case("case a.#invalid:" => false; "Exp Only invalid")]
+#[test_case("case a.#invalid: ;" => false; "Expression invalid")]
+#[test_case("case a: b.#invalid;" => false; "Statement invalid")]
+fn case_clause_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // DEFAULT CLAUSE
 #[test]
@@ -460,4 +511,11 @@ fn default_clause_test_contains_duplicate_labels() {
 fn default_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
+#[test_case("default:" => true; "no statement")]
+#[test_case("default: a.#valid;" => true; "statement valid")]
+#[test_case("default: a.#invalid;" => false; "statement invalid")]
+fn default_clause_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

@@ -387,3 +387,59 @@ fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> 
     let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.private_bound_identifiers()
 }
+#[test_case("a(){b.#valid;}" => true; "method valid")]
+#[test_case("*a(){b.#valid;}" => true; "generator valid")]
+#[test_case("async a(){b.#valid;}" => true; "async method valid")]
+#[test_case("async *a(){b.#valid;}" => true; "async generator valid")]
+#[test_case("get a(){b.#valid;}" => true; "getter valid")]
+#[test_case("set a(b){c.#valid;}" => true; "setter valid")]
+#[test_case("a(){b.#invalid;}" => false; "method invalid")]
+#[test_case("*a(){b.#invalid;}" => false; "generator invalid")]
+#[test_case("async a(){b.#invalid;}" => false; "async method invalid")]
+#[test_case("async *a(){b.#invalid;}" => false; "async generator invalid")]
+#[test_case("get a(){b.#invalid;}" => false; "getter invalid")]
+#[test_case("set a(b){c.#invalid;}" => false; "setter invalid")]
+fn method_definition_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
+mod property_set_parameter_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn parse() {
+        let (pn, scanner) = check(PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()));
+        chk_scan(&scanner, 1);
+        pretty_check(&*pn, "PropertySetParameterList: a", vec!["FormalParameter: a"]);
+        concise_check(&*pn, "IdentifierName: a", vec![]);
+        format!("{:?}", pn);
+    }
+
+    #[test]
+    fn pretty_errors() {
+        let (item, _) = PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap();
+        pretty_error_validate(&*item);
+    }
+
+    #[test]
+    fn concise_errors() {
+        let (item, _) = PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("a" => false; "no initializer")]
+    #[test_case("a=27" => true; "literal initializer")]
+    fn contains(src: &str) -> bool {
+        let (item, _) = PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap();
+        item.contains(ParseNodeKind::Literal)
+    }
+
+    #[test_case("a=b.#valid" => true; "valid")]
+    #[test_case("a=b.#invalid" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}

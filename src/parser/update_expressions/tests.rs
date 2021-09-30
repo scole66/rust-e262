@@ -205,3 +205,17 @@ fn update_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+#[test_case("item.#valid" => true; "FallThru valid")]
+#[test_case("item.#valid++" => true; "PostInc valid")]
+#[test_case("item.#valid--" => true; "PostDec valid")]
+#[test_case("++item.#valid" => true; "PreInc valid")]
+#[test_case("--item.#valid" => true; "PreDec valid")]
+#[test_case("item.#invalid" => false; "FallThru invalid")]
+#[test_case("item.#invalid++" => false; "PostInc invalid")]
+#[test_case("item.#invalid--" => false; "PostDec invalid")]
+#[test_case("++item.#invalid" => false; "PreInc invalid")]
+#[test_case("--item.#invalid" => false; "PreDec invalid")]
+fn update_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use test_case::test_case;
 
 // RETURN STATEMENT
 #[test]
@@ -81,4 +82,11 @@ fn return_statement_test_contains_02() {
 fn return_statement_test_contains_03() {
     let (item, _) = ReturnStatement::parse(&mut newparser("return a;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("return;" => true; "no expression")]
+#[test_case("return a.#valid;" => true; "expression valid")]
+#[test_case("return a.#invalid;" => false; "expression invalid")]
+fn return_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ReturnStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }

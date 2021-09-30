@@ -208,6 +208,18 @@ fn iteration_statement_test_contains_undefined_continue_target(src: &str) -> (bo
     let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("do a.#valid; while (false);" => true; "DoWhile valid")]
+#[test_case("while (a.#valid) ;" => true; "While valid")]
+#[test_case("for (;a.#valid;) ;" => true; "For valid")]
+#[test_case("for (a in b.#valid) ;" => true; "ForInOf valid")]
+#[test_case("do a.#invalid; while (false);" => false; "DoWhile invalid")]
+#[test_case("while (a.#invalid) ;" => false; "While invalid")]
+#[test_case("for (;a.#invalid;) ;" => false; "For invalid")]
+#[test_case("for (a in b.#invalid) ;" => false; "ForInOf invalid")]
+fn iteration_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // DO WHILE STATEMENT
 #[test]
@@ -297,6 +309,14 @@ fn do_while_statement_test_contains_undefined_continue_target(src: &str) -> (boo
     let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("do a.#valid; while (1);" => true; "stmt valid")]
+#[test_case("do ; while(a.#valid);" => true; "cond valid")]
+#[test_case("do a.#invalid; while (1);" => false; "stmt invalid")]
+#[test_case("do ; while(a.#invalid);" => false; "cond invalid")]
+fn do_while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // WHILE STATEMENT
 #[test]
@@ -373,6 +393,14 @@ fn while_statement_test_contains_duplicate_labels() {
 fn while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
+#[test_case("while (a.#valid) ;" => true; "cond valid")]
+#[test_case("while (1) a.#valid;" => true; "stmt valid")]
+#[test_case("while (a.#invalid) ;" => false; "cond invalid")]
+#[test_case("while (1) a.#invalid;" => false; "stmt invalid")]
+fn while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // FOR STATEMENT
@@ -909,6 +937,98 @@ fn for_statement_test_contains_duplicate_labels() {
 fn for_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
+#[test_case("for (;;) a.#valid;" => true; "xxx valid")]
+#[test_case("for (a.#valid;;) stmt;" => true; "Cxx init valid")]
+#[test_case("for (c;;) a.#valid;" => true; "Cxx stmt valid")]
+#[test_case("for (a.#valid;c2;) stmt;" => true; "CCx init valid")]
+#[test_case("for (c1;a.#valid;) stmt;" => true; "CCx cond valid")]
+#[test_case("for (c1;c2;) a.#valid;" => true; "CCx stmt valid")]
+#[test_case("for (a.#valid;c2;c3) stmt;" => true; "CCC init valid")]
+#[test_case("for (c1;a.#valid;c3) stmt;" => true; "CCC cond valid")]
+#[test_case("for (c1;c2;a.#valid) stmt;" => true; "CCC inc valid")]
+#[test_case("for (c1;c2;c3) a.#valid;" => true; "CCC stmt valid")]
+#[test_case("for (;a.#valid;c3) stmt;" => true; "xCC cond valid")]
+#[test_case("for (;c2;a.#valid) stmt;" => true; "xCC inc valid")]
+#[test_case("for (;c2;c3) a.#valid;" => true; "xCC stmt valid")]
+#[test_case("for (;a.#valid;) stmt;" => true; "xCx cond valid")]
+#[test_case("for (;c2;) a.#valid;" => true; "xCx stmt valid")]
+#[test_case("for (;;a.#valid) stmt;" => true; "xxC inc valid")]
+#[test_case("for (;;c3) a.#valid;" => true; "xxC stmt valid")]
+#[test_case("for (a.#valid;;c3) stmt;" => true; "CxC init valid")]
+#[test_case("for (c1;;a.#valid) stmt;" => true; "CxC inc valid")]
+#[test_case("for (c1;;c3) a.#valid;" => true; "CxC stmt valid")]
+#[test_case("for (;;) a.#invalid;" => false; "xxx invalid")]
+#[test_case("for (a.#invalid;;) stmt;" => false; "Cxx init invalid")]
+#[test_case("for (c;;) a.#invalid;" => false; "Cxx stmt invalid")]
+#[test_case("for (a.#invalid;c2;) stmt;" => false; "CCx init invalid")]
+#[test_case("for (c1;a.#invalid;) stmt;" => false; "CCx cond invalid")]
+#[test_case("for (c1;c2;) a.#invalid;" => false; "CCx stmt invalid")]
+#[test_case("for (a.#invalid;c2;c3) stmt;" => false; "CCC init invalid")]
+#[test_case("for (c1;a.#invalid;c3) stmt;" => false; "CCC cond invalid")]
+#[test_case("for (c1;c2;a.#invalid) stmt;" => false; "CCC inc invalid")]
+#[test_case("for (c1;c2;c3) a.#invalid;" => false; "CCC stmt invalid")]
+#[test_case("for (;a.#invalid;c3) stmt;" => false; "xCC cond invalid")]
+#[test_case("for (;c2;a.#invalid) stmt;" => false; "xCC inc invalid")]
+#[test_case("for (;c2;c3) a.#invalid;" => false; "xCC stmt invalid")]
+#[test_case("for (;a.#invalid;) stmt;" => false; "xCx cond invalid")]
+#[test_case("for (;c2;) a.#invalid;" => false; "xCx stmt invalid")]
+#[test_case("for (;;a.#invalid) stmt;" => false; "xxC inc invalid")]
+#[test_case("for (;;c3) a.#invalid;" => false; "xxC stmt invalid")]
+#[test_case("for (a.#invalid;;c3) stmt;" => false; "CxC init invalid")]
+#[test_case("for (c1;;a.#invalid) stmt;" => false; "CxC inc invalid")]
+#[test_case("for (c1;;c3) a.#invalid;" => false; "CxC stmt invalid")]
+#[test_case("for (var i=a.#valid;c;s) stmt;" => true; "var CC init valid")]
+#[test_case("for (var i=a;a.#valid;s) stmt;" => true; "var CC cond valid")]
+#[test_case("for (var i=a;c;a.#valid) stmt;" => true; "var CC step valid")]
+#[test_case("for (var i=a;c;s) a.#valid;" => true; "var CC stmt valid")]
+#[test_case("for (var i=a.#valid;;s) stmt;" => true; "var xC init valid")]
+#[test_case("for (var i=a;;a.#valid) stmt;" => true; "var xC step valid")]
+#[test_case("for (var i=a;;s) a.#valid;" => true; "var xC stmt valid")]
+#[test_case("for (var i=a.#valid;c;) stmt;" => true; "var Cx init valid")]
+#[test_case("for (var i=a;a.#valid;) stmt;" => true; "var Cx cond valid")]
+#[test_case("for (var i=a;c;) a.#valid;" => true; "var Cx stmt valid")]
+#[test_case("for (var i=a.#valid;;) stmt;" => true; "var xx init valid")]
+#[test_case("for (var i=a;;) a.#valid;" => true; "var xx stmt valid")]
+#[test_case("for (var i=a.#invalid;c;s) stmt;" => false; "var CC init invalid")]
+#[test_case("for (var i=a;a.#invalid;s) stmt;" => false; "var CC cond invalid")]
+#[test_case("for (var i=a;c;a.#invalid) stmt;" => false; "var CC step invalid")]
+#[test_case("for (var i=a;c;s) a.#invalid;" => false; "var CC stmt invalid")]
+#[test_case("for (var i=a.#invalid;;s) stmt;" => false; "var xC init invalid")]
+#[test_case("for (var i=a;;a.#invalid) stmt;" => false; "var xC step invalid")]
+#[test_case("for (var i=a;;s) a.#invalid;" => false; "var xC stmt invalid")]
+#[test_case("for (var i=a.#invalid;c;) stmt;" => false; "var Cx init invalid")]
+#[test_case("for (var i=a;a.#invalid;) stmt;" => false; "var Cx cond invalid")]
+#[test_case("for (var i=a;c;) a.#invalid;" => false; "var Cx stmt invalid")]
+#[test_case("for (var i=a.#invalid;;) stmt;" => false; "var xx init invalid")]
+#[test_case("for (var i=a;;) a.#invalid;" => false; "var xx stmt invalid")]
+#[test_case("for (let i=a.#valid;c;s) stmt;" => true; "let CC init valid")]
+#[test_case("for (let i=a;a.#valid;s) stmt;" => true; "let CC cond valid")]
+#[test_case("for (let i=a;c;a.#valid) stmt;" => true; "let CC step valid")]
+#[test_case("for (let i=a;c;s) a.#valid;" => true; "let CC stmt valid")]
+#[test_case("for (let i=a.#valid;;s) stmt;" => true; "let xC init valid")]
+#[test_case("for (let i=a;;a.#valid) stmt;" => true; "let xC step valid")]
+#[test_case("for (let i=a;;s) a.#valid;" => true; "let xC stmt valid")]
+#[test_case("for (let i=a.#valid;c;) stmt;" => true; "let Cx init valid")]
+#[test_case("for (let i=a;a.#valid;) stmt;" => true; "let Cx cond valid")]
+#[test_case("for (let i=a;c;) a.#valid;" => true; "let Cx stmt valid")]
+#[test_case("for (let i=a.#valid;;) stmt;" => true; "let xx init valid")]
+#[test_case("for (let i=a;;) a.#valid;" => true; "let xx stmt valid")]
+#[test_case("for (let i=a.#invalid;c;s) stmt;" => false; "let CC init invalid")]
+#[test_case("for (let i=a;a.#invalid;s) stmt;" => false; "let CC cond invalid")]
+#[test_case("for (let i=a;c;a.#invalid) stmt;" => false; "let CC step invalid")]
+#[test_case("for (let i=a;c;s) a.#invalid;" => false; "let CC stmt invalid")]
+#[test_case("for (let i=a.#invalid;;s) stmt;" => false; "let xC init invalid")]
+#[test_case("for (let i=a;;a.#invalid) stmt;" => false; "let xC step invalid")]
+#[test_case("for (let i=a;;s) a.#invalid;" => false; "let xC stmt invalid")]
+#[test_case("for (let i=a.#invalid;c;) stmt;" => false; "let Cx init invalid")]
+#[test_case("for (let i=a;a.#invalid;) stmt;" => false; "let Cx cond invalid")]
+#[test_case("for (let i=a;c;) a.#invalid;" => false; "let Cx stmt invalid")]
+#[test_case("for (let i=a.#invalid;;) stmt;" => false; "let xx init invalid")]
+#[test_case("for (let i=a;;) a.#invalid;" => false; "let xx stmt invalid")]
+fn for_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // FOR IN-OF STATEMENT
@@ -1547,6 +1667,64 @@ fn for_in_of_statement_test_contains_undefined_continue_target(src: &str) -> (bo
     let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
+#[test_case("for ([a=x.#valid] in c) stmt;" => true; "in init valid")]
+#[test_case("for ([a=b] in x.#valid) stmt;" => true; "in target valid")]
+#[test_case("for ([a=b] in c) x.#valid;" => true; "in stmt valid")]
+#[test_case("for ([a=x.#valid] of c) stmt;" => true; "of init valid")]
+#[test_case("for ([a=b] of x.#valid) stmt;" => true; "of target valid")]
+#[test_case("for ([a=b] of c) x.#valid;" => true; "of stmt valid")]
+#[test_case("for await ([a=x.#valid] of c) stmt;" => true; "await init valid")]
+#[test_case("for await ([a=b] of x.#valid) stmt;" => true; "await target valid")]
+#[test_case("for await ([a=b] of c) x.#valid;" => true; "await stmt valid")]
+#[test_case("for (var [a=x.#valid] in c) stmt;" => true; "varin init valid")]
+#[test_case("for (var [a=b] in x.#valid) stmt;" => true; "varin target valid")]
+#[test_case("for (var [a=b] in c) x.#valid;" => true; "varin stmt valid")]
+#[test_case("for (var [a=x.#valid] of c) stmt;" => true; "varof init valid")]
+#[test_case("for (var [a=b] of x.#valid) stmt;" => true; "varof target valid")]
+#[test_case("for (var [a=b] of c) x.#valid;" => true; "varof stmt valid")]
+#[test_case("for await (var [a=x.#valid] of c) stmt;" => true; "awaitvar init valid")]
+#[test_case("for await (var [a=b] of x.#valid) stmt;" => true; "awaitvar target valid")]
+#[test_case("for await (var [a=b] of c) x.#valid;" => true; "awaitvar stmt valid")]
+#[test_case("for (let [a=x.#valid] in c) stmt;" => true; "letin init valid")]
+#[test_case("for (let [a=b] in x.#valid) stmt;" => true; "letin target valid")]
+#[test_case("for (let [a=b] in c) x.#valid;" => true; "letin stmt valid")]
+#[test_case("for (let [a=x.#valid] of c) stmt;" => true; "letof init valid")]
+#[test_case("for (let [a=b] of x.#valid) stmt;" => true; "letof target valid")]
+#[test_case("for (let [a=b] of c) x.#valid;" => true; "letof stmt valid")]
+#[test_case("for await (let [a=x.#valid] of c) stmt;" => true; "awaitlet init valid")]
+#[test_case("for await (let [a=b] of x.#valid) stmt;" => true; "awaitlet target valid")]
+#[test_case("for await (let [a=b] of c) x.#valid;" => true; "awaitlet stmt valid")]
+#[test_case("for ([a=x.#invalid] in c) stmt;" => false; "in init invalid")]
+#[test_case("for ([a=b] in x.#invalid) stmt;" => false; "in target invalid")]
+#[test_case("for ([a=b] in c) x.#invalid;" => false; "in stmt invalid")]
+#[test_case("for ([a=x.#invalid] of c) stmt;" => false; "of init invalid")]
+#[test_case("for ([a=b] of x.#invalid) stmt;" => false; "of target invalid")]
+#[test_case("for ([a=b] of c) x.#invalid;" => false; "of stmt invalid")]
+#[test_case("for await ([a=x.#invalid] of c) stmt;" => false; "await init invalid")]
+#[test_case("for await ([a=b] of x.#invalid) stmt;" => false; "await target invalid")]
+#[test_case("for await ([a=b] of c) x.#invalid;" => false; "await stmt invalid")]
+#[test_case("for (var [a=x.#invalid] in c) stmt;" => false; "varin init invalid")]
+#[test_case("for (var [a=b] in x.#invalid) stmt;" => false; "varin target invalid")]
+#[test_case("for (var [a=b] in c) x.#invalid;" => false; "varin stmt invalid")]
+#[test_case("for (var [a=x.#invalid] of c) stmt;" => false; "varof init invalid")]
+#[test_case("for (var [a=b] of x.#invalid) stmt;" => false; "varof target invalid")]
+#[test_case("for (var [a=b] of c) x.#invalid;" => false; "varof stmt invalid")]
+#[test_case("for await (var [a=x.#invalid] of c) stmt;" => false; "awaitvar init invalid")]
+#[test_case("for await (var [a=b] of x.#invalid) stmt;" => false; "awaitvar target invalid")]
+#[test_case("for await (var [a=b] of c) x.#invalid;" => false; "awaitvar stmt invalid")]
+#[test_case("for (let [a=x.#invalid] in c) stmt;" => false; "letin init invalid")]
+#[test_case("for (let [a=b] in x.#invalid) stmt;" => false; "letin target invalid")]
+#[test_case("for (let [a=b] in c) x.#invalid;" => false; "letin stmt invalid")]
+#[test_case("for (let [a=x.#invalid] of c) stmt;" => false; "letof init invalid")]
+#[test_case("for (let [a=b] of x.#invalid) stmt;" => false; "letof target invalid")]
+#[test_case("for (let [a=b] of c) x.#invalid;" => false; "letof stmt invalid")]
+#[test_case("for await (let [a=x.#invalid] of c) stmt;" => false; "awaitlet init invalid")]
+#[test_case("for await (let [a=b] of x.#invalid) stmt;" => false; "awaitlet target invalid")]
+#[test_case("for await (let [a=b] of c) x.#invalid;" => false; "awaitlet stmt invalid")]
+fn for_in_of_statement_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
 
 // FOR DECLARATION
 #[test]
@@ -1602,6 +1780,12 @@ fn for_declaration_test_contains_01() {
 fn for_declaration_test_contains_02() {
     let (item, _) = ForDeclaration::parse(&mut newparser("const [a=0]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test_case("let [a=b.#valid]" => true; "valid")]
+#[test_case("let [a=b.#invalid]" => false; "invalid")]
+fn for_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
 // FOR BINDING
@@ -1677,4 +1861,11 @@ fn for_binding_test_contains_02() {
 fn for_binding_test_contains_03() {
     let (item, _) = ForBinding::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test_case("a" => true; "Identifier")]
+#[test_case("[a=b.#valid]" => true; "pattern valid")]
+#[test_case("[a=b.#invalid]" => false; "pattern invalid")]
+fn for_binding_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = ForBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
