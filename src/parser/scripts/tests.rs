@@ -210,6 +210,10 @@ fn script_body_test_early_errors_08() {
     script_body_ee_check("continue bob;", Some("undefined continue target detected"));
 }
 #[test]
+fn script_body_test_early_errors_09() {
+    script_body_ee_check("a.#mystery;", Some("invalid private identifier detected"));
+}
+#[test]
 fn script_body_test_directive_prologue_01() {
     let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
 
