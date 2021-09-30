@@ -110,7 +110,36 @@ impl AsyncFunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        // Static Semantics: Early Errors
+        // AsyncFunctionDeclaration :
+        //     async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+        //     async function ( FormalParameters ) { AsyncFunctionBody }
+        //
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncFunctionBody is true and
+        //    IsSimpleParameterList of FormalParameters is false.
+        //  * It is a Syntax Error if FormalParameters Contains AwaitExpression is true.
+        //  * If the source code matching FormalParameters is strict mode code, the Early Error rules for
+        //    UniqueFormalParameters : FormalParameters are applied.
+        //  * If BindingIdentifier is present and the source code matching BindingIdentifier is strict mode code, it is
+        //    a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncFunctionBody.
+        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        //  * It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
+        //let mut errs = Vec::new();
+        //if self.body.function_body_contains_use_strict() && ! self.params.is_simple_parameter_list() {
+        //    // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
+        //    // is false
+        //    errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
+        //}
+        //if self.params.contains(ParseNodeKind::AwaitExpression) {
+        //    // FormalParameters Contains AwaitExpression is true.
+        //    errs.push(create_syntax_error_object(agent, "Await not allowed in parameter lists"))
+        //}
+
         // todo!()
         println!("{}:{}: Not yet implemented", file!(), line!());
         Vec::new()

@@ -82,10 +82,11 @@ impl ReturnStatement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+        match self {
+            ReturnStatement::Bare => Vec::new(),
+            ReturnStatement::Expression(exp) => exp.early_errors(agent),
+        }
     }
 }
 

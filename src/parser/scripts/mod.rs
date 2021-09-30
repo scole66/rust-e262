@@ -189,7 +189,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        errs.extend(self.statement_list.early_errors(agent));
+        errs.extend(self.statement_list.early_errors(agent, false));
         errs
     }
 
