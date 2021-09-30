@@ -207,7 +207,7 @@ fn script_body_test_early_errors_07() {
 }
 #[test]
 fn script_body_test_early_errors_08() {
-    script_body_ee_check("continue bob;", Some("undefined continue target detected"));
+    script_body_ee_check("for (;;) continue bob;", Some("undefined continue target detected"));
 }
 #[test]
 fn script_body_test_early_errors_09() {

@@ -129,20 +129,20 @@ impl AsyncFunctionDeclaration {
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
-        //let mut errs = Vec::new();
+        let mut errs = Vec::new();
         //if self.body.function_body_contains_use_strict() && ! self.params.is_simple_parameter_list() {
         //    // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
         //    // is false
         //    errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
         //}
-        //if self.params.contains(ParseNodeKind::AwaitExpression) {
-        //    // FormalParameters Contains AwaitExpression is true.
-        //    errs.push(create_syntax_error_object(agent, "Await not allowed in parameter lists"))
-        //}
+        if self.params.contains(ParseNodeKind::AwaitExpression) {
+            // FormalParameters Contains AwaitExpression is true.
+            errs.push(create_syntax_error_object(agent, "Await not allowed in parameter lists"));
+        }
 
         // todo!()
         println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+        errs
     }
 }
 
