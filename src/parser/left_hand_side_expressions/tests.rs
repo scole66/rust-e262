@@ -857,7 +857,6 @@ fn new_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
-
 // CALL MEMBER EXPRESSION
 #[test]
 fn call_member_expression_test_me_args() {
@@ -908,7 +907,6 @@ fn call_member_expression_test_all_private_identifiers_valid(src: &str) -> bool 
     let (item, _) = CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
-
 
 // SUPER CALL
 #[test]
@@ -1291,6 +1289,33 @@ fn call_expression_test_contains_18() {
     let (item, _) = CallExpression::parse(&mut newparser("a(0).#b"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("a(b.#valid)" => true; "standard call valid")]
+#[test_case("super(a.#valid)" => true; "supercall valid")]
+#[test_case("import(a.#valid)" => true; "importcall valid")]
+#[test_case("a(b.#valid)(c)" => true; "CallExpression Arguments ce valid")]
+#[test_case("a(b)(c.#valid)" => true; "CallExpression Arguments args valid")]
+#[test_case("a(b.#valid)[c]" => true; "CallExpression [ Expression ] ce valid")]
+#[test_case("a(b)[c.#valid]" => true; "CallExpression [ Expression ] exp valid")]
+#[test_case("a(b.#valid).c" => true; "CallExpression . IdentifierName ce valid")]
+#[test_case("a(b.#valid)`${c}`" => true; "CallExpression TemplateLiteral ce valid")]
+#[test_case("a(b)`${c.#valid}`" => true; "CallExpression TemplateLiteral tl valid")]
+#[test_case("a(b.#invalid)" => false; "standard call invalid")]
+#[test_case("super(a.#invalid)" => false; "supercall invalid")]
+#[test_case("import(a.#invalid)" => false; "importcall invalid")]
+#[test_case("a(b.#invalid)(c)" => false; "CallExpression Arguments ce invalid")]
+#[test_case("a(b)(c.#invalid)" => false; "CallExpression Arguments args invalid")]
+#[test_case("a(b.#invalid)[c]" => false; "CallExpression [ Expression ] ce invalid")]
+#[test_case("a(b)[c.#invalid]" => false; "CallExpression [ Expression ] exp invalid")]
+#[test_case("a(b.#invalid).c" => false; "CallExpression . IdentifierName ce invalid")]
+#[test_case("a(b.#invalid)`${c}`" => false; "CallExpression TemplateLiteral ce invalid")]
+#[test_case("a(b)`${c.#invalid}`" => false; "CallExpression TemplateLiteral tl invalid")]
+#[test_case("a(b.#valid).#other" => true; "CallExpression . PrivateIdentifier both valid")]
+#[test_case("a(b.#invalid).#other" => false; "CallExpression . PrivateIdentifier ce invalid")]
+#[test_case("a(b.#valid).#nonsense" => false; "CallExpression . PrivateIdentifier pi invalid")]
+fn call_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = CallExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
+}
 
 // OPTIONAL EXPRESSION
 #[test]
@@ -1406,6 +1431,22 @@ fn optional_expression_test_contains_08() {
 fn optional_expression_test_contains_09() {
     let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+#[test_case("a.#valid?.(b)" => true; "MemberExpression OptionalChain me valid")]
+#[test_case("a?.(b.#valid)" => true; "MemberExpression OptionalChain oc valid")]
+#[test_case("a(b.#valid)?.(c)" => true; "CallExpression OptionalChain ce valid")]
+#[test_case("a()?.(b.#valid)" => true; "CallExpression OptionalChain oc valid")]
+#[test_case("a.#valid?.(b)?.(c)" => true; "OptionalExpression OptionalChain oe valid")]
+#[test_case("a?.(b)?.(c.#valid)" => true; "OptionalExpression OptionalChain oc valid")]
+#[test_case("a.#invalid?.(b)" => false; "MemberExpression OptionalChain me invalid")]
+#[test_case("a?.(b.#invalid)" => false; "MemberExpression OptionalChain oc invalid")]
+#[test_case("a(b.#invalid)?.(c)" => false; "CallExpression OptionalChain ce invalid")]
+#[test_case("a()?.(b.#invalid)" => false; "CallExpression OptionalChain oc invalid")]
+#[test_case("a.#invalid?.(b)?.(c)" => false; "OptionalExpression OptionalChain oe invalid")]
+#[test_case("a?.(b)?.(c.#invalid)" => false; "OptionalExpression OptionalChain oc invalid")]
+fn optional_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
 }
 
 // OPTIONAL CHAIN
@@ -1738,6 +1779,36 @@ fn optional_chain_test_contains_21() {
     let (item, _) = OptionalChain::parse(&mut newparser("?.(0).#this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
+#[test_case("?.a" => true; "?. IdentifierName")]
+#[test_case("?.(a.#valid)" => true; "?. Arguments valid")]
+#[test_case("?.[a.#valid]" => true; "?. [ Expression ] valid")]
+#[test_case("?.`${a.#valid}`" => true; "?. TemplateLiteral valid")]
+#[test_case("?.#valid" => true; "?. PrivateIdentifier valid")]
+#[test_case("?.[a.#valid](b)" => true; "OptionalChain Arguments oc valid")]
+#[test_case("?.[a](b.#valid)" => true; "OptionalChain Arguments args valid")]
+#[test_case("?.[a.#valid][b]" => true; "OptionalChain [ Expression ] oc valid")]
+#[test_case("?.[a][b.#valid]" => true; "OptionalChain [ Expression ] expr valid")]
+#[test_case("?.[a.#valid].b" => true; "OptionalChain . IdentifierName valid")]
+#[test_case("?.[a.#valid]`${b}`" => true; "OptionalChain TemplateLiteral oc valid")]
+#[test_case("?.[a]`${b.#valid}`" => true; "OptionalChain TemplateLiteral tl valid")]
+#[test_case("?.(a.#invalid)" => false; "?. Arguments invalid")]
+#[test_case("?.[a.#invalid]" => false; "?. [ Expression ] invalid")]
+#[test_case("?.`${a.#invalid}`" => false; "?. TemplateLiteral invalid")]
+#[test_case("?.#invalid" => false; "?. PrivateIdentifier invalid")]
+#[test_case("?.[a.#invalid](b)" => false; "OptionalChain Arguments oc invalid")]
+#[test_case("?.[a](b.#invalid)" => false; "OptionalChain Arguments args invalid")]
+#[test_case("?.[a.#invalid][b]" => false; "OptionalChain [ Expression ] oc invalid")]
+#[test_case("?.[a][b.#invalid]" => false; "OptionalChain [ Expression ] expr invalid")]
+#[test_case("?.[a.#invalid].b" => false; "OptionalChain . IdentifierName invalid")]
+#[test_case("?.[a.#invalid]`${b}`" => false; "OptionalChain TemplateLiteral oc invalid")]
+#[test_case("?.[a]`${b.#invalid}`" => false; "OptionalChain TemplateLiteral tl invalid")]
+#[test_case("?.[a.#valid].#alsovalid" => true; "OptionalChain . PrivateIdentifier both valid")]
+#[test_case("?.[a.#invalid].#alsovalid" => false; "OptionalChain . PrivateIdentifier oc invalid")]
+#[test_case("?.[a.#valid].#invalid" => false; "OptionalChain . PrivateIdentifier pi invalid")]
+fn optional_chain_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("alsovalid")])
+}
 
 // LEFT-HAND-SIDE EXPRESSION
 #[test]
@@ -1836,4 +1907,14 @@ fn left_hand_side_expression_test_contains_06() {
 fn left_hand_side_expression_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
+}
+#[test_case("a.#valid" => true; "NewExpression valid")]
+#[test_case("a(b.#valid)" => true; "CallExpression valid")]
+#[test_case("a?.[b.#valid]" => true; "OptionalExpression valid")]
+#[test_case("a.#invalid" => false; "NewExpression invalid")]
+#[test_case("a(b.#invalid)" => false; "CallExpression invalid")]
+#[test_case("a?.[b.#invalid]" => false; "OptionalExpression invalid")]
+fn left_hand_side_expression_test_all_private_identifiers_valid(src: &str) -> bool {
+    let (item, _) = LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
