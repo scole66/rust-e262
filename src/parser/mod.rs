@@ -72,6 +72,7 @@ pub enum ParseNodeKind {
     ClassHeritage,
     ClassBody,
     Literal,
+    AwaitExpression,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]

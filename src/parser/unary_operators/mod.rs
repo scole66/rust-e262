@@ -169,7 +169,7 @@ impl UnaryExpression {
             UnaryExpression::Negate(n) => n.contains(kind),
             UnaryExpression::Complement(n) => n.contains(kind),
             UnaryExpression::Not(n) => n.contains(kind),
-            UnaryExpression::Await(n) => n.contains(kind),
+            UnaryExpression::Await(n) => kind == ParseNodeKind::AwaitExpression || n.contains(kind),
         }
     }
 
