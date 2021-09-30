@@ -211,91 +211,109 @@ fn unary_expression_test_cache_01() {
 fn unary_expression_test_contains_01() {
     let (item, _) = UnaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_02() {
     let (item, _) = UnaryExpression::parse(&mut newparser("0"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_03() {
     let (item, _) = UnaryExpression::parse(&mut newparser("delete this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_04() {
     let (item, _) = UnaryExpression::parse(&mut newparser("delete p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_05() {
     let (item, _) = UnaryExpression::parse(&mut newparser("void this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_06() {
     let (item, _) = UnaryExpression::parse(&mut newparser("void p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_07() {
     let (item, _) = UnaryExpression::parse(&mut newparser("typeof this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_08() {
     let (item, _) = UnaryExpression::parse(&mut newparser("typeof p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_09() {
     let (item, _) = UnaryExpression::parse(&mut newparser("+ this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_10() {
     let (item, _) = UnaryExpression::parse(&mut newparser("+ p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_11() {
     let (item, _) = UnaryExpression::parse(&mut newparser("- this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_12() {
     let (item, _) = UnaryExpression::parse(&mut newparser("- p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_13() {
     let (item, _) = UnaryExpression::parse(&mut newparser("~ this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_14() {
     let (item, _) = UnaryExpression::parse(&mut newparser("~ p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_15() {
     let (item, _) = UnaryExpression::parse(&mut newparser("! this"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_16() {
     let (item, _) = UnaryExpression::parse(&mut newparser("! p"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), false);
 }
 #[test]
 fn unary_expression_test_contains_17() {
     let (item, _) = UnaryExpression::parse(&mut newparser("await this"), Scanner::new(), false, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), true);
 }
 #[test]
 fn unary_expression_test_contains_18() {
     let (item, _) = UnaryExpression::parse(&mut newparser("await p"), Scanner::new(), false, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), true);
 }
 #[test_case("\"string\"" => Some(String::from("string")); "String Token")]
 #[test_case("-a" => None; "Not token")]
