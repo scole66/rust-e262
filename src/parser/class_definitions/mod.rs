@@ -899,9 +899,9 @@ impl ClassStaticBlock {
         Ok((Rc::new(ClassStaticBlock(block)), after_close))
     }
 
-    pub fn contains(&self) -> bool {
-        false
-    }
+    // pub fn contains(&self) -> bool {
+    //     false
+    // }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid

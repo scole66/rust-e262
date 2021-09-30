@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
 use super::cr::{AltCompletion, Completion};
-use super::dtoa_r::{dtoa, dtoa_fixed, dtoa_precise};
+//use super::dtoa_r::{dtoa, dtoa_fixed, dtoa_precise};
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -567,67 +567,68 @@ fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
 fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    let mut args = Arguments::from(arguments);
-    let fraction_digits = args.next_arg();
+    Ok(ECMAScriptValue::from("0.0"))
+    // let mut args = Arguments::from(arguments);
+    // let fraction_digits = args.next_arg();
 
-    let value = this_number_value(agent, this_value)?;
-    let fraction = to_integer_or_infinity(agent, fraction_digits.clone())?;
-    if !value.is_finite() {
-        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
-    }
-    if !(0.0..=100.0).contains(&fraction) {
-        let fd_str = to_string(agent, fraction_digits).unwrap();
-        return Err(create_range_error(agent, format!("FractionDigits ‘{}’ must lie within the range 0..100", fd_str)));
-    }
-    let fraction = fraction as i32;
+    // let value = this_number_value(agent, this_value)?;
+    // let fraction = to_integer_or_infinity(agent, fraction_digits.clone())?;
+    // if !value.is_finite() {
+    //     return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
+    // }
+    // if !(0.0..=100.0).contains(&fraction) {
+    //     let fd_str = to_string(agent, fraction_digits).unwrap();
+    //     return Err(create_range_error(agent, format!("FractionDigits ‘{}’ must lie within the range 0..100", fd_str)));
+    // }
+    // let fraction = fraction as i32;
 
-    let exp: i32;
-    let info;
-    let mut workbuf: [u8; 101] = [0; 101];
-    let digits;
-    if !fraction_digits.is_undefined() {
-        info = dtoa_precise(value, fraction + 1);
-        // We need fraction +1 digits to come out of this.
-        let strbuf = info.chars.as_bytes();
-        // copy digits out of that, right-padding with '0', until we get p chars.
-        let mut out_of_chars = false;
-        for idx in 0..(fraction + 1) as usize {
-            workbuf[idx] = if out_of_chars {
-                b'0'
-            } else {
-                let ch = strbuf[idx];
-                if ch == 0 {
-                    out_of_chars = true;
-                    b'0'
-                } else {
-                    ch
-                }
-            };
-        }
-        digits = &workbuf[0..(fraction + 1) as usize];
-    } else {
-        info = dtoa(value);
-        let strbuf = info.chars.as_bytes();
-        // Find the first null
-        let mut null_idx: Option<usize> = None;
-        for (idx, ch) in strbuf.iter().enumerate() {
-            if *ch == 0 {
-                null_idx = Some(idx);
-                break;
-            }
-        }
-        digits = &strbuf[0..null_idx.unwrap()];
-    }
-    exp = info.decpt - 1;
-    let sign = if value < 0.0 { "-" } else { "" };
+    // let exp: i32;
+    // let info;
+    // let mut workbuf: [u8; 101] = [0; 101];
+    // let digits;
+    // if !fraction_digits.is_undefined() {
+    //     info = dtoa_precise(value, fraction + 1);
+    //     // We need fraction +1 digits to come out of this.
+    //     let strbuf = info.chars.as_bytes();
+    //     // copy digits out of that, right-padding with '0', until we get p chars.
+    //     let mut out_of_chars = false;
+    //     for idx in 0..(fraction + 1) as usize {
+    //         workbuf[idx] = if out_of_chars {
+    //             b'0'
+    //         } else {
+    //             let ch = strbuf[idx];
+    //             if ch == 0 {
+    //                 out_of_chars = true;
+    //                 b'0'
+    //             } else {
+    //                 ch
+    //             }
+    //         };
+    //     }
+    //     digits = &workbuf[0..(fraction + 1) as usize];
+    // } else {
+    //     info = dtoa(value);
+    //     let strbuf = info.chars.as_bytes();
+    //     // Find the first null
+    //     let mut null_idx: Option<usize> = None;
+    //     for (idx, ch) in strbuf.iter().enumerate() {
+    //         if *ch == 0 {
+    //             null_idx = Some(idx);
+    //             break;
+    //         }
+    //     }
+    //     digits = &strbuf[0..null_idx.unwrap()];
+    // }
+    // exp = info.decpt - 1;
+    // let sign = if value < 0.0 { "-" } else { "" };
 
-    Ok(ECMAScriptValue::from(if fraction == 0 {
-        format!("{}{}e{:+}", sign, String::from_utf8_lossy(digits), exp)
-    } else {
-        let first_digit = &digits[0..1];
-        let remaining = &digits[1..];
-        format!("{}{}.{}e{:+}", sign, String::from_utf8_lossy(first_digit), String::from_utf8_lossy(remaining), exp)
-    }))
+    // Ok(ECMAScriptValue::from(if fraction == 0 {
+    //     format!("{}{}e{:+}", sign, String::from_utf8_lossy(digits), exp)
+    // } else {
+    //     let first_digit = &digits[0..1];
+    //     let remaining = &digits[1..];
+    //     format!("{}{}.{}e{:+}", sign, String::from_utf8_lossy(first_digit), String::from_utf8_lossy(remaining), exp)
+    // }))
 }
 
 // Number.prototype.toFixed ( fractionDigits )
@@ -673,62 +674,63 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
 fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    let mut args = Arguments::from(arguments);
-    let fraction_digits = args.next_arg();
-    let value = this_number_value(agent, this_value)?;
-    let fraction = to_integer_or_infinity(agent, fraction_digits)?;
-    if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
-        return Err(create_range_error(agent, "Argument for Number.toFixed must be in the range 0..100"));
-    }
-    if !value.is_finite() || value.abs() >= 1.0e21 {
-        return to_string(agent, ECMAScriptValue::from(value)).map(ECMAScriptValue::from);
-    }
-    let magnitude = value.abs();
+    Ok(ECMAScriptValue::from("0"))
+    // let mut args = Arguments::from(arguments);
+    // let fraction_digits = args.next_arg();
+    // let value = this_number_value(agent, this_value)?;
+    // let fraction = to_integer_or_infinity(agent, fraction_digits)?;
+    // if !fraction.is_finite() || !(0.0..=100.0).contains(&fraction) {
+    //     return Err(create_range_error(agent, "Argument for Number.toFixed must be in the range 0..100"));
+    // }
+    // if !value.is_finite() || value.abs() >= 1.0e21 {
+    //     return to_string(agent, ECMAScriptValue::from(value)).map(ECMAScriptValue::from);
+    // }
+    // let magnitude = value.abs();
 
-    Ok(ECMAScriptValue::from({
-        let sign = if value < 0.0 { "-" } else { "" };
-        let f = fraction as i32;
-        let mut workbuf: [u8; 101] = [b'0'; 101];
-        let info = dtoa_fixed(magnitude, f);
-        let mut k = info.decpt + f;
-        if f == 0 {
-            // sign + the k digits from dtoa.
-            let strbuf = info.chars.as_bytes();
-            for idx in 0..k as usize {
-                workbuf[idx] = {
-                    let ch = strbuf[idx];
-                    if ch == 0 {
-                        break;
-                    } else {
-                        ch
-                    }
-                };
-            }
-            format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
-        } else {
-            let mut write_offset = 0;
-            if k <= f {
-                write_offset = f + 1 - k;
-                k = f + 1;
-            }
-            let strbuf = info.chars.as_bytes();
-            // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
-            for read_idx in 0..(info.decpt + f - write_offset) as usize {
-                workbuf[read_idx + write_offset as usize] = {
-                    let ch = strbuf[read_idx];
-                    if ch == 0 {
-                        break;
-                    } else {
-                        ch
-                    }
-                };
-            }
-            let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
-            let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
+    // Ok(ECMAScriptValue::from({
+    //     let sign = if value < 0.0 { "-" } else { "" };
+    //     let f = fraction as i32;
+    //     let mut workbuf: [u8; 101] = [b'0'; 101];
+    //     let info = dtoa_fixed(magnitude, f);
+    //     let mut k = info.decpt + f;
+    //     if f == 0 {
+    //         // sign + the k digits from dtoa.
+    //         let strbuf = info.chars.as_bytes();
+    //         for idx in 0..k as usize {
+    //             workbuf[idx] = {
+    //                 let ch = strbuf[idx];
+    //                 if ch == 0 {
+    //                     break;
+    //                 } else {
+    //                     ch
+    //                 }
+    //             };
+    //         }
+    //         format!("{}{}", sign, String::from_utf8_lossy(&workbuf[0..k.max(1) as usize]))
+    //     } else {
+    //         let mut write_offset = 0;
+    //         if k <= f {
+    //             write_offset = f + 1 - k;
+    //             k = f + 1;
+    //         }
+    //         let strbuf = info.chars.as_bytes();
+    //         // copy digits out of the dtoabuffer, until we get info.decpt chars or run out.
+    //         for read_idx in 0..(info.decpt + f - write_offset) as usize {
+    //             workbuf[read_idx + write_offset as usize] = {
+    //                 let ch = strbuf[read_idx];
+    //                 if ch == 0 {
+    //                     break;
+    //                 } else {
+    //                     ch
+    //                 }
+    //             };
+    //         }
+    //         let before_point = String::from_utf8_lossy(&workbuf[0..(k - f) as usize]);
+    //         let after_point = String::from_utf8_lossy(&workbuf[(k - f) as usize..k as usize]);
 
-            format!("{}{}.{}", sign, before_point, after_point)
-        }
-    }))
+    //         format!("{}{}.{}", sign, before_point, after_point)
+    //     }
+    // }))
 }
 
 // Number.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
@@ -796,68 +798,69 @@ fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptVa
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
 fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
-    let mut args = Arguments::from(arguments);
-    let precision = args.next_arg();
-    let value = this_number_value(agent, this_value)?;
-    if precision.is_undefined() {
-        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
-    }
-    let prec = to_integer_or_infinity(agent, precision.clone())?;
-    if !value.is_finite() {
-        return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
-    }
-    if !(1.0..=100.0).contains(&prec) {
-        let precision_str = to_string(agent, precision).unwrap();
-        return Err(create_range_error(agent, format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
-    }
+    Ok(ECMAScriptValue::from("0.0"))
+    // let mut args = Arguments::from(arguments);
+    // let precision = args.next_arg();
+    // let value = this_number_value(agent, this_value)?;
+    // if precision.is_undefined() {
+    //     return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
+    // }
+    // let prec = to_integer_or_infinity(agent, precision.clone())?;
+    // if !value.is_finite() {
+    //     return Ok(ECMAScriptValue::from(to_string(agent, ECMAScriptValue::from(value)).unwrap()));
+    // }
+    // if !(1.0..=100.0).contains(&prec) {
+    //     let precision_str = to_string(agent, precision).unwrap();
+    //     return Err(create_range_error(agent, format!("Precision ‘{}’ must lie within the range 1..100", precision_str)));
+    // }
 
-    let p_size = prec as usize;
-    let p_val = prec as i32;
-    let info = dtoa_precise(value, p_val);
-    let strbuf = info.chars.as_bytes();
-    // copy digits out of that, right-padding with '0', until we get p chars.
-    let mut workbuf: [u8; 101] = [0; 101];
-    let mut out_of_chars = false;
-    for idx in 0..p_size {
-        workbuf[idx] = if out_of_chars {
-            b'0'
-        } else {
-            let ch = strbuf[idx];
-            if ch == 0 {
-                out_of_chars = true;
-                b'0'
-            } else {
-                ch
-            }
-        };
-    }
-    let digits = &workbuf[0..p_size];
-    let e = info.decpt - 1;
-    let sign = if info.sign != 0 && value != 0.0 { "-" } else { "" };
+    // let p_size = prec as usize;
+    // let p_val = prec as i32;
+    // let info = dtoa_precise(value, p_val);
+    // let strbuf = info.chars.as_bytes();
+    // // copy digits out of that, right-padding with '0', until we get p chars.
+    // let mut workbuf: [u8; 101] = [0; 101];
+    // let mut out_of_chars = false;
+    // for idx in 0..p_size {
+    //     workbuf[idx] = if out_of_chars {
+    //         b'0'
+    //     } else {
+    //         let ch = strbuf[idx];
+    //         if ch == 0 {
+    //             out_of_chars = true;
+    //             b'0'
+    //         } else {
+    //             ch
+    //         }
+    //     };
+    // }
+    // let digits = &workbuf[0..p_size];
+    // let e = info.decpt - 1;
+    // let sign = if info.sign != 0 && value != 0.0 { "-" } else { "" };
 
-    Ok(ECMAScriptValue::from(
-        // exponential form
-        if e < -6 || e >= p_val {
-            let before_pt = String::from_utf8_lossy(&digits[0..1]);
-            let decpt = if p_val != 1 { "." } else { "" };
-            let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
-            format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
-        } else if e == p_val - 1 {
-            // No decimal point
-            format!("{}{}", sign, String::from_utf8_lossy(digits))
-        } else if e >= 0 {
-            // No leading zeroes
-            let e_us: usize = e as usize + 1;
-            let a = &digits[0..e_us];
-            let b = &digits[e_us..p_size];
-            format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
-        } else {
-            // Leading zeroes
-            let digit_str = String::from_utf8_lossy(digits);
-            let num_zeroes: usize = (-e - 1) as usize;
-            format!("{}0.{:0>width$}", sign, digit_str, width = num_zeroes + digit_str.len())
-        },
-    ))
+    // Ok(ECMAScriptValue::from(
+    //     // exponential form
+    //     if e < -6 || e >= p_val {
+    //         let before_pt = String::from_utf8_lossy(&digits[0..1]);
+    //         let decpt = if p_val != 1 { "." } else { "" };
+    //         let after_pt = String::from_utf8_lossy(&digits[1..p_size]);
+    //         format!("{}{}{}{}e{}", sign, before_pt, decpt, after_pt, e)
+    //     } else if e == p_val - 1 {
+    //         // No decimal point
+    //         format!("{}{}", sign, String::from_utf8_lossy(digits))
+    //     } else if e >= 0 {
+    //         // No leading zeroes
+    //         let e_us: usize = e as usize + 1;
+    //         let a = &digits[0..e_us];
+    //         let b = &digits[e_us..p_size];
+    //         format!("{}{}.{}", sign, String::from_utf8_lossy(a), String::from_utf8_lossy(b))
+    //     } else {
+    //         // Leading zeroes
+    //         let digit_str = String::from_utf8_lossy(digits);
+    //         let num_zeroes: usize = (-e - 1) as usize;
+    //         format!("{}0.{:0>width$}", sign, digit_str, width = num_zeroes + digit_str.len())
+    //     },
+    // ))
 }
 
 pub fn next_double(dbl: f64) -> f64 {

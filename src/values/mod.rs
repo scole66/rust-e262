@@ -2,7 +2,7 @@ use super::agent::{Agent, WksId};
 use super::bigint_object::create_bigint_object;
 use super::boolean_object::create_boolean_object;
 use super::cr::{AltCompletion, Completion};
-use super::dtoa_r::dtoa;
+//use super::dtoa_r::dtoa;
 use super::errors::create_type_error;
 use super::number_object::create_number_object;
 use super::object::{call, get, get_method, to_callable, Object};
@@ -283,71 +283,72 @@ pub fn number_to_string<T>(writer: &mut T, value: f64) -> io::Result<()>
 where
     T: io::Write,
 {
-    if value.is_nan() {
-        return write!(writer, "NaN");
-    }
-    if value == 0.0 {
-        return write!(writer, "0");
-    }
-    if value < 0.0 {
-        write!(writer, "-")?;
-        return number_to_string(writer, -value);
-    }
-    if value.is_infinite() {
-        return write!(writer, "Infinity");
-    }
-    let info = dtoa(value);
+    write!(writer, "{}", value)
+    // if value.is_nan() {
+    //     return write!(writer, "NaN");
+    // }
+    // if value == 0.0 {
+    //     return write!(writer, "0");
+    // }
+    // if value < 0.0 {
+    //     write!(writer, "-")?;
+    //     return number_to_string(writer, -value);
+    // }
+    // if value.is_infinite() {
+    //     return write!(writer, "Infinity");
+    // }
+    // let info = dtoa(value);
 
-    let k = info.chars.find('\u{0}').unwrap() as i64;
-    let n = info.decpt as i64;
-    let mut iter = info.chars.chars();
-    if k <= n && n <= 21 {
-        for _ in 0..k {
-            let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
-        }
-        let zeros = n - k;
-        for _ in 0..zeros {
-            write!(writer, "0")?;
-        }
-        return Ok(());
-    }
-    if 0 < n && n <= 21 {
-        for _ in 0..n {
-            let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
-        }
-        write!(writer, ".")?;
-        for _ in 0..k - n {
-            let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
-        }
-        return Ok(());
-    }
-    if -6 < n && n <= 0 {
-        write!(writer, "0.")?;
-        for _ in n..0 {
-            write!(writer, "0")?;
-        }
-        for _ in 0..k {
-            let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
-        }
-        return Ok(());
-    }
-    let ch = iter.next().unwrap();
-    write!(writer, "{}", ch)?;
-    if k > 1 {
-        write!(writer, ".")?;
-        for _ in 1..k {
-            let ch = iter.next().unwrap();
-            write!(writer, "{}", ch)?;
-        }
-    }
-    write!(writer, "e")?;
-    let v = n - 1;
-    write!(writer, "{}{}", if v > 0 { '+' } else { '-' }, v.abs())?;
-    Ok(())
+    // let k = info.chars.find('\u{0}').unwrap() as i64;
+    // let n = info.decpt as i64;
+    // let mut iter = info.chars.chars();
+    // if k <= n && n <= 21 {
+    //     for _ in 0..k {
+    //         let ch = iter.next().unwrap();
+    //         write!(writer, "{}", ch)?;
+    //     }
+    //     let zeros = n - k;
+    //     for _ in 0..zeros {
+    //         write!(writer, "0")?;
+    //     }
+    //     return Ok(());
+    // }
+    // if 0 < n && n <= 21 {
+    //     for _ in 0..n {
+    //         let ch = iter.next().unwrap();
+    //         write!(writer, "{}", ch)?;
+    //     }
+    //     write!(writer, ".")?;
+    //     for _ in 0..k - n {
+    //         let ch = iter.next().unwrap();
+    //         write!(writer, "{}", ch)?;
+    //     }
+    //     return Ok(());
+    // }
+    // if -6 < n && n <= 0 {
+    //     write!(writer, "0.")?;
+    //     for _ in n..0 {
+    //         write!(writer, "0")?;
+    //     }
+    //     for _ in 0..k {
+    //         let ch = iter.next().unwrap();
+    //         write!(writer, "{}", ch)?;
+    //     }
+    //     return Ok(());
+    // }
+    // let ch = iter.next().unwrap();
+    // write!(writer, "{}", ch)?;
+    // if k > 1 {
+    //     write!(writer, ".")?;
+    //     for _ in 1..k {
+    //         let ch = iter.next().unwrap();
+    //         write!(writer, "{}", ch)?;
+    //     }
+    // }
+    // write!(writer, "e")?;
+    // let v = n - 1;
+    // write!(writer, "{}{}", if v > 0 { '+' } else { '-' }, v.abs())?;
+    // Ok(())
 }
 
 // OrdinaryToPrimitive ( O, hint )

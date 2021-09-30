@@ -20,49 +20,49 @@ pub struct DtoAResult {
     pub sign: i8,
 }
 
-pub fn dtoa(value: f64) -> DtoAResult {
-    let mut decpt: c_int = 0;
-    let mut sign: c_int = 0;
-    let mut digits: [u8; 64] = [0; 64];
+// pub fn dtoa(value: f64) -> DtoAResult {
+//     let mut decpt: c_int = 0;
+//     let mut sign: c_int = 0;
+//     let mut digits: [u8; 64] = [0; 64];
 
-    {
-        let lock = Arc::clone(&DTOALOCK);
-        let _locked = lock.lock().unwrap();
+//     {
+//         let lock = Arc::clone(&DTOALOCK);
+//         let _locked = lock.lock().unwrap();
 
-        unsafe {
-            dtoa_rust(value as c_double, 0, 0, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
-        }
-    }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
-}
+//         unsafe {
+//             dtoa_rust(value as c_double, 0, 0, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
+//         }
+//     }
+//     DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
+// }
 
-pub fn dtoa_precise(value: f64, ndigits: i32) -> DtoAResult {
-    let mut decpt: c_int = 0;
-    let mut sign: c_int = 0;
-    let mut digits: [u8; 110] = [0; 110];
+// pub fn dtoa_precise(value: f64, ndigits: i32) -> DtoAResult {
+//     let mut decpt: c_int = 0;
+//     let mut sign: c_int = 0;
+//     let mut digits: [u8; 110] = [0; 110];
 
-    {
-        let lock = Arc::clone(&DTOALOCK);
-        let _locked = lock.lock().unwrap();
+//     {
+//         let lock = Arc::clone(&DTOALOCK);
+//         let _locked = lock.lock().unwrap();
 
-        unsafe {
-            dtoa_rust(value as c_double, 2, ndigits, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
-        }
-    }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
-}
-pub fn dtoa_fixed(value: f64, ndigits: i32) -> DtoAResult {
-    let mut decpt: c_int = 0;
-    let mut sign: c_int = 0;
-    let mut digits: [u8; 110] = [0; 110];
+//         unsafe {
+//             dtoa_rust(value as c_double, 2, ndigits, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
+//         }
+//     }
+//     DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
+// }
+// pub fn dtoa_fixed(value: f64, ndigits: i32) -> DtoAResult {
+//     let mut decpt: c_int = 0;
+//     let mut sign: c_int = 0;
+//     let mut digits: [u8; 110] = [0; 110];
 
-    {
-        let lock = Arc::clone(&DTOALOCK);
-        let _locked = lock.lock().unwrap();
+//     {
+//         let lock = Arc::clone(&DTOALOCK);
+//         let _locked = lock.lock().unwrap();
 
-        unsafe {
-            dtoa_rust(value as c_double, 3, ndigits, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
-        }
-    }
-    DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
-}
+//         unsafe {
+//             dtoa_rust(value as c_double, 3, ndigits, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
+//         }
+//     }
+//     DtoAResult { chars: String::from_utf8_lossy(&digits).to_string(), decpt: decpt as i32, sign: sign as i8 }
+// }

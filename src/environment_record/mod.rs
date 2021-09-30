@@ -4,7 +4,7 @@ use super::cr::{AltCompletion, Completion};
 use super::errors::{create_reference_error, create_type_error};
 use super::function_object::ThisMode;
 use super::object::{define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object, PotentialPropertyDescriptor};
-use super::reference::{Base, Reference};
+//use super::reference::{Base, Reference};
 use super::strings::JSString;
 use super::values::{to_boolean, ECMAScriptValue, PropertyKey};
 use ahash::{AHashSet, RandomState};
@@ -1335,17 +1335,17 @@ impl GlobalEnvironmentRecord {
 //  4. Else,
 //      a. Let outer be env.[[OuterEnv]].
 //      b. Return ? GetIdentifierReference(outer, name, strict).
-pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: &JSString, strict: bool) -> AltCompletion<Reference> {
-    match environment {
-        None => Ok(Reference::new(Base::Unresolvable, PropertyKey::from(name), strict, None)),
-        Some(env) => {
-            let exists = env.has_binding(agent, name)?;
-            if exists {
-                Ok(Reference::new(Base::Environment(env.clone()), PropertyKey::from(name), strict, None))
-            } else {
-                let outer = env.get_outer_env();
-                get_identifier_reference(agent, outer, name, strict)
-            }
-        }
-    }
-}
+// pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: &JSString, strict: bool) -> AltCompletion<Reference> {
+//     match environment {
+//         None => Ok(Reference::new(Base::Unresolvable, PropertyKey::from(name), strict, None)),
+//         Some(env) => {
+//             let exists = env.has_binding(agent, name)?;
+//             if exists {
+//                 Ok(Reference::new(Base::Environment(env.clone()), PropertyKey::from(name), strict, None))
+//             } else {
+//                 let outer = env.get_outer_env();
+//                 get_identifier_reference(agent, outer, name, strict)
+//             }
+//         }
+//     }
+// }

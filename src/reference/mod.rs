@@ -55,17 +55,17 @@ pub struct Reference {
 }
 
 impl Reference {
-    pub fn new(base: Base, key: PropertyKey, strict: bool, this_value: Option<ECMAScriptValue>) -> Self {
-        Reference { base, referenced_name: key, strict, this_value }
-    }
-    pub fn property_base(&self) -> Option<ECMAScriptValue> {
-        // Get the base of the reference, when is_property_reference is true.
-        if let Base::Value(b) = &self.base {
-            Some(b.clone())
-        } else {
-            None
-        }
-    }
+    // pub fn new(base: Base, key: PropertyKey, strict: bool, this_value: Option<ECMAScriptValue>) -> Self {
+    //     Reference { base, referenced_name: key, strict, this_value }
+    // }
+    // pub fn property_base(&self) -> Option<ECMAScriptValue> {
+    //     // Get the base of the reference, when is_property_reference is true.
+    //     if let Base::Value(b) = &self.base {
+    //         Some(b.clone())
+    //     } else {
+    //         None
+    //     }
+    // }
 }
 
 // IsPropertyReference ( V )
