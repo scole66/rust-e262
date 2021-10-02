@@ -1029,4 +1029,50 @@ mod global_environment_record {
             assert_eq!(val, ECMAScriptValue::from(223));
         }
     }
+
+    mod set_mutable_binding {
+        use super::*;
+        #[test]
+        fn decl() {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+            let test_name = JSString::from("test");
+            ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
+            ger.initialize_binding(&mut agent, &test_name, ECMAScriptValue::from(527)).unwrap();
+
+            // Exercise function
+            ger.set_mutable_binding(&mut agent, test_name.clone(), ECMAScriptValue::from(10), false).unwrap();
+
+            // Validate
+            let val = ger.get_binding_value(&mut agent, &test_name, false).unwrap();
+            assert_eq!(val, ECMAScriptValue::from(10));
+            assert!(ger.declarative_record.has_binding(&mut agent, &test_name).unwrap());
+            assert!(!ger.object_record.has_binding(&mut agent, &test_name).unwrap());
+        }
+        #[test]
+        fn object() {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+            let test_name = JSString::from("test");
+            ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
+            ger.initialize_binding(&mut agent, &test_name, ECMAScriptValue::from(527)).unwrap();
+
+            // Exercise function
+            ger.set_mutable_binding(&mut agent, test_name.clone(), ECMAScriptValue::from(9933), false).unwrap();
+
+            // Validate
+            let val = ger.get_binding_value(&mut agent, &test_name, false).unwrap();
+            assert_eq!(val, ECMAScriptValue::from(9933));
+            assert!(!ger.declarative_record.has_binding(&mut agent, &test_name).unwrap());
+            assert!(ger.object_record.has_binding(&mut agent, &test_name).unwrap());
+        }
+    }
 }
