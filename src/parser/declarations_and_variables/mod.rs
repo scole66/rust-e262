@@ -1628,9 +1628,6 @@ impl BindingElement {
 
     pub fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
-        // BindingElement[Yield, Await] :
-        //      SingleNameBinding[?Yield, ?Await]
-        //      BindingPattern[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
         match self {
             BindingElement::Single(single_name_binding) => {
                 // BindingElement : SingleNameBinding
