@@ -95,9 +95,9 @@ impl ShiftExpression {
             while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt])
                 .and_then(|(shift_op, after_op)| {
                     let make_se = match shift_op {
-                        Punctuator::GtGt => |se, ae| ShiftExpression::SignedRightShift(se, ae),
-                        Punctuator::LtLt => |se, ae| ShiftExpression::LeftShift(se, ae),
-                        _ => |se, ae| ShiftExpression::UnsignedRightShift(se, ae),
+                        Punctuator::GtGt => ShiftExpression::SignedRightShift,
+                        Punctuator::LtLt => ShiftExpression::LeftShift,
+                        _ => ShiftExpression::UnsignedRightShift,
                     };
                     AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).map(|(ae2, after_ae2)| (make_se, ae2, after_ae2))
                 })
