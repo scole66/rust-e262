@@ -206,6 +206,31 @@ impl FormalParameters {
             FormalParameters::ListRest(list, rest) => list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        match self {
+            FormalParameters::Empty => {
+                // FormalParameters : [empty]
+                //  1. Return true.
+                true
+            }
+            FormalParameters::Rest(_) | FormalParameters::ListRest(..) => {
+                // FormalParameters :
+                //      FunctionRestParameter
+                //      FormalParameterList , FunctionRestParameter
+                //  1. Return false.
+                false
+            }
+            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list) => {
+                // FormalParameters :
+                //      FormalParameterList[?Yield, ?Await]
+                //      FormalParameterList[?Yield, ?Await] ,
+                //  1. Return IsSimpleParameterList of FormalParameterList
+                formal_parameter_list.is_simple_parameter_list()
+            }
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -290,6 +315,23 @@ impl FormalParameterList {
         match self {
             FormalParameterList::Item(node) => node.all_private_identifiers_valid(names),
             FormalParameterList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        match self {
+            FormalParameterList::Item(formal_parameter) => {
+                // FormalParameterList : FormalParameter
+                //  1. Return IsSimpleParameterList of FormalParameter.
+                formal_parameter.is_simple_parameter_list()
+            }
+            FormalParameterList::List(formal_parameter_list, formal_parameter) => {
+                // FormalParameterList : FormalParameterList , FormalParameter
+                //  1. If IsSimpleParameterList of FormalParameterList is false, return false.
+                //  2. Return IsSimpleParameterList of FormalParameter.
+                formal_parameter_list.is_simple_parameter_list() && formal_parameter.is_simple_parameter_list()
+            }
         }
     }
 }
@@ -407,6 +449,13 @@ impl FormalParameter {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.element.all_private_identifiers_valid(names)
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // FormalParameter : BindingElement
+        //  1. Return IsSimpleParameterList of BindingElement.
+        self.element.is_simple_parameter_list()
     }
 }
 
