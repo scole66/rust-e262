@@ -7,7 +7,7 @@ use super::async_arrow_function_definitions::AsyncArrowFunction;
 use super::conditional_operator::ConditionalExpression;
 use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};//, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner}; //, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -190,10 +190,10 @@ impl AssignmentExpression {
                     )
                     .and_then(|(op, after_op)| {
                         let make_ae = match op {
-                            Punctuator::Eq => |lhs, ae| AssignmentExpression::Assignment(lhs, ae),
-                            Punctuator::AmpAmpEq => |lhs, ae| AssignmentExpression::LandAssignment(lhs, ae),
-                            Punctuator::PipePipeEq => |lhs, ae| AssignmentExpression::LorAssignment(lhs, ae),
-                            Punctuator::QQEq => |lhs, ae| AssignmentExpression::CoalAssignment(lhs, ae),
+                            Punctuator::Eq => AssignmentExpression::Assignment,
+                            Punctuator::AmpAmpEq => AssignmentExpression::LandAssignment,
+                            Punctuator::PipePipeEq => AssignmentExpression::LorAssignment,
+                            Punctuator::QQEq => AssignmentExpression::CoalAssignment,
                             Punctuator::StarEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Multiply, ae),
                             Punctuator::SlashEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Divide, ae),
                             Punctuator::PercentEq => |lhs, ae| AssignmentExpression::OpAssignment(lhs, AssignmentOperator::Modulo, ae),

@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
-use super::scanner::{Punctuator, ScanGoal, Scanner};//, StringToken};
+use super::scanner::{Punctuator, ScanGoal, Scanner}; //, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 

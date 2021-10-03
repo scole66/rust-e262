@@ -1,17 +1,17 @@
 // char *dtoa_rust(double, int *, int *, char *, unsigned int);
 
-use lazy_static::lazy_static;
-use libc::size_t;
-use std::os::raw::{c_double, c_int, c_uchar};
-use std::sync::{Arc, Mutex};
+//use lazy_static::lazy_static;
+//use libc::size_t;
+//use std::os::raw::{c_double, c_int, c_uchar};
+//use std::sync::{Arc, Mutex};
 
-extern "C" {
-    pub fn dtoa_rust(value: c_double, mode: c_int, ndigits: c_int, decpt: *mut c_int, sign: *mut c_int, outbuf: *mut c_uchar, buflen: size_t);
-}
+//extern "C" {
+//    pub fn dtoa_rust(value: c_double, mode: c_int, ndigits: c_int, decpt: *mut c_int, sign: *mut c_int, outbuf: *mut c_uchar, buflen: size_t);
+//}
 
-lazy_static! {
-    static ref DTOALOCK: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-}
+//lazy_static! {
+//    static ref DTOALOCK: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+//}
 
 #[derive(Debug)]
 pub struct DtoAResult {

@@ -566,7 +566,7 @@ fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion
 //             small as possible. If there are multiple possibilities for n, choose the value of n for which 𝔽(n × 10e
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
-fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_exponential(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Ok(ECMAScriptValue::from("0.0"))
     // let mut args = Arguments::from(arguments);
     // let fraction_digits = args.next_arg();
@@ -673,7 +673,7 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
 //                  (1000000000000000128).toString() returns "1000000000000000100", while
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
-fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_fixed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Ok(ECMAScriptValue::from("0"))
     // let mut args = Arguments::from(arguments);
     // let fraction_digits = args.next_arg();
@@ -797,7 +797,7 @@ fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptVa
 //      a. Set m to the string-concatenation of the code unit 0x0030 (DIGIT ZERO), the code unit 0x002E (FULL STOP),
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
-fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_precision(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Ok(ECMAScriptValue::from("0.0"))
     // let mut args = Arguments::from(arguments);
     // let precision = args.next_arg();
@@ -957,9 +957,12 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             // Calculate remainder.
             fraction -= digit as f64;
             // Round to even.
-            if fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0 {
-                panic!("Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
-            }
+            assert!(
+                !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),
+                "Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.",
+                radix,
+                val
+            );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
                 loop {

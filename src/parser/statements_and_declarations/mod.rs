@@ -14,7 +14,7 @@ use super::if_statement::IfStatement;
 use super::iteration_statements::IterationStatement;
 use super::labelled_statements::LabelledStatement;
 use super::return_statement::ReturnStatement;
-use super::scanner::{Scanner};
+use super::scanner::Scanner;
 use super::switch_statement::SwitchStatement;
 use super::throw_statement::ThrowStatement;
 use super::try_statement::TryStatement;

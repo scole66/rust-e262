@@ -30,6 +30,8 @@ mod strings;
 mod symbol_object;
 mod values;
 
+mod statething;
+
 use parser::scripts::Script;
 use parser::Parser;
 use prettyprint::PrettyPrint;
