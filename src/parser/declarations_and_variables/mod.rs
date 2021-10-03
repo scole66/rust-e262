@@ -1625,6 +1625,26 @@ impl BindingElement {
             BindingElement::Pattern(n, opt) => n.all_private_identifiers_valid(names) && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)),
         }
     }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // BindingElement[Yield, Await] :
+        //      SingleNameBinding[?Yield, ?Await]
+        //      BindingPattern[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
+        match self {
+            BindingElement::Single(single_name_binding) => {
+                // BindingElement : SingleNameBinding
+                //  1. Return IsSimpleParameterList of SingleNameBinding
+                single_name_binding.is_simple_parameter_list()
+            }
+            BindingElement::Pattern(..) => {
+                // BindingElement : BindingPattern
+                // BindingElement : BindingPattern Initializer
+                //  1. Return false.
+                false
+            }
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -1716,6 +1736,16 @@ impl SingleNameBinding {
         //  2. Return true.
         let SingleNameBinding::Id(_, opt) = self;
         opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // SingleNameBinding : BindingIdentifier
+        //  1. Return true.
+        // SingleNameBinding : BindingIdentifier Initializer
+        //  1. Return false.
+        let SingleNameBinding::Id(_, initializer) = self;
+        initializer.is_none()
     }
 }
 

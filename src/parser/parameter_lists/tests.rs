@@ -211,6 +211,17 @@ fn formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+#[test_case("" => true; "empty")]
+#[test_case("...a" => false; "rest only")]
+#[test_case("a,...b" => false; "list rest")]
+#[test_case("a" => true; "list simple")]
+#[test_case("a=0" => false; "list complex")]
+#[test_case("a," => true; "list comma simple")]
+#[test_case("a=0," => false; "list comma complex")]
+fn formal_parameters_test_is_simple_parameter_list(src: &str) -> bool {
+    let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.is_simple_parameter_list()
+}
 
 // FORMAL PARAMETER LIST
 #[test]
@@ -287,6 +298,15 @@ fn formal_parameter_list_test_contains_05() {
 fn formal_parameter_list_test_all_parameters_valid(src: &str) -> bool {
     let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("a" => true; "item simple")]
+#[test_case("a=0" => false; "item complex")]
+#[test_case("a,b" => true; "list simple")]
+#[test_case("a=0,b" => false; "list left complex")]
+#[test_case("a,b=0" => false; "list right complex")]
+fn formal_parameter_list_test_is_simple_parameter_list(src: &str) -> bool {
+    let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.is_simple_parameter_list()
 }
 
 // FUNCTION REST PARAMETER
@@ -375,4 +395,10 @@ fn formal_parameter_test_contains_02() {
 fn formal_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("a" => true; "simple")]
+#[test_case("[a]" => false; "complex")]
+fn formal_parameter_test_is_simple_parameter_list(src: &str) -> bool {
+    let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.is_simple_parameter_list()
 }
