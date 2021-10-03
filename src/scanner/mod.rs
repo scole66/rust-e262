@@ -1840,8 +1840,8 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
     match pot_trailing_quote {
         Some(after_trailing_quote) => {
             let make_token = match style {
-                TemplateStyle::NoSubOrHead => |td| Token::NoSubstitutionTemplate(td),
-                TemplateStyle::MiddleOrTail => |td| Token::TemplateTail(td),
+                TemplateStyle::NoSubOrHead => Token::NoSubstitutionTemplate,
+                TemplateStyle::MiddleOrTail => Token::TemplateTail,
             };
             Some((make_token(TemplateData { tv, trv, starting_index: scanner.start_idx, byte_length: after_trailing_quote.start_idx - scanner.start_idx }), after_trailing_quote))
         }
@@ -1850,8 +1850,8 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
             match pot_template_head {
                 Some(after_template_head) => {
                     let make_token = match style {
-                        TemplateStyle::NoSubOrHead => |td| Token::TemplateHead(td),
-                        TemplateStyle::MiddleOrTail => |td| Token::TemplateMiddle(td),
+                        TemplateStyle::NoSubOrHead => Token::TemplateHead,
+                        TemplateStyle::MiddleOrTail => Token::TemplateMiddle,
                     };
                     Some((make_token(TemplateData { tv, trv, starting_index: scanner.start_idx, byte_length: after_template_head.start_idx - scanner.start_idx }), after_template_head))
                 }

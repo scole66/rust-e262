@@ -98,10 +98,10 @@ impl EqualityExpression {
         loop {
             let (op_token, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
             let make_ee = match op_token {
-                Token::Punctuator(Punctuator::EqEq) => |ee, re| EqualityExpression::Equal(ee, re),
-                Token::Punctuator(Punctuator::BangEq) => |ee, re| EqualityExpression::NotEqual(ee, re),
-                Token::Punctuator(Punctuator::EqEqEq) => |ee, re| EqualityExpression::StrictEqual(ee, re),
-                Token::Punctuator(Punctuator::BangEqEq) => |ee, re| EqualityExpression::NotStrictEqual(ee, re),
+                Token::Punctuator(Punctuator::EqEq) => EqualityExpression::Equal,
+                Token::Punctuator(Punctuator::BangEq) => EqualityExpression::NotEqual,
+                Token::Punctuator(Punctuator::EqEqEq) => EqualityExpression::StrictEqual,
+                Token::Punctuator(Punctuator::BangEqEq) => EqualityExpression::NotStrictEqual,
                 _ => {
                     break;
                 }

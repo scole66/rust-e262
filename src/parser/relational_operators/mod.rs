@@ -133,12 +133,12 @@ impl RelationalExpression {
                     loop {
                         let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                         let make_re = match &op {
-                            Token::Punctuator(Punctuator::Lt) => |re, se| RelationalExpression::Less(re, se),
-                            Token::Punctuator(Punctuator::Gt) => |re, se| RelationalExpression::Greater(re, se),
-                            Token::Punctuator(Punctuator::LtEq) => |re, se| RelationalExpression::LessEqual(re, se),
-                            Token::Punctuator(Punctuator::GtEq) => |re, se| RelationalExpression::GreaterEqual(re, se),
-                            Token::Identifier(id) if id.matches(Keyword::Instanceof) => |re, se| RelationalExpression::InstanceOf(re, se),
-                            _ => |re, se| RelationalExpression::In(re, se),
+                            Token::Punctuator(Punctuator::Lt) => RelationalExpression::Less,
+                            Token::Punctuator(Punctuator::Gt) => RelationalExpression::Greater,
+                            Token::Punctuator(Punctuator::LtEq) => RelationalExpression::LessEqual,
+                            Token::Punctuator(Punctuator::GtEq) => RelationalExpression::GreaterEqual,
+                            Token::Identifier(id) if id.matches(Keyword::Instanceof) => RelationalExpression::InstanceOf,
+                            _ => RelationalExpression::In,
                         };
                         if Self::is_relational_token(&op, in_flag) {
                             match ShiftExpression::parse(parser, after_op, yield_flag, await_flag) {

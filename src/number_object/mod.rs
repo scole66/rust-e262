@@ -954,9 +954,12 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
             // Calculate remainder.
             fraction -= digit as f64;
             // Round to even.
-            if fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0 {
-                panic!("Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.", radix, val);
-            }
+            assert!(
+                !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),
+                "Condition A met with radix {} and input val {}: Please add this to coverage and remove this panic.",
+                radix,
+                val
+            );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
                 loop {
