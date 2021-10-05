@@ -2,7 +2,7 @@ use super::*;
 use crate::agent::WksId;
 use crate::object::{define_property_or_throw, ordinary_object_create, DeadObject, PotentialPropertyDescriptor, PropertyKind};
 use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_reference_error, unwind_type_error};
+use crate::tests::{test_agent, unwind_reference_error, unwind_type_error, FunctionId, TestObject};
 
 const ALL_REMOVABILITY: [Removability; 2] = [Removability::Deletable, Removability::Permanent];
 
@@ -835,6 +835,39 @@ mod binding_status {
 
 mod global_environment_record {
     use super::*;
+    use test_case::test_case;
+
+    fn setup(agent: &mut Agent) -> GlobalEnvironmentRecord {
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(agent, Some(&object_prototype), &[]);
+        let this_object = ordinary_object_create(agent, Some(&object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+        let ld = JSString::from("lexical_deletable");
+        // mutable, deletable lexical binding, named "lexical_deletable"
+        ger.declarative_record.create_mutable_binding(agent, ld.clone(), true).unwrap();
+        ger.initialize_binding(agent, &ld, ECMAScriptValue::from("LEXICAL DELETABLE")).unwrap();
+        // mutable, permanent lexical binding, named "lexical_permanent"
+        let lp = JSString::from("lexical_permanent");
+        ger.declarative_record.create_mutable_binding(agent, lp.clone(), false).unwrap();
+        ger.initialize_binding(agent, &lp, ECMAScriptValue::from("LEXICAL PERMANENT")).unwrap();
+        // immutable, strict lexical binding, named "lexical_strict"
+        let ls = JSString::from("lexical_strict");
+        ger.declarative_record.create_immutable_binding(agent, ls.clone(), true).unwrap();
+        ger.initialize_binding(agent, &ls, ECMAScriptValue::from("LEXICAL STRICT")).unwrap();
+        // immutable, sloppy lexical binding, named "lexical_sloppy"
+        let lslop = JSString::from("lexical_sloppy");
+        ger.declarative_record.create_immutable_binding(agent, lslop.clone(), false).unwrap();
+        ger.initialize_binding(agent, &lslop, ECMAScriptValue::from("LEXICAL SLOPPY")).unwrap();
+        // configurable global var (in varnames), deletable, named "normal_var"
+        ger.create_global_var_binding(agent, JSString::from("normal_var"), true).unwrap();
+        // param on global object that's not in varnames (like builtin props), named "non_config_var"
+        let desc =
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NON-CONFIG")), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() };
+        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_var").into(), desc).unwrap();
+
+        ger
+    }
+
     #[test]
     fn debug() {
         let mut agent = test_agent();
@@ -1153,7 +1186,6 @@ mod global_environment_record {
 
     mod delete_binding {
         use super::*;
-        use crate::tests::{FunctionId, TestObject};
 
         #[test]
         fn decl() {
@@ -1346,5 +1378,118 @@ mod global_environment_record {
 
         // Validate
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_this_binding() {
+        // Setup
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object, this_object.clone());
+
+        // Exercise function
+        let result = ger.get_this_binding();
+
+        // Validate
+        assert_eq!(result, this_object);
+    }
+
+    #[test_case("varstyle" => true; "var")]
+    #[test_case("lexical" => false; "lex")]
+    fn has_var_declaration(prop_name: &str) -> bool {
+        // Setup
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+        let var_name = JSString::from("varstyle");
+        ger.create_global_var_binding(&mut agent, var_name.clone(), true).unwrap();
+        let lex_name = JSString::from("lexical");
+        ger.create_mutable_binding(&mut agent, lex_name.clone(), true).unwrap();
+        ger.initialize_binding(&mut agent, &lex_name, ECMAScriptValue::Undefined).unwrap();
+
+        // Exercise
+        ger.has_var_declaration(&JSString::from(prop_name))
+    }
+    #[test_case("varstyle" => false; "var")]
+    #[test_case("lexical" => true; "lex")]
+    fn has_lexical_declaration(prop_name: &str) -> bool {
+        // Setup
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+        let var_name = JSString::from("varstyle");
+        ger.create_global_var_binding(&mut agent, var_name.clone(), true).unwrap();
+        let lex_name = JSString::from("lexical");
+        ger.create_mutable_binding(&mut agent, lex_name.clone(), true).unwrap();
+        ger.initialize_binding(&mut agent, &lex_name, ECMAScriptValue::Undefined).unwrap();
+
+        // Exercise
+        ger.has_lexical_declaration(&mut agent, &JSString::from(prop_name))
+    }
+
+    mod has_restricted_global_property {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("not_present" => false; "property doesn't already exist")]
+        #[test_case("normal_var" => false; "configurable var property")]
+        #[test_case("non_config_var" => true; "non-configurable property on object")]
+        fn happy(propname: &str) -> bool {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            ger.has_restricted_global_property(&mut agent, &JSString::from(propname)).unwrap()
+        }
+
+        #[test]
+        fn error() {
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = DeadObject::object(&mut agent);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+            let err = ger.has_restricted_global_property(&mut agent, &JSString::from("test")).unwrap_err();
+            let msg = unwind_type_error(&mut agent, err);
+            assert_eq!(msg, "get_own_property called on DeadObject");
+        }
+    }
+
+    mod can_declare_global_var {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("normal_var", true => true; "normal, extensible")]
+        #[test_case("not_present", true => true; "not there, extensible")]
+        #[test_case("normal_var", false => true; "normal, not extensible")]
+        #[test_case("not_present", false => false; "not there, not extensible")]
+        fn happy(name: &str, global_extensible: bool) -> bool {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            if !global_extensible {
+                ger.object_record.binding_object.o.prevent_extensions(&mut agent).unwrap();
+            }
+
+            ger.can_declare_global_var(&mut agent, &JSString::from(name)).unwrap()
+        }
+
+        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
+        fn error(method: FunctionId) -> String {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = TestObject::object(&mut agent, &[method]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+            let err = ger.can_declare_global_var(&mut agent, &JSString::from("anything")).unwrap_err();
+            unwind_type_error(&mut agent, err)
+        }
     }
 }
