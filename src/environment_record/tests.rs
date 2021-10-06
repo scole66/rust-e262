@@ -860,6 +860,7 @@ mod global_environment_record {
         ger.initialize_binding(agent, &lslop, ECMAScriptValue::from("LEXICAL SLOPPY")).unwrap();
         // configurable global var (in varnames), deletable, named "normal_var"
         ger.create_global_var_binding(agent, JSString::from("normal_var"), true).unwrap();
+        ger.object_record.set_mutable_binding(agent, JSString::from("normal_var"), ECMAScriptValue::from("NORMAL VAR"), true).unwrap();
         // param on global object that's not in varnames (like builtin props), named "non_config_var"
         let desc =
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NON-CONFIG")), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() };
@@ -1489,6 +1490,122 @@ mod global_environment_record {
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.can_declare_global_var(&mut agent, &JSString::from("anything")).unwrap_err();
+            unwind_type_error(&mut agent, err)
+        }
+    }
+
+    mod create_global_var_binding {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("new_name", true => (ECMAScriptValue::Undefined, true); "new property; deletable")]
+        #[test_case("new_name", false => (ECMAScriptValue::Undefined, false); "new property; permanent")]
+        #[test_case("normal_var", true => (ECMAScriptValue::from("NORMAL VAR"), true); "existing prop; deletable")]
+        #[test_case("normal_var", false => (ECMAScriptValue::from("NORMAL VAR"), true); "existing prop; permanent")]
+        fn happy_extensible(name: &str, deletable: bool) -> (ECMAScriptValue, bool) {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            let test_name = JSString::from(name);
+
+            ger.create_global_var_binding(&mut agent, test_name.clone(), deletable).unwrap();
+
+            assert!(ger.var_names.borrow().contains(&test_name));
+            let desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap().unwrap();
+            assert!(matches!(desc.property, PropertyKind::Data(_)));
+            if let PropertyKind::Data(data) = desc.property {
+                (data.value, desc.configurable)
+            } else {
+                unreachable!()
+            }
+        }
+
+        #[test_case("new_name", true => None; "new property; deletable")]
+        #[test_case("new_name", false => None; "new property; permanent")]
+        #[test_case("normal_var", true => Some((ECMAScriptValue::from("NORMAL VAR"), true)); "existing prop; deletable")]
+        #[test_case("normal_var", false => Some((ECMAScriptValue::from("NORMAL VAR"), true)); "existing prop; permanent")]
+        fn happy_frozen(name: &str, deletable: bool) -> Option<(ECMAScriptValue, bool)> {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            ger.object_record.binding_object.o.prevent_extensions(&mut agent).unwrap();
+            let test_name = JSString::from(name);
+
+            ger.create_global_var_binding(&mut agent, test_name.clone(), deletable).unwrap();
+
+            assert!(ger.var_names.borrow().contains(&test_name));
+            let opt_desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
+            match opt_desc {
+                None => None,
+                Some(desc) => {
+                    assert!(matches!(desc.property, PropertyKind::Data(_)));
+                    if let PropertyKind::Data(data) = desc.property {
+                        Some((data.value, desc.configurable))
+                    } else {
+                        unreachable!()
+                    }
+                }
+            }
+        }
+
+        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
+        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        fn error(method: FunctionId) -> String {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = TestObject::object(&mut agent, &[method]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+            let err = ger.create_global_var_binding(&mut agent, JSString::from("anything"), true).unwrap_err();
+            unwind_type_error(&mut agent, err)
+        }
+    }
+
+    mod create_global_function_binding {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("not_present", true => Some((ECMAScriptValue::from("unique"), true, true, true)); "not present; deletable")]
+        #[test_case("not_present", false => Some((ECMAScriptValue::from("unique"), true, true, false)); "not present; permanent")]
+        #[test_case("normal_var", true => Some((ECMAScriptValue::from("unique"), true, true, true)); "normal; deletable")]
+        #[test_case("normal_var", false => Some((ECMAScriptValue::from("unique"), true, true, false)); "normal; permanent")]
+        #[test_case("non_config_var", true => Some((ECMAScriptValue::from("unique"), true, true, false)); "not cfgable; deletable")]
+        #[test_case("non_config_var", false => Some((ECMAScriptValue::from("unique"), true, true, false)); "not cfgable; permanent")]
+        fn happy(name: &str, deletable: bool) -> Option<(ECMAScriptValue, bool, bool, bool)> {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            let test_name = JSString::from(name);
+
+            ger.create_global_function_binding(&mut agent, test_name.clone(), ECMAScriptValue::from("unique"), deletable).unwrap();
+
+            assert!(ger.var_names.borrow().contains(&test_name));
+            let opt_desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
+            match opt_desc {
+                None => None,
+                Some(desc) => {
+                    if let PropertyKind::Data(data) = desc.property {
+                        Some((data.value, data.writable, desc.enumerable, desc.configurable))
+                    } else {
+                        panic!("Expected data property, found an accessor property: {:?}", desc);
+                    }
+                }
+            }
+        }
+
+        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        fn error(method: FunctionId) -> String {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = TestObject::object(&mut agent, &[method]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+            let err = ger.create_global_function_binding(&mut agent, JSString::from("anything"), ECMAScriptValue::Undefined, true).unwrap_err();
             unwind_type_error(&mut agent, err)
         }
     }
