@@ -1435,6 +1435,14 @@ fn binding_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+#[test_case("a" => true; "Single simple")]
+#[test_case("a=3" => false; "Single complex")]
+#[test_case("[a]" => false; "Pattern only")]
+#[test_case("[a]=[0]" => false; "Pattern izer")]
+fn binding_element_test_is_simple_parameter_list(src: &str) -> bool {
+    let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.is_simple_parameter_list()
+}
 
 // SINGLE NAME BINDING
 #[test]
@@ -1502,6 +1510,12 @@ fn single_name_binding_test_contains_03() {
 fn single_name_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("a" => true; "Name only")]
+#[test_case("a=0" => false; "Has Initializer")]
+fn single_name_binding_test_is_simple_parameter_list(src: &str) -> bool {
+    let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.is_simple_parameter_list()
 }
 
 // BINDING REST ELEMENT
