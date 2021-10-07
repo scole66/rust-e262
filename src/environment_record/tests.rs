@@ -865,6 +865,23 @@ mod global_environment_record {
         let desc =
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NON-CONFIG")), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() };
         ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_var").into(), desc).unwrap();
+        // Same thing, but not writable
+        let desc =
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("CONST")), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() };
+        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_permanent").into(), desc).unwrap();
+        // Same thing, but not enumerable
+        let desc =
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NO ENUM")), writable: Some(true), enumerable: Some(false), configurable: Some(false), ..Default::default() };
+        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_unlisted").into(), desc).unwrap();
+        // Now a non-config accessor function
+        let desc = PotentialPropertyDescriptor {
+            get: Some(ECMAScriptValue::Undefined),
+            set: Some(ECMAScriptValue::Undefined),
+            enumerable: Some(true),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_accessor").into(), desc).unwrap();
 
         ger
     }
@@ -1494,6 +1511,52 @@ mod global_environment_record {
         }
     }
 
+    mod can_declare_global_function {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("not_present" => true)]
+        #[test_case("normal_var" => true)]
+        #[test_case("non_config_var" => true)]
+        #[test_case("non_config_permanent" => false)]
+        #[test_case("non_config_unlisted" => false)]
+        #[test_case("non_config_accessor" => false)]
+        fn happy_extensible(name: &str) -> bool {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            let test_name = JSString::from(name);
+
+            ger.can_declare_global_function(&mut agent, &test_name).unwrap()
+        }
+        #[test_case("not_present" => false)]
+        #[test_case("normal_var" => true)]
+        #[test_case("non_config_var" => true)]
+        #[test_case("non_config_permanent" => false)]
+        #[test_case("non_config_unlisted" => false)]
+        #[test_case("non_config_accessor" => false)]
+        fn happy_frozen(name: &str) -> bool {
+            let mut agent = test_agent();
+            let ger = setup(&mut agent);
+            ger.object_record.binding_object.o.prevent_extensions(&mut agent).unwrap();
+            let test_name = JSString::from(name);
+
+            ger.can_declare_global_function(&mut agent, &test_name).unwrap()
+        }
+        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
+        fn error(method: FunctionId) -> String {
+            // Setup
+            let mut agent = test_agent();
+            let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let global_object = TestObject::object(&mut agent, &[method]);
+            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let ger = GlobalEnvironmentRecord::new(global_object, this_object);
+
+            let err = ger.can_declare_global_function(&mut agent, &JSString::from("anything")).unwrap_err();
+            unwind_type_error(&mut agent, err)
+        }
+    }
+
     mod create_global_var_binding {
         use super::*;
         use test_case::test_case;
@@ -1608,5 +1671,18 @@ mod global_environment_record {
             let err = ger.create_global_function_binding(&mut agent, JSString::from("anything"), ECMAScriptValue::Undefined, true).unwrap_err();
             unwind_type_error(&mut agent, err)
         }
+    }
+
+    #[test]
+    fn new() {
+        let mut agent = test_agent();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let ger = GlobalEnvironmentRecord::new(global_object.clone(), this_object.clone());
+
+        assert_eq!(ger.object_record.binding_object, global_object);
+        assert_eq!(ger.global_this_value, this_object);
+        assert_eq!(ger.var_names.borrow().len(), 0);
     }
 }
