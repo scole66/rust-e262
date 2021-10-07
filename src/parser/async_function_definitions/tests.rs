@@ -418,6 +418,12 @@ fn async_function_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+#[test_case("0;" => false; "not strict")]
+#[test_case("'use strict';" => true; "strict")]
+fn async_function_body_test_function_body_contains_use_strict(src: &str) -> bool {
+    let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
+    item.function_body_contains_use_strict()
+}
 
 // AWAIT EXPRESSION
 #[test]

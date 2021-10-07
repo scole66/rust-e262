@@ -1,3 +1,4 @@
+use super::scanner::StringDelimiter;
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -254,6 +255,19 @@ fn function_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+#[test_case("'one'; 'two'; 'three'; blue;" => vec![JSString::from("one"), JSString::from("two"), JSString::from("three")]; "normal")]
+fn function_body_test_directive_prologue(src: &str) -> Vec<JSString> {
+    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.directive_prologue().into_iter().map(|tok| tok.value).collect()
+}
+#[test_case("'one'; 3;" => false; "directive no strict")]
+#[test_case("12;" => false; "no prologue")]
+#[test_case("'a'; 'use strict';" => true; "good strict")]
+#[test_case("'use\\x20strict';" => false; "bad strict")]
+fn function_body_test_function_body_contains_use_strict(src: &str) -> bool {
+    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.function_body_contains_use_strict()
+}
 
 // FUNCTION STATEMENT LIST
 #[test]
@@ -305,4 +319,10 @@ fn function_statement_list_test_contains_03() {
 fn function_statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("" => Vec::<StringToken>::new(); "empty")]
+#[test_case("\"use strict\";" => vec![StringToken { value: JSString::from("use strict"), delimiter: StringDelimiter::Double, raw: None }]; "list")]
+fn function_statement_list_test_initial_string_tokens(src: &str) -> Vec<StringToken> {
+    let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.initial_string_tokens()
 }
