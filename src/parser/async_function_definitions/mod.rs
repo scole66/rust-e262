@@ -382,6 +382,13 @@ impl AsyncFunctionBody {
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
     }
+
+    pub fn function_body_contains_use_strict(&self) -> bool {
+        // Static Semantics: FunctionBodyContainsUseStrict
+        // AsyncFunctionBody : FunctionBody
+        //  1. Return FunctionBodyContainsUseStrict of FunctionBody.
+        self.0.function_body_contains_use_strict()
+    }
 }
 
 // AwaitExpression[Yield] :
