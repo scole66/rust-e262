@@ -5,7 +5,7 @@ use std::io::Write;
 use super::block::StatementList;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::FormalParameters;
-use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
@@ -268,6 +268,19 @@ impl FunctionBody {
         //  2. Return true.
         self.statements.all_private_identifiers_valid(names)
     }
+
+    pub fn directive_prologue(&self) -> Vec<StringToken> {
+        self.statements.initial_string_tokens()
+    }
+
+    pub fn function_body_contains_use_strict(&self) -> bool {
+        // Static Semantics: FunctionBodyContainsUseStrict
+        // FunctionBody : FunctionStatementList
+        //  1. If the Directive Prologue of FunctionBody contains a Use Strict Directive, return true; otherwise, return false.
+        let prologue = self.directive_prologue();
+        let needle = JSString::from("use strict");
+        prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
+    }
 }
 
 // FunctionStatementList[Yield, Await] :
@@ -332,6 +345,13 @@ impl FunctionStatementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+    }
+
+    pub fn initial_string_tokens(&self) -> Vec<StringToken> {
+        match &self.statements {
+            Some(statement_list) => statement_list.initial_string_tokens(),
+            None => vec![],
+        }
     }
 }
 
