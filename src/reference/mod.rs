@@ -40,12 +40,14 @@ use std::rc::Rc;
 // |                    |                              | Reference Record was created.                                 |
 // +--------------------+------------------------------+---------------------------------------------------------------+
 
+#[derive(Debug)]
 pub enum Base {
     Unresolvable,
     Environment(Rc<dyn EnvironmentRecord>),
     Value(ECMAScriptValue),
 }
 
+#[derive(Debug)]
 pub struct Reference {
     pub base: Base,
     pub referenced_name: PropertyKey,

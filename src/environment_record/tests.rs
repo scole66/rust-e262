@@ -833,6 +833,9 @@ mod binding_status {
     }
 }
 
+// Function Environment Record testing should go here, but there's currently no good way to make a function object, so
+// testing is deferred.
+
 mod global_environment_record {
     use super::*;
     use test_case::test_case;
@@ -1684,5 +1687,77 @@ mod global_environment_record {
         assert_eq!(ger.object_record.binding_object, global_object);
         assert_eq!(ger.global_this_value, this_object);
         assert_eq!(ger.var_names.borrow().len(), 0);
+    }
+}
+
+mod get_identifier_reference {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("bob", true => (true, PropertyKey::from("bob"), true, None); "strict")]
+    #[test_case("bob", false => (true, PropertyKey::from("bob"), false, None); "sloppy")]
+    fn no_env(name: &str, strict: bool) -> (bool, PropertyKey, bool, Option<ECMAScriptValue>) {
+        let mut agent = test_agent();
+        let reference = get_identifier_reference(&mut agent, None, &JSString::from(name), strict).unwrap();
+        (matches!(reference.base, Base::Unresolvable), reference.referenced_name, reference.strict, reference.this_value)
+    }
+
+    #[derive(PartialEq, Debug)]
+    enum EnvResult {
+        Unresolvable, // Base::Unresolvable
+        SelfEnv,      // Environment(e) where e is the arg
+        ParentEnv,    // Environment(e) where e is arg's parent
+    }
+
+    #[test_case("bob", true => (EnvResult::Unresolvable, PropertyKey::from("bob"), true, None); "not-present; strict")]
+    #[test_case("bob", false => (EnvResult::Unresolvable, PropertyKey::from("bob"), false, None); "not-present; sloppy")]
+    #[test_case("present", true => (EnvResult::SelfEnv, PropertyKey::from("present"), true, None); "present; strict")]
+    #[test_case("present", false => (EnvResult::SelfEnv, PropertyKey::from("present"), false, None); "present; sloppy")]
+    #[test_case("parent", true => (EnvResult::ParentEnv, PropertyKey::from("parent"), true, None); "parent; strict")]
+    #[test_case("parent", false => (EnvResult::ParentEnv, PropertyKey::from("parent"), false, None); "parent; sloppy")]
+    fn some_env(name: &str, strict: bool) -> (EnvResult, PropertyKey, bool, Option<ECMAScriptValue>) {
+        let mut agent = test_agent();
+        let parent = DeclarativeEnvironmentRecord::new(None);
+        parent.create_immutable_binding(&mut agent, JSString::from("parent"), true).unwrap();
+        parent.initialize_binding(&mut agent, &JSString::from("parent"), ECMAScriptValue::from("testing")).unwrap();
+        let rcparent: Rc<dyn EnvironmentRecord> = Rc::new(parent);
+        let env = DeclarativeEnvironmentRecord::new(Some(Rc::clone(&rcparent)));
+        env.create_immutable_binding(&mut agent, JSString::from("present"), true).unwrap();
+        env.initialize_binding(&mut agent, &JSString::from("present"), ECMAScriptValue::from("testing")).unwrap();
+        let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
+
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from(name), strict).unwrap();
+        (
+            match &result.base {
+                Base::Unresolvable => EnvResult::Unresolvable,
+                Base::Environment(e) => {
+                    if Rc::ptr_eq(e, &rcenv) {
+                        EnvResult::SelfEnv
+                    } else if Rc::ptr_eq(e, &rcparent) {
+                        EnvResult::ParentEnv
+                    } else {
+                        panic!("Strange environment came back")
+                    }
+                }
+                _ => panic!("Variable base came back"),
+            },
+            result.referenced_name,
+            result.strict,
+            result.this_value,
+        )
+    }
+
+    #[test]
+    fn error() {
+        let mut agent = test_agent();
+        let binding_object = TestObject::object(&mut agent, &[FunctionId::HasProperty]);
+        let env = ObjectEnvironmentRecord::new(binding_object, false, None);
+        let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
+
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from("anything"), true);
+
+        let err = result.unwrap_err();
+        let msg = unwind_type_error(&mut agent, err);
+        assert_eq!(msg, "[[HasProperty]] called on TestObject");
     }
 }
