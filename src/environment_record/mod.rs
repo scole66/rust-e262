@@ -1287,13 +1287,8 @@ impl GlobalEnvironmentRecord {
         let full_pd = |v, d| PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(d), ..Default::default() };
         let desc = match existing_prop {
             None => full_pd(val.clone(), deletable),
-            Some(prop) => {
-                if prop.configurable {
-                    full_pd(val.clone(), deletable)
-                } else {
-                    PotentialPropertyDescriptor { value: Some(val.clone()), ..Default::default() }
-                }
-            }
+            Some(prop) if prop.configurable => full_pd(val.clone(), deletable),
+            _ => PotentialPropertyDescriptor { value: Some(val.clone()), ..Default::default() },
         };
         define_property_or_throw(agent, global_object, prop_key.clone(), desc)?;
         set(agent, global_object, prop_key, val, false)?;
