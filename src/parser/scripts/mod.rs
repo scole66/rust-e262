@@ -169,6 +169,7 @@ impl ScriptBody {
     //    source code containing ScriptBody is eval code that is being processed by a direct eval.
     pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
         let mut errs = vec![];
+        let strict = self.contains_use_strict();
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
                 errs.push(create_syntax_error_object(agent, "`super' not allowed in top-level code"));
@@ -189,7 +190,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        errs.extend(self.statement_list.early_errors(agent, false));
+        errs.extend(self.statement_list.early_errors(agent, strict, false));
         errs
     }
 
@@ -199,6 +200,12 @@ impl ScriptBody {
 
     pub fn directive_prologue(&self) -> Vec<StringToken> {
         self.statement_list.initial_string_tokens()
+    }
+
+    pub fn contains_use_strict(&self) -> bool {
+        let prologue = self.directive_prologue();
+        let needle = JSString::from("use strict");
+        prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
 }
 

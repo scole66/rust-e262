@@ -110,7 +110,7 @@ impl AsyncFunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
         // Static Semantics: Early Errors
         // AsyncFunctionDeclaration :
         //     async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
@@ -130,7 +130,8 @@ impl AsyncFunctionDeclaration {
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
         let mut errs = Vec::new();
-        if self.body.function_body_contains_use_strict() && ! self.params.is_simple_parameter_list() {
+        let body_contains_use_strict = self.body.function_body_contains_use_strict();
+        if body_contains_use_strict && ! self.params.is_simple_parameter_list() {
             // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
             // is false
             errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
@@ -138,6 +139,13 @@ impl AsyncFunctionDeclaration {
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             // FormalParameters Contains AwaitExpression is true.
             errs.push(create_syntax_error_object(agent, "Await not allowed in parameter lists"));
+        }
+        if strict || body_contains_use_strict {
+            // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
+            //      Static Semantics: Early Errors
+            //          UniqueFormalParameters : FormalParameters
+            //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
+            todo!()
         }
 
         // todo!()
