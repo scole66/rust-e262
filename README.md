@@ -61,8 +61,6 @@ cargo cov -- show --use-color --ignore-filename-regex='/.cargo/|.rustup/toolchai
 }
 ```
 
-"t" doesn't do branch coverage. "z" does.
-
 (I wrapped those commands up in a one-character bash function, so that I don't forget any of the steps in the sequence.)
 
 There are a few odd things about coverage. Since the compiler makes differnt actual functions for any functions that come with a Type parameter,
