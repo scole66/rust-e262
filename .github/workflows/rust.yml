@@ -23,6 +23,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --tests
 
   test:
     name: Test Suite
@@ -53,6 +54,7 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -67,4 +69,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --tests -- -D warnings
