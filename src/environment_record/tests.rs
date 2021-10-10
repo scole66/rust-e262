@@ -1427,7 +1427,7 @@ mod global_environment_record {
         let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
         let var_name = JSString::from("varstyle");
-        ger.create_global_var_binding(&mut agent, var_name.clone(), true).unwrap();
+        ger.create_global_var_binding(&mut agent, var_name, true).unwrap();
         let lex_name = JSString::from("lexical");
         ger.create_mutable_binding(&mut agent, lex_name.clone(), true).unwrap();
         ger.initialize_binding(&mut agent, &lex_name, ECMAScriptValue::Undefined).unwrap();
@@ -1445,7 +1445,7 @@ mod global_environment_record {
         let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
         let var_name = JSString::from("varstyle");
-        ger.create_global_var_binding(&mut agent, var_name.clone(), true).unwrap();
+        ger.create_global_var_binding(&mut agent, var_name, true).unwrap();
         let lex_name = JSString::from("lexical");
         ger.create_mutable_binding(&mut agent, lex_name.clone(), true).unwrap();
         ger.initialize_binding(&mut agent, &lex_name, ECMAScriptValue::Undefined).unwrap();
@@ -1721,19 +1721,22 @@ mod get_identifier_reference {
         parent.create_immutable_binding(&mut agent, JSString::from("parent"), true).unwrap();
         parent.initialize_binding(&mut agent, &JSString::from("parent"), ECMAScriptValue::from("testing")).unwrap();
         let rcparent: Rc<dyn EnvironmentRecord> = Rc::new(parent);
+        let (rcparent_ptr, _) = Rc::as_ptr(&rcparent).to_raw_parts(); // Remove vtable for comparison
         let env = DeclarativeEnvironmentRecord::new(Some(Rc::clone(&rcparent)));
         env.create_immutable_binding(&mut agent, JSString::from("present"), true).unwrap();
         env.initialize_binding(&mut agent, &JSString::from("present"), ECMAScriptValue::from("testing")).unwrap();
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
+        let (rcenv_ptr, _) = Rc::as_ptr(&rcenv).to_raw_parts(); // Remove vtable for comparison
 
         let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from(name), strict).unwrap();
         (
             match &result.base {
                 Base::Unresolvable => EnvResult::Unresolvable,
                 Base::Environment(e) => {
-                    if Rc::ptr_eq(e, &rcenv) {
+                    let (e_ptr, _) = Rc::as_ptr(e).to_raw_parts(); // Remove vtable for comparison
+                    if std::ptr::eq(e_ptr, rcenv_ptr) {
                         EnvResult::SelfEnv
-                    } else if Rc::ptr_eq(e, &rcparent) {
+                    } else if std::ptr::eq(e_ptr, rcparent_ptr) {
                         EnvResult::ParentEnv
                     } else {
                         panic!("Strange environment came back")
