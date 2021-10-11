@@ -277,10 +277,6 @@ pub trait StringValue {
     fn string_value(&self) -> JSString;
 }
 
-pub trait BoundNames {
-    fn bound_names(&self) -> Vec<JSString>;
-}
-
 pub trait HasName {
     fn has_name(&self) -> bool;
 }

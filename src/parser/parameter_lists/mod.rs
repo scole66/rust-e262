@@ -224,10 +224,43 @@ impl FormalParameters {
             }
             FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list) => {
                 // FormalParameters :
-                //      FormalParameterList[?Yield, ?Await]
-                //      FormalParameterList[?Yield, ?Await] ,
+                //      FormalParameterList
+                //      FormalParameterList ,
                 //  1. Return IsSimpleParameterList of FormalParameterList
                 formal_parameter_list.is_simple_parameter_list()
+            }
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        // Static Semantics: BoundNames
+        match self {
+            FormalParameters::Empty => {
+                // FormalParameters : [empty]
+                //  1. Return a new empty List.
+                vec![]
+            }
+            FormalParameters::ListRest(formal_parameter_list, function_rest_parameter) => {
+                // FormalParameters : FormalParameterList , FunctionRestParameter
+                //  1. Let names1 be BoundNames of FormalParameterList.
+                //  2. Let names2 be BoundNames of FunctionRestParameter.
+                //  3. Return the list-concatenation of names1 and names2.
+                let mut names = formal_parameter_list.bound_names();
+                let names2 = function_rest_parameter.bound_names();
+                names.extend(names2);
+                names
+            }
+            FormalParameters::Rest(function_rest_parameter) => {
+                // FormalParameters : FunctionRestParameter
+                //  1. Return BoundNames of FunctionRestParameter
+                function_rest_parameter.bound_names()
+            }
+            FormalParameters::List(formal_parameter_list) | FormalParameters::ListComma(formal_parameter_list) => {
+                // FormalParameters :
+                //      FormalParameterList
+                //      FormalParameterList ,
+                //  1. Return BoundNames of FormalParameterList
+                formal_parameter_list.bound_names()
             }
         }
     }
@@ -334,6 +367,27 @@ impl FormalParameterList {
             }
         }
     }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        // Static Semantics: BoundNames
+        match self {
+            FormalParameterList::Item(formal_parameter) => {
+                // FormalParameterList : FormalParameter
+                //  1. Return BoundNames of FormalParameter.
+                formal_parameter.bound_names()
+            }
+            FormalParameterList::List(formal_parameter_list, formal_parameter) => {
+                // FormalParameterList : FormalParameterList , FormalParameter
+                //  1. Let names1 be BoundNames of FormalParameterList.
+                //  2. Let names2 be BoundNames of FormalParameter.
+                //  3. Return the list-concatenation of names1 and names2.
+                let mut names = formal_parameter_list.bound_names();
+                let names2 = formal_parameter.bound_names();
+                names.extend(names2);
+                names
+            }
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -385,6 +439,13 @@ impl FunctionRestParameter {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.element.all_private_identifiers_valid(names)
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        // Static Semantics: BoundNames
+        // FunctionRestParameter : BindingRestElement
+        //  1. Return BoundNames of BindingRestElement.
+        self.element.bound_names()
     }
 }
 
@@ -456,6 +517,13 @@ impl FormalParameter {
         // FormalParameter : BindingElement
         //  1. Return IsSimpleParameterList of BindingElement.
         self.element.is_simple_parameter_list()
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        // Static Semantics: BoundNames
+        // FormalParameter : BindingElement
+        //  1. Return BoundNames of BindingElement.
+        self.element.bound_names()
     }
 }
 

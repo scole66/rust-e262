@@ -222,6 +222,15 @@ fn formal_parameters_test_is_simple_parameter_list(src: &str) -> bool {
     let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
     item.is_simple_parameter_list()
 }
+#[test_case("" => Vec::<JSString>::new(); "empty")]
+#[test_case("a,...b" => vec![JSString::from("a"), JSString::from("b")]; "list-rest")]
+#[test_case("...a" => vec![JSString::from("a")]; "rest-only")]
+#[test_case("a" => vec![JSString::from("a")]; "list")]
+#[test_case("a," => vec![JSString::from("a")]; "list-comma")]
+fn formal_parameters_test_bound_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.bound_names()
+}
 
 // FORMAL PARAMETER LIST
 #[test]
@@ -308,6 +317,12 @@ fn formal_parameter_list_test_is_simple_parameter_list(src: &str) -> bool {
     let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.is_simple_parameter_list()
 }
+#[test_case("a" => vec![JSString::from("a")]; "item")]
+#[test_case("a,b" => vec![JSString::from("a"), JSString::from("b")]; "list")]
+fn formal_parameter_list_test_bound_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.bound_names()
+}
 
 // FUNCTION REST PARAMETER
 #[test]
@@ -347,6 +362,11 @@ fn function_rest_parameter_test_contains_02() {
 fn function_rest_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionRestParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("...a" => vec![JSString::from("a")]; "simple")]
+fn function_rest_parameter_test_bound_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FunctionRestParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.bound_names()
 }
 
 // FORMAL PARAMETER
@@ -401,4 +421,9 @@ fn formal_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
 fn formal_parameter_test_is_simple_parameter_list(src: &str) -> bool {
     let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.is_simple_parameter_list()
+}
+#[test_case("a" => vec![JSString::from("a")]; "simple")]
+fn formal_parameter_test_bound_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    item.bound_names()
 }
