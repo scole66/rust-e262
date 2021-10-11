@@ -1,15 +1,16 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::class_definitions::ClassElementName;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
 use super::scanner::Scanner;
+use super::scripts::has_unique_elements;
 use super::unary_operators::UnaryExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use ahash::AHashSet;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AsyncFunctionDeclaration[Yield, Await, Default] :
 //      async [no LineTerminator here] function BindingIdentifier[?Yield, ?Await] ( FormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
@@ -145,8 +146,21 @@ impl AsyncFunctionDeclaration {
             //      Static Semantics: Early Errors
             //          UniqueFormalParameters : FormalParameters
             //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
-            todo!()
+            if !has_unique_elements(self.params.bound_names()) {
+                errs.push(create_syntax_error_object(agent, "Duplicate formal parameter identifiers in strict mode definition"));
+            }
         }
+        if let Some(binding_identifier) = &self.ident {
+            if strict && [JSString::from("eval"), JSString::from("arguments")].contains(&binding_identifier.string_value()) {
+                // If BindingIdentifier is present and the source code matching BindingIdentifier is strict mode
+                // code, it is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+                errs.push(create_syntax_error_object(agent, "In strict mode, functions may not be named 'eval' or 'arguments'"));
+            }
+        }
+        // It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncFunctionBody
+        let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
+        //let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
 
         // todo!()
         println!("{}:{}: Not yet implemented", file!(), line!());
