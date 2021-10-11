@@ -327,17 +327,6 @@ impl StringValue for BindingIdentifier {
     }
 }
 
-impl BoundNames for BindingIdentifier {
-    fn bound_names(&self) -> Vec<JSString> {
-        use BindingIdentifierKind::*;
-        match &self.kind {
-            Identifier(id) => vec![id.string_value()],
-            Yield => vec![JSString::from("yield")],
-            Await => vec![JSString::from("await")],
-        }
-    }
-}
-
 impl fmt::Display for BindingIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
@@ -410,6 +399,15 @@ impl BindingIdentifier {
             BindingIdentifierKind::Yield => false,
             BindingIdentifierKind::Await => false,
             BindingIdentifierKind::Identifier(id) => id.contains(kind),
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        use BindingIdentifierKind::*;
+        match &self.kind {
+            Identifier(id) => vec![id.string_value()],
+            Yield => vec![JSString::from("yield")],
+            Await => vec![JSString::from("await")],
         }
     }
 }
