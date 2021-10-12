@@ -354,6 +354,13 @@ impl AsyncFunctionBody {
         //  1. Return FunctionBodyContainsUseStrict of FunctionBody.
         self.0.function_body_contains_use_strict()
     }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        //      AsyncFunctionBody : FunctionBody
+        //  1. Return LexicallyDeclaredNames of FunctionBody.
+        self.0.lexically_declared_names()
+    }
 }
 
 // AwaitExpression[Yield] :

@@ -424,6 +424,11 @@ fn async_function_body_test_function_body_contains_use_strict(src: &str) -> bool
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
     item.function_body_contains_use_strict()
 }
+#[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => vec![JSString::from("alpha"), JSString::from("BETA")]; "normal")]
+fn async_function_body_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
+    item.lexically_declared_names()
+}
 
 // AWAIT EXPRESSION
 #[test]

@@ -268,6 +268,11 @@ fn function_body_test_function_body_contains_use_strict(src: &str) -> bool {
     let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
     item.function_body_contains_use_strict()
 }
+#[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => vec![JSString::from("alpha"), JSString::from("BETA")]; "normal")]
+fn function_body_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.lexically_declared_names()
+}
 
 // FUNCTION STATEMENT LIST
 #[test]
@@ -325,4 +330,11 @@ fn function_statement_list_test_all_private_identifiers_valid(src: &str) -> bool
 fn function_statement_list_test_initial_string_tokens(src: &str) -> Vec<StringToken> {
     let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
     item.initial_string_tokens()
+}
+#[test_case("let a;" => vec![JSString::from("a")]; "one item")]
+#[test_case("" => Vec::<JSString>::new(); "empty")]
+#[test_case("let a; var b=3; const Q=99;" => vec![JSString::from("a"), JSString::from("Q")]; "many items")]
+fn function_statement_list_test_lexically_declared_names(src: &str) -> Vec<JSString> {
+    let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
+    item.lexically_declared_names()
 }

@@ -281,6 +281,13 @@ impl FunctionBody {
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        //      FunctionBody : FunctionStatementList
+        //  1. Return LexicallyDeclaredNames of FunctionStatementList.
+        self.statements.lexically_declared_names()
+    }
 }
 
 // FunctionStatementList[Yield, Await] :
@@ -351,6 +358,21 @@ impl FunctionStatementList {
         match &self.statements {
             Some(statement_list) => statement_list.initial_string_tokens(),
             None => vec![],
+        }
+    }
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        match &self.statements {
+            Some(statement_list) => {
+                // FunctionStatementList : StatementList
+                //  1. Return TopLevelLexicallyDeclaredNames of StatementList.
+                statement_list.top_level_lexically_declared_names()
+            }
+            None => {
+                // FunctionStatementList : [empty]
+                //  1. Return a new empty List.
+                vec![]
+            }
         }
     }
 }
