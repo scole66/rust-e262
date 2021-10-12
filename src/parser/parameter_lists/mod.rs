@@ -264,6 +264,12 @@ impl FormalParameters {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // FormalParameterList[Yield, Await] :

@@ -160,10 +160,35 @@ impl AsyncFunctionDeclaration {
         // It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
         //    LexicallyDeclaredNames of AsyncFunctionBody
         let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
-        //let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
+        let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
+        if !bn.is_disjoint(&ldn) {
+            errs.push(create_syntax_error_object(agent, "Lexical decls in body duplicate parameters"));
+        }
+        // It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        if self.params.contains(ParseNodeKind::SuperProperty) {
+            errs.push(create_syntax_error_object(agent, "Parameters may not include super properties"));
+        }
+        // It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
+        if self.body.contains(ParseNodeKind::SuperProperty) {
+            errs.push(create_syntax_error_object(agent, "Body may not contain super properties"));
+        }
+        // It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        if self.params.contains(ParseNodeKind::SuperCall) {
+            errs.push(create_syntax_error_object(agent, "Parameters may not include super calls"));
+        }
+        // It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
+        if self.body.contains(ParseNodeKind::SuperCall) {
+            errs.push(create_syntax_error_object(agent, "Body may not contain super calls"));
+        }
 
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
+        // All the children
+        if let Some(binding_identifier) = &self.ident {
+            errs.extend(binding_identifier.early_errors(agent));
+        }
+        errs.extend(self.params.early_errors(agent));
+        errs.extend(self.body.early_errors(agent));
+
+        // And done.
         errs
     }
 }
@@ -417,6 +442,12 @@ impl AsyncFunctionBody {
         //      AsyncFunctionBody : FunctionBody
         //  1. Return LexicallyDeclaredNames of FunctionBody.
         self.0.lexically_declared_names()
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

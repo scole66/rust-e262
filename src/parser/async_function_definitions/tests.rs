@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::{test_agent, unwind_syntax_error_object};
 use test_case::test_case;
 
 // ASYNC FUNCTION DECLARATION
@@ -134,6 +135,25 @@ fn async_function_declaration_test_bound_names_02() {
 fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test_case("async function([a]=b){'use strict';}", false => "Strict functions must also have simple parameter lists"; "strict body; complex params")]
+#[test_case("async function(a=await b()){}", false => "Await not allowed in parameter lists"; "await param")]
+#[test_case("async function(a,a){'use strict';}", false => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict body")]
+#[test_case("async function(a,a){}", true => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict context")]
+#[test_case("async function eval(){}", true => "In strict mode, functions may not be named 'eval' or 'arguments'"; "named eval")]
+#[test_case("async function arguments(){}", true => "In strict mode, functions may not be named 'eval' or 'arguments'"; "named arguments")]
+#[test_case("async function(lex) { const lex=10; return lex; }", false => "Lexical decls in body duplicate parameters"; "lexical duplication")]
+#[test_case("async function(a=super.prop){}", false => "Parameters may not include super properties"; "superprop params")]
+#[test_case("async function(){return super.prop;}", false => "Body may not contain super properties"; "superprop body")]
+#[test_case("async function(a=super()){}", false => "Parameters may not include super calls"; "supercall params")]
+#[test_case("async function(){return super();}", false => "Body may not contain super calls"; "supercall body")]
+fn async_function_declaration_test_early_errors(src: &str, strict: bool) -> String {
+    let mut agent = test_agent();
+    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+    let mut errs = item.early_errors(&mut agent, strict);
+    assert_eq!(errs.len(), 1);
+    let err = errs.pop().unwrap();
+    unwind_syntax_error_object(&mut agent, err)
 }
 
 // ASYNC FUNCTION EXPRESSION
