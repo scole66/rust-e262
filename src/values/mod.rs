@@ -17,6 +17,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::rc::Rc;
+use uid::Id as IdT;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ECMAScriptValue {
@@ -276,8 +277,40 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug)]
-pub struct PrivateName {}
+// Private Names
+//
+// The Private Name specification type is used to describe a globally unique value (one which differs from any other
+// Private Name, even if they are otherwise indistinguishable) which represents the key of a private class element
+// (field, method, or accessor). Each Private Name has an associated immutable [[Description]] which is a String value.
+// A Private Name may be installed on any ECMAScript object with PrivateFieldAdd or PrivateMethodOrAccessorAdd, and
+// then read or written using PrivateGet and PrivateSet.
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+struct PN(());
+type PNId = IdT<PN>;
+
+#[derive(Debug, Clone, Eq)]
+pub struct PrivateName {
+    pub description: JSString,
+    id: PNId,
+}
+impl PartialEq for PrivateName {
+    fn eq(&self, other: &Self) -> bool {
+        // Ids are unique, so we don't need to look at the description field.
+        self.id == other.id
+    }
+}
+impl Hash for PrivateName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // No need to hash the description; the id is unique already.
+        self.id.hash(state)
+    }
+}
+
+impl PrivateName {
+    fn new(description: impl Into<JSString>) -> Self {
+        PrivateName { description: description.into(), id: PNId::new() }
+    }
+}
 
 pub fn number_to_string<T>(writer: &mut T, value: f64) -> io::Result<()>
 where
