@@ -289,7 +289,7 @@ impl fmt::Display for Symbol {
 struct PN(());
 type PNId = IdT<PN>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct PrivateName {
     pub description: JSString,
     id: PNId,
