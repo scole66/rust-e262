@@ -169,7 +169,7 @@ impl FunctionObject {}
 pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, prefix: Option<JSString>) {
     let name_before_prefix = match name {
         FunctionName::String(s) => s,
-        FunctionName::PrivateName(_pn) => todo!(),
+        FunctionName::PrivateName(pn) => pn.description,
         FunctionName::Symbol(sym) => sym.description().map_or_else(
             || JSString::from(""),
             |description| {
