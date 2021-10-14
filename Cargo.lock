@@ -213,6 +213,7 @@ dependencies = [
  "num",
  "regex",
  "test-case",
+ "uid",
 ]
 
 [[package]]
@@ -238,6 +239,12 @@ dependencies = [
  "syn",
  "version_check",
 ]
+
+[[package]]
+name = "uid"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "084cf69ef38999caa9330f568d4736182bc7a36273669baf4820d7228d23e204"
 
 [[package]]
 name = "unicode-xid"

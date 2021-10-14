@@ -6,7 +6,7 @@ use super::function_object::ThisMode;
 use super::object::{define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object, PotentialPropertyDescriptor};
 use super::reference::{Base, Reference};
 use super::strings::JSString;
-use super::values::{to_boolean, ECMAScriptValue, PropertyKey};
+use super::values::{to_boolean, ECMAScriptValue, PrivateName, PropertyKey};
 use ahash::{AHashSet, RandomState};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -1330,17 +1330,77 @@ impl GlobalEnvironmentRecord {
 //  4. Else,
 //      a. Let outer be env.[[OuterEnv]].
 //      b. Return ? GetIdentifierReference(outer, name, strict).
-pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: &JSString, strict: bool) -> AltCompletion<Reference> {
+pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: JSString, strict: bool) -> AltCompletion<Reference> {
     match environment {
-        None => Ok(Reference::new(Base::Unresolvable, PropertyKey::from(name), strict, None)),
+        None => Ok(Reference::new(Base::Unresolvable, name, strict, None)),
         Some(env) => {
-            let exists = env.has_binding(agent, name)?;
+            let exists = env.has_binding(agent, &name)?;
             if exists {
-                Ok(Reference::new(Base::Environment(env.clone()), PropertyKey::from(name), strict, None))
+                Ok(Reference::new(Base::Environment(env.clone()), name, strict, None))
             } else {
                 let outer = env.get_outer_env();
                 get_identifier_reference(agent, outer, name, strict)
             }
+        }
+    }
+}
+
+// PrivateEnvironment Records
+//
+// A PrivateEnvironment Record is a specification mechanism used to track Private Names based upon the lexical nesting
+// structure of ClassDeclarations and ClassExpressions in ECMAScript code. They are similar to, but distinct from,
+// Environment Records. Each PrivateEnvironment Record is associated with a ClassDeclaration or ClassExpression. Each
+// time such a class is evaluated, a new PrivateEnvironment Record is created to record the Private Names declared by
+// that class.
+//
+// Each PrivateEnvironment Record has the fields defined in Table 27.
+//
+// Table 27: PrivateEnvironment Record Fields
+//
+// +-----------------------------+-----------------------+-------------------------------------------------------------+
+// | Field Name                  | Value Type            | Meaning                                                     |
+// +-----------------------------+-----------------------+-------------------------------------------------------------+
+// | [[OuterPrivateEnvironment]] | PrivateEnvironment    | The PrivateEnvironment Record of the nearest containing     |
+// |                             | Record or null        | class. null if the class with which this PrivateEnvironment |
+// |                             |                       | Record is associated is not contained in any other class.   |
+// +-----------------------------+-----------------------+-------------------------------------------------------------+
+// | [[Names]]                   | List of Private Names | The Private Names declared by this class.                   |
+// +-----------------------------+-----------------------+-------------------------------------------------------------+
+#[derive(Debug)]
+pub struct PrivateEnvironmentRecord {
+    outer_private_environment: Option<Box<PrivateEnvironmentRecord>>,
+    names: Vec<PrivateName>,
+}
+
+impl PrivateEnvironmentRecord {
+    // NewPrivateEnvironment ( outerPrivEnv )
+    // 
+    // The abstract operation NewPrivateEnvironment takes argument outerPrivEnv (a PrivateEnvironment Record or null).
+    // It performs the following steps when called:
+    // 
+    //  1. Let names be a new empty List.
+    //  2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
+    pub fn new(outer_priv_env: Option<Box<PrivateEnvironmentRecord>>) -> Self {
+        PrivateEnvironmentRecord { outer_private_environment: outer_priv_env, names: vec![] }
+    }
+
+    // ResolvePrivateIdentifier ( privEnv, identifier )
+    // 
+    // The abstract operation ResolvePrivateIdentifier takes arguments privEnv (a PrivateEnvironment Record) and
+    // identifier (a String). It performs the following steps when called:
+    // 
+    //  1. Let names be privEnv.[[Names]].
+    //  2. If names contains a Private Name whose [[Description]] is identifier, then
+    //      a. Let name be that Private Name.
+    //      b. Return name.
+    //  3. Else,
+    //      a. Let outerPrivEnv be privEnv.[[OuterPrivateEnvironment]].
+    //      b. Assert: outerPrivEnv is not null.
+    //      c. Return ResolvePrivateIdentifier(outerPrivEnv, identifier).
+    pub fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
+        match self.names.iter().find(|&item| item.description == *identifier) {
+            Some(x) => x.clone(),
+            None => self.outer_private_environment.as_ref().unwrap().resolve_private_identifier(identifier)
         }
     }
 }

@@ -7,7 +7,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
+use super::values::{is_callable, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
@@ -823,11 +823,12 @@ pub struct CommonObjectData {
     pub next_spot: usize,
     pub objid: usize,
     pub slots: Vec<InternalSlotName>,
+    pub private_elements: Vec<Rc<PrivateElement>>,
 }
 
 impl CommonObjectData {
     pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
-        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots) }
+        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots), private_elements: vec![] }
     }
 }
 
@@ -1662,6 +1663,121 @@ pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<
         todo!();
 
         Ok(_agent.running_execution_context().unwrap().realm.clone())
+    }
+}
+
+// PrivateElementFind ( O, P )
+//
+// The abstract operation PrivateElementFind takes arguments O (an Object) and P (a Private Name). It performs the
+// following steps when called:
+//
+//  1. If O.[[PrivateElements]] contains a PrivateElement whose [[Key]] is P, then
+//      a. Let entry be that PrivateElement.
+//      b. Return entry.
+//  2. Return empty.
+pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
+    let cod = o.o.common_object_data().borrow();
+    let item = cod.private_elements.iter().find(|&item| item.key == *p);
+    item.cloned()
+}
+
+// PrivateFieldAdd ( O, P, value )
+//
+// The abstract operation PrivateFieldAdd takes arguments O (an Object), P (a Private Name), and value (an ECMAScript
+// language value). It performs the following steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is not empty, throw a TypeError exception.
+//  3. Append PrivateElement { [[Key]]: P, [[Kind]]: field, [[Value]]: value } to O.[[PrivateElements]].
+pub fn private_field_add(agent: &mut Agent, obj: &Object, p: PrivateName, value: ECMAScriptValue) -> AltCompletion<()> {
+    let entry = private_element_find(obj, &p);
+    match entry {
+        Some(_) => Err(create_type_error(agent, "PrivateName already defined")),
+        None => {
+            let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
+            elements.push(Rc::new(PrivateElement { key: p, kind: PrivateElementKind::Field { value: RefCell::new(value) } }));
+            Ok(())
+        }
+    }
+}
+
+// PrivateMethodOrAccessorAdd ( O, method )
+//
+// The abstract operation PrivateMethodOrAccessorAdd takes arguments O (an Object) and method (a PrivateElement). It
+// performs the following steps when called:
+//
+//  1. Assert: method.[[Kind]] is either method or accessor.
+//  2. Let entry be ! PrivateElementFind(O, method.[[Key]]).
+//  3. If entry is not empty, throw a TypeError exception.
+//  4. Append method to O.[[PrivateElements]].
+//
+// NOTE: The values for private methods and accessors are shared across instances. This step does not create a new copy
+// of the method or accessor.
+pub fn private_method_or_accessor_add(agent: &mut Agent, obj: &Object, method: Rc<PrivateElement>) -> AltCompletion<()> {
+    if private_element_find(obj, &method.key).is_some() {
+        Err(create_type_error(agent, "PrivateName already defined"))
+    } else {
+        obj.o.common_object_data().borrow_mut().private_elements.push(method);
+        Ok(())
+    }
+}
+
+// PrivateGet ( O, P )
+//
+// The abstract operation PrivateGet takes arguments O (an Object) and P (a Private Name). It performs the following
+// steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is empty, throw a TypeError exception.
+//  3. If entry.[[Kind]] is field or method, then
+//      a. Return entry.[[Value]].
+//  4. Assert: entry.[[Kind]] is accessor.
+//  5. If entry.[[Get]] is undefined, throw a TypeError exception.
+//  6. Let getter be entry.[[Get]].
+//  7. Return ? Call(getter, O).
+pub fn private_get(agent: &mut Agent, obj: &Object, pn: &PrivateName) -> Completion {
+    match private_element_find(obj, pn) {
+        None => Err(create_type_error(agent, "PrivateName not defined")),
+        Some(pe) => match &pe.kind {
+            PrivateElementKind::Field { value } => Ok(value.borrow().clone()),
+            PrivateElementKind::Method { value } => Ok(value.clone()),
+            PrivateElementKind::Accessor { get: None, set: _ } => Err(create_type_error(agent, "PrivateName has no getter")),
+            PrivateElementKind::Accessor { get: Some(getter), set: _ } => call(agent, &ECMAScriptValue::from(getter), &ECMAScriptValue::from(obj), &[]),
+        },
+    }
+}
+
+// PrivateSet ( O, P, value )
+//
+// The abstract operation PrivateSet takes arguments O (an Object), P (a Private Name), and value (an ECMAScript
+// language value). It performs the following steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is empty, throw a TypeError exception.
+//  3. If entry.[[Kind]] is field, then
+//      a. Set entry.[[Value]] to value.
+//  4. Else if entry.[[Kind]] is method, then
+//      a. Throw a TypeError exception.
+//  5. Else,
+//      a. Assert: entry.[[Kind]] is accessor.
+//      b. If entry.[[Set]] is undefined, throw a TypeError exception.
+//      c. Let setter be entry.[[Set]].
+//      d. Perform ? Call(setter, O, « value »).
+pub fn private_set(agent: &mut Agent, obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> AltCompletion<()> {
+    match private_element_find(obj, pn) {
+        None => Err(create_type_error(agent, "PrivateName not defined")),
+        Some(pe) => match &pe.kind {
+            PrivateElementKind::Field { value } => {
+                *value.borrow_mut() = v;
+                Ok(())
+            }
+            PrivateElementKind::Method { value: _ } => Err(create_type_error(agent, "PrivateName method may not be assigned")),
+            PrivateElementKind::Accessor { get: _, set: None } => Err(create_type_error(agent, "PrivateName has no setter")),
+            PrivateElementKind::Accessor { get: _, set: Some(setter) } => {
+                call(agent, &ECMAScriptValue::from(setter), &ECMAScriptValue::from(obj), &[v])?;
+                Ok(())
+            }
+        },
     }
 }
 

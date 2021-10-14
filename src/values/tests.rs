@@ -303,7 +303,7 @@ fn symbol_internals_clone() {
 
 #[test]
 fn privatename_debug() {
-    assert_ne!(format!("{:?}", PrivateName {}), "");
+    assert_ne!(format!("{:?}", PrivateName::new("private_name")), "");
 }
 
 #[test]
