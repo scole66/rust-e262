@@ -1374,10 +1374,10 @@ pub struct PrivateEnvironmentRecord {
 
 impl PrivateEnvironmentRecord {
     // NewPrivateEnvironment ( outerPrivEnv )
-    // 
+    //
     // The abstract operation NewPrivateEnvironment takes argument outerPrivEnv (a PrivateEnvironment Record or null).
     // It performs the following steps when called:
-    // 
+    //
     //  1. Let names be a new empty List.
     //  2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
     pub fn new(outer_priv_env: Option<Box<PrivateEnvironmentRecord>>) -> Self {
@@ -1385,10 +1385,10 @@ impl PrivateEnvironmentRecord {
     }
 
     // ResolvePrivateIdentifier ( privEnv, identifier )
-    // 
+    //
     // The abstract operation ResolvePrivateIdentifier takes arguments privEnv (a PrivateEnvironment Record) and
     // identifier (a String). It performs the following steps when called:
-    // 
+    //
     //  1. Let names be privEnv.[[Names]].
     //  2. If names contains a Private Name whose [[Description]] is identifier, then
     //      a. Let name be that Private Name.
@@ -1400,7 +1400,7 @@ impl PrivateEnvironmentRecord {
     pub fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
         match self.names.iter().find(|&item| item.description == *identifier) {
             Some(x) => x.clone(),
-            None => self.outer_private_environment.as_ref().unwrap().resolve_private_identifier(identifier)
+            None => self.outer_private_environment.as_ref().unwrap().resolve_private_identifier(identifier),
         }
     }
 }

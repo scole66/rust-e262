@@ -1765,3 +1765,47 @@ mod get_identifier_reference {
         assert_eq!(msg, "[[HasProperty]] called on TestObject");
     }
 }
+
+mod private_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pe = PrivateEnvironmentRecord { outer_private_environment: None, names: vec![] };
+        assert_ne!(format!("{:?}", pe), "");
+    }
+
+    #[test]
+    fn new() {
+        let pe = PrivateEnvironmentRecord::new(None);
+        assert!(pe.outer_private_environment.is_none());
+        assert!(pe.names.is_empty());
+    }
+
+    mod resolve_private_identifier {
+        use super::*;
+
+        fn setup() -> (Box<PrivateEnvironmentRecord>, PrivateName, PrivateName) {
+            let mut outer = Box::new(PrivateEnvironmentRecord::new(None));
+            let outer_name = PrivateName::new("outer");
+            outer.names.push(outer_name.clone());
+            let mut inner = Box::new(PrivateEnvironmentRecord::new(Some(outer)));
+            let inner_name = PrivateName::new("inner");
+            inner.names.push(inner_name.clone());
+            (inner, outer_name, inner_name)
+        }
+
+        #[test]
+        fn outer() {
+            let (env, outer_name, _) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("outer"));
+            assert_eq!(resolved, outer_name);
+        }
+        #[test]
+        fn inner() {
+            let (env, _, inner_name) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("inner"));
+            assert_eq!(resolved, inner_name);
+        }
+    }
+}
