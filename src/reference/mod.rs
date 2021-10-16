@@ -74,6 +74,11 @@ impl From<&str> for ReferencedName {
         Self::String(JSString::from(val))
     }
 }
+impl From<PrivateName> for ReferencedName {
+    fn from(val: PrivateName) -> Self {
+        Self::PrivateName(val)
+    }
+}
 impl TryFrom<ReferencedName> for PropertyKey {
     type Error = &'static str;
     fn try_from(rn: ReferencedName) -> Result<Self, Self::Error> {
@@ -311,3 +316,6 @@ pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: AltComplet
         _ => unreachable!(),
     }
 }
+
+#[cfg(test)]
+mod tests;
