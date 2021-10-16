@@ -1805,3 +1805,272 @@ fn set_and_get() {
 
     assert_eq!(result, ECMAScriptValue::Number(56.7));
 }
+
+mod private_element_find {
+    use super::*;
+    use test_case::test_case;
+
+    fn setup() -> (Object, Vec<PrivateName>) {
+        let mut agent = test_agent();
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+
+        let name1 = PrivateName::new("name1");
+        let name2 = PrivateName::new("alice");
+        let name3 = PrivateName::new("charley");
+        let names = vec![name1, name2, name3];
+
+        {
+            let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
+            elements.push(Rc::new(PrivateElement { key: names[0].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
+            elements.push(Rc::new(PrivateElement { key: names[1].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) } }));
+            elements.push(Rc::new(PrivateElement { key: names[2].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) } }));
+        }
+
+        (obj, names)
+    }
+
+    #[test_case(0 => (true, true); "first")]
+    #[test_case(1 => (true, true); "second")]
+    #[test_case(2 => (true, true); "last")]
+    fn normal(idx: usize) -> (bool, bool) {
+        let (obj, names) = setup();
+        let result = private_element_find(&obj, &names[idx]);
+        let elem = result.unwrap();
+        let keys_match = elem.key == names[idx];
+        if let PrivateElementKind::Field { value } = &elem.kind {
+            let values_match = *value.borrow() == ECMAScriptValue::from(idx as u32 + 1);
+            (keys_match, values_match)
+        } else {
+            panic!("Bad element kind came back")
+        }
+    }
+
+    #[test_case(PrivateName::new("ice cream") => false; "not present")]
+    fn missing(name: PrivateName) -> bool {
+        let (obj, _) = setup();
+        let result = private_element_find(&obj, &name);
+        result.is_some()
+    }
+}
+
+mod private_field_add {
+    use super::*;
+    use test_case::test_case;
+
+    fn setup(agent: &mut Agent) -> (Object, Vec<PrivateName>) {
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+
+        let name1 = PrivateName::new("name1");
+        let name2 = PrivateName::new("alice");
+        let name3 = PrivateName::new("charley");
+        let names = vec![name1, name2, name3];
+
+        {
+            let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
+            elements.push(Rc::new(PrivateElement { key: names[0].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
+            elements.push(Rc::new(PrivateElement { key: names[1].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) } }));
+            elements.push(Rc::new(PrivateElement { key: names[2].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) } }));
+        }
+
+        (obj, names)
+    }
+
+    #[test_case(PrivateName::new("orange") => (true, Some(ECMAScriptValue::Null)); "orange")]
+    fn normal(name: PrivateName) -> (bool, Option<ECMAScriptValue>) {
+        let mut agent = test_agent();
+        let (obj, _) = setup(&mut agent);
+
+        let result = private_field_add(&mut agent, &obj, name.clone(), ECMAScriptValue::Null);
+
+        (
+            result.is_ok(),
+            private_element_find(&obj, &name).map(|pe| match &pe.kind {
+                PrivateElementKind::Field { value } => value.borrow().clone(),
+                _ => {
+                    panic!("Bad element kind")
+                }
+            }),
+        )
+    }
+
+    #[test_case(0; "first")]
+    #[test_case(1; "second")]
+    #[test_case(2; "last")]
+    fn previously_added(idx: usize) {
+        let mut agent = test_agent();
+        let (obj, names) = setup(&mut agent);
+
+        let result = private_field_add(&mut agent, &obj, names[idx].clone(), ECMAScriptValue::Null).unwrap_err();
+        assert_eq!(unwind_type_error(&mut agent, result), "PrivateName already defined");
+    }
+}
+
+mod private_method_or_accessor_add {
+    use super::*;
+    //use test_case::test_case;
+
+    fn setup(agent: &mut Agent) -> (Object, PrivateName) {
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+
+        let name = PrivateName::new("name1");
+
+        {
+            let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
+            elements.push(Rc::new(PrivateElement { key: name.clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
+        }
+        (obj, name)
+    }
+
+    #[test]
+    fn add() {
+        let mut agent = test_agent();
+        let (obj, _) = setup(&mut agent);
+        let key = PrivateName::new("orange");
+        let method = Rc::new(PrivateElement { key: key.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
+
+        private_method_or_accessor_add(&mut agent, &obj, method).unwrap();
+        let x = private_element_find(&obj, &key).map(|pe| match &pe.kind {
+            PrivateElementKind::Method { value } => value.clone(),
+            _ => {
+                panic!("Bad element kind")
+            }
+        });
+        assert_eq!(x, Some(ECMAScriptValue::from(100)));
+    }
+
+    #[test]
+    fn replace() {
+        let mut agent = test_agent();
+        let (obj, key) = setup(&mut agent);
+        let method = Rc::new(PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
+
+        let err = private_method_or_accessor_add(&mut agent, &obj, method).unwrap_err();
+        assert_eq!(unwind_type_error(&mut agent, err), "PrivateName already defined");
+    }
+}
+
+mod private_get {
+    use super::*;
+    use test_case::test_case;
+
+    fn setup(agent: &mut Agent) -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+
+        let field_name = PrivateName::new("field");
+        let method_name = PrivateName::new("method");
+        let getter_name = PrivateName::new("getter");
+        let nogetter_name = PrivateName::new("nogetter");
+
+        private_field_add(agent, &obj, field_name.clone(), ECMAScriptValue::from("FIELD")).unwrap();
+        let method = PrivateElement { key: method_name.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(method)).unwrap();
+        let getter_method = create_builtin_function(agent, test_getter, false, 0_f64, PropertyKey::from("getter"), &[], None, None, Some(JSString::from("get")));
+        let getter = PrivateElement { key: getter_name.clone(), kind: PrivateElementKind::Accessor { get: Some(getter_method), set: None } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(getter)).unwrap();
+        define_property_or_throw(
+            agent,
+            &obj,
+            PropertyKey::from("result"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("GETTER")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+        )
+        .unwrap();
+        let nogetter = PrivateElement { key: nogetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(nogetter)).unwrap();
+
+        (obj, field_name, method_name, getter_name, nogetter_name)
+    }
+
+    enum FieldName {
+        Field,
+        Method,
+        Getter,
+        NoGetter,
+        Unavailable,
+    }
+    #[test_case(FieldName::Field => Ok(ECMAScriptValue::from("FIELD")); "field")]
+    #[test_case(FieldName::Method => Ok(ECMAScriptValue::from("METHOD")); "method")]
+    #[test_case(FieldName::Getter => Ok(ECMAScriptValue::from("GETTER")); "getter")]
+    #[test_case(FieldName::NoGetter => Err(String::from("PrivateName has no getter")); "no getter")]
+    #[test_case(FieldName::Unavailable => Err(String::from("PrivateName not defined")); "undefined")]
+    fn f(field: FieldName) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        let (obj, field_name, method_name, getter_name, nogetter_name) = setup(&mut agent);
+
+        let query = match field {
+            FieldName::Field => field_name,
+            FieldName::Method => method_name,
+            FieldName::Getter => getter_name,
+            FieldName::NoGetter => nogetter_name,
+            FieldName::Unavailable => PrivateName::new("unavailable"),
+        };
+        private_get(&mut agent, &obj, &query).map_err(|e| unwind_type_error(&mut agent, e))
+    }
+}
+
+mod private_set {
+    use super::*;
+    use test_case::test_case;
+
+    fn setup(agent: &mut Agent) -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+
+        let field_name = PrivateName::new("field");
+        let method_name = PrivateName::new("method");
+        let setter_name = PrivateName::new("setter");
+        let nosetter_name = PrivateName::new("nosetter");
+
+        private_field_add(agent, &obj, field_name.clone(), ECMAScriptValue::from("FIELD")).unwrap();
+        let method = PrivateElement { key: method_name.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(method)).unwrap();
+        let getter_method = create_builtin_function(agent, test_getter, false, 0_f64, PropertyKey::from("$state"), &[], None, None, Some(JSString::from("get")));
+        let setter_method = create_builtin_function(agent, test_setter, false, 1_f64, PropertyKey::from("$state"), &[], None, None, Some(JSString::from("set")));
+
+        let setter = PrivateElement { key: setter_name.clone(), kind: PrivateElementKind::Accessor { get: Some(getter_method), set: Some(setter_method) } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(setter)).unwrap();
+        define_property_or_throw(
+            agent,
+            &obj,
+            PropertyKey::from("result"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("SETTER")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+        )
+        .unwrap();
+        let nosetter = PrivateElement { key: nosetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
+        private_method_or_accessor_add(agent, &obj, Rc::new(nosetter)).unwrap();
+
+        (obj, field_name, method_name, setter_name, nosetter_name)
+    }
+    enum FieldName {
+        Field,
+        Method,
+        Setter,
+        NoSetter,
+        Unavailable,
+    }
+
+    #[test_case(FieldName::Field => Ok(ECMAScriptValue::from("NEW VALUE")); "field")]
+    #[test_case(FieldName::Method => Err(String::from("PrivateName method may not be assigned")); "method")]
+    #[test_case(FieldName::Setter => Ok(ECMAScriptValue::from("NEW VALUE")); "setter")]
+    #[test_case(FieldName::NoSetter => Err(String::from("PrivateName has no setter")); "no-setter")]
+    #[test_case(FieldName::Unavailable => Err(String::from("PrivateName not defined")); "undefined")]
+    fn f(field: FieldName) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        let (obj, field_name, method_name, setter_name, nosetter_name) = setup(&mut agent);
+        let new_value = ECMAScriptValue::from("NEW VALUE");
+        let query = match field {
+            FieldName::Field => field_name,
+            FieldName::Method => method_name,
+            FieldName::Setter => setter_name,
+            FieldName::NoSetter => nosetter_name,
+            FieldName::Unavailable => PrivateName::new("unavailable"),
+        };
+
+        private_set(&mut agent, &obj, &query, new_value).map_err(|e| unwind_type_error(&mut agent, e))?;
+
+        Ok(private_get(&mut agent, &obj, &query).unwrap())
+    }
+}

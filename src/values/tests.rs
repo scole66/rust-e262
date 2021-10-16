@@ -341,6 +341,28 @@ mod private_name {
     }
 }
 
+mod private_element {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        assert_ne!(format!("{:?}", pe), "");
+    }
+
+    #[test]
+    fn clone() {
+        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        let cloned = pe.clone();
+        assert_eq!(pe.key, cloned.key);
+        if let PrivateElementKind::Field { value } = pe.kind {
+            assert_eq!(*value.borrow(), ECMAScriptValue::from("just some data"));
+        } else {
+            panic!("Came back with the wrong kind!")
+        }
+    }
+}
+
 #[test]
 fn to_boolean_01() {
     assert_eq!(to_boolean(ECMAScriptValue::Undefined), false);
