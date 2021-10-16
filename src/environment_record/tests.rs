@@ -1698,7 +1698,7 @@ mod get_identifier_reference {
     #[test_case("bob", false => (true, PropertyKey::from("bob"), false, None); "sloppy")]
     fn no_env(name: &str, strict: bool) -> (bool, PropertyKey, bool, Option<ECMAScriptValue>) {
         let mut agent = test_agent();
-        let reference = get_identifier_reference(&mut agent, None, &JSString::from(name), strict).unwrap();
+        let reference = get_identifier_reference(&mut agent, None, JSString::from(name), strict).unwrap();
         (matches!(reference.base, Base::Unresolvable), reference.referenced_name, reference.strict, reference.this_value)
     }
 
@@ -1728,7 +1728,7 @@ mod get_identifier_reference {
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
         let (rcenv_ptr, _) = Rc::as_ptr(&rcenv).to_raw_parts(); // Remove vtable for comparison
 
-        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from(name), strict).unwrap();
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from(name), strict).unwrap();
         (
             match &result.base {
                 Base::Unresolvable => EnvResult::Unresolvable,
@@ -1757,10 +1757,54 @@ mod get_identifier_reference {
         let env = ObjectEnvironmentRecord::new(binding_object, false, None);
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
 
-        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from("anything"), true);
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from("anything"), true);
 
         let err = result.unwrap_err();
         let msg = unwind_type_error(&mut agent, err);
         assert_eq!(msg, "[[HasProperty]] called on TestObject");
+    }
+}
+
+mod private_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pe = PrivateEnvironmentRecord { outer_private_environment: None, names: vec![] };
+        assert_ne!(format!("{:?}", pe), "");
+    }
+
+    #[test]
+    fn new() {
+        let pe = PrivateEnvironmentRecord::new(None);
+        assert!(pe.outer_private_environment.is_none());
+        assert!(pe.names.is_empty());
+    }
+
+    mod resolve_private_identifier {
+        use super::*;
+
+        fn setup() -> (Box<PrivateEnvironmentRecord>, PrivateName, PrivateName) {
+            let mut outer = Box::new(PrivateEnvironmentRecord::new(None));
+            let outer_name = PrivateName::new("outer");
+            outer.names.push(outer_name.clone());
+            let mut inner = Box::new(PrivateEnvironmentRecord::new(Some(outer)));
+            let inner_name = PrivateName::new("inner");
+            inner.names.push(inner_name.clone());
+            (inner, outer_name, inner_name)
+        }
+
+        #[test]
+        fn outer() {
+            let (env, outer_name, _) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("outer"));
+            assert_eq!(resolved, outer_name);
+        }
+        #[test]
+        fn inner() {
+            let (env, _, inner_name) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("inner"));
+            assert_eq!(resolved, inner_name);
+        }
     }
 }
