@@ -308,7 +308,7 @@ impl Hash for PrivateName {
 }
 
 impl PrivateName {
-    fn new(description: impl Into<JSString>) -> Self {
+    pub fn new(description: impl Into<JSString>) -> Self {
         PrivateName { description: description.into(), id: PNId::new() }
     }
 }
