@@ -54,24 +54,17 @@ pub enum ReferencedName {
     Symbol(Symbol),
     PrivateName(PrivateName),
 }
-impl From<JSString> for ReferencedName {
-    fn from(val: JSString) -> Self {
-        Self::String(val)
+impl<T> From<T> for ReferencedName
+where
+    T: Into<JSString>,
+{
+    fn from(val: T) -> Self {
+        Self::String(val.into())
     }
 }
 impl From<Symbol> for ReferencedName {
     fn from(val: Symbol) -> Self {
         Self::Symbol(val)
-    }
-}
-impl From<String> for ReferencedName {
-    fn from(val: String) -> Self {
-        Self::String(JSString::from(val))
-    }
-}
-impl From<&str> for ReferencedName {
-    fn from(val: &str) -> Self {
-        Self::String(JSString::from(val))
     }
 }
 impl From<PrivateName> for ReferencedName {
