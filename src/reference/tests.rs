@@ -112,7 +112,7 @@ mod referenced_name {
             fn symbol() {
                 let mut agent = test_agent();
                 let sym = Symbol::new(&mut agent, None);
-                let rn = ReferencedName::from(sym.clone());
+                let rn = ReferencedName::from(sym);
                 let err = JSString::try_from(rn).unwrap_err();
                 assert_eq!(err, "invalid string");
             }
@@ -239,7 +239,7 @@ mod reference {
             let normal_object = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
             let this_value = ECMAScriptValue::from(normal_object);
             let value = ECMAScriptValue::from("Gatsby turned out all right at the end");
-            let reference = Reference::new(Base::Value(value.clone()), "phrase", true, Some(this_value.clone()));
+            let reference = Reference::new(Base::Value(value), "phrase", true, Some(this_value.clone()));
             assert_eq!(reference.get_this_value(), this_value);
         }
         #[test]
@@ -424,11 +424,11 @@ mod put_value {
             &mut agent,
             &global,
             PropertyKey::from("thrower"),
-            PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower.clone()), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
 
-        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap_err();
+        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value)).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
     }
     #[test]
@@ -480,7 +480,7 @@ mod put_value {
         define_property_or_throw(
             &mut agent,
             &normal_object,
-            key.clone(),
+            key,
             PotentialPropertyDescriptor { set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -505,7 +505,7 @@ mod put_value {
         .unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), strict, None);
 
-        let r = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).map_err(|ac| unwind_type_error(&mut agent, ac));
+        let r = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value)).map_err(|ac| unwind_type_error(&mut agent, ac));
 
         let from_obj = get(&mut agent, &normal_object, &key).unwrap();
         assert_eq!(from_obj, ECMAScriptValue::Undefined);
