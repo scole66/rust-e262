@@ -1310,7 +1310,7 @@ impl GlobalEnvironmentRecord {
     //      7. Set env.[[VarNames]] to a new empty List.
     //      8. Set env.[[OuterEnv]] to null.
     //      9. Return env.
-    fn new(global: Object, this_value: Object) -> Self {
+    pub fn new(global: Object, this_value: Object) -> Self {
         let obj_rec = ObjectEnvironmentRecord::new(global, false, None);
         let dcl_rec = DeclarativeEnvironmentRecord::new(None);
         Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default() }

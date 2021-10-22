@@ -79,6 +79,14 @@ impl From<PrivateName> for ReferencedName {
         Self::PrivateName(val)
     }
 }
+impl From<PropertyKey> for ReferencedName {
+    fn from(val: PropertyKey) -> Self {
+        match val {
+            PropertyKey::String(st) => Self::String(st),
+            PropertyKey::Symbol(sy) => Self::Symbol(sy),
+        }
+    }
+}
 impl TryFrom<ReferencedName> for PropertyKey {
     type Error = &'static str;
     fn try_from(rn: ReferencedName) -> Result<Self, Self::Error> {
@@ -157,6 +165,19 @@ impl Reference {
     pub fn is_private_reference(&self) -> bool {
         matches!(&self.referenced_name, ReferencedName::PrivateName(_))
     }
+
+    // GetThisValue ( V )
+    //
+    // The abstract operation GetThisValue takes argument V. It performs the following steps when called:
+    //
+    //  1. Assert: IsPropertyReference(V) is true.
+    //  2. If IsSuperReference(V) is true, return V.[[ThisValue]]; otherwise return V.[[Base]].
+    pub fn get_this_value(&self) -> ECMAScriptValue {
+        match (&self.base, &self.this_value) {
+            (Base::Value(_), Some(val)) | (Base::Value(val), None) => val.clone(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 // GetValue ( V )
@@ -204,7 +225,7 @@ pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> 
                 match &reference.referenced_name {
                     ReferencedName::PrivateName(private) => private_get(agent, &base_obj, private),
                     _ => {
-                        let this_value = get_this_value(&reference);
+                        let this_value = reference.get_this_value();
                         base_obj.o.get(agent, &reference.referenced_name.try_into().unwrap(), &this_value)
                     }
                 }
@@ -251,7 +272,7 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
                 if r.strict {
                     Err(create_reference_error(agent, "Unknown reference"))
                 } else {
-                    let global_object = get_global_object(agent);
+                    let global_object = get_global_object(agent).unwrap();
                     set(agent, &global_object, r.referenced_name.try_into().unwrap(), w, false)?;
                     Ok(())
                 }
@@ -261,7 +282,7 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
                 match &r.referenced_name {
                     ReferencedName::PrivateName(pn) => private_set(agent, &base_obj, pn, w),
                     _ => {
-                        let this_value = get_this_value(&r);
+                        let this_value = r.get_this_value();
                         let propkey_ref: &PropertyKey = &r.referenced_name.try_into().unwrap();
                         let succeeded = base_obj.o.set(agent, propkey_ref.clone(), w, &this_value)?;
                         if !succeeded && r.strict {
@@ -273,22 +294,6 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
                 }
             }
             Base::Environment(env) => env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict),
-        },
-    }
-}
-
-// GetThisValue ( V )
-//
-// The abstract operation GetThisValue takes argument V. It performs the following steps when called:
-//
-//  1. Assert: IsPropertyReference(V) is true.
-//  2. If IsSuperReference(V) is true, return V.[[ThisValue]]; otherwise return V.[[Base]].
-pub fn get_this_value(v: &Reference) -> ECMAScriptValue {
-    match &v.this_value {
-        Some(val) => val.clone(),
-        None => match &v.base {
-            Base::Value(val) => val.clone(),
-            _ => unreachable!(),
         },
     }
 }

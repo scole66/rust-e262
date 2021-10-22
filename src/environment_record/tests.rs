@@ -1,8 +1,8 @@
 use super::*;
 use crate::agent::WksId;
 use crate::object::{define_property_or_throw, ordinary_object_create, DeadObject, PotentialPropertyDescriptor, PropertyKind};
-use crate::reference::ReferencedName;
 use crate::realm::IntrinsicId;
+use crate::reference::ReferencedName;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error, FunctionId, TestObject};
 
 const ALL_REMOVABILITY: [Removability; 2] = [Removability::Deletable, Removability::Permanent];
