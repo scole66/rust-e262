@@ -1310,7 +1310,7 @@ impl GlobalEnvironmentRecord {
     //      7. Set env.[[VarNames]] to a new empty List.
     //      8. Set env.[[OuterEnv]] to null.
     //      9. Return env.
-    fn new(global: Object, this_value: Object) -> Self {
+    pub fn new(global: Object, this_value: Object) -> Self {
         let obj_rec = ObjectEnvironmentRecord::new(global, false, None);
         let dcl_rec = DeclarativeEnvironmentRecord::new(None);
         Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default() }
@@ -1332,11 +1332,11 @@ impl GlobalEnvironmentRecord {
 //      b. Return ? GetIdentifierReference(outer, name, strict).
 pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: JSString, strict: bool) -> AltCompletion<Reference> {
     match environment {
-        None => Ok(Reference::new(Base::Unresolvable, PropertyKey::from(name), strict, None)),
+        None => Ok(Reference::new(Base::Unresolvable, name, strict, None)),
         Some(env) => {
             let exists = env.has_binding(agent, &name)?;
             if exists {
-                Ok(Reference::new(Base::Environment(env.clone()), PropertyKey::from(name), strict, None))
+                Ok(Reference::new(Base::Environment(env.clone()), name, strict, None))
             } else {
                 let outer = env.get_outer_env();
                 get_identifier_reference(agent, outer, name, strict)

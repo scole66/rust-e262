@@ -1,8 +1,9 @@
-use super::execution_context::ExecutionContext;
-use super::object::Object;
+use super::environment_record::GlobalEnvironmentRecord;
+use super::execution_context::{get_global_object, ExecutionContext};
+use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::realm::{create_realm, IntrinsicId};
 use super::strings::JSString;
-use super::values::{Symbol, SymbolInternals};
+use super::values::{ECMAScriptValue, PropertyKey, Symbol, SymbolInternals};
 use std::rc::Rc;
 
 // Agents
@@ -121,6 +122,92 @@ impl Agent {
         self.running_execution_context().unwrap().realm.borrow().intrinsics.get(id)
     }
 
+    // SetRealmGlobalObject ( realmRec, globalObj, thisValue )
+    //
+    // The abstract operation SetRealmGlobalObject takes arguments realmRec, globalObj (an Object or undefined), and
+    // thisValue. It performs the following steps when called:
+    //
+    //  1. If globalObj is undefined, then
+    //      a. Let intrinsics be realmRec.[[Intrinsics]].
+    //      b. Set globalObj to ! OrdinaryObjectCreate(intrinsics.[[%Object.prototype%]]).
+    //  2. Assert: Type(globalObj) is Object.
+    //  3. If thisValue is undefined, set thisValue to globalObj.
+    //  4. Set realmRec.[[GlobalObject]] to globalObj.
+    //  5. Let newGlobalEnv be NewGlobalEnvironment(globalObj, thisValue).
+    //  6. Set realmRec.[[GlobalEnv]] to newGlobalEnv.
+    //  7. Return realmRec.
+    pub fn set_realm_global_object(&mut self, global_obj: Option<Object>, this_value: Option<Object>) {
+        let go = global_obj.unwrap_or_else(|| {
+            let object_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
+            ordinary_object_create(self, Some(&object_proto), &[])
+        });
+        let tv = this_value.unwrap_or_else(|| go.clone());
+        let mut realm = self.running_execution_context().unwrap().realm.borrow_mut();
+
+        realm.global_object = Some(go.clone());
+        let new_global_env = GlobalEnvironmentRecord::new(go, tv);
+        realm.global_env = Some(new_global_env);
+    }
+
+    // SetDefaultGlobalBindings ( realmRec )
+    //
+    // The abstract operation SetDefaultGlobalBindings takes argument realmRec. It performs the following steps when
+    // called:
+    //
+    //  1. Let global be realmRec.[[GlobalObject]].
+    //  2. For each property of the Global Object specified in clause 19, do
+    //      a. Let name be the String value of the property name.
+    //      b. Let desc be the fully populated data Property Descriptor for the property, containing the specified
+    //         attributes for the property. For properties listed in 19.2, 19.3, or 19.4 the value of the [[Value]]
+    //         attribute is the corresponding intrinsic object from realmRec.
+    //      c. Perform ? DefinePropertyOrThrow(global, name, desc).
+    //  3. Return global.
+    pub fn set_default_global_bindings(&mut self) {
+        let global = get_global_object(self).unwrap();
+        let gtv = {
+            let global_env = &self.running_execution_context().unwrap().realm.borrow().global_env;
+            global_env.as_ref().unwrap().get_this_binding()
+        };
+        define_property_or_throw(
+            self,
+            &global,
+            PropertyKey::from("globalThis"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(gtv)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            self,
+            &global,
+            PropertyKey::from("Infinity"),
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(f64::INFINITY)),
+                writable: Some(false),
+                enumerable: Some(false),
+                configurable: Some(false),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        define_property_or_throw(
+            self,
+            &global,
+            PropertyKey::from("NaN"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(f64::NAN)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            self,
+            &global,
+            PropertyKey::from("undefined"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+        )
+        .unwrap();
+        let boolean = self.intrinsic(IntrinsicId::Boolean);
+        let desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(boolean)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() };
+        define_property_or_throw(self, &global, PropertyKey::from("Boolean"), desc).unwrap();
+        // much much more...
+    }
+
     // InitializeHostDefinedRealm ( )
     //
     // The abstract operation InitializeHostDefinedRealm takes no arguments. It performs the following steps when
@@ -146,6 +233,8 @@ impl Agent {
         let realm = create_realm(self);
         let new_context = ExecutionContext::new(None, realm, None);
         self.push_execution_context(new_context);
+        self.set_realm_global_object(None, None);
+        self.set_default_global_bindings();
     }
 }
 
