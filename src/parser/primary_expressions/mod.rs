@@ -1726,7 +1726,7 @@ pub struct SubstitutionTemplate {
 
 impl fmt::Display for SubstitutionTemplate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "`{}${{ {} {}", format!("{}", self.template_head), self.expression, self.template_spans)
+        write!(f, "`{}${{ {} {}", self.template_head, self.expression, self.template_spans)
     }
 }
 
