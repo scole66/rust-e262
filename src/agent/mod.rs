@@ -164,48 +164,136 @@ impl Agent {
     //  3. Return global.
     pub fn set_default_global_bindings(&mut self) {
         let global = get_global_object(self).unwrap();
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////       Value Properties of the Global Object
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        macro_rules! global_data {
+            ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+                define_property_or_throw(
+                    self,
+                    &global,
+                    PropertyKey::from($name),
+                    PotentialPropertyDescriptor {
+                        value: Some(ECMAScriptValue::from($value)),
+                        writable: Some($writable),
+                        enumerable: Some($enumerable),
+                        configurable: Some($configurable),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+            };
+        }
+        // globalThis
+        //
+        // The initial value of the "globalThis" property of the global object in a Realm Record realm is
+        // realm.[[GlobalEnv]].[[GlobalThisValue]].
+        //
+        // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
         let gtv = {
             let global_env = &self.running_execution_context().unwrap().realm.borrow().global_env;
             global_env.as_ref().unwrap().get_this_binding()
         };
-        define_property_or_throw(
-            self,
-            &global,
-            PropertyKey::from("globalThis"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(gtv)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-        )
-        .unwrap();
-        define_property_or_throw(
-            self,
-            &global,
-            PropertyKey::from("Infinity"),
-            PotentialPropertyDescriptor {
-                value: Some(ECMAScriptValue::from(f64::INFINITY)),
-                writable: Some(false),
-                enumerable: Some(false),
-                configurable: Some(false),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        define_property_or_throw(
-            self,
-            &global,
-            PropertyKey::from("NaN"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(f64::NAN)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-        )
-        .unwrap();
-        define_property_or_throw(
-            self,
-            &global,
-            PropertyKey::from("undefined"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-        )
-        .unwrap();
-        let boolean = self.intrinsic(IntrinsicId::Boolean);
-        let desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(boolean)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() };
-        define_property_or_throw(self, &global, PropertyKey::from("Boolean"), desc).unwrap();
-        // much much more...
+        global_data!("globalThis", gtv, true, false, true);
+
+        // Infinity
+        //
+        // The value of Infinity is +∞𝔽 (see 6.1.6.1). This property has the attributes { [[Writable]]: false,
+        // [[Enumerable]]: false, [[Configurable]]: false }.
+        global_data!("Infinity", f64::INFINITY, false, false, false);
+
+        // NaN
+        //
+        // The value of NaN is NaN (see 6.1.6.1). This property has the attributes { [[Writable]]: false,
+        // [[Enumerable]]: false, [[Configurable]]: false }.
+        global_data!("NaN", f64::NAN, false, false, false);
+
+        // undefined
+        //
+        // The value of undefined is undefined (see 6.1.1). This property has the attributes { [[Writable]]: false,
+        // [[Enumerable]]: false, [[Configurable]]: false }.
+        global_data!("undefined", ECMAScriptValue::Undefined, false, false, false);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////       Function Properties of the Global Object
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        // eval ( x )
+        // isFinite ( number )
+        // isNaN ( number )
+        // parseFloat ( string )
+        // parseInt ( string, radix )
+        // decodeURI ( encodedURI )
+        // decodeURIComponent ( encodedURIComponent )
+        // encodeURI ( uri )
+        // encodeURIComponent ( uriComponent )
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////       Constructor Properties of the Global Object
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        macro_rules! constructor_property {
+            ( $name:ident ) => {
+                global_data!(stringify!($name), self.intrinsic(IntrinsicId::$name), true, false, true);
+            };
+        }
+        // AggregateError ( . . . )
+        // Array ( . . . )
+        // ArrayBuffer ( . . . )
+        // BigInt ( . . . )
+        // BigInt64Array ( . . . )
+        // BigUint64Array ( . . . )
+        // Boolean ( . . . )
+        constructor_property!(Boolean);
+        // DataView ( . . . )
+        // Date ( . . . )
+        // Error ( . . . )
+        constructor_property!(Error);
+        // EvalError ( . . . )
+        constructor_property!(EvalError);
+        // FinalizationRegistry ( . . . )
+        // Float32Array ( . . . )
+        // Float64Array ( . . . )
+        // Function ( . . . )
+        // Int8Array ( . . . )
+        // Int16Array ( . . . )
+        // Int32Array ( . . . )
+        // Map ( . . . )
+        // Number ( . . . )
+        constructor_property!(Number);
+        // Object ( . . . )
+        //constructor_property!(Object);
+        // Promise ( . . . )
+        // Proxy ( . . . )
+        // RangeError ( . . . )
+        constructor_property!(RangeError);
+        // ReferenceError ( . . . )
+        constructor_property!(ReferenceError);
+        // RegExp ( . . . )
+        // Set ( . . . )
+        // SharedArrayBuffer ( . . . )
+        // String ( . . . )
+        // Symbol ( . . . )
+        // SyntaxError ( . . . )
+        constructor_property!(SyntaxError);
+        // TypeError ( . . . )
+        constructor_property!(TypeError);
+        // Uint8Array ( . . . )
+        // Uint8ClampedArray ( . . . )
+        // Uint16Array ( . . . )
+        // Uint32Array ( . . . )
+        // URIError ( . . . )
+        constructor_property!(URIError);
+        // WeakMap ( . . . )
+        // WeakRef ( . . . )
+        // WeakSet ( . . . )
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////       Other Properties of the Global Object
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Atomics
+        // JSON
+        // Math
+        // Reflect
     }
 
     // InitializeHostDefinedRealm ( )
