@@ -232,6 +232,7 @@ pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
 //      let first_arg = args.next_arg();
 //      let second_arg = args.next_arg();
 // etc. If the args are there, you get them, if the arguments array is short, then you get undefined.
+// args.remaining() returns an iterator over the "rest" of the args (since "next_arg" won't tell if you've "gotten to the end")
 pub struct Arguments<'a> {
     iterator: std::slice::Iter<'a, ECMAScriptValue>,
     count: usize,
@@ -248,6 +249,9 @@ impl<'a> Arguments<'a> {
     }
     pub fn count(&self) -> usize {
         self.count
+    }
+    pub fn remaining(&mut self) -> &mut std::slice::Iter<'a, ECMAScriptValue> {
+        &mut self.iterator
     }
 }
 
