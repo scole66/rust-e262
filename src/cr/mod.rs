@@ -1,13 +1,13 @@
 use crate::strings::JSString;
 use crate::values::ECMAScriptValue;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CompletionInfo {
     pub value: Option<ECMAScriptValue>,
     pub target: Option<JSString>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AbruptCompletion {
     Break(CompletionInfo),
     Continue(CompletionInfo),
