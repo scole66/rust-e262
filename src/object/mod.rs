@@ -7,7 +7,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
+use super::values::{is_callable, to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
@@ -171,6 +171,122 @@ where
     T: DescriptorKind,
 {
     desc.is_generic_descriptor()
+}
+
+// FromPropertyDescriptor ( Desc )
+//
+// The abstract operation FromPropertyDescriptor takes argument Desc (a Property Descriptor or undefined). It performs
+// the following steps when called:
+//
+//  1. If Desc is undefined, return undefined.
+//  2. Let obj be ! OrdinaryObjectCreate(%Object.prototype%).
+//  3. Assert: obj is an extensible ordinary object with no own properties.
+//  4. If Desc has a [[Value]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "value", Desc.[[Value]]).
+//  5. If Desc has a [[Writable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "writable", Desc.[[Writable]]).
+//  6. If Desc has a [[Get]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "get", Desc.[[Get]]).
+//  7. If Desc has a [[Set]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "set", Desc.[[Set]]).
+//  8. If Desc has an [[Enumerable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "enumerable", Desc.[[Enumerable]]).
+//  9. If Desc has a [[Configurable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
+//  10. Return obj.
+pub fn from_property_descriptor(agent: &mut Agent, desc: Option<PropertyDescriptor>) -> Option<Object> {
+    match desc {
+        Some(d) => {
+            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            match &d.property {
+                PropertyKind::Data(DataProperty { value, writable }) => {
+                    create_data_property_or_throw(agent, &obj, "value", value.clone()).unwrap();
+                    create_data_property_or_throw(agent, &obj, "writable", *writable).unwrap();
+                }
+                PropertyKind::Accessor(AccessorProperty { get, set }) => {
+                    create_data_property_or_throw(agent, &obj, "get", get.clone()).unwrap();
+                    create_data_property_or_throw(agent, &obj, "set", set.clone()).unwrap();
+                }
+            }
+            create_data_property_or_throw(agent, &obj, "enumerable", d.enumerable).unwrap();
+            create_data_property_or_throw(agent, &obj, "configurable", d.configurable).unwrap();
+            Some(obj)
+        }
+        None => None,
+    }
+}
+
+// ToPropertyDescriptor ( Obj )
+//
+// The abstract operation ToPropertyDescriptor takes argument Obj. It performs the following steps when called:
+//
+//  1. If Type(Obj) is not Object, throw a TypeError exception.
+//  2. Let desc be a new Property Descriptor that initially has no fields.
+//  3. Let hasEnumerable be ? HasProperty(Obj, "enumerable").
+//  4. If hasEnumerable is true, then
+//      a. Let enumerable be ! ToBoolean(? Get(Obj, "enumerable")).
+//      b. Set desc.[[Enumerable]] to enumerable.
+//  5. Let hasConfigurable be ? HasProperty(Obj, "configurable").
+//  6. If hasConfigurable is true, then
+//      a. Let configurable be ! ToBoolean(? Get(Obj, "configurable")).
+//      b. Set desc.[[Configurable]] to configurable.
+//  7. Let hasValue be ? HasProperty(Obj, "value").
+//  8. If hasValue is true, then
+//      a. Let value be ? Get(Obj, "value").
+//      b. Set desc.[[Value]] to value.
+//  9. Let hasWritable be ? HasProperty(Obj, "writable").
+//  10. If hasWritable is true, then
+//      a. Let writable be ! ToBoolean(? Get(Obj, "writable")).
+//      b. Set desc.[[Writable]] to writable.
+//  11. Let hasGet be ? HasProperty(Obj, "get").
+//  12. If hasGet is true, then
+//      a. Let getter be ? Get(Obj, "get").
+//      b. If IsCallable(getter) is false and getter is not undefined, throw a TypeError exception.
+//      c. Set desc.[[Get]] to getter.
+//  13. Let hasSet be ? HasProperty(Obj, "set").
+//  14. If hasSet is true, then
+//      a. Let setter be ? Get(Obj, "set").
+//      b. If IsCallable(setter) is false and setter is not undefined, throw a TypeError exception.
+//  c. Set desc.[[Set]] to setter.
+//  15. If desc.[[Get]] is present or desc.[[Set]] is present, then
+//      a. If desc.[[Value]] is present or desc.[[Writable]] is present, throw a TypeError exception.
+//  16. Return desc.
+fn get_pd_prop(agent: &mut Agent, obj: &Object, key: impl Into<PropertyKey>) -> AltCompletion<Option<ECMAScriptValue>> {
+    Ok({
+        let key = key.into();
+        if has_property(agent, obj, &key)? {
+            Some(get(agent, obj, &key)?)
+        } else {
+            None
+        }
+    })
+}
+fn get_pd_bool(agent: &mut Agent, obj: &Object, key: &str) -> AltCompletion<Option<bool>> {
+    Ok(get_pd_prop(agent, obj, key)?.map(to_boolean))
+}
+pub fn to_property_descriptor(agent: &mut Agent, obj: &ECMAScriptValue) -> AltCompletion<PotentialPropertyDescriptor> {
+    match obj {
+        ECMAScriptValue::Object(obj) => {
+            let enumerable = get_pd_bool(agent, obj, "enumerable")?;
+            let configurable = get_pd_bool(agent, obj, "configurable")?;
+            let value = get_pd_prop(agent, obj, "value")?;
+            let writable = get_pd_bool(agent, obj, "writable")?;
+            let get = get_pd_prop(agent, obj, "get")?;
+            if let Some(getter) = &get {
+                if !getter.is_undefined() && !is_callable(getter) {
+                    return Err(create_type_error(agent, "Getter must be callable (or undefined)"));
+                }
+            }
+            let set = get_pd_prop(agent, obj, "set")?;
+            if let Some(setter) = &set {
+                if !setter.is_undefined() && !is_callable(setter) {
+                    return Err(create_type_error(agent, "Setter must be callable (or undefined)"));
+                }
+            }
+            Ok(PotentialPropertyDescriptor { enumerable, configurable, value, writable, get, set })
+        }
+        _ => Err(create_type_error(agent, "Must be an object")),
+    }
 }
 
 // OrdinaryGetPrototypeOf ( O )
@@ -1204,6 +1320,29 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: PropertyKey, value: ECMAScr
 pub fn create_data_property(agent: &mut Agent, obj: &Object, p: PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
     let new_desc = PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     obj.o.define_own_property(agent, p, new_desc)
+}
+
+// CreateDataPropertyOrThrow ( O, P, V )
+//
+// The abstract operation CreateDataPropertyOrThrow takes arguments O (an Object), P (a property key), and V (an
+// ECMAScript language value). It is used to create a new own property of an object. It throws a TypeError exception if
+// the requested property update cannot be performed. It performs the following steps when called:
+//
+//  1. Let success be ? CreateDataProperty(O, P, V).
+//  2. If success is false, throw a TypeError exception.
+//  3. Return success.
+//
+// NOTE     | This abstract operation creates a property whose attributes are set to the same defaults used for
+//          | properties created by the ECMAScript language assignment operator. Normally, the property will not
+//          | already exist. If it does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]]
+//          | will return false causing this operation to throw a TypeError exception.
+pub fn create_data_property_or_throw(agent: &mut Agent, obj: &Object, p: impl Into<PropertyKey>, v: impl Into<ECMAScriptValue>) -> AltCompletion<()> {
+    let success = create_data_property(agent, obj, p.into(), v.into())?;
+    if !success {
+        Err(create_type_error(agent, "Unable to create data property"))
+    } else {
+        Ok(())
+    }
 }
 
 // DefinePropertyOrThrow ( O, P, desc )

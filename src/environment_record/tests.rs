@@ -1324,7 +1324,7 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = TestObject::object(&mut agent, &[FunctionId::Delete]);
+            let global_object = TestObject::object(&mut agent, &[FunctionId::Delete(None)]);
             let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
@@ -1500,7 +1500,7 @@ mod global_environment_record {
             ger.can_declare_global_var(&mut agent, &JSString::from(name)).unwrap()
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
         fn error(method: FunctionId) -> String {
             // Setup
@@ -1546,7 +1546,7 @@ mod global_environment_record {
 
             ger.can_declare_global_function(&mut agent, &test_name).unwrap()
         }
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
         fn error(method: FunctionId) -> String {
             // Setup
@@ -1613,10 +1613,10 @@ mod global_environment_record {
             }
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
-        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
-        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        #[test_case(FunctionId::DefineOwnProperty(None) => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set(None) => "[[Set]] called on TestObject"; "Set")]
         fn error(method: FunctionId) -> String {
             // Setup
             let mut agent = test_agent();
@@ -1661,9 +1661,9 @@ mod global_environment_record {
             }
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
-        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
-        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::DefineOwnProperty(None) => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set(None) => "[[Set]] called on TestObject"; "Set")]
         fn error(method: FunctionId) -> String {
             // Setup
             let mut agent = test_agent();
@@ -1754,7 +1754,7 @@ mod get_identifier_reference {
     #[test]
     fn error() {
         let mut agent = test_agent();
-        let binding_object = TestObject::object(&mut agent, &[FunctionId::HasProperty]);
+        let binding_object = TestObject::object(&mut agent, &[FunctionId::HasProperty(None)]);
         let env = ObjectEnvironmentRecord::new(binding_object, false, None);
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
 

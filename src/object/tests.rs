@@ -551,7 +551,7 @@ fn ordinary_define_own_property_03() {
 fn ordinary_define_own_property_04() {
     // [[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
 
@@ -1016,7 +1016,7 @@ fn ordinary_has_property_01() {
 fn ordinary_has_property_02() {
     // [[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
     let result = ordinary_has_property(&mut agent, &obj, &key).unwrap_err();
@@ -1037,7 +1037,7 @@ fn ordinary_has_property_03() {
 fn ordinary_get_01() {
     // [[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
     let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap_err();
@@ -1144,7 +1144,7 @@ fn ordinary_get_07() {
 fn ordinary_set_01() {
     // [[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -1181,7 +1181,7 @@ fn ordinary_set_with_own_descriptor_01() {
 fn ordinary_set_with_own_descriptor_02() {
     // If ownDesc is None, call [[Set]] on the parent. (We check by having the parent throw when we call its [[Set]].)
     let mut agent = test_agent();
-    let parent = TestObject::object(&mut agent, &[FunctionId::Set]);
+    let parent = TestObject::object(&mut agent, &[FunctionId::Set(None)]);
     let obj = ordinary_object_create(&mut agent, Some(&parent), &[]);
     let key = PropertyKey::from("a");
 
@@ -1217,7 +1217,7 @@ fn ordinary_set_with_own_descriptor_04() {
 fn ordinary_set_with_own_descriptor_05() {
     // receiver.[[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -1368,7 +1368,7 @@ fn ordinary_set_with_own_descriptor_12() {
 fn ordinary_delete_01() {
     // [[GetOwnProperty]] throws
     let mut agent = test_agent();
-    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty]);
+    let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
 
     let result = ordinary_delete(&mut agent, &obj, &key).unwrap_err();
@@ -2072,5 +2072,262 @@ mod private_set {
         private_set(&mut agent, &obj, &query, new_value).map_err(|e| unwind_type_error(&mut agent, e))?;
 
         Ok(private_get(&mut agent, &obj, &query).unwrap())
+    }
+}
+
+mod create_data_property_or_throw {
+    // create_data_property_or_throw::<&str, &str>
+    // create_data_property_or_throw::<&str, bool>
+    // create_data_property_or_throw::<&str, res::values::ECMAScriptValue>
+    use super::*;
+
+    mod happy {
+        use super::*;
+        #[test]
+        fn string() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+
+            create_data_property_or_throw(&mut agent, &obj, "key", "blue").unwrap();
+
+            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("key")).unwrap(), ECMAScriptValue::from("blue"));
+        }
+        #[test]
+        fn boolean() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+
+            create_data_property_or_throw(&mut agent, &obj, "key", true).unwrap();
+
+            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("key")).unwrap(), ECMAScriptValue::from(true));
+        }
+        #[test]
+        fn value() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+
+            create_data_property_or_throw(&mut agent, &obj, "key", ECMAScriptValue::Null).unwrap();
+
+            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("key")).unwrap(), ECMAScriptValue::Null);
+        }
+    }
+
+    mod normal_error {
+        use super::*;
+        #[test]
+        fn string() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            obj.o.prevent_extensions(&mut agent).unwrap();
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", "blue").unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "Unable to create data property");
+        }
+        #[test]
+        fn boolean() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            obj.o.prevent_extensions(&mut agent).unwrap();
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", true).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "Unable to create data property");
+        }
+        #[test]
+        fn value() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            obj.o.prevent_extensions(&mut agent).unwrap();
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", ECMAScriptValue::Null).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "Unable to create data property");
+        }
+    }
+
+    mod thrown_error {
+        use super::*;
+        #[test]
+        fn string() {
+            let mut agent = test_agent();
+            let obj = TestObject::object(&mut agent, &[FunctionId::DefineOwnProperty(None)]);
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", "blue").unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "[[DefineOwnProperty]] called on TestObject");
+        }
+        #[test]
+        fn boolean() {
+            let mut agent = test_agent();
+            let obj = TestObject::object(&mut agent, &[FunctionId::DefineOwnProperty(None)]);
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", true).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "[[DefineOwnProperty]] called on TestObject");
+        }
+        #[test]
+        fn value() {
+            let mut agent = test_agent();
+            let obj = TestObject::object(&mut agent, &[FunctionId::DefineOwnProperty(None)]);
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", ECMAScriptValue::Null).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "[[DefineOwnProperty]] called on TestObject");
+        }
+    }
+}
+
+mod from_property_descriptor {
+    use super::*;
+    use test_case::test_case;
+
+    fn maybeprop(agent: &mut Agent, obj: &Object, key: impl Into<PropertyKey>) -> Option<ECMAScriptValue> {
+        let key = key.into();
+        if has_property(agent, obj, &key).unwrap() {
+            Some(get(agent, obj, &key).unwrap())
+        } else {
+            None
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct TestResult {
+        value: Option<ECMAScriptValue>,
+        writable: Option<ECMAScriptValue>,
+        get: Option<ECMAScriptValue>,
+        set: Option<ECMAScriptValue>,
+        enumerable: ECMAScriptValue,
+        configurable: ECMAScriptValue,
+    }
+
+    #[test_case(None => None; "empty")]
+    #[test_case(Some(PropertyDescriptor {
+        property: PropertyKind::Data( DataProperty { value: ECMAScriptValue::Null, writable: true } ),
+        enumerable: true,
+        configurable: true,
+        spot: 0
+    }) => Some(TestResult {
+        value: Some(ECMAScriptValue::Null),
+        writable: Some(ECMAScriptValue::from(true)),
+        get: None,
+        set: None,
+        enumerable: ECMAScriptValue::from(true),
+        configurable:ECMAScriptValue::from(true)
+    }); "standard data")]
+    #[test_case(Some(PropertyDescriptor {
+        property: PropertyKind::Accessor( AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(10) } ),
+        enumerable: false,
+        configurable: true,
+        spot: 0
+    }) => Some(TestResult {
+        value: None,
+        writable: None,
+        get: Some(ECMAScriptValue::Undefined),
+        set: Some(ECMAScriptValue::from(10)),
+        enumerable: ECMAScriptValue::from(false),
+        configurable:ECMAScriptValue::from(true)
+    }); "standard accessor")]
+    fn happy(pd: Option<PropertyDescriptor>) -> Option<TestResult> {
+        let mut agent = test_agent();
+        from_property_descriptor(&mut agent, pd).map(|o| TestResult {
+            value: maybeprop(&mut agent, &o, "value"),
+            writable: maybeprop(&mut agent, &o, "writable"),
+            get: maybeprop(&mut agent, &o, "get"),
+            set: maybeprop(&mut agent, &o, "set"),
+            enumerable: maybeprop(&mut agent, &o, "enumerable").unwrap(),
+            configurable: maybeprop(&mut agent, &o, "configurable").unwrap(),
+        })
+    }
+}
+
+mod to_property_descriptor {
+    use super::*;
+    use test_case::test_case;
+
+    fn happy_data(agent: &mut Agent) -> ECMAScriptValue {
+        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        create_data_property_or_throw(agent, &obj, "value", "blue").unwrap();
+        create_data_property_or_throw(agent, &obj, "writable", true).unwrap();
+        create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();
+        create_data_property_or_throw(agent, &obj, "configurable", true).unwrap();
+        ECMAScriptValue::from(obj)
+    }
+    fn fcn_data(agent: &mut Agent) -> ECMAScriptValue {
+        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        create_data_property_or_throw(agent, &obj, "get", ECMAScriptValue::Undefined).unwrap();
+        create_data_property_or_throw(agent, &obj, "set", ECMAScriptValue::Undefined).unwrap();
+        create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();
+        create_data_property_or_throw(agent, &obj, "configurable", true).unwrap();
+        ECMAScriptValue::from(obj)
+    }
+
+    fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+        Err(create_type_error(agent, "Test Sentinel"))
+    }
+
+    #[test_case(happy_data => PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from("blue")),
+        writable: Some(true),
+        get: None,
+        set: None,
+        enumerable: Some(true),
+        configurable: Some(true),
+    }; "normal data")]
+    #[test_case(fcn_data => PotentialPropertyDescriptor {
+        value: None,
+        writable: None,
+        get: Some(ECMAScriptValue::Undefined),
+        set: Some(ECMAScriptValue::Undefined),
+        enumerable: Some(true),
+        configurable: Some(true),
+    }; "normal accessor")]
+    fn happy(create_input: fn(&mut Agent) -> ECMAScriptValue) -> PotentialPropertyDescriptor {
+        let mut agent = test_agent();
+        let input = create_input(&mut agent);
+        let result = to_property_descriptor(&mut agent, &input);
+        result.unwrap()
+    }
+
+    fn create_hasprop_error(agent: &mut Agent, name: &str) -> ECMAScriptValue {
+        ECMAScriptValue::from(TestObject::object(agent, &[FunctionId::GetOwnProperty(Some(PropertyKey::from(name)))]))
+    }
+    fn create_getter_error(agent: &mut Agent, name: &str) -> ECMAScriptValue {
+        let realm = agent.running_execution_context().unwrap().realm.clone();
+        let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(&object_prototype), &[]);
+        let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
+        let key = PropertyKey::from(name);
+        let getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+        let desc = PotentialPropertyDescriptor { enumerable: Some(true), configurable: Some(true), get: Some(ECMAScriptValue::from(getter)), ..Default::default() };
+        define_property_or_throw(agent, &obj, key, desc).unwrap();
+        ECMAScriptValue::from(obj)
+    }
+    fn create_nonfcn(agent: &mut Agent, name: &str) -> ECMAScriptValue {
+        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        create_data_property_or_throw(agent, &obj, name, name).unwrap();
+        ECMAScriptValue::from(obj)
+    }
+
+    #[test_case(|_| ECMAScriptValue::Undefined => "Must be an object"; "non-object")]
+    #[test_case(|a| create_hasprop_error(a, "enumerable") => "[[GetOwnProperty]] called on TestObject"; "enumerable has_property throws")]
+    #[test_case(|a| create_hasprop_error(a, "configurable") => "[[GetOwnProperty]] called on TestObject"; "configurable has_property throws")]
+    #[test_case(|a| create_hasprop_error(a, "value") => "[[GetOwnProperty]] called on TestObject"; "value has_property throws")]
+    #[test_case(|a| create_hasprop_error(a, "writable") => "[[GetOwnProperty]] called on TestObject"; "writable has_property throws")]
+    #[test_case(|a| create_hasprop_error(a, "get") => "[[GetOwnProperty]] called on TestObject"; "get has_property throws")]
+    #[test_case(|a| create_hasprop_error(a, "set") => "[[GetOwnProperty]] called on TestObject"; "set has_property throws")]
+    #[test_case(|a| create_getter_error(a, "enumerable") => "Test Sentinel"; "enumerable getter throws")]
+    #[test_case(|a| create_getter_error(a, "configurable") => "Test Sentinel"; "configurable getter throws")]
+    #[test_case(|a| create_getter_error(a, "value") => "Test Sentinel"; "value getter throws")]
+    #[test_case(|a| create_getter_error(a, "writable") => "Test Sentinel"; "writable getter throws")]
+    #[test_case(|a| create_getter_error(a, "get") => "Test Sentinel"; "get getter throws")]
+    #[test_case(|a| create_getter_error(a, "set") => "Test Sentinel"; "set getter throws")]
+    #[test_case(|a| create_nonfcn(a, "get") => "Getter must be callable (or undefined)"; "uncallable getter")]
+    #[test_case(|a| create_nonfcn(a, "set") => "Setter must be callable (or undefined)"; "uncallable setter")]
+    fn error(create_input: fn(&mut Agent) -> ECMAScriptValue) -> String {
+        let mut agent = test_agent();
+        let input = create_input(&mut agent);
+        let result = to_property_descriptor(&mut agent, &input);
+        unwind_type_error(&mut agent, result.unwrap_err())
     }
 }
