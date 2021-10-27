@@ -2078,6 +2078,7 @@ mod private_set {
 mod create_data_property_or_throw {
     // create_data_property_or_throw::<&str, &str>
     // create_data_property_or_throw::<&str, bool>
+    // create_data_property_or_throw::<&str, i32>
     // create_data_property_or_throw::<&str, res::values::ECMAScriptValue>
     use super::*;
 
@@ -2109,6 +2110,15 @@ mod create_data_property_or_throw {
             create_data_property_or_throw(&mut agent, &obj, "key", ECMAScriptValue::Null).unwrap();
 
             assert_eq!(get(&mut agent, &obj, &PropertyKey::from("key")).unwrap(), ECMAScriptValue::Null);
+        }
+        #[test]
+        fn integer() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+
+            create_data_property_or_throw(&mut agent, &obj, "key", 10).unwrap();
+
+            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("key")).unwrap(), ECMAScriptValue::from(10));
         }
     }
 
@@ -2144,6 +2154,16 @@ mod create_data_property_or_throw {
 
             assert_eq!(unwind_type_error(&mut agent, err), "Unable to create data property");
         }
+        #[test]
+        fn integer() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            obj.o.prevent_extensions(&mut agent).unwrap();
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", 10).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "Unable to create data property");
+        }
     }
 
     mod thrown_error {
@@ -2172,6 +2192,15 @@ mod create_data_property_or_throw {
             let obj = TestObject::object(&mut agent, &[FunctionId::DefineOwnProperty(None)]);
 
             let err = create_data_property_or_throw(&mut agent, &obj, "key", ECMAScriptValue::Null).unwrap_err();
+
+            assert_eq!(unwind_type_error(&mut agent, err), "[[DefineOwnProperty]] called on TestObject");
+        }
+        #[test]
+        fn integer() {
+            let mut agent = test_agent();
+            let obj = TestObject::object(&mut agent, &[FunctionId::DefineOwnProperty(None)]);
+
+            let err = create_data_property_or_throw(&mut agent, &obj, "key", 10).unwrap_err();
 
             assert_eq!(unwind_type_error(&mut agent, err), "[[DefineOwnProperty]] called on TestObject");
         }
