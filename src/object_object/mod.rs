@@ -1,8 +1,10 @@
 use crate::agent::{Agent, WksId};
+use crate::arrays::is_array;
 use crate::cr::Completion;
 use crate::function_object::create_builtin_function;
-use crate::object::{define_property_or_throw, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::object::{define_property_or_throw, get, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::Realm;
+use crate::strings::JSString;
 use crate::values::{to_object, ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -44,9 +46,6 @@ fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _ne
 //            test for those specific kinds of built-in objects. It does not provide a reliable type testing mechanism
 //            for other kinds of built-in or program defined objects. In addition, programs can use @@toStringTag in
 //            ways that will invalidate the reliability of such legacy type tests.
-use super::arrays::is_array;
-use super::object::get;
-use super::strings::JSString;
 fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     if this_value.is_undefined() {
         return Ok(ECMAScriptValue::from("[object Undefined]"));
@@ -88,21 +87,228 @@ fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
     Ok(ECMAScriptValue::from(result_vec))
 }
 
-pub fn attach_object_prototype_properties(agent: &mut Agent, realm: Rc<RefCell<Realm>>, target: &Object) {
-    let function_proto = realm.borrow().intrinsics.function_prototype.clone();
+pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
+    let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    let mut connect = |name, length, steps| {
-        let key = PropertyKey::from(name);
-        let fcn = create_builtin_function(agent, steps, false, length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
-        define_property_or_throw(
-            agent,
-            target,
-            key,
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-        )
-        .unwrap();
-    };
+    // The Object Constructor
+    //
+    // The Object constructor:
+    //
+    //      * is %Object%.
+    //      * is the initial value of the "Object" property of the global object.
+    //      * creates a new ordinary object when called as a constructor.
+    //      * performs a type conversion when called as a function rather than as a constructor.
+    //      * may be used as the value of an extends clause of a class definition.
+    //
+    // Properties of the Object Constructor
+    //
+    // The Object constructor:
+    //
+    //      * has a [[Prototype]] internal slot whose value is %Function.prototype%.
+    let object_constructor = create_builtin_function(
+        agent,
+        object_constructor_function,
+        true,
+        1.0,
+        PropertyKey::from("Object"),
+        &BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
 
-    connect("valueOf", 0_f64, object_prototype_value_of);
-    connect("toString", 0_f64, object_prototype_to_string);
+    // Constructor Function Properties
+    macro_rules! constructor_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            define_property_or_throw(
+                agent,
+                &object_constructor,
+                key,
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::from(function_object)),
+                    writable: Some(true),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        };
+    }
+    constructor_function!(object_assign, "assign", 2.0);
+    constructor_function!(object_create, "create", 2.0);
+    constructor_function!(object_define_properties, "defineProperties", 2.0);
+    constructor_function!(object_define_property, "defineProperty", 3.0);
+    constructor_function!(object_entries, "entries", 1.0);
+    constructor_function!(object_freeze, "freeze", 1.0);
+    constructor_function!(object_from_entries, "fromEntries", 1.0);
+    constructor_function!(object_get_own_property_descriptor, "getOwnPropertyDescriptor", 2.0);
+    constructor_function!(object_get_own_property_descriptors, "getOwnPropertyDescriptors", 1.0);
+    constructor_function!(object_get_own_property_names, "getOwnPropertyNames", 1.0);
+    constructor_function!(object_get_own_property_symbols, "getOwnPropertySymbols", 1.0);
+    constructor_function!(object_get_prototype_of, "getPrototypeOf", 1.0);
+    constructor_function!(object_has_own, "hasOwn", 2.0);
+    constructor_function!(object_is, "is", 2.0);
+    constructor_function!(object_is_extensible, "isExtensible", 1.0);
+    constructor_function!(object_is_frozen, "isFrozen", 1.0);
+    constructor_function!(object_is_sealed, "isSealed", 1.0);
+    constructor_function!(object_keys, "keys", 1.0);
+    constructor_function!(object_prevent_extensions, "preventExtensions", 1.0);
+    constructor_function!(object_seal, "seal", 1.0);
+    constructor_function!(object_set_prototype_of, "setPrototypeOf", 2.0);
+    constructor_function!(object_values, "values", 1.0);
+
+    // Object.prototype
+    //
+    // The initial value of Object.prototype is the Object prototype object.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
+    define_property_or_throw(
+        agent,
+        &object_constructor,
+        PropertyKey::from("prototype"),
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(object_prototype.clone())),
+            writable: Some(false),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // Prototype function properties
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            define_property_or_throw(
+                agent,
+                &object_prototype,
+                key,
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::from(function_object)),
+                    writable: Some(true),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        };
+    }
+
+    prototype_function!(object_prototype_value_of, "valueOf", 0.0);
+    prototype_function!(object_prototype_to_string, "toString", 0.0);
+    prototype_function!(object_prototype_has_own_property, "hasOwnProperty", 1.0);
+    prototype_function!(object_prototype_is_prototype_of, "isPrototypeOf", 1.0);
+    prototype_function!(object_prototype_property_is_enumerable, "propertyIsEnumerable", 1.0);
+    prototype_function!(object_prototype_to_locale_string, "toLocaleString", 0.0);
+
+    // Object.prototype.constructor
+    //
+    // The initial value of Object.prototype.constructor is %Object%.
+    define_property_or_throw(
+        agent,
+        &object_prototype,
+        PropertyKey::from("constructor"),
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(object_constructor.clone())),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    realm.borrow_mut().intrinsics.object = object_constructor;
 }
+
+fn object_constructor_function(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_assign(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_create(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_define_properties(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_define_property(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_freeze(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_from_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_get_own_property_descriptor(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_get_own_property_descriptors(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_get_own_property_names(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_get_own_property_symbols(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_get_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_has_own(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_is(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_is_extensible(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_is_frozen(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_is_sealed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_keys(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_prevent_extensions(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_seal(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_set_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_values(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_prototype_has_own_property(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_prototype_is_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_prototype_property_is_enumerable(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+fn object_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests;
