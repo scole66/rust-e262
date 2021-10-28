@@ -1799,7 +1799,8 @@ pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<
 
         // Add the bound-function check
         // Add the proxy check
-        todo!();
+        //todo!();
+        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
 
         Ok(_agent.running_execution_context().unwrap().realm.clone())
     }
