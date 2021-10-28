@@ -10,6 +10,7 @@ use super::realm::IntrinsicId;
 use super::values::{ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
 use std::cell::RefCell;
+use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -301,6 +302,175 @@ impl TestObject {
                 set_throws: TestObject::check_for_key(TestObject::set_match, throwers),
                 delete_throws: TestObject::check_for_key(TestObject::delete_match, throwers),
                 own_property_keys_throws: throwers.contains(&FunctionId::OwnPropertyKeys),
+            }),
+        }
+    }
+}
+
+type GetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<Option<Object>>;
+type SetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject, obj: Option<Object>) -> AltCompletion<bool>;
+type IsExtensibleFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<bool>;
+type PreventExtensionsFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<bool>;
+type GetOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
+type DefineOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
+type HasPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<bool>;
+type GetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
+type SetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
+type DeleteFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<bool>;
+type OwnPropertyKeysFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>>;
+
+pub struct AdaptableObject {
+    common: RefCell<CommonObjectData>,
+    get_prototype_of_override: Option<GetPrototypeOfFunction>,
+    set_prototype_of_override: Option<SetPrototypeOfFunction>,
+    is_extensible_override: Option<IsExtensibleFunction>,
+    prevent_extensions_override: Option<PreventExtensionsFunction>,
+    get_own_property_override: Option<GetOwnPropertyFunction>,
+    define_own_property_override: Option<DefineOwnPropertyFunction>,
+    has_property_override: Option<HasPropertyFunction>,
+    get_override: Option<GetFunction>,
+    set_override: Option<SetFunction>,
+    delete_override: Option<DeleteFunction>,
+    own_property_keys_override: Option<OwnPropertyKeysFunction>,
+}
+
+impl fmt::Debug for AdaptableObject {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("AdaptableObject")
+            .field("common", &self.common)
+            .field("get_prototype_of_override", &self.get_prototype_of_override.and(Some("replacement function")))
+            .field("set_prototype_of_override", &self.set_prototype_of_override.and(Some("replacement function")))
+            .field("is_extensible_override", &self.is_extensible_override.and(Some("replacement function")))
+            .field("prevent_extensions_override", &self.prevent_extensions_override.and(Some("replacement function")))
+            .field("get_own_property_override", &self.get_own_property_override.and(Some("replacement function")))
+            .field("define_own_property_override", &self.define_own_property_override.and(Some("replacement function")))
+            .field("has_property_override", &self.has_property_override.and(Some("replacement function")))
+            .field("get_override", &self.get_override.and(Some("replacement function")))
+            .field("set_override", &self.set_override.and(Some("replacement function")))
+            .field("delete_override", &self.delete_override.and(Some("replacement function")))
+            .field("own_property_keys_override", &self.own_property_keys_override.and(Some("replacement function")))
+            .finish()
+    }
+}
+
+impl<'a> From<&'a AdaptableObject> for &'a dyn ObjectInterface {
+    fn from(obj: &'a AdaptableObject) -> Self {
+        obj
+    }
+}
+
+impl ObjectInterface for AdaptableObject {
+    fn common_object_data(&self) -> &RefCell<CommonObjectData> {
+        &self.common
+    }
+    fn is_ordinary(&self) -> bool {
+        self.get_prototype_of_override.is_none() && self.set_prototype_of_override.is_none()
+    }
+    fn id(&self) -> usize {
+        self.common.borrow().objid
+    }
+
+    fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
+        match &self.get_prototype_of_override {
+            Some(func) => func(agent, self),
+            None => Ok(ordinary_get_prototype_of(self)),
+        }
+    }
+
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+        match &self.set_prototype_of_override {
+            Some(func) => func(agent, self, obj),
+            None => Ok(ordinary_set_prototype_of(self, obj)),
+        }
+    }
+    fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool> {
+        match &self.is_extensible_override {
+            Some(func) => func(agent, self),
+            None => Ok(ordinary_is_extensible(self)),
+        }
+    }
+    fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool> {
+        match &self.prevent_extensions_override {
+            Some(func) => func(agent, self),
+            None => Ok(ordinary_prevent_extensions(self)),
+        }
+    }
+    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        match &self.get_own_property_override {
+            Some(func) => func(agent, self, key),
+            None => Ok(ordinary_get_own_property(self, key)),
+        }
+    }
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+        match &self.define_own_property_override {
+            Some(func) => func(agent, self, key, desc),
+            None => ordinary_define_own_property(agent, self, key, desc),
+        }
+    }
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+        match &self.has_property_override {
+            Some(func) => func(agent, self, key),
+            None => ordinary_has_property(agent, self, key),
+        }
+    }
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+        match &self.get_override {
+            Some(func) => func(agent, self, key, receiver),
+            None => ordinary_get(agent, self, key, receiver),
+        }
+    }
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+        match &self.set_override {
+            Some(func) => func(agent, self, key, value, receiver),
+            None => ordinary_set(agent, self, key, value, receiver),
+        }
+    }
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+        match &self.delete_override {
+            Some(func) => func(agent, self, key),
+            None => ordinary_delete(agent, self, key),
+        }
+    }
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        match &self.own_property_keys_override {
+            Some(func) => func(agent, self),
+            None => Ok(ordinary_own_property_keys(self)),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct AdaptableMethods {
+    pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
+    pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
+    pub is_extensible_override: Option<IsExtensibleFunction>,
+    pub prevent_extensions_override: Option<PreventExtensionsFunction>,
+    pub get_own_property_override: Option<GetOwnPropertyFunction>,
+    pub define_own_property_override: Option<DefineOwnPropertyFunction>,
+    pub has_property_override: Option<HasPropertyFunction>,
+    pub get_override: Option<GetFunction>,
+    pub set_override: Option<SetFunction>,
+    pub delete_override: Option<DeleteFunction>,
+    pub own_property_keys_override: Option<OwnPropertyKeysFunction>,
+}
+
+impl AdaptableObject {
+    pub fn object(agent: &mut Agent, methods: AdaptableMethods) -> Object {
+        let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, Some(prototype), true, &ORDINARY_OBJECT_SLOTS)),
+                get_prototype_of_override: methods.get_prototype_of_override,
+                set_prototype_of_override: methods.set_prototype_of_override,
+                is_extensible_override: methods.is_extensible_override,
+                prevent_extensions_override: methods.prevent_extensions_override,
+                get_own_property_override: methods.get_own_property_override,
+                define_own_property_override: methods.define_own_property_override,
+                has_property_override: methods.has_property_override,
+                get_override: methods.get_override,
+                set_override: methods.set_override,
+                delete_override: methods.delete_override,
+                own_property_keys_override: methods.own_property_keys_override,
             }),
         }
     }
