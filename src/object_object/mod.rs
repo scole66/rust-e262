@@ -2,7 +2,7 @@ use crate::agent::{Agent, WksId};
 use crate::arrays::is_array;
 use crate::cr::Completion;
 use crate::function_object::{create_builtin_function, Arguments};
-use crate::object::{define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::object::{define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, set, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
 use crate::values::{to_object, ECMAScriptValue, PropertyKey};
@@ -252,9 +252,47 @@ fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
     Ok(ECMAScriptValue::from(obj))
 }
 
-fn object_assign(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.assign ( target, ...sources )
+//
+// The assign function is used to copy the values of all of the enumerable own properties from one or more source
+// objects to a target object. When the assign function is called, the following steps are taken:
+//
+//  1. Let to be ? ToObject(target).
+//  2. If only one argument was passed, return to.
+//  3. For each element nextSource of sources, do
+//      a. If nextSource is neither undefined nor null, then
+//          i. Let from be ! ToObject(nextSource).
+//          ii. Let keys be ? from.[[OwnPropertyKeys]]().
+//          iii. For each element nextKey of keys, do
+//              1. Let desc be ? from.[[GetOwnProperty]](nextKey).
+//              2. If desc is not undefined and desc.[[Enumerable]] is true, then
+//                  a. Let propValue be ? Get(from, nextKey).
+//                  b. Perform ? Set(to, nextKey, propValue, true).
+//  4. Return to.
+//
+// The "length" property of the assign function is 2𝔽.
+fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let target = args.next_arg();
+    let to = to_object(agent, target)?;
+    for next_source in args.remaining() {
+        if !(next_source.is_null() || next_source.is_undefined()) {
+            let from = to_object(agent, next_source.clone()).unwrap();
+            let keys = from.o.own_property_keys(agent)?;
+            for next_key in keys {
+                let option_desc = from.o.get_own_property(agent, &next_key)?;
+                if let Some(desc) = option_desc {
+                    if desc.enumerable {
+                        let prop_value = get(agent, &from, &next_key)?;
+                        set(agent, &to, next_key, prop_value, true)?;
+                    }
+                }
+            }
+        }
+    }
+    Ok(ECMAScriptValue::from(to))
 }
+
 fn object_create(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }

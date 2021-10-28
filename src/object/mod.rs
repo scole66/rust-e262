@@ -42,7 +42,7 @@ pub struct PropertyDescriptor {
     pub property: PropertyKind,
     pub enumerable: bool,
     pub configurable: bool,
-    spot: usize,
+    pub spot: usize,
 }
 
 struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
