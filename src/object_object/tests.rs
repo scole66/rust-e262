@@ -1,7 +1,7 @@
 use super::*;
-use crate::realm::IntrinsicId;
 use crate::errors::create_type_error_object;
 use crate::object::{ordinary_object_create, set, DeadObject};
+use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
 use crate::values::to_number;
 
