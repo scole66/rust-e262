@@ -1,8 +1,8 @@
 use super::*;
-use crate::errors::create_type_error_object;
+use crate::errors::{create_type_error, create_type_error_object};
 use crate::object::{ordinary_object_create, set, DeadObject};
 use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_type_error};
+use crate::tests::{test_agent, unwind_type_error, AdaptableMethods, AdaptableObject};
 use crate::values::{to_number, to_string};
 
 mod prototype {
@@ -74,6 +74,10 @@ mod constructor {
     use super::*;
     use test_case::test_case;
 
+    fn get_sentinel(a: &mut Agent, _: &AdaptableObject, _: &PropertyKey, _: &ECMAScriptValue) -> Completion {
+        Err(create_type_error(a, "[[Get]] throws from AdaptableObject"))
+    }
+
     #[test_case(|a| Some(ordinary_object_create(a, None, &[])), &[ECMAScriptValue::from(10)] => "10"; "new target but no active function")]
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
@@ -87,6 +91,14 @@ mod constructor {
     }, &[ECMAScriptValue::from(12)] => "[object Object]"; "unrelated new target")]
     #[test_case(|_| None, &[ECMAScriptValue::Null] => "[object Object]"; "null value")]
     #[test_case(|_| None, &[ECMAScriptValue::Undefined] => "[object Object]"; "undefined value")]
+    #[test_case(|a| {
+        let obj = ordinary_object_create(a, None, &[]);
+        a.running_execution_context_mut().unwrap().function = Some(obj);
+        let nt = AdaptableObject::object(a, AdaptableMethods {
+            get_override: Some(get_sentinel), ..Default::default()
+        });
+        Some(nt)
+    }, &[] => "[[Get]] throws from AdaptableObject"; "ordinary_create_from_constructor throws")]
     fn function(new_target: fn(&mut Agent) -> Option<Object>, args: &[ECMAScriptValue]) -> String {
         let mut agent = test_agent();
         let nt = new_target(&mut agent);
