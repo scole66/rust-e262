@@ -82,7 +82,7 @@ mod constructor {
     }, &[ECMAScriptValue::from(11)] => "11"; "related new target")]
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
-        a.running_execution_context_mut().unwrap().function = Some(obj.clone());
+        a.running_execution_context_mut().unwrap().function = Some(obj);
         Some(ordinary_object_create(a, None, &[]))
     }, &[ECMAScriptValue::from(12)] => "[object Object]"; "unrelated new target")]
     #[test_case(|_| None, &[ECMAScriptValue::Null] => "[object Object]"; "null value")]
