@@ -1786,8 +1786,7 @@ pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option
 //
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
-#[allow(unreachable_code)]
-pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<RefCell<Realm>>> {
+pub fn get_function_realm(agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<RefCell<Realm>>> {
     if let Some(f) = obj.o.to_function_obj() {
         Ok(f.function_data().borrow().realm.clone())
     } else if let Some(b) = obj.o.to_builtin_function_obj() {
@@ -1799,9 +1798,9 @@ pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<
 
         // Add the bound-function check
         // Add the proxy check
-        todo!();
+        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
 
-        Ok(_agent.running_execution_context().unwrap().realm.clone())
+        Ok(agent.running_execution_context().unwrap().realm.clone())
     }
 }
 

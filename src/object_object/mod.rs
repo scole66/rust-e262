@@ -1,9 +1,9 @@
 use crate::agent::{Agent, WksId};
 use crate::arrays::is_array;
 use crate::cr::Completion;
-use crate::function_object::create_builtin_function;
-use crate::object::{define_property_or_throw, get, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
-use crate::realm::Realm;
+use crate::function_object::{create_builtin_function, Arguments};
+use crate::object::{define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
 use crate::values::{to_object, ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
@@ -228,9 +228,30 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     realm.borrow_mut().intrinsics.object = object_constructor;
 }
 
-fn object_constructor_function(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object ( [ value ] )
+//
+// When the Object function is called with optional argument value, the following steps are taken:
+//
+//  1. If NewTarget is neither undefined nor the active function, then
+//      a. Return ? OrdinaryCreateFromConstructor(NewTarget, "%Object.prototype%").
+//  2. If value is undefined or null, return ! OrdinaryObjectCreate(%Object.prototype%).
+//  3. Return ! ToObject(value).
+// The "length" property of the Object function is 1𝔽.
+fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    if let Some(nt) = new_target {
+        if let Some(afo) = agent.active_function_object() {
+            if *nt != afo {
+                return ordinary_create_from_constructor(agent, nt, IntrinsicId::ObjectPrototype, &[]).map(ECMAScriptValue::from);
+            }
+        }
+    }
+    let mut args = Arguments::from(arguments);
+    let value = args.next_arg();
+    let obj =
+        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
+    Ok(ECMAScriptValue::from(obj))
 }
+
 fn object_assign(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
