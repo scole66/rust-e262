@@ -932,6 +932,20 @@ pub trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
+// This is really for debugging. It's the output structure from propdump.
+#[derive(Debug, PartialEq)]
+pub enum PropertyInfoKind {
+    Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
+    Data { value: ECMAScriptValue, writable: bool },
+}
+#[derive(Debug, PartialEq)]
+pub struct PropertyInfo {
+    pub name: PropertyKey,
+    pub enumerable: bool,
+    pub configurable: bool,
+    pub kind: PropertyInfoKind,
+}
+
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -945,6 +959,27 @@ pub struct CommonObjectData {
 impl CommonObjectData {
     pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
         Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots), private_elements: vec![] }
+    }
+
+    pub fn propdump(&self) -> Vec<PropertyInfo> {
+        // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
+        // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
+        let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
+        keys.sort_by_cached_key(|a| self.properties.get(*a).unwrap().spot);
+        let mut result = vec![];
+        for key in keys {
+            let prop = self.properties.get(key).unwrap();
+            result.push(PropertyInfo {
+                name: key.clone(),
+                enumerable: prop.enumerable,
+                configurable: prop.configurable,
+                kind: match &prop.property {
+                    PropertyKind::Data(DataProperty { value, writable }) => PropertyInfoKind::Data { value: value.clone(), writable: *writable },
+                    PropertyKind::Accessor(AccessorProperty { get, set }) => PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() },
+                },
+            });
+        }
+        result
     }
 }
 
