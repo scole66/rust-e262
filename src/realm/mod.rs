@@ -11,7 +11,7 @@ use super::object::{
     define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
     BUILTIN_FUNCTION_SLOTS,
 };
-use super::object_object::attach_object_prototype_properties;
+use super::object_object::provision_object_intrinsic;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::fmt;
@@ -365,10 +365,9 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_syntax_error_intrinsic(agent, &realm_rec);
     provision_type_error_intrinsic(agent, &realm_rec);
     provision_uri_error_intrinsic(agent, &realm_rec);
+    provision_object_intrinsic(agent, &realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
-
-    attach_object_prototype_properties(agent, realm_rec, &object_prototype);
 }
 
 // From function objects...

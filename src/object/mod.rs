@@ -7,7 +7,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_object, ECMAScriptValue, PropertyKey};
+use super::values::{is_callable, to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::fmt::{self, Debug};
@@ -42,7 +42,7 @@ pub struct PropertyDescriptor {
     pub property: PropertyKind,
     pub enumerable: bool,
     pub configurable: bool,
-    spot: usize,
+    pub spot: usize,
 }
 
 struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
@@ -171,6 +171,122 @@ where
     T: DescriptorKind,
 {
     desc.is_generic_descriptor()
+}
+
+// FromPropertyDescriptor ( Desc )
+//
+// The abstract operation FromPropertyDescriptor takes argument Desc (a Property Descriptor or undefined). It performs
+// the following steps when called:
+//
+//  1. If Desc is undefined, return undefined.
+//  2. Let obj be ! OrdinaryObjectCreate(%Object.prototype%).
+//  3. Assert: obj is an extensible ordinary object with no own properties.
+//  4. If Desc has a [[Value]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "value", Desc.[[Value]]).
+//  5. If Desc has a [[Writable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "writable", Desc.[[Writable]]).
+//  6. If Desc has a [[Get]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "get", Desc.[[Get]]).
+//  7. If Desc has a [[Set]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "set", Desc.[[Set]]).
+//  8. If Desc has an [[Enumerable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "enumerable", Desc.[[Enumerable]]).
+//  9. If Desc has a [[Configurable]] field, then
+//      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
+//  10. Return obj.
+pub fn from_property_descriptor(agent: &mut Agent, desc: Option<PropertyDescriptor>) -> Option<Object> {
+    match desc {
+        Some(d) => {
+            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            match &d.property {
+                PropertyKind::Data(DataProperty { value, writable }) => {
+                    create_data_property_or_throw(agent, &obj, "value", value.clone()).unwrap();
+                    create_data_property_or_throw(agent, &obj, "writable", *writable).unwrap();
+                }
+                PropertyKind::Accessor(AccessorProperty { get, set }) => {
+                    create_data_property_or_throw(agent, &obj, "get", get.clone()).unwrap();
+                    create_data_property_or_throw(agent, &obj, "set", set.clone()).unwrap();
+                }
+            }
+            create_data_property_or_throw(agent, &obj, "enumerable", d.enumerable).unwrap();
+            create_data_property_or_throw(agent, &obj, "configurable", d.configurable).unwrap();
+            Some(obj)
+        }
+        None => None,
+    }
+}
+
+// ToPropertyDescriptor ( Obj )
+//
+// The abstract operation ToPropertyDescriptor takes argument Obj. It performs the following steps when called:
+//
+//  1. If Type(Obj) is not Object, throw a TypeError exception.
+//  2. Let desc be a new Property Descriptor that initially has no fields.
+//  3. Let hasEnumerable be ? HasProperty(Obj, "enumerable").
+//  4. If hasEnumerable is true, then
+//      a. Let enumerable be ! ToBoolean(? Get(Obj, "enumerable")).
+//      b. Set desc.[[Enumerable]] to enumerable.
+//  5. Let hasConfigurable be ? HasProperty(Obj, "configurable").
+//  6. If hasConfigurable is true, then
+//      a. Let configurable be ! ToBoolean(? Get(Obj, "configurable")).
+//      b. Set desc.[[Configurable]] to configurable.
+//  7. Let hasValue be ? HasProperty(Obj, "value").
+//  8. If hasValue is true, then
+//      a. Let value be ? Get(Obj, "value").
+//      b. Set desc.[[Value]] to value.
+//  9. Let hasWritable be ? HasProperty(Obj, "writable").
+//  10. If hasWritable is true, then
+//      a. Let writable be ! ToBoolean(? Get(Obj, "writable")).
+//      b. Set desc.[[Writable]] to writable.
+//  11. Let hasGet be ? HasProperty(Obj, "get").
+//  12. If hasGet is true, then
+//      a. Let getter be ? Get(Obj, "get").
+//      b. If IsCallable(getter) is false and getter is not undefined, throw a TypeError exception.
+//      c. Set desc.[[Get]] to getter.
+//  13. Let hasSet be ? HasProperty(Obj, "set").
+//  14. If hasSet is true, then
+//      a. Let setter be ? Get(Obj, "set").
+//      b. If IsCallable(setter) is false and setter is not undefined, throw a TypeError exception.
+//  c. Set desc.[[Set]] to setter.
+//  15. If desc.[[Get]] is present or desc.[[Set]] is present, then
+//      a. If desc.[[Value]] is present or desc.[[Writable]] is present, throw a TypeError exception.
+//  16. Return desc.
+fn get_pd_prop(agent: &mut Agent, obj: &Object, key: impl Into<PropertyKey>) -> AltCompletion<Option<ECMAScriptValue>> {
+    Ok({
+        let key = key.into();
+        if has_property(agent, obj, &key)? {
+            Some(get(agent, obj, &key)?)
+        } else {
+            None
+        }
+    })
+}
+fn get_pd_bool(agent: &mut Agent, obj: &Object, key: &str) -> AltCompletion<Option<bool>> {
+    Ok(get_pd_prop(agent, obj, key)?.map(to_boolean))
+}
+pub fn to_property_descriptor(agent: &mut Agent, obj: &ECMAScriptValue) -> AltCompletion<PotentialPropertyDescriptor> {
+    match obj {
+        ECMAScriptValue::Object(obj) => {
+            let enumerable = get_pd_bool(agent, obj, "enumerable")?;
+            let configurable = get_pd_bool(agent, obj, "configurable")?;
+            let value = get_pd_prop(agent, obj, "value")?;
+            let writable = get_pd_bool(agent, obj, "writable")?;
+            let get = get_pd_prop(agent, obj, "get")?;
+            if let Some(getter) = &get {
+                if !getter.is_undefined() && !is_callable(getter) {
+                    return Err(create_type_error(agent, "Getter must be callable (or undefined)"));
+                }
+            }
+            let set = get_pd_prop(agent, obj, "set")?;
+            if let Some(setter) = &set {
+                if !setter.is_undefined() && !is_callable(setter) {
+                    return Err(create_type_error(agent, "Setter must be callable (or undefined)"));
+                }
+            }
+            Ok(PotentialPropertyDescriptor { enumerable, configurable, value, writable, get, set })
+        }
+        _ => Err(create_type_error(agent, "Must be an object")),
+    }
 }
 
 // OrdinaryGetPrototypeOf ( O )
@@ -816,6 +932,20 @@ pub trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
+// This is really for debugging. It's the output structure from propdump.
+#[derive(Debug, PartialEq)]
+pub enum PropertyInfoKind {
+    Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
+    Data { value: ECMAScriptValue, writable: bool },
+}
+#[derive(Debug, PartialEq)]
+pub struct PropertyInfo {
+    pub name: PropertyKey,
+    pub enumerable: bool,
+    pub configurable: bool,
+    pub kind: PropertyInfoKind,
+}
+
 pub struct CommonObjectData {
     pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
     pub prototype: Option<Object>,
@@ -823,11 +953,33 @@ pub struct CommonObjectData {
     pub next_spot: usize,
     pub objid: usize,
     pub slots: Vec<InternalSlotName>,
+    pub private_elements: Vec<Rc<PrivateElement>>,
 }
 
 impl CommonObjectData {
     pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
-        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots) }
+        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots), private_elements: vec![] }
+    }
+
+    pub fn propdump(&self) -> Vec<PropertyInfo> {
+        // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
+        // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
+        let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
+        keys.sort_by_cached_key(|a| self.properties.get(*a).unwrap().spot);
+        let mut result = vec![];
+        for key in keys {
+            let prop = self.properties.get(key).unwrap();
+            result.push(PropertyInfo {
+                name: key.clone(),
+                enumerable: prop.enumerable,
+                configurable: prop.configurable,
+                kind: match &prop.property {
+                    PropertyKind::Data(DataProperty { value, writable }) => PropertyInfoKind::Data { value: value.clone(), writable: *writable },
+                    PropertyKind::Accessor(AccessorProperty { get, set }) => PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() },
+                },
+            });
+        }
+        result
     }
 }
 
@@ -1203,6 +1355,29 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: PropertyKey, value: ECMAScr
 pub fn create_data_property(agent: &mut Agent, obj: &Object, p: PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
     let new_desc = PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     obj.o.define_own_property(agent, p, new_desc)
+}
+
+// CreateDataPropertyOrThrow ( O, P, V )
+//
+// The abstract operation CreateDataPropertyOrThrow takes arguments O (an Object), P (a property key), and V (an
+// ECMAScript language value). It is used to create a new own property of an object. It throws a TypeError exception if
+// the requested property update cannot be performed. It performs the following steps when called:
+//
+//  1. Let success be ? CreateDataProperty(O, P, V).
+//  2. If success is false, throw a TypeError exception.
+//  3. Return success.
+//
+// NOTE     | This abstract operation creates a property whose attributes are set to the same defaults used for
+//          | properties created by the ECMAScript language assignment operator. Normally, the property will not
+//          | already exist. If it does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]]
+//          | will return false causing this operation to throw a TypeError exception.
+pub fn create_data_property_or_throw(agent: &mut Agent, obj: &Object, p: impl Into<PropertyKey>, v: impl Into<ECMAScriptValue>) -> AltCompletion<()> {
+    let success = create_data_property(agent, obj, p.into(), v.into())?;
+    if !success {
+        Err(create_type_error(agent, "Unable to create data property"))
+    } else {
+        Ok(())
+    }
 }
 
 // DefinePropertyOrThrow ( O, P, desc )
@@ -1646,8 +1821,7 @@ pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option
 //
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
-#[allow(unreachable_code)]
-pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<RefCell<Realm>>> {
+pub fn get_function_realm(agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<RefCell<Realm>>> {
     if let Some(f) = obj.o.to_function_obj() {
         Ok(f.function_data().borrow().realm.clone())
     } else if let Some(b) = obj.o.to_builtin_function_obj() {
@@ -1659,9 +1833,124 @@ pub fn get_function_realm(_agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<
 
         // Add the bound-function check
         // Add the proxy check
-        todo!();
+        eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
 
-        Ok(_agent.running_execution_context().unwrap().realm.clone())
+        Ok(agent.running_execution_context().unwrap().realm.clone())
+    }
+}
+
+// PrivateElementFind ( O, P )
+//
+// The abstract operation PrivateElementFind takes arguments O (an Object) and P (a Private Name). It performs the
+// following steps when called:
+//
+//  1. If O.[[PrivateElements]] contains a PrivateElement whose [[Key]] is P, then
+//      a. Let entry be that PrivateElement.
+//      b. Return entry.
+//  2. Return empty.
+pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
+    let cod = o.o.common_object_data().borrow();
+    let item = cod.private_elements.iter().find(|&item| item.key == *p);
+    item.cloned()
+}
+
+// PrivateFieldAdd ( O, P, value )
+//
+// The abstract operation PrivateFieldAdd takes arguments O (an Object), P (a Private Name), and value (an ECMAScript
+// language value). It performs the following steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is not empty, throw a TypeError exception.
+//  3. Append PrivateElement { [[Key]]: P, [[Kind]]: field, [[Value]]: value } to O.[[PrivateElements]].
+pub fn private_field_add(agent: &mut Agent, obj: &Object, p: PrivateName, value: ECMAScriptValue) -> AltCompletion<()> {
+    let entry = private_element_find(obj, &p);
+    match entry {
+        Some(_) => Err(create_type_error(agent, "PrivateName already defined")),
+        None => {
+            let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
+            elements.push(Rc::new(PrivateElement { key: p, kind: PrivateElementKind::Field { value: RefCell::new(value) } }));
+            Ok(())
+        }
+    }
+}
+
+// PrivateMethodOrAccessorAdd ( O, method )
+//
+// The abstract operation PrivateMethodOrAccessorAdd takes arguments O (an Object) and method (a PrivateElement). It
+// performs the following steps when called:
+//
+//  1. Assert: method.[[Kind]] is either method or accessor.
+//  2. Let entry be ! PrivateElementFind(O, method.[[Key]]).
+//  3. If entry is not empty, throw a TypeError exception.
+//  4. Append method to O.[[PrivateElements]].
+//
+// NOTE: The values for private methods and accessors are shared across instances. This step does not create a new copy
+// of the method or accessor.
+pub fn private_method_or_accessor_add(agent: &mut Agent, obj: &Object, method: Rc<PrivateElement>) -> AltCompletion<()> {
+    if private_element_find(obj, &method.key).is_some() {
+        Err(create_type_error(agent, "PrivateName already defined"))
+    } else {
+        obj.o.common_object_data().borrow_mut().private_elements.push(method);
+        Ok(())
+    }
+}
+
+// PrivateGet ( O, P )
+//
+// The abstract operation PrivateGet takes arguments O (an Object) and P (a Private Name). It performs the following
+// steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is empty, throw a TypeError exception.
+//  3. If entry.[[Kind]] is field or method, then
+//      a. Return entry.[[Value]].
+//  4. Assert: entry.[[Kind]] is accessor.
+//  5. If entry.[[Get]] is undefined, throw a TypeError exception.
+//  6. Let getter be entry.[[Get]].
+//  7. Return ? Call(getter, O).
+pub fn private_get(agent: &mut Agent, obj: &Object, pn: &PrivateName) -> Completion {
+    match private_element_find(obj, pn) {
+        None => Err(create_type_error(agent, "PrivateName not defined")),
+        Some(pe) => match &pe.kind {
+            PrivateElementKind::Field { value } => Ok(value.borrow().clone()),
+            PrivateElementKind::Method { value } => Ok(value.clone()),
+            PrivateElementKind::Accessor { get: None, set: _ } => Err(create_type_error(agent, "PrivateName has no getter")),
+            PrivateElementKind::Accessor { get: Some(getter), set: _ } => call(agent, &ECMAScriptValue::from(getter), &ECMAScriptValue::from(obj), &[]),
+        },
+    }
+}
+
+// PrivateSet ( O, P, value )
+//
+// The abstract operation PrivateSet takes arguments O (an Object), P (a Private Name), and value (an ECMAScript
+// language value). It performs the following steps when called:
+//
+//  1. Let entry be ! PrivateElementFind(O, P).
+//  2. If entry is empty, throw a TypeError exception.
+//  3. If entry.[[Kind]] is field, then
+//      a. Set entry.[[Value]] to value.
+//  4. Else if entry.[[Kind]] is method, then
+//      a. Throw a TypeError exception.
+//  5. Else,
+//      a. Assert: entry.[[Kind]] is accessor.
+//      b. If entry.[[Set]] is undefined, throw a TypeError exception.
+//      c. Let setter be entry.[[Set]].
+//      d. Perform ? Call(setter, O, « value »).
+pub fn private_set(agent: &mut Agent, obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> AltCompletion<()> {
+    match private_element_find(obj, pn) {
+        None => Err(create_type_error(agent, "PrivateName not defined")),
+        Some(pe) => match &pe.kind {
+            PrivateElementKind::Field { value } => {
+                *value.borrow_mut() = v;
+                Ok(())
+            }
+            PrivateElementKind::Method { value: _ } => Err(create_type_error(agent, "PrivateName method may not be assigned")),
+            PrivateElementKind::Accessor { get: _, set: None } => Err(create_type_error(agent, "PrivateName has no setter")),
+            PrivateElementKind::Accessor { get: _, set: Some(setter) } => {
+                call(agent, &ECMAScriptValue::from(setter), &ECMAScriptValue::from(obj), &[v])?;
+                Ok(())
+            }
+        },
     }
 }
 

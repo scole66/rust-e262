@@ -12,11 +12,13 @@ use super::symbol_object::create_symbol_object;
 use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
 use regex::Regex;
+use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::rc::Rc;
+use uid::Id as IdT;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ECMAScriptValue {
@@ -276,8 +278,81 @@ impl fmt::Display for Symbol {
     }
 }
 
-#[derive(Debug)]
-pub struct PrivateName {}
+// Private Names
+//
+// The Private Name specification type is used to describe a globally unique value (one which differs from any other
+// Private Name, even if they are otherwise indistinguishable) which represents the key of a private class element
+// (field, method, or accessor). Each Private Name has an associated immutable [[Description]] which is a String value.
+// A Private Name may be installed on any ECMAScript object with PrivateFieldAdd or PrivateMethodOrAccessorAdd, and
+// then read or written using PrivateGet and PrivateSet.
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+struct PN(());
+type PNId = IdT<PN>;
+
+#[derive(Debug, Clone, Eq)]
+pub struct PrivateName {
+    pub description: JSString,
+    id: PNId,
+}
+impl PartialEq for PrivateName {
+    fn eq(&self, other: &Self) -> bool {
+        // Ids are unique, so we don't need to look at the description field.
+        self.id == other.id
+    }
+}
+impl Hash for PrivateName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // No need to hash the description; the id is unique already.
+        self.id.hash(state)
+    }
+}
+
+impl PrivateName {
+    pub fn new(description: impl Into<JSString>) -> Self {
+        PrivateName { description: description.into(), id: PNId::new() }
+    }
+}
+
+// The PrivateElement Specification Type
+//
+// The PrivateElement type is a Record used in the specification of private class fields, methods, and accessors.
+// Although Property Descriptors are not used for private elements, private fields behave similarly to
+// non-configurable, non-enumerable, writable data properties, private methods behave similarly to non-configurable,
+// non-enumerable, non-writable data properties, and private accessors behave similarly to non-configurable,
+// non-enumerable accessor properties.
+//
+// Values of the PrivateElement type are Record values whose fields are defined by Table 11. Such values are referred
+// to as PrivateElements.
+//
+// Table 11: PrivateElement Fields
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | Field Name | Values of the    | Value                         | Meaning                                     |
+// |            | [[Kind]] field   |                               |                                             |
+// |            | for which it is  |                               |                                             |
+// |            | present          |                               |                                             |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | [[Key]]    | All              | a Private Name                | The name of the field, method, or accessor. |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | [[Kind]]   | All              | field, method, or accessor    | The kind of the element.                    |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | [[Value]]  | field and method | any ECMAScript language value | The value of the field.                     |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | [[Get]]    | accessor         | Function or Undefined         | The getter for a private accessor.          |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+// | [[Set]]    | accessor         | Function or Undefined         | The setter for a private accessor.          |
+// +------------+------------------+-------------------------------+---------------------------------------------+
+#[derive(Debug, Clone)]
+pub enum PrivateElementKind {
+    Field { value: RefCell<ECMAScriptValue> },
+    Method { value: ECMAScriptValue },
+    Accessor { get: Option<Object>, set: Option<Object> },
+}
+#[derive(Debug, Clone)]
+pub struct PrivateElement {
+    pub key: PrivateName,
+    pub kind: PrivateElementKind,
+}
+impl PrivateElement {}
 
 pub fn number_to_string<T>(writer: &mut T, value: f64) -> io::Result<()>
 where

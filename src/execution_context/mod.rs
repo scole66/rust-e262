@@ -31,6 +31,17 @@ impl ExecutionContext {
     pub fn resume(&mut self) {}
 }
 
-pub fn get_global_object(_agent: &mut Agent) -> Object {
-    todo!()
+// GetGlobalObject ( )
+//
+// The abstract operation GetGlobalObject takes no arguments. It returns the global object used by the currently
+// running execution context. It performs the following steps when called:
+//
+//  1. Let currentRealm be the current Realm Record.
+//  2. Return currentRealm.[[GlobalObject]].
+pub fn get_global_object(agent: &mut Agent) -> Option<Object> {
+    let ec = agent.running_execution_context();
+    ec.and_then(|ec| {
+        let g = &ec.realm.borrow().global_object;
+        g.as_ref().cloned()
+    })
 }

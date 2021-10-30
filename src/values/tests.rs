@@ -301,9 +301,66 @@ fn symbol_internals_clone() {
     assert_eq!(si1.description, si2.description);
 }
 
-#[test]
-fn privatename_debug() {
-    assert_ne!(format!("{:?}", PrivateName {}), "");
+mod private_name {
+    use super::*;
+    use ahash::AHashSet;
+    use test_case::test_case;
+
+    #[test_case("my name" => JSString::from("my name"); "str")]
+    #[test_case(String::from("blue") => JSString::from("blue"); "String")]
+    #[test_case(JSString::from("alpha") => JSString::from("alpha"); "JSString")]
+    fn new(description: impl Into<JSString>) -> JSString {
+        let pn = PrivateName::new(description);
+        pn.description
+    }
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", PrivateName::new("private_name")), "");
+    }
+
+    #[test]
+    fn eq() {
+        let pn1 = PrivateName::new("a");
+        let pn2 = PrivateName::new("a");
+        assert_eq!(pn1 == pn2, false);
+    }
+    #[test]
+    fn clone() {
+        let pn1 = PrivateName::new("a");
+        let pn2 = pn1.clone();
+        assert_eq!(pn1, pn2);
+    }
+    #[test]
+    fn hash() {
+        let mut s: AHashSet<PrivateName> = Default::default();
+        s.insert(PrivateName::new("blue"));
+        s.insert(PrivateName::new("green"));
+        s.insert(PrivateName::new("red"));
+        s.insert(PrivateName::new("blue"));
+        assert_eq!(s.len(), 4);
+    }
+}
+
+mod private_element {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        assert_ne!(format!("{:?}", pe), "");
+    }
+
+    #[test]
+    fn clone() {
+        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        let cloned = pe.clone();
+        assert_eq!(pe.key, cloned.key);
+        if let PrivateElementKind::Field { value } = pe.kind {
+            assert_eq!(*value.borrow(), ECMAScriptValue::from("just some data"));
+        } else {
+            panic!("Came back with the wrong kind!")
+        }
+    }
 }
 
 #[test]

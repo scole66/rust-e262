@@ -2,6 +2,7 @@ use super::*;
 use crate::agent::WksId;
 use crate::object::{define_property_or_throw, ordinary_object_create, DeadObject, PotentialPropertyDescriptor, PropertyKind};
 use crate::realm::IntrinsicId;
+use crate::reference::ReferencedName;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error, FunctionId, TestObject};
 
 const ALL_REMOVABILITY: [Removability; 2] = [Removability::Deletable, Removability::Permanent];
@@ -1323,7 +1324,7 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = TestObject::object(&mut agent, &[FunctionId::Delete]);
+            let global_object = TestObject::object(&mut agent, &[FunctionId::Delete(None)]);
             let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
@@ -1499,7 +1500,7 @@ mod global_environment_record {
             ger.can_declare_global_var(&mut agent, &JSString::from(name)).unwrap()
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
         fn error(method: FunctionId) -> String {
             // Setup
@@ -1545,7 +1546,7 @@ mod global_environment_record {
 
             ger.can_declare_global_function(&mut agent, &test_name).unwrap()
         }
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
         fn error(method: FunctionId) -> String {
             // Setup
@@ -1612,10 +1613,10 @@ mod global_environment_record {
             }
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
         #[test_case(FunctionId::IsExtensible => "[[IsExtensible]] called on TestObject"; "IsExtensible")]
-        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
-        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        #[test_case(FunctionId::DefineOwnProperty(None) => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set(None) => "[[Set]] called on TestObject"; "Set")]
         fn error(method: FunctionId) -> String {
             // Setup
             let mut agent = test_agent();
@@ -1660,9 +1661,9 @@ mod global_environment_record {
             }
         }
 
-        #[test_case(FunctionId::GetOwnProperty => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
-        #[test_case(FunctionId::DefineOwnProperty => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
-        #[test_case(FunctionId::Set => "[[Set]] called on TestObject"; "Set")]
+        #[test_case(FunctionId::GetOwnProperty(None) => "[[GetOwnProperty]] called on TestObject"; "GetOwnProperty")]
+        #[test_case(FunctionId::DefineOwnProperty(None) => "[[DefineOwnProperty]] called on TestObject"; "DefineOwnProperty")]
+        #[test_case(FunctionId::Set(None) => "[[Set]] called on TestObject"; "Set")]
         fn error(method: FunctionId) -> String {
             // Setup
             let mut agent = test_agent();
@@ -1694,11 +1695,11 @@ mod get_identifier_reference {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("bob", true => (true, PropertyKey::from("bob"), true, None); "strict")]
-    #[test_case("bob", false => (true, PropertyKey::from("bob"), false, None); "sloppy")]
-    fn no_env(name: &str, strict: bool) -> (bool, PropertyKey, bool, Option<ECMAScriptValue>) {
+    #[test_case("bob", true => (true, ReferencedName::from("bob"), true, None); "strict")]
+    #[test_case("bob", false => (true, ReferencedName::from("bob"), false, None); "sloppy")]
+    fn no_env(name: &str, strict: bool) -> (bool, ReferencedName, bool, Option<ECMAScriptValue>) {
         let mut agent = test_agent();
-        let reference = get_identifier_reference(&mut agent, None, &JSString::from(name), strict).unwrap();
+        let reference = get_identifier_reference(&mut agent, None, JSString::from(name), strict).unwrap();
         (matches!(reference.base, Base::Unresolvable), reference.referenced_name, reference.strict, reference.this_value)
     }
 
@@ -1709,13 +1710,13 @@ mod get_identifier_reference {
         ParentEnv,    // Environment(e) where e is arg's parent
     }
 
-    #[test_case("bob", true => (EnvResult::Unresolvable, PropertyKey::from("bob"), true, None); "not-present; strict")]
-    #[test_case("bob", false => (EnvResult::Unresolvable, PropertyKey::from("bob"), false, None); "not-present; sloppy")]
-    #[test_case("present", true => (EnvResult::SelfEnv, PropertyKey::from("present"), true, None); "present; strict")]
-    #[test_case("present", false => (EnvResult::SelfEnv, PropertyKey::from("present"), false, None); "present; sloppy")]
-    #[test_case("parent", true => (EnvResult::ParentEnv, PropertyKey::from("parent"), true, None); "parent; strict")]
-    #[test_case("parent", false => (EnvResult::ParentEnv, PropertyKey::from("parent"), false, None); "parent; sloppy")]
-    fn some_env(name: &str, strict: bool) -> (EnvResult, PropertyKey, bool, Option<ECMAScriptValue>) {
+    #[test_case("bob", true => (EnvResult::Unresolvable, ReferencedName::from("bob"), true, None); "not-present; strict")]
+    #[test_case("bob", false => (EnvResult::Unresolvable, ReferencedName::from("bob"), false, None); "not-present; sloppy")]
+    #[test_case("present", true => (EnvResult::SelfEnv, ReferencedName::from("present"), true, None); "present; strict")]
+    #[test_case("present", false => (EnvResult::SelfEnv, ReferencedName::from("present"), false, None); "present; sloppy")]
+    #[test_case("parent", true => (EnvResult::ParentEnv, ReferencedName::from("parent"), true, None); "parent; strict")]
+    #[test_case("parent", false => (EnvResult::ParentEnv, ReferencedName::from("parent"), false, None); "parent; sloppy")]
+    fn some_env(name: &str, strict: bool) -> (EnvResult, ReferencedName, bool, Option<ECMAScriptValue>) {
         let mut agent = test_agent();
         let parent = DeclarativeEnvironmentRecord::new(None);
         parent.create_immutable_binding(&mut agent, JSString::from("parent"), true).unwrap();
@@ -1728,7 +1729,7 @@ mod get_identifier_reference {
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
         let (rcenv_ptr, _) = Rc::as_ptr(&rcenv).to_raw_parts(); // Remove vtable for comparison
 
-        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from(name), strict).unwrap();
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from(name), strict).unwrap();
         (
             match &result.base {
                 Base::Unresolvable => EnvResult::Unresolvable,
@@ -1753,14 +1754,58 @@ mod get_identifier_reference {
     #[test]
     fn error() {
         let mut agent = test_agent();
-        let binding_object = TestObject::object(&mut agent, &[FunctionId::HasProperty]);
+        let binding_object = TestObject::object(&mut agent, &[FunctionId::HasProperty(None)]);
         let env = ObjectEnvironmentRecord::new(binding_object, false, None);
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
 
-        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), &JSString::from("anything"), true);
+        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from("anything"), true);
 
         let err = result.unwrap_err();
         let msg = unwind_type_error(&mut agent, err);
         assert_eq!(msg, "[[HasProperty]] called on TestObject");
+    }
+}
+
+mod private_environment_record {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pe = PrivateEnvironmentRecord { outer_private_environment: None, names: vec![] };
+        assert_ne!(format!("{:?}", pe), "");
+    }
+
+    #[test]
+    fn new() {
+        let pe = PrivateEnvironmentRecord::new(None);
+        assert!(pe.outer_private_environment.is_none());
+        assert!(pe.names.is_empty());
+    }
+
+    mod resolve_private_identifier {
+        use super::*;
+
+        fn setup() -> (Box<PrivateEnvironmentRecord>, PrivateName, PrivateName) {
+            let mut outer = Box::new(PrivateEnvironmentRecord::new(None));
+            let outer_name = PrivateName::new("outer");
+            outer.names.push(outer_name.clone());
+            let mut inner = Box::new(PrivateEnvironmentRecord::new(Some(outer)));
+            let inner_name = PrivateName::new("inner");
+            inner.names.push(inner_name.clone());
+            (inner, outer_name, inner_name)
+        }
+
+        #[test]
+        fn outer() {
+            let (env, outer_name, _) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("outer"));
+            assert_eq!(resolved, outer_name);
+        }
+        #[test]
+        fn inner() {
+            let (env, _, inner_name) = setup();
+            let resolved = env.resolve_private_identifier(&JSString::from("inner"));
+            assert_eq!(resolved, inner_name);
+        }
     }
 }
