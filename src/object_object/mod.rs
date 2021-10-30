@@ -1,8 +1,11 @@
 use crate::agent::{Agent, WksId};
 use crate::arrays::is_array;
 use crate::cr::Completion;
+use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
-use crate::object::{define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, set, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::object::{
+    define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, set, to_property_descriptor, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+};
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
 use crate::values::{to_object, ECMAScriptValue, PropertyKey};
@@ -293,9 +296,75 @@ fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
     Ok(ECMAScriptValue::from(to))
 }
 
-fn object_create(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.create ( O, Properties )
+//
+// The create function creates a new object with a specified prototype. When the create function is called, the
+// following steps are taken:
+//
+//  1. If Type(O) is neither Object nor Null, throw a TypeError exception.
+//  2. Let obj be ! OrdinaryObjectCreate(O).
+//  3. If Properties is not undefined, then
+//      a. Return ? ObjectDefineProperties(obj, Properties).
+//  4. Return obj.
+fn object_create(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    let o = match &o_arg {
+        ECMAScriptValue::Object(o) => Some(o),
+        ECMAScriptValue::Null => None,
+        _ => {
+            return Err(create_type_error(agent, "Prototype argument for Object.create must be an Object or null."));
+        }
+    };
+    let properties = args.next_arg();
+    let obj = ordinary_object_create(agent, o, &[]);
+    if !properties.is_undefined() {
+        object_define_properties_helper(agent, obj, properties)
+    } else {
+        Ok(ECMAScriptValue::from(obj))
+    }
 }
+
+// ObjectDefineProperties ( O, Properties )
+//
+// The abstract operation ObjectDefineProperties takes arguments O (an Object) and Properties. It performs the
+// following steps when called:
+//
+//  1. Let props be ? ToObject(Properties).
+//  2. Let keys be ? props.[[OwnPropertyKeys]]().
+//  3. Let descriptors be a new empty List.
+//  4. For each element nextKey of keys, do
+//      a. Let propDesc be ? props.[[GetOwnProperty]](nextKey).
+//      b. If propDesc is not undefined and propDesc.[[Enumerable]] is true, then
+//          i. Let descObj be ? Get(props, nextKey).
+//          ii. Let desc be ? ToPropertyDescriptor(descObj).
+//          iii. Append the pair (a two element List) consisting of nextKey and desc to the end of descriptors.
+//  5. For each element pair of descriptors, do
+//      a. Let P be the first element of pair.
+//      b. Let desc be the second element of pair.
+//      c. Perform ? DefinePropertyOrThrow(O, P, desc).
+//  6. Return O.
+fn object_define_properties_helper(agent: &mut Agent, o: Object, properties: ECMAScriptValue) -> Completion {
+    let props = to_object(agent, properties)?;
+    let keys = props.o.own_property_keys(agent)?;
+    let mut descriptors = Vec::new();
+    for next_key in keys {
+        let prop_desc = props.o.get_own_property(agent, &next_key)?;
+        if let Some(pd) = prop_desc {
+            if pd.enumerable {
+                let desc_obj = get(agent, &props, &next_key)?;
+                let desc = to_property_descriptor(agent, &desc_obj)?;
+                descriptors.push((next_key, desc));
+            }
+        }
+    }
+    for (p, desc) in descriptors {
+        define_property_or_throw(agent, &o, p, desc)?;
+    }
+
+    Ok(o.into())
+}
+
 fn object_define_properties(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
