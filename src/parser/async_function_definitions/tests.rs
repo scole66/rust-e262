@@ -140,8 +140,6 @@ fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> b
 #[test_case("async function(a=await b()){}", false => "Await not allowed in parameter lists"; "await param")]
 #[test_case("async function(a,a){'use strict';}", false => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict body")]
 #[test_case("async function(a,a){}", true => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict context")]
-#[test_case("async function eval(){}", true => "In strict mode, functions may not be named 'eval' or 'arguments'"; "named eval")]
-#[test_case("async function arguments(){}", true => "In strict mode, functions may not be named 'eval' or 'arguments'"; "named arguments")]
 #[test_case("async function(lex) { const lex=10; return lex; }", false => "Lexical decls in body duplicate parameters"; "lexical duplication")]
 #[test_case("async function(a=super.prop){}", false => "Parameters may not include super properties"; "superprop params")]
 #[test_case("async function(){return super.prop;}", false => "Body may not contain super properties"; "superprop body")]

@@ -341,7 +341,7 @@ impl Statement {
             Statement::Block(node) => node.early_errors(agent, strict, within_iteration),
             Statement::Break(node) => node.early_errors(agent),
             Statement::Breakable(node) => node.early_errors(agent),
-            Statement::Continue(node) => node.early_errors(agent, within_iteration),
+            Statement::Continue(node) => node.early_errors(agent, strict, within_iteration),
             Statement::Debugger(node) => node.early_errors(agent),
             Statement::Empty(node) => node.early_errors(agent),
             Statement::Expression(node) => node.early_errors(agent),

@@ -77,7 +77,7 @@ impl ContinueStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
         // Static Semantics: Early Errors
         // ContinueStatement :
         //      continue ;
@@ -89,7 +89,7 @@ impl ContinueStatement {
             errs.push(create_syntax_error_object(agent, "Continue statements must lie within iteration statements."));
         }
         if let ContinueStatement::Labelled(label) = self {
-            errs.extend(label.early_errors(agent));
+            errs.extend(label.early_errors(agent, strict));
         }
         errs
     }

@@ -123,7 +123,7 @@ impl AsyncFunctionDeclaration {
         //  * If the source code matching FormalParameters is strict mode code, the Early Error rules for
         //    UniqueFormalParameters : FormalParameters are applied.
         //  * If BindingIdentifier is present and the source code matching BindingIdentifier is strict mode code, it is
-        //    a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+        //    a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments". (Superfluous!)
         //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
         //    LexicallyDeclaredNames of AsyncFunctionBody.
         //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
@@ -148,13 +148,6 @@ impl AsyncFunctionDeclaration {
             //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
             if !has_unique_elements(self.params.bound_names()) {
                 errs.push(create_syntax_error_object(agent, "Duplicate formal parameter identifiers in strict mode definition"));
-            }
-        }
-        if let Some(binding_identifier) = &self.ident {
-            if strict && [JSString::from("eval"), JSString::from("arguments")].contains(&binding_identifier.string_value()) {
-                // If BindingIdentifier is present and the source code matching BindingIdentifier is strict mode
-                // code, it is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
-                errs.push(create_syntax_error_object(agent, "In strict mode, functions may not be named 'eval' or 'arguments'"));
             }
         }
         // It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
@@ -183,7 +176,7 @@ impl AsyncFunctionDeclaration {
 
         // All the children
         if let Some(binding_identifier) = &self.ident {
-            errs.extend(binding_identifier.early_errors(agent));
+            errs.extend(binding_identifier.early_errors(agent, strict));
         }
         errs.extend(self.params.early_errors(agent));
         errs.extend(self.body.early_errors(agent));
