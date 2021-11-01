@@ -91,6 +91,21 @@ fn generator_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod generator_method {
+    use super::*;
+    mod has_direct_super {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("*a(){}" => false; "without")]
+        #[test_case("*a(b=super(0)){}" => true; "params")]
+        #[test_case("*a(){super(1);}" => true; "body")]
+        fn f(src: &str) -> bool {
+            let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+            item.has_direct_super()
+        }
+    }
+}
 
 // GENERATOR DECLARATION
 #[test]
