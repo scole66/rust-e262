@@ -231,6 +231,33 @@ impl MethodDefinition {
             MethodDefinition::Setter(name, args, body) => name.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn has_direct_super(&self) -> bool {
+        // Static Semantics: HasDirectSuper
+        // The syntax-directed operation HasDirectSuper takes no arguments.
+        match self {
+            MethodDefinition::NamedFunction(_, params, body) => {
+                // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //  1. If UniqueFormalParameters Contains SuperCall is true, return true.
+                //  2. Return FunctionBody Contains SuperCall.
+                params.contains(ParseNodeKind::SuperCall) || body.contains(ParseNodeKind::SuperCall)
+            }
+            MethodDefinition::Getter(_, body) => {
+                // MethodDefinition : get ClassElementName ( ) { FunctionBody }
+                //  1. Return FunctionBody Contains SuperCall.
+                body.contains(ParseNodeKind::SuperCall)
+            }
+            MethodDefinition::Setter(_, params, body) => {
+                // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+                //  1. If PropertySetParameterList Contains SuperCall is true, return true.
+                //  2. Return FunctionBody Contains SuperCall.
+                params.contains(ParseNodeKind::SuperCall) || body.contains(ParseNodeKind::SuperCall)
+            }
+            MethodDefinition::Generator(node) => node.has_direct_super(),
+            MethodDefinition::Async(node) => node.has_direct_super(),
+            MethodDefinition::AsyncGenerator(node) => node.has_direct_super(),
+        }
+    }
 }
 
 // PropertySetParameterList :

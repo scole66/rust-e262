@@ -109,6 +109,21 @@ fn async_generator_method_test_all_private_identifiers_valid(src: &str) -> bool 
     let (item, _) = AsyncGeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod async_generator_method {
+    use super::*;
+    mod has_direct_super {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("async *a(){}" => false; "without")]
+        #[test_case("async *a(b=super(true)){}" => true; "params")]
+        #[test_case("async *a(){super(false);}" => true; "body")]
+        fn f(src: &str) -> bool {
+            let (item, _) = AsyncGeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+            item.has_direct_super()
+        }
+    }
+}
 
 // ASYNC GENERATOR DECLARATION
 #[test]
