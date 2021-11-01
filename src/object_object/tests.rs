@@ -354,4 +354,43 @@ mod constructor {
             }
         }
     }
+
+    mod define_properties {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::Undefined => Err("Object.defineProperties called on non-object".to_string()); "non-object")]
+        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+                    |a| {
+                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let emotion_descriptor = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        create_data_property_or_throw(a, &emotion_descriptor, "value", "happy").unwrap();
+                        create_data_property_or_throw(a, &emotion_descriptor, "writable", true).unwrap();
+                        create_data_property_or_throw(a, &emotion_descriptor, "enumerable", true).unwrap();
+                        create_data_property_or_throw(a, &emotion_descriptor, "configurable", true).unwrap();
+                        create_data_property_or_throw(a, &obj, "emotion", emotion_descriptor).unwrap();
+                        ECMAScriptValue::from(obj)
+                    } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
+        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+                    |a| {
+                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        create_data_property_or_throw(a, &obj, "key", "blue").unwrap();
+                        ECMAScriptValue::from(obj)
+                    } => Err("Must be an object".to_string()); "bad props")]
+        fn f(make_obj: fn(&mut Agent) -> ECMAScriptValue, make_props: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+            let mut agent = test_agent();
+            let obj = make_obj(&mut agent);
+            let props = make_props(&mut agent);
+            match object_define_properties(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone(), props]) {
+                Ok(val) => match &val {
+                    ECMAScriptValue::Object(o) => {
+                        assert_eq!(val, obj);
+                        Ok(o.o.common_object_data().borrow().propdump())
+                    }
+                    _ => panic!("Got a non-object back from Object.defineProperties: {:?}", val),
+                },
+                Err(err) => Err(unwind_type_error(&mut agent, err)),
+            }
+        }
+    }
 }
