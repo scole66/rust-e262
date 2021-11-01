@@ -404,6 +404,33 @@ fn method_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+mod method_definition {
+    use super::*;
+    mod has_direct_super {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("a(){}" => false; "method without")]
+        #[test_case("a(b=super(undefined)){}" => true; "method params with")]
+        #[test_case("a(){super(a);}" => true; "method body with")]
+        #[test_case("get a(){}" => false; "getter without")]
+        #[test_case("get a(){super(b);}" => true; "getter with")]
+        #[test_case("set a(b){}" => false; "setter without")]
+        #[test_case("set a(b=super(c)){}" => true; "setter params with")]
+        #[test_case("set a(b){super(c);}" => true; "setter body with")]
+        #[test_case("*a(){}" => false; "generator without")]
+        #[test_case("*a(){super(0);}" => true; "generator with")]
+        #[test_case("async *a(){}" => false; "async generator without")]
+        #[test_case("async *a(){super(0);}" => true; "async generator with")]
+        #[test_case("async a(){}" => false; "async method without")]
+        #[test_case("async a(){super(0);}" => true; "async method with")]
+        fn f(src: &str) -> bool {
+            let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+            item.has_direct_super()
+        }
+    }
+}
+
 mod property_set_parameter_list {
     use super::*;
     use test_case::test_case;

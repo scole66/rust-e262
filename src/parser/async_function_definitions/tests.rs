@@ -384,6 +384,21 @@ fn async_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod async_method {
+    use super::*;
+    mod has_direct_super {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("async a(){}" => false; "without")]
+        #[test_case("async a(b=super(0)){}" => true; "params")]
+        #[test_case("async a(){super(-1);}" => true; "body")]
+        fn f(src: &str) -> bool {
+            let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+            item.has_direct_super()
+        }
+    }
+}
 
 // ASYNC FUNCTION BODY
 #[test]

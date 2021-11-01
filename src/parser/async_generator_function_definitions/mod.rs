@@ -94,6 +94,15 @@ impl AsyncGeneratorMethod {
         //  2. Return true.
         self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn has_direct_super(&self) -> bool {
+        // Static Semantics: HasDirectSuper
+        //      The syntax-directed operation HasDirectSuper takes no arguments.
+        // AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
+        //  1. If UniqueFormalParameters Contains SuperCall is true, return true.
+        //  2. Return AsyncGeneratorBody Contains SuperCall.
+        self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
+    }
 }
 
 // AsyncGeneratorDeclaration[Yield, Await, Default] :
