@@ -1082,3 +1082,28 @@ fn to_primitive_exotic_getter_throws() {
     let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
 }
+
+mod to_property_key {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|_| ECMAScriptValue::Undefined => Ok(PropertyKey::from("undefined")); "undefined")]
+    #[test_case(|_| ECMAScriptValue::from("blue") => Ok(PropertyKey::from("blue")); "string")]
+    #[test_case(|a| ECMAScriptValue::from(make_tostring_getter_error(a)) => Err("Test Sentinel".to_string()); "to_primitive error")]
+    fn simple(make_value: fn(&mut Agent) -> ECMAScriptValue) -> Result<PropertyKey, String> {
+        let mut agent = test_agent();
+        let arg = make_value(&mut agent);
+        match to_property_key(&mut agent, arg) {
+            Ok(key) => Ok(key),
+            Err(err) => Err(unwind_type_error(&mut agent, err)),
+        }
+    }
+
+    #[test]
+    fn symbol() {
+        let mut agent = test_agent();
+        let sym = Symbol::new(&mut agent, Some("test symbol".into()));
+        let argument = ECMAScriptValue::from(sym.clone());
+        assert_eq!(to_property_key(&mut agent, argument).unwrap(), PropertyKey::from(sym));
+    }
+}
