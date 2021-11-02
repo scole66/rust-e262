@@ -488,16 +488,16 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
 //          objects may over-ride this behaviour by defining a @@toPrimitive method. Of the objects defined in this
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
-pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion {
-    if let ECMAScriptValue::Object(obj) = input {
-        let exotic_to_prim = get_method(agent, input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
+pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion {
+    if let ECMAScriptValue::Object(obj) = &input {
+        let exotic_to_prim = get_method(agent, &input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
                 None => "default",
                 Some(ConversionHint::Number) => "number",
                 Some(ConversionHint::String) => "string",
             });
-            let result = call(agent, &exotic_to_prim, input, &[hint])?;
+            let result = call(agent, &exotic_to_prim, &input, &[hint])?;
             if !result.is_object() {
                 return Ok(result);
             }
@@ -506,7 +506,7 @@ pub fn to_primitive(agent: &mut Agent, input: &ECMAScriptValue, preferred_type: 
         let pt = preferred_type.unwrap_or(ConversionHint::Number);
         ordinary_to_primitive(agent, obj, pt)
     } else {
-        Ok(input.clone())
+        Ok(input)
     }
 }
 
@@ -561,7 +561,7 @@ pub enum Numeric {
     BigInt(Rc<BigInt>),
 }
 pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Numeric> {
-    let prim_value = to_primitive(agent, &value, Some(ConversionHint::Number))?;
+    let prim_value = to_primitive(agent, value, Some(ConversionHint::Number))?;
     if let ECMAScriptValue::BigInt(bi) = prim_value {
         Ok(Numeric::BigInt(bi))
     } else {
@@ -606,7 +606,7 @@ pub fn to_number(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<f64
         ECMAScriptValue::BigInt(_) => Err(create_type_error(agent, "BigInt values cannot be converted to Number values")),
         ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbol values cannot be converted to Number values")),
         ECMAScriptValue::Object(o) => {
-            let prim_value = to_primitive(agent, &ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
+            let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
             to_number(agent, prim_value)
         }
     }
@@ -720,7 +720,7 @@ pub fn to_string(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<JSStr
         ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbols may not be converted to strings")),
         ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
         ECMAScriptValue::Object(o) => {
-            let prim_value = to_primitive(agent, &ECMAScriptValue::from(o), Some(ConversionHint::String))?;
+            let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::String))?;
             to_string(agent, prim_value)
         }
     }
