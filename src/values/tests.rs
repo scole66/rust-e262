@@ -958,27 +958,27 @@ fn ordinary_to_primitive_uncallables() {
 fn to_primitive_no_change() {
     let mut agent = test_agent();
     // Undefined
-    let result = to_primitive(&mut agent, &ECMAScriptValue::Undefined, None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::Undefined, None).unwrap();
     assert!(result.is_undefined());
     // Null
-    let result = to_primitive(&mut agent, &ECMAScriptValue::Null, None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::Null, None).unwrap();
     assert!(result.is_null());
     // Boolean
-    let result = to_primitive(&mut agent, &ECMAScriptValue::from(true), None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::from(true), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(true));
     // Number
-    let result = to_primitive(&mut agent, &ECMAScriptValue::from(20), None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::from(20), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(20));
     // String
-    let result = to_primitive(&mut agent, &ECMAScriptValue::from("test"), None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::from("test"), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test"));
     // Symbol
     let sym = Symbol::new(&mut agent, Some(JSString::from("Symbolic")));
-    let result = to_primitive(&mut agent, &ECMAScriptValue::from(sym.clone()), None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::from(sym.clone()), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(sym));
     // BigInt
     let bi = "123456789012345678901234567890".parse::<BigInt>().unwrap();
-    let result = to_primitive(&mut agent, &ECMAScriptValue::from(bi), None).unwrap();
+    let result = to_primitive(&mut agent, ECMAScriptValue::from(bi), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("123456789012345678901234567890".parse::<BigInt>().unwrap()));
 }
 #[test]
@@ -987,11 +987,11 @@ fn to_primitive_prefer_number() {
     let test_obj = make_test_obj(&mut agent, FauxKind::Primitive, FauxKind::Primitive);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, &test_value, None).unwrap();
+    let result = to_primitive(&mut agent, test_value.clone(), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123456));
-    let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::Number)).unwrap();
+    let result = to_primitive(&mut agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123456));
-    let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::String)).unwrap();
+    let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
 fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
@@ -1027,11 +1027,11 @@ fn to_primitive_uses_exotics() {
     let test_obj = make_toprimitive_obj(&mut agent, exotic_to_prim);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, &test_value, None).unwrap();
+    let result = to_primitive(&mut agent, test_value.clone(), None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw default"));
-    let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::Number)).unwrap();
+    let result = to_primitive(&mut agent, test_value.clone(), Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw number"));
-    let result = to_primitive(&mut agent, &test_value, Some(ConversionHint::String)).unwrap();
+    let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
 fn exotic_returns_object(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
@@ -1046,7 +1046,7 @@ fn to_primitive_exotic_returns_object() {
     let test_obj = make_toprimitive_obj(&mut agent, exotic_returns_object);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, &test_value, None).unwrap_err();
+    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
@@ -1058,7 +1058,7 @@ fn to_primitive_exotic_throws() {
     let test_obj = make_toprimitive_obj(&mut agent, exotic_throws);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(&mut agent, &test_value, None).unwrap_err();
+    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
 }
 #[test]
@@ -1079,6 +1079,31 @@ fn to_primitive_exotic_getter_throws() {
     .unwrap();
     let test_value = ECMAScriptValue::from(target);
 
-    let result = to_primitive(&mut agent, &test_value, None).unwrap_err();
+    let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
+}
+
+mod to_property_key {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|_| ECMAScriptValue::Undefined => Ok(PropertyKey::from("undefined")); "undefined")]
+    #[test_case(|_| ECMAScriptValue::from("blue") => Ok(PropertyKey::from("blue")); "string")]
+    #[test_case(|a| ECMAScriptValue::from(make_tostring_getter_error(a)) => Err("Test Sentinel".to_string()); "to_primitive error")]
+    fn simple(make_value: fn(&mut Agent) -> ECMAScriptValue) -> Result<PropertyKey, String> {
+        let mut agent = test_agent();
+        let arg = make_value(&mut agent);
+        match to_property_key(&mut agent, arg) {
+            Ok(key) => Ok(key),
+            Err(err) => Err(unwind_type_error(&mut agent, err)),
+        }
+    }
+
+    #[test]
+    fn symbol() {
+        let mut agent = test_agent();
+        let sym = Symbol::new(&mut agent, Some("test symbol".into()));
+        let argument = ECMAScriptValue::from(sym.clone());
+        assert_eq!(to_property_key(&mut agent, argument).unwrap(), PropertyKey::from(sym));
+    }
 }
