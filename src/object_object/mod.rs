@@ -412,6 +412,7 @@ fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_
         _ => Err(create_type_error(agent, "Object.defineProperty called on non-object")),
     }
 }
+
 fn object_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
