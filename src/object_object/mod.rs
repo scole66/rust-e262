@@ -8,7 +8,7 @@ use crate::object::{
 };
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
-use crate::values::{to_object, ECMAScriptValue, PropertyKey};
+use crate::values::{to_object, to_property_key, ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -384,8 +384,33 @@ fn object_define_properties(agent: &mut Agent, _this_value: ECMAScriptValue, _ne
     }
 }
 
-fn object_define_property(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.defineProperty ( O, P, Attributes )
+//
+// The defineProperty function is used to add an own property and/or update the attributes of an existing own property
+// of an object. When the defineProperty function is called, the following steps are taken:
+//
+//  1. If Type(O) is not Object, throw a TypeError exception.
+//  2. Let key be ? ToPropertyKey(P).
+//  3. Let desc be ? ToPropertyDescriptor(Attributes).
+//  4. Perform ? DefinePropertyOrThrow(O, key, desc).
+//  5. Return O.
+fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    match o_arg {
+        ECMAScriptValue::Object(o) => {
+            let p = args.next_arg();
+            let attributes = args.next_arg();
+
+            let key = to_property_key(agent, &p)?;
+            let desc = to_property_descriptor(agent, &attributes)?;
+
+            define_property_or_throw(agent, &o, key, desc)?;
+
+            Ok(ECMAScriptValue::from(o))
+        }
+        _ => Err(create_type_error(agent, "Object.defineProperty called on non-object")),
+    }
 }
 fn object_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
