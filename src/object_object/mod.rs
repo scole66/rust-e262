@@ -365,9 +365,25 @@ fn object_define_properties_helper(agent: &mut Agent, o: Object, properties: ECM
     Ok(o.into())
 }
 
-fn object_define_properties(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.defineProperties ( O, Properties )
+//
+// The defineProperties function is used to add own properties and/or update the attributes of existing own properties
+// of an object. When the defineProperties function is called, the following steps are taken:
+//
+//  1. If Type(O) is not Object, throw a TypeError exception.
+//  2. Return ? ObjectDefineProperties(O, Properties).
+fn object_define_properties(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    match o_arg {
+        ECMAScriptValue::Object(o) => {
+            let properties = args.next_arg();
+            object_define_properties_helper(agent, o, properties)
+        }
+        _ => Err(create_type_error(agent, "Object.defineProperties called on non-object")),
+    }
 }
+
 fn object_define_property(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
