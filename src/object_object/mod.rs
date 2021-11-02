@@ -402,7 +402,7 @@ fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_
             let p = args.next_arg();
             let attributes = args.next_arg();
 
-            let key = to_property_key(agent, &p)?;
+            let key = to_property_key(agent, p)?;
             let desc = to_property_descriptor(agent, &attributes)?;
 
             define_property_or_throw(agent, &o, key, desc)?;

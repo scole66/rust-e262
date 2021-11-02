@@ -278,23 +278,6 @@ impl fmt::Display for Symbol {
     }
 }
 
-// ToPropertyKey ( argument )
-//
-// The abstract operation ToPropertyKey takes argument argument. It converts argument to a value that can be used as a
-// property key. It performs the following steps when called:
-//
-//  1. Let key be ? ToPrimitive(argument, string).
-//  2. If Type(key) is Symbol, then
-//      a. Return key.
-//  3. Return ! ToString(key).
-pub fn to_property_key(agent: &mut Agent, argument: &ECMAScriptValue) -> AltCompletion<PropertyKey> {
-    let key = to_primitive(agent, argument, Some(ConversionHint::String))?;
-    match key {
-        ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
-        _ => Ok(PropertyKey::from(to_string(agent, key).unwrap())),
-    }
-}
-
 // Private Names
 //
 // The Private Name specification type is used to describe a globally unique value (one which differs from any other
