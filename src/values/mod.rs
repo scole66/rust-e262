@@ -3,7 +3,7 @@ use super::bigint_object::create_bigint_object;
 use super::boolean_object::create_boolean_object;
 use super::cr::{AltCompletion, Completion};
 use super::dtoa_r::dtoa;
-use super::errors::create_type_error;
+use super::errors::{create_range_error, create_type_error};
 use super::number_object::create_number_object;
 use super::object::{call, get, get_method, to_callable, Object};
 use super::string_object::create_string_object;
@@ -770,6 +770,73 @@ pub fn to_property_key(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompl
     match key {
         ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
         _ => Ok(PropertyKey::from(to_string(agent, key).unwrap())),
+    }
+}
+
+// ToLength ( argument )
+//
+// The abstract operation ToLength takes argument argument (an ECMAScript language value). It clamps argument to an
+// integral Number suitable for use as the length of an array-like object. It performs the following steps when called:
+//
+//  1. Let len be ? ToIntegerOrInfinity(argument).
+//  2. If len ≤ 0, return +0𝔽.
+//  3. Return 𝔽(min(len, 2**53 - 1)).
+pub fn to_length(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompletion<i64> {
+    let len = to_integer_or_infinity(agent, argument)?;
+    Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
+}
+
+// CanonicalNumericIndexString ( argument )
+//
+// The abstract operation CanonicalNumericIndexString takes argument argument (a String). It returns argument converted
+// to a Number value if it is a String representation of a Number that would be produced by ToString, or the string
+// "-0". Otherwise, it returns undefined. It performs the following steps when called:
+//
+//  1. If argument is "-0", return -0𝔽.
+//  2. Let n be ! ToNumber(argument).
+//  3. If SameValue(! ToString(n), argument) is false, return undefined.
+//  4. Return n.
+//
+// A canonical numeric string is any String value for which the CanonicalNumericIndexString abstract operation does not
+// return undefined.
+pub fn canonical_numeric_index_string(agent: &mut Agent, argument: JSString) -> Option<f64> {
+    if argument == "-0" {
+        Some(-0.0)
+    } else {
+        let n = to_number(agent, argument.clone().into()).unwrap();
+        if argument == to_string(agent, n.into()).unwrap() {
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
+// ToIndex ( value )
+//
+// The abstract operation ToIndex takes argument value (an ECMAScript language value). It converts value to a
+// non-negative integer if the corresponding decimal representation, as a String, is an integer index. It performs the
+// following steps when called:
+//
+//  1. If value is undefined, then
+//      a. Return 0.
+//  2. Else,
+//      a. Let integer be ? ToIntegerOrInfinity(value).
+//      b. Let clamped be ! ToLength(𝔽(integer)).
+//      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
+//      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
+//      e. Return integer.
+pub fn to_index(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<i64> {
+    if value == ECMAScriptValue::Undefined {
+        Ok(0)
+    } else {
+        let integer = to_integer_or_infinity(agent, value)?;
+        let clamped = to_length(agent, integer.into()).unwrap();
+        if clamped as f64 != integer {
+            Err(create_range_error(agent, format!("{} out of range for index", integer).as_str()))
+        } else {
+            Ok(clamped)
+        }
     }
 }
 
