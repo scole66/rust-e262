@@ -3,7 +3,7 @@ use crate::errors::create_type_error;
 use crate::function_object::create_builtin_function;
 use crate::object::{create_data_property, define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::IntrinsicId;
-use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_type_error};
+use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_any_error, unwind_type_error};
 use ahash::RandomState;
 use num::bigint::BigInt;
 use std::convert::TryInto;
@@ -1081,4 +1081,86 @@ fn to_primitive_exotic_getter_throws() {
 
     let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Test Sentinel");
+}
+
+mod to_property_key {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|_| ECMAScriptValue::Undefined => Ok(PropertyKey::from("undefined")); "undefined")]
+    #[test_case(|_| ECMAScriptValue::from("blue") => Ok(PropertyKey::from("blue")); "string")]
+    #[test_case(|a| ECMAScriptValue::from(make_tostring_getter_error(a)) => Err("Test Sentinel".to_string()); "to_primitive error")]
+    fn simple(make_value: fn(&mut Agent) -> ECMAScriptValue) -> Result<PropertyKey, String> {
+        let mut agent = test_agent();
+        let arg = make_value(&mut agent);
+        match to_property_key(&mut agent, arg) {
+            Ok(key) => Ok(key),
+            Err(err) => Err(unwind_type_error(&mut agent, err)),
+        }
+    }
+
+    #[test]
+    fn symbol() {
+        let mut agent = test_agent();
+        let sym = Symbol::new(&mut agent, Some("test symbol".into()));
+        let argument = ECMAScriptValue::from(sym.clone());
+        assert_eq!(to_property_key(&mut agent, argument).unwrap(), PropertyKey::from(sym));
+    }
+}
+
+mod to_length {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|_| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
+    #[test_case(|_| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
+    #[test_case(|_| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
+    #[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
+    #[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
+    #[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
+    fn f(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
+        let mut agent = test_agent();
+        let arg = make_arg(&mut agent);
+
+        to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
+    }
+}
+
+mod canonical_numeric_index_string {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("0" => Some(0.0); "zero")]
+    #[test_case("0.25" => Some(0.25); "one quarter")]
+    #[test_case("0.250000" => None; "trailing zeroes")]
+    #[test_case("Infinity" => Some(f64::INFINITY); "infinity")]
+    fn f(src: &str) -> Option<f64> {
+        let mut agent = test_agent();
+        canonical_numeric_index_string(&mut agent, src.into())
+    }
+    #[test]
+    fn negzero() {
+        let mut agent = test_agent();
+        let result = canonical_numeric_index_string(&mut agent, "-0".into()).unwrap();
+        assert_eq!(result, 0.0);
+        assert_eq!(result.signum(), -1.0);
+    }
+}
+
+mod to_index {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ECMAScriptValue::Undefined => Ok(0); "undefined")]
+    #[test_case(ECMAScriptValue::from(10_i32) => Ok(10); "simple")]
+    #[test_case(ECMAScriptValue::from(10.33) => Ok(10); "round down")]
+    #[test_case(ECMAScriptValue::from(10.78) => Ok(10); "still rounding down")]
+    #[test_case(ECMAScriptValue::from(f64::INFINITY) => Err("RangeError: inf out of range for index".to_string()); "Infinity")]
+    #[test_case(ECMAScriptValue::from(-100.3) => Err("RangeError: -100 out of range for index".to_string()); "Negative")]
+    #[test_case(ECMAScriptValue::from(-0.0) => Ok(0); "Negative zero")]
+    #[test_case(ECMAScriptValue::from(BigInt::from(10_i32)) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "non-number")]
+    fn f(arg: ECMAScriptValue) -> Result<i64, String> {
+        let mut agent = test_agent();
+        to_index(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
 }

@@ -393,4 +393,78 @@ mod constructor {
             }
         }
     }
+
+    mod define_property {
+        use super::*;
+        use test_case::test_case;
+
+        fn plain_obj(agent: &mut Agent) -> ECMAScriptValue {
+            ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
+        }
+        fn faux_errors(agent: &mut Agent, _: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion {
+            Err(create_type_error(agent, "Test Sentinel"))
+        }
+        fn make_bad_property_key(agent: &mut Agent) -> ECMAScriptValue {
+            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let tostring_func = create_builtin_function(
+                agent,
+                faux_errors,
+                false,
+                0.0,
+                "toString".into(),
+                &BUILTIN_FUNCTION_SLOTS,
+                Some(agent.running_execution_context().unwrap().realm.clone()),
+                Some(agent.intrinsic(IntrinsicId::FunctionPrototype)),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &obj,
+                "toString".into(),
+                PotentialPropertyDescriptor { value: Some(tostring_func.into()), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            )
+            .unwrap();
+            obj.into()
+        }
+        fn undefined(_: &mut Agent) -> ECMAScriptValue {
+            ECMAScriptValue::Undefined
+        }
+        fn frozen_obj(agent: &mut Agent) -> ECMAScriptValue {
+            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            obj.o.prevent_extensions(agent).unwrap();
+            obj.into()
+        }
+        fn attrs(agent: &mut Agent) -> ECMAScriptValue {
+            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            create_data_property_or_throw(agent, &obj, "value", 99).unwrap();
+            create_data_property_or_throw(agent, &obj, "writable", true).unwrap();
+            create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();
+            create_data_property_or_throw(agent, &obj, "configurable", true).unwrap();
+            obj.into()
+        }
+
+        #[test_case(undefined, undefined, undefined => Err("Object.defineProperty called on non-object".to_string()); "undefined obj")]
+        #[test_case(plain_obj, make_bad_property_key, undefined => Err("Test Sentinel".to_string()); "bad property key")]
+        #[test_case(plain_obj, undefined, undefined => Err("Must be an object".to_string()); "bad descriptor")]
+        #[test_case(frozen_obj, undefined, attrs => Err("Property cannot be assigned to".to_string()); "frozen starting object")]
+        #[test_case(plain_obj, undefined, attrs => Ok(vec![PropertyInfo { name: PropertyKey::from("undefined"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from(99), writable: true } },]); "success")]
+        fn f(make_obj: fn(&mut Agent) -> ECMAScriptValue, make_key: fn(&mut Agent) -> ECMAScriptValue, make_attrs: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+            let mut agent = test_agent();
+            let obj = make_obj(&mut agent);
+            let key = make_key(&mut agent);
+            let attrs = make_attrs(&mut agent);
+
+            let result = object_define_property(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone(), key, attrs]);
+            match result {
+                Ok(val) => match &val {
+                    ECMAScriptValue::Object(o) => {
+                        assert_eq!(obj, val);
+                        Ok(o.o.common_object_data().borrow().propdump())
+                    }
+                    _ => panic!("Got a non-object back from Object.defineProperty: {:?}", val),
+                },
+                Err(err) => Err(unwind_type_error(&mut agent, err)),
+            }
+        }
+    }
 }
