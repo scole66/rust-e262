@@ -102,7 +102,7 @@ mod constructor {
 
         match object_constructor_function(&mut agent, ECMAScriptValue::Undefined, nt.as_ref(), args) {
             Ok(ok) => match ok {
-                ECMAScriptValue::Object(obj) => String::from(to_string(&mut agent, obj.into()).unwrap()),
+                ECMAScriptValue::Object(obj) => String::from(to_string(&mut agent, obj).unwrap()),
                 _ => panic!("Object() did not return an object. (Got: {:?})", ok),
             },
             Err(err) => unwind_type_error(&mut agent, err),

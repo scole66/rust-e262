@@ -543,8 +543,8 @@ impl From<ECMAScriptValue> for bool {
         }
     }
 }
-pub fn to_boolean(val: ECMAScriptValue) -> bool {
-    bool::from(val)
+pub fn to_boolean(val: impl Into<ECMAScriptValue>) -> bool {
+    bool::from(val.into())
 }
 
 // ToNumeric ( value )
@@ -596,8 +596,8 @@ pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Nu
 // |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
 // |               |     2. Return ? ToNumber(primValue).                              |
 // +---------------+-------------------------------------------------------------------+
-pub fn to_number(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<f64> {
-    match value {
+pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+    match value.into() {
         ECMAScriptValue::Undefined => Ok(f64::NAN),
         ECMAScriptValue::Null => Ok(0_f64),
         ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
@@ -662,7 +662,7 @@ fn string_to_number(string: JSString) -> f64 {
 //  5. Let integer be floor(abs(ℝ(number))).
 //  6. If number < +0𝔽, set integer to -integer.
 //  7. Return integer.
-pub fn to_integer_or_infinity(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompletion<f64> {
+pub fn to_integer_or_infinity(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
     let number = to_number(agent, argument)?;
     if number.is_nan() || number == 0.0 {
         Ok(0.0)
@@ -676,6 +676,133 @@ pub fn to_integer_or_infinity(agent: &mut Agent, argument: ECMAScriptValue) -> A
             Ok(integer)
         }
     }
+}
+
+// ToInt32 ( argument )
+//
+// The abstract operation ToInt32 takes argument argument. It converts argument to one of 232 integral Number values in
+// the range 𝔽(-2**31) through 𝔽(2**31 - 1), inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int32bit be int modulo 2**32.
+//  5. If int32bit ≥ 2**31, return 𝔽(int32bit - 2**32); otherwise return 𝔽(int32bit).
+//
+// NOTE | Given the above definition of ToInt32:
+//      |
+//      | * The ToInt32 abstract operation is idempotent: if applied to a result that it produced, the second
+//      |   application leaves that value unchanged.
+//      | * ToInt32(ToUint32(x)) is the same value as ToInt32(x) for all values of x. (It is to preserve this latter
+//      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
+//      | * ToInt32 maps -0𝔽 to +0𝔽.
+fn to_core_int(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+    Ok({
+        let number = to_number(agent, argument)?;
+        if !number.is_finite() || number == 0.0 {
+            0.0
+        } else {
+            let i = number.signum() * number.abs().floor();
+            i % modulo
+        }
+    })
+}
+fn to_core_signed(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+    Ok({
+        let intval = to_core_int(agent, modulo, argument)?;
+        if intval >= modulo / 2.0 {
+            intval - modulo
+        } else {
+            intval
+        }
+    })
+}
+pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i32> {
+    Ok(to_core_signed(agent, 4294967296.0, argument)? as i32)
+}
+
+// ToUint32 ( argument )
+//
+// The abstract operation ToUint32 takes argument argument. It converts argument to one of 2**32 integral Number values
+// in the range +0𝔽 through 𝔽(2**32 - 1), inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int32bit be int modulo 2**32.
+//  5. Return 𝔽(int32bit).
+//
+// NOTE | Given the above definition of ToUint32:
+//      |
+//      | * Step 5 is the only difference between ToUint32 and ToInt32.
+//      | * The ToUint32 abstract operation is idempotent: if applied to a result that it produced, the second
+//      |   application leaves that value unchanged.
+//      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
+//      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
+//      | * ToUint32 maps -0𝔽 to +0𝔽.
+pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u32> {
+    Ok(to_core_int(agent, 4294967296.0, argument)? as u32)
+}
+
+// ToInt16 ( argument )
+//
+// The abstract operation ToInt16 takes argument argument. It converts argument to one of 2**16 integral Number values in
+// the range 𝔽(-2**15) through 𝔽(2**15 - 1), inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int16bit be int modulo 2**16.
+//  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
+pub fn to_int16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i16> {
+    Ok(to_core_signed(agent, 65536.0, argument)? as i16)
+}
+
+// ToUint16 ( argument )
+//
+// The abstract operation ToUint16 takes argument argument. It converts argument to one of 2**16 integral Number values
+// in the range +0𝔽 through 𝔽(2**16 - 1), inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int16bit be int modulo 2**16.
+//  5. Return 𝔽(int16bit).
+//
+// NOTE | Given the above definition of ToUint16:
+//      |
+//      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
+//      | * ToUint16 maps -0𝔽 to +0𝔽.
+pub fn to_uint16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u16> {
+    Ok(to_core_int(agent, 65536.0, argument)? as u16)
+}
+
+// ToInt8 ( argument )
+//
+// The abstract operation ToInt8 takes argument argument. It converts argument to one of 2**8 integral Number values in
+// the range -128𝔽 through 127𝔽, inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int8bit be int modulo 2**8.
+//  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
+pub fn to_int8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i8> {
+    Ok(to_core_signed(agent, 256.0, argument)? as i8)
+}
+
+// ToUint8 ( argument )
+//
+// The abstract operation ToUint8 takes argument argument. It converts argument to one of 2**8 integral Number values
+// in the range +0𝔽 through 255𝔽, inclusive. It performs the following steps when called:
+//
+//  1. Let number be ? ToNumber(argument).
+//  2. If number is NaN, +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return +0𝔽.
+//  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
+//  4. Let int8bit be int modulo 2**8.
+//  5. Return 𝔽(int8bit).
+pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u8> {
+    Ok(to_core_int(agent, 256.0, argument)? as u8)
 }
 
 // ToString ( argument )
@@ -706,8 +833,8 @@ pub fn to_integer_or_infinity(agent: &mut Agent, argument: ECMAScriptValue) -> A
 // |               |      1. Let primValue be ? ToPrimitive(argument, string). |
 // |               |      2. Return ? ToString(primValue).                     |
 // +---------------+-----------------------------------------------------------+
-pub fn to_string(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<JSString> {
-    match val {
+pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompletion<JSString> {
+    match val.into() {
         ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
         ECMAScriptValue::Null => Ok(JSString::from("null")),
         ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
@@ -744,8 +871,8 @@ pub fn to_string(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<JSStr
 // | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
 // | Object        | Return argument.                                                                    |
 // +---------------+-------------------------------------------------------------------------------------+
-pub fn to_object(agent: &mut Agent, val: ECMAScriptValue) -> AltCompletion<Object> {
-    match val {
+pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompletion<Object> {
+    match val.into() {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
         ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
@@ -781,7 +908,7 @@ pub fn to_property_key(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompl
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-pub fn to_length(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompletion<i64> {
+pub fn to_length(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i64> {
     let len = to_integer_or_infinity(agent, argument)?;
     Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
 }
@@ -803,8 +930,8 @@ pub fn canonical_numeric_index_string(agent: &mut Agent, argument: JSString) -> 
     if argument == "-0" {
         Some(-0.0)
     } else {
-        let n = to_number(agent, argument.clone().into()).unwrap();
-        if argument == to_string(agent, n.into()).unwrap() {
+        let n = to_number(agent, argument.clone()).unwrap();
+        if argument == to_string(agent, n).unwrap() {
             Some(n)
         } else {
             None
@@ -826,12 +953,13 @@ pub fn canonical_numeric_index_string(agent: &mut Agent, argument: JSString) -> 
 //      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
 //      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
 //      e. Return integer.
-pub fn to_index(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<i64> {
+pub fn to_index(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltCompletion<i64> {
+    let value = value.into();
     if value == ECMAScriptValue::Undefined {
         Ok(0)
     } else {
         let integer = to_integer_or_infinity(agent, value)?;
-        let clamped = to_length(agent, integer.into()).unwrap();
+        let clamped = to_length(agent, integer).unwrap();
         if clamped as f64 != integer {
             Err(create_range_error(agent, format!("{} out of range for index", integer).as_str()))
         } else {

@@ -1164,3 +1164,114 @@ mod to_index {
         to_index(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
     }
 }
+
+mod to_int32 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(0x7FFFFFFF as f64 => Ok(0x7FFFFFFF); "upper limit")]
+    #[test_case(2147483648.0 => Ok(-2147483648); "lower rollover")]
+    #[test_case(-2147483648.0 => Ok(-2147483648); "lower limit")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
+        let mut agent = test_agent();
+        to_int32(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod to_uint32 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(4294967295.0 => Ok(0xFFFFFFFF); "upper limit")]
+    #[test_case(4294967296.0 => Ok(0); "rollover")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<u32, String> {
+        let mut agent = test_agent();
+        to_uint32(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod to_int16 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(0x7FFF as f64 => Ok(0x7FFF); "upper limit")]
+    #[test_case(32768.0 => Ok(-32768); "lower rollover")]
+    #[test_case(-32768.0 => Ok(-32768); "lower limit")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<i16, String> {
+        let mut agent = test_agent();
+        to_int16(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod to_uint16 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(65535.0 => Ok(0xFFFF); "upper limit")]
+    #[test_case(65536.0 => Ok(0); "rollover")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<u16, String> {
+        let mut agent = test_agent();
+        to_uint16(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod to_int8 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(0x7F as f64 => Ok(0x7F); "upper limit")]
+    #[test_case(128.0 => Ok(-128); "lower rollover")]
+    #[test_case(-128.0 => Ok(-128); "lower limit")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<i8, String> {
+        let mut agent = test_agent();
+        to_int8(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod to_uint8 {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(f64::NAN => Ok(0); "NaN")]
+    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    #[test_case(f64::INFINITY => Ok(0); "inf")]
+    #[test_case(0.0 => Ok(0); "zero")]
+    #[test_case(-0.0 => Ok(0); "neg zero")]
+    #[test_case(255.0 => Ok(0xFF); "upper limit")]
+    #[test_case(256.0 => Ok(0); "rollover")]
+    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    fn f(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
+        let mut agent = test_agent();
+        to_uint8(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
