@@ -1424,7 +1424,7 @@ fn ordinary_own_property_keys_01() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
 
-    let result = ordinary_own_property_keys(&obj);
+    let result = ordinary_own_property_keys(&mut agent, &obj);
     assert_eq!(result, &[]);
 }
 use crate::values::Symbol;
@@ -1444,7 +1444,7 @@ fn ordinary_own_property_keys_02() {
     create_data_property(&mut agent, &obj, PropertyKey::from("-1"), ECMAScriptValue::Null).unwrap();
     create_data_property(&mut agent, &obj, PropertyKey::from("0"), ECMAScriptValue::Null).unwrap();
 
-    let result = ordinary_own_property_keys(&obj);
+    let result = ordinary_own_property_keys(&mut agent, &obj);
     assert_eq!(
         result,
         &[

@@ -1,4 +1,5 @@
 use super::agent::Agent;
+use super::arrays::ArrayObject;
 use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
@@ -10,6 +11,7 @@ use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
@@ -69,6 +71,25 @@ impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
 impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
     fn from(source: &'a PropertyDescriptor) -> Self {
         Self(source)
+    }
+}
+
+pub struct DataDescriptor {
+    pub value: ECMAScriptValue,
+    pub writable: bool,
+    pub enumerable: bool,
+    pub configurable: bool,
+}
+
+impl TryFrom<PropertyDescriptor> for DataDescriptor {
+    type Error = &'static str;
+    fn try_from(source: PropertyDescriptor) -> Result<Self, Self::Error> {
+        match &source.property {
+            PropertyKind::Accessor(..) => Err("Accessor Property cannot be formed into a DataDescriptor"),
+            PropertyKind::Data(DataProperty { value, writable }) => {
+                Ok(DataDescriptor { value: value.clone(), writable: *writable, enumerable: source.enumerable, configurable: source.configurable })
+            }
+        }
     }
 }
 
@@ -822,7 +843,7 @@ where
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
+pub fn ordinary_own_property_keys<'a, T>(agent: &mut Agent, o: T) -> Vec<PropertyKey>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -832,7 +853,7 @@ where
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
     for (key, desc) in data.properties.iter() {
-        if key.is_array_index() {
+        if key.is_array_index(agent) {
             keys.push(key.clone())
         } else {
             match key {
@@ -912,6 +933,15 @@ pub trait ObjectInterface: Debug {
         false
     }
     fn is_regexp_object(&self) -> bool {
+        false
+    }
+    fn is_array_object(&self) -> bool {
+        false
+    }
+    fn to_array_object(&self) -> Option<&ArrayObject> {
+        None
+    }
+    fn is_proxy_object(&self) -> bool {
         false
     }
 
@@ -1167,8 +1197,8 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 
@@ -1183,7 +1213,6 @@ impl PartialEq for Object {
     }
 }
 
-use std::convert::TryFrom;
 impl TryFrom<ECMAScriptValue> for Object {
     type Error = &'static str;
     fn try_from(source: ECMAScriptValue) -> Result<Self, Self::Error> {
@@ -1219,6 +1248,27 @@ impl Object {
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
     }
+
+    // IsArray ( argument )
+    //
+    // The abstract operation IsArray takes argument argument. It performs the following steps when called:
+    //
+    //  1. If Type(argument) is not Object, return false.
+    //  2. If argument is an Array exotic object, return true.
+    //  3. If argument is a Proxy exotic object, then
+    //      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
+    //      b. Let target be argument.[[ProxyTarget]].
+    //      c. Return ? IsArray(target).
+    //  4. Return false.
+    pub fn is_array(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+        if self.o.is_array_object() {
+            Ok(true)
+        } else if self.o.is_proxy_object() {
+            todo!()
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1248,13 +1298,15 @@ pub enum InternalSlotName {
     InitialName,
     Realm,
     NumberData,
-    Nonsense, // For testing purposes, for the time being.
+    ArrayMarker, // No data associated with this; causes an array object to be constructed
+    Nonsense,    // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
 pub const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
 pub const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
 pub const BUILTIN_FUNCTION_SLOTS: [InternalSlotName; 4] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
 pub const NUMBER_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
+pub const ARRAY_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1283,6 +1335,8 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         ErrorObject::object(agent, prototype)
     } else if slot_match(&NUMBER_OBJECT_SLOTS, &slot_set) {
         NumberObject::object(agent, prototype)
+    } else if slot_match(&ARRAY_OBJECT_SLOTS, &slot_set) {
+        ArrayObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
@@ -1500,6 +1554,13 @@ pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
     cstr.construct(agent, func, args, nt)
+}
+
+pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject> {
+    match val {
+        ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
+        _ => None,
+    }
 }
 
 // Invoke ( V, P [ , argumentsList ] )
@@ -1794,8 +1855,8 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 

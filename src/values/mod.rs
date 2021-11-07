@@ -5,7 +5,7 @@ use super::cr::{AltCompletion, Completion};
 use super::dtoa_r::dtoa;
 use super::errors::{create_range_error, create_type_error};
 use super::number_object::create_number_object;
-use super::object::{call, get, get_method, to_callable, Object};
+use super::object::{call, get, get_method, to_callable, to_constructor, Object};
 use super::string_object::create_string_object;
 use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
@@ -59,6 +59,24 @@ impl ECMAScriptValue {
     }
     pub fn is_numeric(&self) -> bool {
         self.is_number() || self.is_bigint()
+    }
+
+    // IsArray ( argument )
+    //
+    // The abstract operation IsArray takes argument argument. It performs the following steps when called:
+    //
+    //  1. If Type(argument) is not Object, return false.
+    //  2. If argument is an Array exotic object, return true.
+    //  3. If argument is a Proxy exotic object, then
+    //      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
+    //      b. Let target be argument.[[ProxyTarget]].
+    //      c. Return ? IsArray(target).
+    //  4. Return false.
+    pub fn is_array(&self, agent: &mut Agent) -> AltCompletion<bool> {
+        match self {
+            ECMAScriptValue::Object(obj) => obj.is_array(agent),
+            _ => Ok(false),
+        }
     }
 
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -172,12 +190,14 @@ pub enum PropertyKey {
 }
 
 impl PropertyKey {
-    pub fn is_array_index(&self) -> bool {
-        // An array index is an integer index whose numeric value i is in the range +0𝔽 ≤ i < 𝔽(2^32 - 1).
+    pub fn is_array_index(&self, agent: &mut Agent) -> bool {
+        // A String property name P is an array index if and only if ToString(ToUint32(P)) equals P and ToUint32(P) is not the same value as 𝔽(2**32 - 1).
         match self {
             PropertyKey::Symbol(_) => false,
             PropertyKey::String(s) => {
-                String::from_utf16(s.as_slice()).map(|sss| sss.parse::<u32>().map(|int_val| (int_val == 0 && sss.len() == 1) || !sss.starts_with('0')).unwrap_or(false)).unwrap_or(false)
+                let as_u32 = to_uint32(agent, s).unwrap();
+                let restrung = to_string(agent, as_u32).unwrap();
+                as_u32 != 0xFFFFFFFF && restrung == *s
             }
         }
     }
@@ -222,6 +242,15 @@ impl From<String> for PropertyKey {
     }
 }
 
+impl From<PropertyKey> for ECMAScriptValue {
+    fn from(source: PropertyKey) -> Self {
+        match source {
+            PropertyKey::Symbol(sym) => sym.into(),
+            PropertyKey::String(string) => string.into(),
+        }
+    }
+}
+
 impl TryFrom<PropertyKey> for JSString {
     type Error = &'static str;
     fn try_from(key: PropertyKey) -> Result<Self, Self::Error> {
@@ -238,6 +267,46 @@ impl TryFrom<&PropertyKey> for JSString {
         match key {
             PropertyKey::String(s) => Ok(s.clone()),
             PropertyKey::Symbol(_) => Err("Expected String-valued property key"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+pub struct ArrayIndex(u32);
+
+impl TryFrom<u32> for ArrayIndex {
+    type Error = &'static str;
+    fn try_from(val: u32) -> Result<ArrayIndex, Self::Error> {
+        if val < 0xFFFFFFFF {
+            Ok(ArrayIndex(val))
+        } else {
+            Err("The maximum array index is 4294967294")
+        }
+    }
+}
+
+impl From<ArrayIndex> for u32 {
+    fn from(val: ArrayIndex) -> Self {
+        val.0
+    }
+}
+
+impl TryFrom<&PropertyKey> for ArrayIndex {
+    type Error = &'static str;
+    fn try_from(key: &PropertyKey) -> Result<ArrayIndex, Self::Error> {
+        match key {
+            PropertyKey::Symbol(_) => Err("Symbols are not u32s"),
+            PropertyKey::String(s) => {
+                let s = String::from_utf16_lossy(s.as_slice());
+                if s == "0" {
+                    Ok(ArrayIndex(0))
+                } else if s.starts_with(|ch| ('1'..='9').contains(&ch)) {
+                    let val = s.parse::<u32>().map_err(|_| "Invalid array index")?;
+                    ArrayIndex::try_from(val)
+                } else {
+                    Err("Invalid array index")
+                }
+            }
         }
     }
 }
@@ -968,6 +1037,13 @@ pub fn to_index(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltComp
     }
 }
 
+pub fn number_same_value(x: f64, y: f64) -> bool {
+    (x.is_nan() && y.is_nan()) || (x == y && x.signum() == y.signum())
+}
+pub fn number_same_value_zero(x: f64, y: f64) -> bool {
+    (x.is_nan() && y.is_nan()) || (x == y)
+}
+
 // IsCallable ( argument )
 //
 // The abstract operation IsCallable takes argument argument (an ECMAScript language value). It determines if argument
@@ -978,6 +1054,18 @@ pub fn to_index(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltComp
 //  3. Return false.
 pub fn is_callable(value: &ECMAScriptValue) -> bool {
     to_callable(value).is_some()
+}
+
+// IsConstructor ( argument )
+//
+// The abstract operation IsConstructor takes argument argument (an ECMAScript language value). It determines if
+// argument is a function object with a [[Construct]] internal method. It performs the following steps when called:
+//
+//  1. If Type(argument) is not Object, return false.
+//  2. If argument has a [[Construct]] internal method, return true.
+//  3. Return false.
+pub fn is_constructor(value: &ECMAScriptValue) -> bool {
+    to_constructor(value).is_some()
 }
 
 #[cfg(test)]

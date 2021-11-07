@@ -150,8 +150,8 @@ impl ObjectInterface for ErrorObject {
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_delete(agent, &*self, key)
     }
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 

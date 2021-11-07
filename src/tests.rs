@@ -249,7 +249,7 @@ impl ObjectInterface for TestObject {
         if self.own_property_keys_throws {
             Err(create_type_error(agent, "[[OwnPropertyKeys]] called on TestObject"))
         } else {
-            Ok(ordinary_own_property_keys(self))
+            Ok(ordinary_own_property_keys(agent, self))
         }
     }
 }
@@ -445,7 +445,7 @@ impl ObjectInterface for AdaptableObject {
     fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
         match &self.own_property_keys_override {
             Some(func) => func(agent, self),
-            None => Ok(ordinary_own_property_keys(self)),
+            None => Ok(ordinary_own_property_keys(agent, self)),
         }
     }
 }
@@ -485,4 +485,9 @@ impl AdaptableObject {
             }),
         }
     }
+}
+
+// error
+pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    Err(create_type_error(agent, "Test Sentinel"))
 }

@@ -1,4 +1,5 @@
 use super::agent::Agent;
+use super::arrays::provision_array_intrinsic;
 use super::cr::Completion;
 use super::environment_record::GlobalEnvironmentRecord;
 use super::errors::{
@@ -20,6 +21,8 @@ use std::rc::Rc;
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum IntrinsicId {
     // If you add something here, _please_ update the ALL_INTRINSIC_IDS list in the unit tests!
+    Array,
+    ArrayPrototype,
     Boolean,
     BooleanPrototype,
     Error,
@@ -47,6 +50,7 @@ pub enum IntrinsicId {
 pub struct Intrinsics {
     pub aggregate_error: Object,                    // aka "AggregateError", The AggregateError constructor
     pub array: Object,                              // aka "Array", The Array constructor
+    pub array_prototype: Object,                    // %Array.prototype%
     pub array_buffer: Object,                       // ArrayBuffer	The ArrayBuffer constructor (25.1.3)
     pub array_iterator_prototype: Object,           // The prototype of Array iterator objects (23.1.5)
     pub async_from_sync_iterator_prototype: Object, // The prototype of async-from-sync iterator objects (27.1.4)
@@ -137,6 +141,7 @@ impl Intrinsics {
         Intrinsics {
             aggregate_error: dead.clone(),
             array: dead.clone(),
+            array_prototype: dead.clone(),
             array_buffer: dead.clone(),
             array_iterator_prototype: dead.clone(),
             async_from_sync_iterator_prototype: dead.clone(),
@@ -217,6 +222,8 @@ impl Intrinsics {
     }
     pub fn get(&self, id: IntrinsicId) -> Object {
         match id {
+            IntrinsicId::Array => &self.array,
+            IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
             IntrinsicId::Error => &self.error,
@@ -366,6 +373,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_type_error_intrinsic(agent, &realm_rec);
     provision_uri_error_intrinsic(agent, &realm_rec);
     provision_object_intrinsic(agent, &realm_rec);
+    provision_array_intrinsic(agent, &realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 }
