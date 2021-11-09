@@ -311,7 +311,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // The initial value of Number.prototype is the Number prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    let number_prototype = ordinary_object_create(agent, Some(&object_prototype), &[InternalSlotName::NumberData]);
+    let number_prototype = ordinary_object_create(agent, Some(object_prototype), &[InternalSlotName::NumberData]);
     constructor_data!(&number_prototype, "prototype");
 
     // Properties of the Number Prototype Object

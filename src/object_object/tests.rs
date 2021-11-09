@@ -121,12 +121,12 @@ mod constructor {
         fn happy() {
             let mut agent = test_agent();
             let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let target = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
-            let fruits = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+            let target = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
+            let fruits = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
             create_data_property_or_throw(&mut agent, &fruits, "round", "apple").unwrap();
             create_data_property_or_throw(&mut agent, &fruits, "long", "banana").unwrap();
             create_data_property_or_throw(&mut agent, &fruits, "bunch", "grapes").unwrap();
-            let limbs = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+            let limbs = ordinary_object_create(&mut agent, Some(object_proto), &[]);
             create_data_property_or_throw(&mut agent, &limbs, "spider", 8).unwrap();
             create_data_property_or_throw(&mut agent, &limbs, "bee", 6).unwrap();
             create_data_property_or_throw(&mut agent, &limbs, "dog", 4).unwrap();
@@ -170,7 +170,7 @@ mod constructor {
 
         fn ordinary_obj(agent: &mut Agent) -> ECMAScriptValue {
             let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            ECMAScriptValue::from(ordinary_object_create(agent, Some(&proto), &[]))
+            ECMAScriptValue::from(ordinary_object_create(agent, Some(proto), &[]))
         }
         fn own_property_keys_throws(agent: &mut Agent) -> ECMAScriptValue {
             ECMAScriptValue::from(TestObject::object(agent, &[FunctionId::OwnPropertyKeys]))
@@ -191,7 +191,7 @@ mod constructor {
         }
         fn obj_with_item(agent: &mut Agent) -> ECMAScriptValue {
             let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(agent, Some(&proto), &[]);
+            let obj = ordinary_object_create(agent, Some(proto), &[]);
             create_data_property_or_throw(agent, &obj, "something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
@@ -234,23 +234,23 @@ mod constructor {
         use test_case::test_case;
 
         fn normal_obj(agent: &mut Agent) -> Object {
-            ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[])
+            ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[])
         }
         fn normal_params(agent: &mut Agent) -> ECMAScriptValue {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            let emotion_descriptor = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let emotion_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &emotion_descriptor, "value", "happy").unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "writable", true).unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "enumerable", true).unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "configurable", true).unwrap();
             create_data_property_or_throw(agent, &obj, "emotion", emotion_descriptor).unwrap();
-            let age_descriptor = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let age_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &age_descriptor, "value", 27).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "writable", true).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "enumerable", true).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "configurable", true).unwrap();
             create_data_property_or_throw(agent, &obj, "age", age_descriptor).unwrap();
-            let favorite_descriptor = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let favorite_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &favorite_descriptor, "value", "banana").unwrap();
             create_data_property_or_throw(agent, &favorite_descriptor, "writable", false).unwrap();
             create_data_property_or_throw(agent, &favorite_descriptor, "enumerable", true).unwrap();
@@ -291,7 +291,7 @@ mod constructor {
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("[[Get]] called on TestObject")); "get throws")]
         #[test_case(normal_obj, |a| {
-                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         create_data_property_or_throw(a, &obj, "key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("Must be an object")); "to_property_descriptor throws")]
@@ -322,8 +322,8 @@ mod constructor {
         #[test_case(|_| ECMAScriptValue::from(22), |_| ECMAScriptValue::Undefined => Err(String::from("Prototype argument for Object.create must be an Object or null.")); "bad proto")]
         #[test_case(|a| ECMAScriptValue::from(a.intrinsic(IntrinsicId::ObjectPrototype)),
                     |a| {
-                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        let emotion_descriptor = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let emotion_descriptor = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         create_data_property_or_throw(a, &emotion_descriptor, "value", "happy").unwrap();
                         create_data_property_or_throw(a, &emotion_descriptor, "writable", true).unwrap();
                         create_data_property_or_throw(a, &emotion_descriptor, "enumerable", true).unwrap();
@@ -360,10 +360,10 @@ mod constructor {
         use test_case::test_case;
 
         #[test_case(|_| ECMAScriptValue::Undefined, |_| ECMAScriptValue::Undefined => Err("Object.defineProperties called on non-object".to_string()); "non-object")]
-        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
                     |a| {
-                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        let emotion_descriptor = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let emotion_descriptor = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         create_data_property_or_throw(a, &emotion_descriptor, "value", "happy").unwrap();
                         create_data_property_or_throw(a, &emotion_descriptor, "writable", true).unwrap();
                         create_data_property_or_throw(a, &emotion_descriptor, "enumerable", true).unwrap();
@@ -371,9 +371,9 @@ mod constructor {
                         create_data_property_or_throw(a, &obj, "emotion", emotion_descriptor).unwrap();
                         ECMAScriptValue::from(obj)
                     } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
-        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+        #[test_case(|a| ECMAScriptValue::from(ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[])),
                     |a| {
-                        let obj = ordinary_object_create(a, Some(&a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(a, Some(a.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
                         create_data_property_or_throw(a, &obj, "key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err("Must be an object".to_string()); "bad props")]
@@ -399,13 +399,13 @@ mod constructor {
         use test_case::test_case;
 
         fn plain_obj(agent: &mut Agent) -> ECMAScriptValue {
-            ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
+            ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
         }
         fn faux_errors(agent: &mut Agent, _: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion {
             Err(create_type_error(agent, "Test Sentinel"))
         }
         fn make_bad_property_key(agent: &mut Agent) -> ECMAScriptValue {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             let tostring_func = create_builtin_function(
                 agent,
                 faux_errors,
@@ -430,12 +430,12 @@ mod constructor {
             ECMAScriptValue::Undefined
         }
         fn frozen_obj(agent: &mut Agent) -> ECMAScriptValue {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             obj.o.prevent_extensions(agent).unwrap();
             obj.into()
         }
         fn attrs(agent: &mut Agent) -> ECMAScriptValue {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &obj, "value", 99).unwrap();
             create_data_property_or_throw(agent, &obj, "writable", true).unwrap();
             create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();

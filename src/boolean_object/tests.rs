@@ -70,7 +70,7 @@ fn this_boolean_value_05() {
 fn this_boolean_value_06() {
     let mut agent = test_agent();
     let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let other_obj = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let other_obj = ordinary_object_create(&mut agent, Some(proto), &[]);
     let result = this_boolean_value(&mut agent, &ECMAScriptValue::Object(other_obj));
     assert!(result.is_err());
     let msg = unwind_type_error(&mut agent, result.unwrap_err());
