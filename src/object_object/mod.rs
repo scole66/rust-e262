@@ -251,7 +251,7 @@ fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
     let mut args = Arguments::from(arguments);
     let value = args.next_arg();
     let obj =
-        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
+        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
     Ok(ECMAScriptValue::from(obj))
 }
 
@@ -309,7 +309,7 @@ fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
 fn object_create(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
-    let o = match &o_arg {
+    let o = match o_arg {
         ECMAScriptValue::Object(o) => Some(o),
         ECMAScriptValue::Null => None,
         _ => {

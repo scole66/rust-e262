@@ -367,7 +367,7 @@ fn is_generic_descriptor_01() {
 fn ordinary_get_prototype_of_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
 
     let result = ordinary_get_prototype_of(&obj);
     assert_eq!(result, Some(object_proto));
@@ -377,8 +377,8 @@ fn ordinary_get_prototype_of_01() {
 fn ordinary_set_prototype_of_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let new_proto = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let new_proto = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
 
     let result = ordinary_set_prototype_of(&obj, Some(new_proto.clone()));
     assert!(result);
@@ -397,7 +397,7 @@ fn ordinary_set_prototype_of_02() {
 fn ordinary_set_prototype_of_03() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
 
     let result = ordinary_set_prototype_of(&obj, Some(object_proto.clone()));
     assert!(result);
@@ -417,7 +417,7 @@ fn ordinary_set_prototype_of_04() {
 fn ordinary_set_prototype_of_05() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
     obj.o.prevent_extensions(&mut agent).unwrap();
 
     let result = ordinary_set_prototype_of(&obj, None);
@@ -428,7 +428,7 @@ fn ordinary_set_prototype_of_05() {
 fn ordinary_set_prototype_of_06() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto.clone()), &[]);
 
     let result = ordinary_set_prototype_of(&obj, Some(obj.clone()));
     assert!(!result);
@@ -439,7 +439,7 @@ fn ordinary_set_prototype_of_06() {
 fn ordinary_is_extensible_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
 
     let result = ordinary_is_extensible(&obj);
     assert!(result);
@@ -453,7 +453,7 @@ fn ordinary_is_extensible_01() {
 fn ordinary_prevent_extensions_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
 
     let result = ordinary_prevent_extensions(&obj);
     assert!(result);
@@ -464,7 +464,7 @@ fn ordinary_prevent_extensions_01() {
 fn ordinary_get_own_property_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
 
     let result = ordinary_get_own_property(&obj, &key);
@@ -474,7 +474,7 @@ fn ordinary_get_own_property_01() {
 fn ordinary_get_own_property_02() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     define_property_or_throw(&mut agent, &obj, key.clone(), ppd).unwrap();
@@ -494,7 +494,7 @@ fn ordinary_define_own_property_01() {
     // Add a new property, object is extensible (the default)
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
 
@@ -515,7 +515,7 @@ fn ordinary_define_own_property_02() {
     // Add a new property, object is not extensible
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     obj.o.prevent_extensions(&mut agent).unwrap();
@@ -529,7 +529,7 @@ fn ordinary_define_own_property_03() {
     // Change an existing property
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
     let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
@@ -593,7 +593,7 @@ fn validate_and_apply_property_descriptor_03() {
     // current Undefined; empty descriptor
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor { ..Default::default() };
     let key = PropertyKey::from("key");
 
@@ -610,7 +610,7 @@ fn validate_and_apply_property_descriptor_04() {
     // current Undefined; overfull descriptor
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::from(true)),
         writable: Some(true),
@@ -634,7 +634,7 @@ fn validate_and_apply_property_descriptor_05() {
     // current Undefined; accessor descriptor
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let ppd = PotentialPropertyDescriptor {
         enumerable: Some(true),
         configurable: Some(true),
@@ -657,7 +657,7 @@ fn validate_and_apply_property_descriptor_06() {
     // object Undefined; current reasonable; any valid input
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let existing = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(99)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     let key = PropertyKey::from("key");
     define_property_or_throw(&mut agent, &obj, key.clone(), existing).unwrap();
@@ -967,7 +967,7 @@ fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialProperty
 fn validate_and_apply_property_descriptor_many() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     for (name, ppd) in VAPDIter::new(&agent) {
         for (idx, _) in VAPDCheck::new(&agent).enumerate() {
             let key = PropertyKey::from(format!("{}-{}", name, idx));
@@ -993,7 +993,7 @@ fn validate_and_apply_property_descriptor_many() {
 fn ordinary_has_property_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), configurable: Some(true), enumerable: Some(true), ..Default::default() };
     let key = PropertyKey::from("a");
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
@@ -1112,7 +1112,7 @@ fn ordinary_get_06() {
     let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
     // GETTER ON PARENT
     define_property_or_throw(&mut agent, &parent, key.clone(), initial).unwrap();
-    let child = ordinary_object_create(&mut agent, Some(&parent), &[]);
+    let child = ordinary_object_create(&mut agent, Some(parent), &[]);
     // RESULT VALUE ON CHILD
     define_property_or_throw(
         &mut agent,
@@ -1182,7 +1182,7 @@ fn ordinary_set_with_own_descriptor_02() {
     // If ownDesc is None, call [[Set]] on the parent. (We check by having the parent throw when we call its [[Set]].)
     let mut agent = test_agent();
     let parent = TestObject::object(&mut agent, &[FunctionId::Set(None)]);
-    let obj = ordinary_object_create(&mut agent, Some(&parent), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(parent), &[]);
     let key = PropertyKey::from("a");
 
     let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None).unwrap_err();
@@ -1584,14 +1584,14 @@ fn ordinary_object_create_02() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype but no extra slots
-    let obj = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[]);
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
-    assert_eq!(data.prototype.as_ref(), Some(&proto));
+    assert_eq!(data.prototype, Some(proto.clone()));
     assert_eq!(data.extensible, true);
     assert_eq!(data.properties.len(), 0);
-    assert_ne!(&obj, &proto);
+    assert_ne!(obj, proto);
 }
 
 #[test]
@@ -1601,7 +1601,7 @@ fn ordinary_object_create_03a() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(&mut agent, Some(&proto), &[InternalSlotName::Prototype]);
+    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[InternalSlotName::Prototype]);
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
@@ -1617,7 +1617,7 @@ fn ordinary_object_create_03b() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(&mut agent, Some(&proto), &[InternalSlotName::Extensible]);
+    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[InternalSlotName::Extensible]);
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
@@ -1633,7 +1633,7 @@ fn ordinary_object_create_03c() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(&mut agent, Some(&proto), &[InternalSlotName::Prototype, InternalSlotName::Extensible]);
+    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[InternalSlotName::Prototype, InternalSlotName::Extensible]);
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
@@ -1668,7 +1668,7 @@ fn get_prototype_of_01() {
 fn get_prototype_of_02() {
     let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
-    let obj = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[]);
     let result = obj.o.get_prototype_of(&mut agent);
     assert!(result.is_ok());
     assert_eq!(result.unwrap().as_ref(), Some(&proto));
@@ -1689,7 +1689,7 @@ fn set_prototype_of_02() {
     // Not changing a Some() prototype
     let mut agent = test_agent();
     let obj_a = ordinary_object_create(&mut agent, None, &[]);
-    let obj_b = ordinary_object_create(&mut agent, Some(&obj_a), &[]);
+    let obj_b = ordinary_object_create(&mut agent, Some(obj_a.clone()), &[]);
     let result = obj_b.o.set_prototype_of(&mut agent, Some(obj_a.clone()));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -1700,7 +1700,7 @@ fn set_prototype_of_03() {
     // Changing a Some() prototype to a different Some() prototype
     let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
-    let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let obj_b = ordinary_object_create(&mut agent, Some(proto), &[]);
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
     let result = obj_b.o.set_prototype_of(&mut agent, Some(new_proto.clone()));
     assert!(result.is_ok());
@@ -1712,7 +1712,7 @@ fn set_prototype_of_04() {
     // Trying to make a prototype loop
     let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
-    let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let obj_b = ordinary_object_create(&mut agent, Some(proto.clone()), &[]);
     let result = proto.o.set_prototype_of(&mut agent, Some(obj_b));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
@@ -1723,7 +1723,7 @@ fn set_prototype_of_05() {
     // Changing the prototype of an object that's not extensible
     let mut agent = test_agent();
     let proto = ordinary_object_create(&mut agent, None, &[]);
-    let obj_b = ordinary_object_create(&mut agent, Some(&proto), &[]);
+    let obj_b = ordinary_object_create(&mut agent, Some(proto.clone()), &[]);
     obj_b.o.common_object_data().borrow_mut().extensible = false;
     let new_proto = ordinary_object_create(&mut agent, None, &[]);
     let result = obj_b.o.set_prototype_of(&mut agent, Some(new_proto));
@@ -1813,7 +1813,7 @@ mod private_element_find {
     fn setup() -> (Object, Vec<PrivateName>) {
         let mut agent = test_agent();
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(&mut agent, Some(&object_proto), &[]);
+        let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
 
         let name1 = PrivateName::new("name1");
         let name2 = PrivateName::new("alice");
@@ -1860,7 +1860,7 @@ mod private_field_add {
 
     fn setup(agent: &mut Agent) -> (Object, Vec<PrivateName>) {
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+        let obj = ordinary_object_create(agent, Some(object_proto), &[]);
 
         let name1 = PrivateName::new("name1");
         let name2 = PrivateName::new("alice");
@@ -1913,7 +1913,7 @@ mod private_method_or_accessor_add {
 
     fn setup(agent: &mut Agent) -> (Object, PrivateName) {
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+        let obj = ordinary_object_create(agent, Some(object_proto), &[]);
 
         let name = PrivateName::new("name1");
 
@@ -1958,7 +1958,7 @@ mod private_get {
 
     fn setup(agent: &mut Agent) -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+        let obj = ordinary_object_create(agent, Some(object_proto), &[]);
 
         let field_name = PrivateName::new("field");
         let method_name = PrivateName::new("method");
@@ -2017,7 +2017,7 @@ mod private_set {
 
     fn setup(agent: &mut Agent) -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+        let obj = ordinary_object_create(agent, Some(object_proto), &[]);
 
         let field_name = PrivateName::new("field");
         let method_name = PrivateName::new("method");
@@ -2275,7 +2275,7 @@ mod to_property_descriptor {
     use test_case::test_case;
 
     fn happy_data(agent: &mut Agent) -> ECMAScriptValue {
-        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
         create_data_property_or_throw(agent, &obj, "value", "blue").unwrap();
         create_data_property_or_throw(agent, &obj, "writable", true).unwrap();
         create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();
@@ -2283,7 +2283,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
     fn fcn_data(agent: &mut Agent) -> ECMAScriptValue {
-        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
         create_data_property_or_throw(agent, &obj, "get", ECMAScriptValue::Undefined).unwrap();
         create_data_property_or_throw(agent, &obj, "set", ECMAScriptValue::Undefined).unwrap();
         create_data_property_or_throw(agent, &obj, "enumerable", true).unwrap();
@@ -2324,7 +2324,7 @@ mod to_property_descriptor {
     fn create_getter_error(agent: &mut Agent, name: &str) -> ECMAScriptValue {
         let realm = agent.running_execution_context().unwrap().realm.clone();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(agent, Some(&object_prototype), &[]);
+        let obj = ordinary_object_create(agent, Some(object_prototype), &[]);
         let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
         let key = PropertyKey::from(name);
         let getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
@@ -2333,7 +2333,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
     fn create_nonfcn(agent: &mut Agent, name: &str) -> ECMAScriptValue {
-        let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
         create_data_property_or_throw(agent, &obj, name, name).unwrap();
         ECMAScriptValue::from(obj)
     }

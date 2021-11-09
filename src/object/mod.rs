@@ -197,7 +197,7 @@ where
 pub fn from_property_descriptor(agent: &mut Agent, desc: Option<PropertyDescriptor>) -> Option<Object> {
     match desc {
         Some(d) => {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             match &d.property {
                 PropertyKind::Data(DataProperty { value, writable }) => {
                     create_data_property_or_throw(agent, &obj, "value", value.clone()).unwrap();
@@ -1537,10 +1537,10 @@ pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
+pub fn ordinary_object_create(agent: &mut Agent, proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
     let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
     slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(agent, slots.as_slice(), proto.cloned());
+    let o = make_basic_object(agent, slots.as_slice(), proto);
     o
 }
 
@@ -1559,7 +1559,7 @@ pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additio
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
 pub fn ordinary_create_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId, internal_slots_list: &[InternalSlotName]) -> AltCompletion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
-    Ok(ordinary_object_create(agent, Some(&proto), internal_slots_list))
+    Ok(ordinary_object_create(agent, Some(proto), internal_slots_list))
 }
 
 // GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto )
