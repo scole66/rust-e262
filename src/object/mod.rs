@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::arrays::ArrayObject;
+use super::arrays::{array_create, ArrayObject};
 use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
@@ -8,7 +8,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
+use super::values::{is_callable, to_string,to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -1561,6 +1561,26 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject>
         ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
         _ => None,
     }
+}
+
+// CreateArrayFromList ( elements )
+// 
+// The abstract operation CreateArrayFromList takes argument elements (a List of ECMAScript language values). It is
+// used to create an Array whose elements are provided by elements. It performs the following steps when called:
+// 
+//  1. Let array be ! ArrayCreate(0).
+//  2. Let n be 0.
+//  3. For each element e of elements, do
+//      a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
+//      b. Set n to n + 1.
+//  4. Return array.
+pub fn create_array_from_list(agent: &mut Agent, elements: &[ECMAScriptValue]) -> Object {
+    let array = array_create(agent, 0, None).unwrap();
+    for (n, e) in elements.iter().enumerate() {
+        let key = to_string(agent, u64::try_from(n).unwrap()).unwrap();
+        create_data_property_or_throw(agent, &array, key, e.clone()).unwrap();
+    }
+    array
 }
 
 // Invoke ( V, P [ , argumentsList ] )

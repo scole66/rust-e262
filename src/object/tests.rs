@@ -2360,3 +2360,62 @@ mod to_property_descriptor {
         unwind_type_error(&mut agent, result.unwrap_err())
     }
 }
+
+mod create_array_from_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(&[] => vec![
+        PropertyInfo {
+            name: PropertyKey::from("length"),
+            enumerable: false,
+            configurable: false,
+            kind: PropertyInfoKind::Data {
+                value: ECMAScriptValue::from(0.0),
+                writable: true,
+            }
+        },
+    ]; "empty list")]
+    #[test_case(&[ECMAScriptValue::Undefined, ECMAScriptValue::from(true), ECMAScriptValue::from(-32111.342)] => vec![
+        PropertyInfo {
+            name: PropertyKey::from("length"),
+            enumerable: false,
+            configurable: false,
+            kind: PropertyInfoKind::Data {
+                value: ECMAScriptValue::from(3.0),
+                writable: true,
+            }
+        },
+        PropertyInfo {
+            name: PropertyKey::from("0"),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data {
+                value: ECMAScriptValue::Undefined,
+                writable: true,
+            }
+        },
+        PropertyInfo {
+            name: PropertyKey::from("1"),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data {
+                value: ECMAScriptValue::from(true),
+                writable: true,
+            }
+        },
+        PropertyInfo {
+            name: PropertyKey::from("2"),
+            enumerable: true,
+            configurable: true,
+            kind: PropertyInfoKind::Data {
+                value: ECMAScriptValue::from(-32111.342),
+                writable: true,
+            }
+        },
+    ]; "some items")]
+    fn cafl(items: &[ECMAScriptValue]) -> Vec<PropertyInfo> {
+        let mut agent = test_agent();
+        create_array_from_list(&mut agent, items).o.common_object_data().borrow().propdump()
+    }
+}
