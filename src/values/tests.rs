@@ -1,4 +1,6 @@
 use super::*;
+use crate::agent::WksId;
+use crate::arrays::array_create;
 use crate::errors::create_type_error;
 use crate::function_object::create_builtin_function;
 use crate::object::{create_data_property, define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
@@ -6,7 +8,9 @@ use crate::realm::IntrinsicId;
 use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_any_error, unwind_type_error};
 use ahash::RandomState;
 use num::bigint::BigInt;
+use std::cmp::Ordering;
 use std::convert::TryInto;
+use test_case::test_case;
 
 #[test]
 fn nts_test_nan() {
@@ -229,6 +233,15 @@ fn ecmascript_value_concise() {
 
     assert_ne!(format!("{:?}", obj), "");
 }
+#[test]
+fn ecmascript_value_is_array() {
+    let mut agent = test_agent();
+    let a = array_create(&mut agent, 0, None).unwrap();
+    let v1: ECMAScriptValue = a.into();
+    let v2 = ECMAScriptValue::Null;
+    assert!(v1.is_array(&mut agent).unwrap());
+    assert!(!v2.is_array(&mut agent).unwrap());
+}
 
 #[test]
 fn symbol_debug() {
@@ -299,6 +312,27 @@ fn symbol_internals_clone() {
     let si2 = si1.clone();
     assert_eq!(si1.id, si2.id);
     assert_eq!(si1.description, si2.description);
+}
+
+mod pn {
+    use super::*;
+    use ahash::AHasher;
+
+    #[test]
+    #[allow(clippy::clone_on_copy)]
+    fn derived_stuff() {
+        let pn = PN(());
+        let b = pn; // Copy
+        let c = pn.clone();
+        assert_ne!(format!("{:?}", b), "");
+        assert_eq!(b == c, true);
+        assert_eq!(b != c, false);
+        assert_eq!(b.cmp(&c), Ordering::Equal);
+        assert_eq!(b.partial_cmp(&c), Some(Ordering::Equal));
+
+        let mut hasher = AHasher::new_with_keys(1234, 5678);
+        b.hash(&mut hasher);
+    }
 }
 
 mod private_name {
@@ -427,18 +461,19 @@ fn property_key_clone() {
 }
 #[test]
 fn property_key_is_array_index() {
-    assert_eq!(PropertyKey::from("0").is_array_index(), true);
-    assert_eq!(PropertyKey::from("10").is_array_index(), true);
-    assert_eq!(PropertyKey::from("0.25").is_array_index(), false);
-    assert_eq!(PropertyKey::from("0  ").is_array_index(), false);
-    assert_eq!(PropertyKey::from("  0").is_array_index(), false);
-    assert_eq!(PropertyKey::from("-20").is_array_index(), false);
-    assert_eq!(PropertyKey::from("4294967295").is_array_index(), true);
-    assert_eq!(PropertyKey::from("4294967296").is_array_index(), false);
-    assert_eq!(PropertyKey::from("010").is_array_index(), false);
-    assert_eq!(PropertyKey::from("000").is_array_index(), false);
-    let agent = test_agent();
-    assert_eq!(PropertyKey::from(agent.wks(WksId::ToPrimitive)).is_array_index(), false);
+    let mut agent = test_agent();
+    assert_eq!(PropertyKey::from("0").is_array_index(&mut agent), true);
+    assert_eq!(PropertyKey::from("10").is_array_index(&mut agent), true);
+    assert_eq!(PropertyKey::from("0.25").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("0  ").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("  0").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("-20").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("4294967294").is_array_index(&mut agent), true);
+    assert_eq!(PropertyKey::from("4294967295").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("4294967296").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("010").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from("000").is_array_index(&mut agent), false);
+    assert_eq!(PropertyKey::from(agent.wks(WksId::ToPrimitive)).is_array_index(&mut agent), false);
 }
 #[test]
 fn property_key_try_from() {
@@ -451,6 +486,14 @@ fn property_key_try_from() {
     assert_eq!(JSString::try_from(&pk).unwrap(), "key");
     let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
     assert_eq!(JSString::try_from(&pk).unwrap_err(), "Expected String-valued property key");
+}
+#[test_case(|_| PropertyKey::from("alice"), |_| ECMAScriptValue::from("alice"); "string")]
+#[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)), |a| ECMAScriptValue::from(a.wks(WksId::ToPrimitive)); "symbol")]
+fn property_key_into_ecmascriptvalue(make_key: fn(&mut Agent) -> PropertyKey, make_expected: fn(&mut Agent) -> ECMAScriptValue) {
+    let mut agent = test_agent();
+    let key = make_key(&mut agent);
+    let expected = make_expected(&mut agent);
+    assert_eq!(ECMAScriptValue::from(key), expected);
 }
 
 #[test]
@@ -1273,5 +1316,134 @@ mod to_uint8 {
     fn f(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
         let mut agent = test_agent();
         to_uint8(&mut agent, arg).map_err(|e| unwind_any_error(&mut agent, e))
+    }
+}
+
+mod array_index {
+    use super::*;
+    use std::cmp::Ordering;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", ArrayIndex::try_from(10932).unwrap()), "");
+    }
+
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => true; "same")]
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => false; "different")]
+    fn eq(v1: ArrayIndex, v2: ArrayIndex) -> bool {
+        v1 == v2
+    }
+
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => false; "same")]
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => true; "different")]
+    fn ne(v1: ArrayIndex, v2: ArrayIndex) -> bool {
+        v1 != v2
+    }
+
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Ordering::Equal; "same")]
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Less; "less")]
+    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Ordering::Greater; "greater")]
+    fn cmp(v1: ArrayIndex, v2: ArrayIndex) -> Ordering {
+        v1.cmp(&v2)
+    }
+
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(10).unwrap() => Some(Ordering::Equal); "same")]
+    #[test_case(ArrayIndex::try_from(10).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Less); "less")]
+    #[test_case(ArrayIndex::try_from(100000).unwrap(), ArrayIndex::try_from(1000).unwrap() => Some(Ordering::Greater); "greater")]
+    fn partial_cmp(v1: ArrayIndex, v2: ArrayIndex) -> Option<Ordering> {
+        v1.partial_cmp(&v2)
+    }
+
+    mod try_from {
+        use super::*;
+        use crate::agent::WksId;
+        use test_case::test_case;
+
+        #[test_case(0 => Ok(ArrayIndex(0)); "lower bound")]
+        #[test_case(4294967294 => Ok(ArrayIndex(4294967294)); "upper bound")]
+        #[test_case(4294967295 => Err("The maximum array index is 4294967294".to_string()); "beyond upper bound")]
+        fn from_u32(u: u32) -> Result<ArrayIndex, String> {
+            ArrayIndex::try_from(u).map_err(|e| e.into())
+        }
+
+        #[test_case(|a| a.wks(WksId::ToPrimitive).into() => Err("Symbols are not u32s".to_string()); "symbol")]
+        #[test_case(|_| "33".into() => Ok(ArrayIndex(33)); "simple")]
+        #[test_case(|_| "0".into() => Ok(ArrayIndex(0)); "zero")]
+        #[test_case(|_| "010".into() => Err("Invalid array index".to_string()); "leading zeroes")]
+        #[test_case(|_| "72x".into() => Err("Invalid array index".to_string()); "parse fail")]
+        #[test_case(|_| "4294967295".into() => Err("The maximum array index is 4294967294".to_string()); "convert fail")]
+        fn property_key(make_key: fn(&mut Agent) -> PropertyKey) -> Result<ArrayIndex, String> {
+            let mut agent = test_agent();
+            let key = make_key(&mut agent);
+            ArrayIndex::try_from(&key).map_err(|e| e.into())
+        }
+    }
+
+    mod into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(ArrayIndex(0) => 0; "lower")]
+        #[test_case(ArrayIndex(4294967294) => 4294967294; "upper")]
+        fn into_u32(a: ArrayIndex) -> u32 {
+            u32::from(a)
+        }
+    }
+}
+
+#[test_case(f64::NAN, f64::NAN => true; "nan")]
+#[test_case(0.0, -0.0 => false; "plus/minus zero")]
+#[test_case(-0.0, 0.0 => false; "minus/plus zero")]
+#[test_case(-0.0, -0.0 => true; "neg zeroes")]
+#[test_case(0.0, 0.0 => true; "pos zeroes")]
+#[test_case(f64::INFINITY, f64::NEG_INFINITY => false; "plus/minus inf")]
+#[test_case(f64::NEG_INFINITY, f64::INFINITY => false; "minus/plus inf")]
+#[test_case(f64::INFINITY, f64::INFINITY => true; "inf")]
+#[test_case(f64::NEG_INFINITY, f64::NEG_INFINITY => true; "neg inf")]
+#[test_case(10.0, -10.0 => false; "unequal numbers")]
+#[test_case(32.0, 32.0 => true; "equal numbers")]
+fn number_same_value_(x: f64, y: f64) -> bool {
+    number_same_value(x, y)
+}
+
+#[test_case(f64::NAN, f64::NAN => true; "nan")]
+#[test_case(0.0, -0.0 => true; "plus/minus zero")]
+#[test_case(-0.0, 0.0 => true; "minus/plus zero")]
+#[test_case(-0.0, -0.0 => true; "neg zeroes")]
+#[test_case(0.0, 0.0 => true; "pos zeroes")]
+#[test_case(f64::INFINITY, f64::NEG_INFINITY => false; "plus/minus inf")]
+#[test_case(f64::NEG_INFINITY, f64::INFINITY => false; "minus/plus inf")]
+#[test_case(f64::INFINITY, f64::INFINITY => true; "inf")]
+#[test_case(f64::NEG_INFINITY, f64::NEG_INFINITY => true; "neg inf")]
+#[test_case(10.0, -10.0 => false; "unequal numbers")]
+#[test_case(32.0, 32.0 => true; "equal numbers")]
+fn number_same_value_zero_(x: f64, y: f64) -> bool {
+    number_same_value_zero(x, y)
+}
+
+mod is_callable {
+    use super::*;
+    #[test]
+    fn primitive() {
+        assert!(!is_callable(&true.into()));
+    }
+    #[test]
+    fn callable() {
+        let agent = test_agent();
+        assert!(is_callable(&agent.intrinsic(IntrinsicId::Object).into()));
+    }
+}
+
+mod is_constructor {
+    use super::*;
+    #[test]
+    fn primitive() {
+        assert!(!is_constructor(&true.into()));
+    }
+    #[test]
+    fn constructor() {
+        let agent = test_agent();
+        assert!(is_constructor(&agent.intrinsic(IntrinsicId::Object).into()));
     }
 }

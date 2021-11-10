@@ -1,5 +1,4 @@
 use crate::agent::{Agent, WksId};
-use crate::arrays::is_array;
 use crate::cr::Completion;
 use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
@@ -57,7 +56,7 @@ fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
     let o = to_object(agent, this_value).unwrap();
-    let builtin_tag = if is_array(&o)? {
+    let builtin_tag = if o.is_array(agent)? {
         "Array"
     } else if o.o.is_arguments_object() {
         "Arguments"

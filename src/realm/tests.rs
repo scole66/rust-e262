@@ -2,7 +2,9 @@ use super::*;
 use crate::tests::{calculate_hash, test_agent, unwind_type_error};
 use ahash::RandomState;
 
-const ALL_INTRINSIC_IDS: [IntrinsicId; 22] = [
+const ALL_INTRINSIC_IDS: [IntrinsicId; 24] = [
+    IntrinsicId::Array,
+    IntrinsicId::ArrayPrototype,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
     IntrinsicId::Error,
