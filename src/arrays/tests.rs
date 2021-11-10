@@ -260,7 +260,7 @@ mod array_object {
         fn screwy_get_value(agent: &mut Agent) -> PotentialPropertyDescriptor {
             let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
-            let obj = ordinary_object_create(agent, Some(&object_proto), &[]);
+            let obj = ordinary_object_create(agent, Some(object_proto), &[]);
             let value_of = create_builtin_function(agent, value_just_once, false, 0.0, "valueOf".into(), &[], None, Some(function_proto), None);
             define_property_or_throw(
                 agent,
