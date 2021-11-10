@@ -8,7 +8,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_string,to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
+use super::values::{is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -1564,10 +1564,10 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject>
 }
 
 // CreateArrayFromList ( elements )
-// 
+//
 // The abstract operation CreateArrayFromList takes argument elements (a List of ECMAScript language values). It is
 // used to create an Array whose elements are provided by elements. It performs the following steps when called:
-// 
+//
 //  1. Let array be ! ArrayCreate(0).
 //  2. Let n be 0.
 //  3. For each element e of elements, do
