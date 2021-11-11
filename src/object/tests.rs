@@ -2494,3 +2494,127 @@ mod enumerable_own_property_names {
         assert_eq!(getv(&mut agent, &result[1], &"length".into()).unwrap(), 2.0.into());
     }
 }
+
+mod set_integrity_level {
+    use super::*;
+    use test_case::test_case;
+
+    fn normal(agent: &mut Agent) -> Object {
+        let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(proto), &[]);
+        create_data_property_or_throw(agent, &obj, "property", 67).unwrap();
+        define_property_or_throw(
+            agent,
+            &obj,
+            "accessor".into(),
+            PotentialPropertyDescriptor {
+                get: Some(ECMAScriptValue::Undefined),
+                set: Some(ECMAScriptValue::Undefined),
+                configurable: Some(true),
+                enumerable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        obj
+    }
+    fn dead(agent: &mut Agent) -> Object {
+        DeadObject::object(agent)
+    }
+    fn prevention_disabled(agent: &mut Agent) -> Object {
+        AdaptableObject::object(agent, AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() })
+    }
+    fn opk_throws(agent: &mut Agent) -> Object {
+        TestObject::object(agent, &[FunctionId::OwnPropertyKeys])
+    }
+    fn dop_throws(agent: &mut Agent) -> Object {
+        let obj = AdaptableObject::object(
+            agent,
+            AdaptableMethods {
+                define_own_property_override: Some(|agent, this, key, desc| {
+                    if this.something.get() == 0 {
+                        this.something.set(1);
+                        ordinary_define_own_property(agent, this, key, desc)
+                    } else {
+                        Err(create_type_error(agent, "Test Sentinel"))
+                    }
+                }),
+                ..Default::default()
+            },
+        );
+        create_data_property_or_throw(agent, &obj, "property", 99.0).unwrap();
+        obj
+    }
+    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        if this.something.get() == 0 {
+            this.something.set(1);
+            Ok(ordinary_get_own_property(this, key))
+        } else {
+            Err(create_type_error(agent, "[[GetOwnProperty]] called more than once"))
+        }
+    }
+    fn gop_throws(agent: &mut Agent) -> Object {
+        let obj = AdaptableObject::object(agent, AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() });
+        create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
+        obj
+    }
+    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(vec!["one".into(), "two".into(), "three".into()])
+    }
+    fn lyingkeys(agent: &mut Agent) -> Object {
+        AdaptableObject::object(agent, AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() })
+    }
+
+    #[test_case(normal, IntegrityLevel::Frozen => Ok((true, vec![
+        PropertyInfo {
+            name: "property".into(),
+            kind: PropertyInfoKind::Data {
+                value: 67.0.into(),
+                writable: false,
+            },
+            enumerable: true,
+            configurable: false,
+        },
+        PropertyInfo {
+            name: "accessor".into(),
+            kind: PropertyInfoKind::Accessor {
+                getter: ECMAScriptValue::Undefined,
+                setter: ECMAScriptValue::Undefined,
+            },
+            enumerable: true,
+            configurable: false,
+        }
+    ])); "frozen ordinary")]
+    #[test_case(normal, IntegrityLevel::Sealed => Ok((true, vec![
+        PropertyInfo {
+            name: "property".into(),
+            kind: PropertyInfoKind::Data {
+                value: 67.0.into(),
+                writable: true,
+            },
+            enumerable: true,
+            configurable: false,
+        },
+        PropertyInfo {
+            name: "accessor".into(),
+            kind: PropertyInfoKind::Accessor {
+                getter: ECMAScriptValue::Undefined,
+                setter: ECMAScriptValue::Undefined,
+            },
+            enumerable: true,
+            configurable: false,
+        }
+    ])); "sealed ordinary")]
+    #[test_case(dead, IntegrityLevel::Frozen => Err("TypeError: prevent_extensions called on DeadObject".to_string()); "prevent_extensions throws")]
+    #[test_case(prevention_disabled, IntegrityLevel::Sealed => Ok((false, Vec::<PropertyInfo>::new())); "prevent_extensions returns false")]
+    #[test_case(opk_throws, IntegrityLevel::Sealed => Err("TypeError: [[OwnPropertyKeys]] called on TestObject".to_string()); "OwnPropertyKeys throws")]
+    #[test_case(dop_throws, IntegrityLevel::Sealed => Err("TypeError: Test Sentinel".to_string()); "Sealed: DefineOwn throws")]
+    #[test_case(dop_throws, IntegrityLevel::Frozen => Err("TypeError: Test Sentinel".to_string()); "Frozen: DefineOwn throws")]
+    #[test_case(gop_throws, IntegrityLevel::Frozen => Err("TypeError: [[GetOwnProperty]] called more than once".to_string()); "GetOwnProp throws")]
+    #[test_case(lyingkeys, IntegrityLevel::Frozen => Ok((true, Vec::<PropertyInfo>::new())); "lying own property keys")]
+    fn sil(make_obj: fn(&mut Agent) -> Object, level: IntegrityLevel) -> Result<(bool, Vec<PropertyInfo>), String> {
+        let mut agent = test_agent();
+        let obj = make_obj(&mut agent);
+        set_integrity_level(&mut agent, &obj, level).map(|success| (success, obj.o.common_object_data().borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+    }
+}
