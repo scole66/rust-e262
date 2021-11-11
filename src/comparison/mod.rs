@@ -1,7 +1,41 @@
 use crate::agent::Agent;
 use crate::cr::AltCompletion;
+use crate::errors::create_type_error;
 use crate::object::ObjectInterface;
 use crate::values::ECMAScriptValue;
+
+// RequireObjectCoercible ( argument )
+//
+// The abstract operation RequireObjectCoercible takes argument argument. It throws an error if argument is a value
+// that cannot be converted to an Object using ToObject. It is defined by the following table:
+//
+// +---------------+------------------------------+
+// | Argument Type | Result                       |
+// +---------------+------------------------------+
+// | Undefined     | Throw a TypeError exception. |
+// +---------------+------------------------------+
+// | Null          | Throw a TypeError exception. |
+// +---------------+------------------------------+
+// | Boolean       | Return argument.             |
+// +---------------+------------------------------+
+// | Number        | Return argument.             |
+// +---------------+------------------------------+
+// | String        | Return argument.             |
+// +---------------+------------------------------+
+// | Symbol        | Return argument.             |
+// +---------------+------------------------------+
+// | BigInt        | Return argument.             |
+// +---------------+------------------------------+
+// | Object        | Return argument.             |
+// +---------------+------------------------------+
+//
+// https://tc39.es/ecma262/#sec-requireobjectcoercible
+pub fn require_object_coercible(agent: &mut Agent, argument: &ECMAScriptValue) -> AltCompletion<()> {
+    match argument {
+        ECMAScriptValue::Undefined | ECMAScriptValue::Null => Err(create_type_error(agent, "Undefined and null are not allowed in this context")),
+        _ => Ok(()),
+    }
+}
 
 // IsExtensible ( O )
 //
