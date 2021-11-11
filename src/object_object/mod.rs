@@ -3,8 +3,8 @@ use crate::cr::Completion;
 use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
 use crate::object::{
-    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get, ordinary_create_from_constructor, ordinary_object_create, set, to_property_descriptor,
-    EnumerationStyle, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get, ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level,
+    to_property_descriptor, EnumerationStyle, IntegrityLevel, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
@@ -430,9 +430,32 @@ fn object_entries(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: 
     Ok(create_array_from_list(agent, &name_list).into())
 }
 
-fn object_freeze(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.freeze ( O )
+//
+// When the freeze function is called, the following steps are taken:
+//
+//  1. If Type(O) is not Object, return O.
+//  2. Let status be ? SetIntegrityLevel(O, frozen).
+//  3. If status is false, throw a TypeError exception.
+//  4. Return O.
+//
+// https://tc39.es/ecma262/#sec-object.freeze
+fn object_freeze(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    match o_arg {
+        ECMAScriptValue::Object(o) => {
+            let status = set_integrity_level(agent, &o, IntegrityLevel::Frozen)?;
+            if !status {
+                Err(create_type_error(agent, "Object cannot be frozen"))
+            } else {
+                Ok(o.into())
+            }
+        }
+        _ => Ok(o_arg),
+    }
 }
+
 fn object_from_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }

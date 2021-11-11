@@ -511,4 +511,44 @@ mod constructor {
             assert_eq!(get(&mut agent, &second, &"1".into()).unwrap(), "spaghetti".into());
         }
     }
+
+    mod freeze {
+        use super::*;
+
+        #[test]
+        fn no_args() {
+            let mut agent = test_agent();
+            assert_eq!(object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap(), ECMAScriptValue::Undefined);
+        }
+        #[test]
+        fn number() {
+            let mut agent = test_agent();
+            assert_eq!(object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(), ECMAScriptValue::from(2003.25));
+        }
+        #[test]
+        fn dead() {
+            let mut agent = test_agent();
+            let arg: ECMAScriptValue = DeadObject::object(&mut agent).into();
+            let result = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[arg]).unwrap_err();
+            assert_eq!(unwind_any_error(&mut agent, result), "TypeError: prevent_extensions called on DeadObject");
+        }
+        #[test]
+        fn ok() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            create_data_property_or_throw(&mut agent, &obj, "property", "holiday").unwrap();
+            let result: Object = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone().into()]).unwrap().try_into().unwrap();
+            assert_eq!(
+                result.o.common_object_data().borrow().propdump(),
+                vec![PropertyInfo { name: "property".into(), kind: PropertyInfoKind::Data { value: "holiday".into(), writable: false }, enumerable: true, configurable: false }]
+            );
+        }
+        #[test]
+        fn prevention_prevented() {
+            let mut agent = test_agent();
+            let obj = AdaptableObject::object(&mut agent, AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() });
+            let result = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap_err();
+            assert_eq!(unwind_any_error(&mut agent, result), "TypeError: Object cannot be frozen");
+        }
+    }
 }
