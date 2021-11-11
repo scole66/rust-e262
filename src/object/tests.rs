@@ -1,7 +1,7 @@
 use super::*;
 use crate::function_object::create_builtin_function;
 use crate::strings::JSString;
-use crate::tests::{printer_validate, test_agent, unwind_type_error, FunctionId, TestObject};
+use crate::tests::{printer_validate, test_agent, unwind_any_error, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
 use crate::values::to_object;
 use std::io::Write;
 
@@ -2417,5 +2417,80 @@ mod create_array_from_list {
     fn cafl(items: &[ECMAScriptValue]) -> Vec<PropertyInfo> {
         let mut agent = test_agent();
         create_array_from_list(&mut agent, items).o.common_object_data().borrow().propdump()
+    }
+}
+
+mod enumerable_own_property_names {
+    use super::*;
+    use test_case::test_case;
+
+    fn dead(agent: &mut Agent) -> Object {
+        DeadObject::object(agent)
+    }
+    fn normal(agent: &mut Agent) -> Object {
+        let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(agent, Some(object_proto), &[]);
+        create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
+        create_data_property_or_throw(agent, &obj, "three", 3.0).unwrap();
+        let sym = Symbol::new(agent, Some("two".into()));
+        create_data_property_or_throw(agent, &obj, sym, 2.0).unwrap();
+        define_property_or_throw(
+            agent,
+            &obj,
+            "hidden".into(),
+            PotentialPropertyDescriptor { value: Some("hidden".into()), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        )
+        .unwrap();
+        obj
+    }
+    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        if this.something.get() == 0 {
+            this.something.set(1);
+            Ok(ordinary_get_own_property(this, key))
+        } else {
+            Err(create_type_error(agent, "[[GetOwnProperty]] called more than once"))
+        }
+    }
+    fn ownprop(agent: &mut Agent) -> Object {
+        let obj = AdaptableObject::object(agent, AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() });
+        create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
+        obj
+    }
+    fn getthrows(agent: &mut Agent) -> Object {
+        let obj = TestObject::object(agent, &[FunctionId::Get(None)]);
+        create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
+        obj
+    }
+    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(vec!["one".into(), "two".into(), "three".into()])
+    }
+    fn lyingkeys(agent: &mut Agent) -> Object {
+        AdaptableObject::object(agent, AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() })
+    }
+
+    #[test_case(dead, EnumerationStyle::Key => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property_keys throws")]
+    #[test_case(normal, EnumerationStyle::Key => Ok(vec!["one".into(), "three".into()]); "keys: normal object")]
+    #[test_case(normal, EnumerationStyle::Value => Ok(vec![1.0.into(), 3.0.into()]); "values: normal object")]
+    #[test_case(ownprop, EnumerationStyle::Value => Err("TypeError: [[GetOwnProperty]] called more than once".to_string()); "GetOwnProperty throws")]
+    #[test_case(getthrows, EnumerationStyle::Value => Err("TypeError: [[Get]] called on TestObject".to_string()); "get throws")]
+    #[test_case(lyingkeys, EnumerationStyle::Value => Ok(Vec::<ECMAScriptValue>::new()); "ownkeys lies")]
+    fn f(make_obj: fn(&mut Agent) -> Object, kind: EnumerationStyle) -> Result<Vec<ECMAScriptValue>, String> {
+        let mut agent = test_agent();
+        let obj = make_obj(&mut agent);
+        enumerable_own_property_names(&mut agent, &obj, kind).map_err(|err| unwind_any_error(&mut agent, err))
+    }
+
+    #[test]
+    fn keyvalue() {
+        let mut agent = test_agent();
+        let obj = normal(&mut agent);
+        let result = enumerable_own_property_names(&mut agent, &obj, EnumerationStyle::KeyPlusValue).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(getv(&mut agent, &result[0], &"0".into()).unwrap(), "one".into());
+        assert_eq!(getv(&mut agent, &result[0], &"1".into()).unwrap(), 1.0.into());
+        assert_eq!(getv(&mut agent, &result[0], &"length".into()).unwrap(), 2.0.into());
+        assert_eq!(getv(&mut agent, &result[1], &"0".into()).unwrap(), "three".into());
+        assert_eq!(getv(&mut agent, &result[1], &"1".into()).unwrap(), 3.0.into());
+        assert_eq!(getv(&mut agent, &result[1], &"length".into()).unwrap(), 2.0.into());
     }
 }

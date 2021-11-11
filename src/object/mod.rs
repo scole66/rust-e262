@@ -1600,6 +1600,59 @@ pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_
     call(agent, &func, &v, arguments_list)
 }
 
+// EnumerableOwnPropertyNames ( O, kind )
+//
+// The abstract operation EnumerableOwnPropertyNames takes arguments O (an Object) and kind (key, value, or key+value).
+// It performs the following steps when called:
+//
+//  1. Let ownKeys be ? O.[[OwnPropertyKeys]]().
+//  2. Let properties be a new empty List.
+//  3. For each element key of ownKeys, do
+//      a. If Type(key) is String, then
+//          i. Let desc be ? O.[[GetOwnProperty]](key).
+//          ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+//              1. If kind is key, append key to properties.
+//              2. Else,
+//                  a. Let value be ? Get(O, key).
+//                  b. If kind is value, append value to properties.
+//                  c. Else,
+//                      i. Assert: kind is key+value.
+//                      ii. Let entry be ! CreateArrayFromList(« key, value »).
+//                      iii. Append entry to properties.
+//  4. Return properties.
+//
+// https://tc39.es/ecma262/#sec-enumerableownpropertynames
+#[derive(Debug, PartialEq)]
+pub enum EnumerationStyle {
+    Key,
+    Value,
+    KeyPlusValue,
+}
+pub fn enumerable_own_property_names(agent: &mut Agent, obj: &Object, kind: EnumerationStyle) -> AltCompletion<Vec<ECMAScriptValue>> {
+    let own_keys = obj.o.own_property_keys(agent)?;
+    let mut properties: Vec<ECMAScriptValue> = vec![];
+    for key in own_keys.into_iter() {
+        if matches!(key, PropertyKey::String(_)) {
+            if let Some(desc) = obj.o.get_own_property(agent, &key)? {
+                if desc.enumerable {
+                    if kind == EnumerationStyle::Key {
+                        properties.push(ECMAScriptValue::from(key));
+                    } else {
+                        let value = get(agent, obj, &key)?;
+                        if kind == EnumerationStyle::Value {
+                            properties.push(value);
+                        } else {
+                            let entry = create_array_from_list(agent, &[key.into(), value]);
+                            properties.push(entry.into());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(properties)
+}
+
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )
 //
 // The abstract operation OrdinaryObjectCreate takes argument proto (an Object or null) and optional argument
