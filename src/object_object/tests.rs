@@ -5,7 +5,7 @@ use crate::object::{
     create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject, PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
 };
 use crate::realm::IntrinsicId;
-use crate::tests::{test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
+use crate::tests::{test_agent, unwind_any_error, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
 use crate::values::{to_number, to_string};
 
 mod prototype {
@@ -465,6 +465,50 @@ mod constructor {
                 },
                 Err(err) => Err(unwind_type_error(&mut agent, err)),
             }
+        }
+    }
+
+    mod entries {
+        use super::*;
+        use test_case::test_case;
+
+        fn undef(_: &mut Agent) -> ECMAScriptValue {
+            ECMAScriptValue::Undefined
+        }
+        fn dead(agent: &mut Agent) -> ECMAScriptValue {
+            DeadObject::object(agent).into()
+        }
+
+        #[test_case(undef => Err("TypeError: Undefined and null cannot be converted to objects".to_string()); "undefined")]
+        #[test_case(dead => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property throws")]
+        fn errs(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
+            let mut agent = test_agent();
+            let arg = make_arg(&mut agent);
+            object_entries(&mut agent, ECMAScriptValue::Undefined, None, &[arg]).map_err(|err| unwind_any_error(&mut agent, err))
+        }
+
+        #[test]
+        fn normal() {
+            let mut agent = test_agent();
+            let proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+            let obj = ordinary_object_create(&mut agent, Some(proto), &[]);
+            create_data_property_or_throw(&mut agent, &obj, "one", 1.0).unwrap();
+            create_data_property_or_throw(&mut agent, &obj, "favorite", "spaghetti").unwrap();
+
+            let result = object_entries(&mut agent, ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap();
+            let entries: Object = result.try_into().unwrap();
+            assert!(entries.is_array(&mut agent).unwrap());
+            assert_eq!(get(&mut agent, &entries, &"length".into()).unwrap(), 2.0.into());
+            let first: Object = get(&mut agent, &entries, &"0".into()).unwrap().try_into().unwrap();
+            assert!(first.is_array(&mut agent).unwrap());
+            assert_eq!(get(&mut agent, &first, &"length".into()).unwrap(), 2.0.into());
+            assert_eq!(get(&mut agent, &first, &"0".into()).unwrap(), "one".into());
+            assert_eq!(get(&mut agent, &first, &"1".into()).unwrap(), 1.0.into());
+            let second: Object = get(&mut agent, &entries, &"1".into()).unwrap().try_into().unwrap();
+            assert!(second.is_array(&mut agent).unwrap());
+            assert_eq!(get(&mut agent, &second, &"length".into()).unwrap(), 2.0.into());
+            assert_eq!(get(&mut agent, &second, &"0".into()).unwrap(), "favorite".into());
+            assert_eq!(get(&mut agent, &second, &"1".into()).unwrap(), "spaghetti".into());
         }
     }
 }

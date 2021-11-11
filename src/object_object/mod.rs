@@ -3,7 +3,8 @@ use crate::cr::Completion;
 use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
 use crate::object::{
-    define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, set, to_property_descriptor, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get, ordinary_create_from_constructor, ordinary_object_create, set, to_property_descriptor,
+    EnumerationStyle, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
@@ -412,9 +413,23 @@ fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_
     }
 }
 
-fn object_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.entries ( O )
+//
+// When the entries function is called with argument O, the following steps are taken:
+//
+//  1. Let obj be ? ToObject(O).
+//  2. Let nameList be ? EnumerableOwnPropertyNames(obj, key+value).
+//  3. Return CreateArrayFromList(nameList).
+//
+// https://tc39.es/ecma262/#sec-object.entries
+fn object_entries(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    let obj = to_object(agent, o_arg)?;
+    let name_list = enumerable_own_property_names(agent, &obj, EnumerationStyle::KeyPlusValue)?;
+    Ok(create_array_from_list(agent, &name_list).into())
 }
+
 fn object_freeze(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }
