@@ -1563,6 +1563,60 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject>
     }
 }
 
+// SetIntegrityLevel ( O, level )
+//
+// The abstract operation SetIntegrityLevel takes arguments O (an Object) and level (sealed or frozen). It is used to
+// fix the set of own properties of an object. It performs the following steps when called:
+//
+//  1. Let status be ? O.[[PreventExtensions]]().
+//  2. If status is false, return false.
+//  3. Let keys be ? O.[[OwnPropertyKeys]]().
+//  4. If level is sealed, then
+//      a. For each element k of keys, do
+//          i. Perform ? DefinePropertyOrThrow(O, k, PropertyDescriptor { [[Configurable]]: false }).
+//  5. Else,
+//      a. Assert: level is frozen.
+//      b. For each element k of keys, do
+//          i. Let currentDesc be ? O.[[GetOwnProperty]](k).
+//          ii. If currentDesc is not undefined, then
+//              1. If IsAccessorDescriptor(currentDesc) is true, then
+//                  a. Let desc be the PropertyDescriptor { [[Configurable]]: false }.
+//              2. Else,
+//                  a. Let desc be the PropertyDescriptor { [[Configurable]]: false, [[Writable]]: false }.
+//              3. Perform ? DefinePropertyOrThrow(O, k, desc).
+//  6. Return true.
+//
+// https://tc39.es/ecma262/#sec-setintegritylevel
+#[derive(Debug, PartialEq)]
+pub enum IntegrityLevel {
+    Sealed,
+    Frozen,
+}
+pub fn set_integrity_level(agent: &mut Agent, o: &Object, level: IntegrityLevel) -> AltCompletion<bool> {
+    let status = o.o.prevent_extensions(agent)?;
+    if !status {
+        return Ok(false);
+    }
+    let keys = o.o.own_property_keys(agent)?;
+    if level == IntegrityLevel::Sealed {
+        for k in keys {
+            define_property_or_throw(agent, o, k, PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() })?;
+        }
+    } else {
+        for k in keys {
+            if let Some(current_desc) = o.o.get_own_property(agent, &k)? {
+                let desc = if is_accessor_descriptor(&current_desc) {
+                    PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() }
+                } else {
+                    PotentialPropertyDescriptor { configurable: Some(false), writable: Some(false), ..Default::default() }
+                };
+                define_property_or_throw(agent, o, k, desc)?;
+            }
+        }
+    }
+    Ok(true)
+}
+
 // CreateArrayFromList ( elements )
 //
 // The abstract operation CreateArrayFromList takes argument elements (a List of ECMAScript language values). It is
