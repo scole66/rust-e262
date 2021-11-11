@@ -9,7 +9,7 @@ use super::object::{
 use super::realm::IntrinsicId;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::io::Result as IoResult;
@@ -343,6 +343,7 @@ pub struct AdaptableObject {
     set_override: Option<SetFunction>,
     delete_override: Option<DeleteFunction>,
     own_property_keys_override: Option<OwnPropertyKeysFunction>,
+    pub something: Cell<u64>, // Just a place for instances of this to hold state
 }
 
 impl fmt::Debug for AdaptableObject {
@@ -482,6 +483,7 @@ impl AdaptableObject {
                 set_override: methods.set_override,
                 delete_override: methods.delete_override,
                 own_property_keys_override: methods.own_property_keys_override,
+                something: Cell::new(0),
             }),
         }
     }
