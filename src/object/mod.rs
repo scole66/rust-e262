@@ -1,4 +1,5 @@
 use super::agent::Agent;
+use super::arrays::{array_create, ArrayObject};
 use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
 use super::cr::{AltCompletion, Completion};
@@ -7,9 +8,10 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
-use super::values::{is_callable, to_boolean, to_object, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
+use super::values::{is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
@@ -69,6 +71,25 @@ impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
 impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
     fn from(source: &'a PropertyDescriptor) -> Self {
         Self(source)
+    }
+}
+
+pub struct DataDescriptor {
+    pub value: ECMAScriptValue,
+    pub writable: bool,
+    pub enumerable: bool,
+    pub configurable: bool,
+}
+
+impl TryFrom<PropertyDescriptor> for DataDescriptor {
+    type Error = &'static str;
+    fn try_from(source: PropertyDescriptor) -> Result<Self, Self::Error> {
+        match &source.property {
+            PropertyKind::Accessor(..) => Err("Accessor Property cannot be formed into a DataDescriptor"),
+            PropertyKind::Data(DataProperty { value, writable }) => {
+                Ok(DataDescriptor { value: value.clone(), writable: *writable, enumerable: source.enumerable, configurable: source.configurable })
+            }
+        }
     }
 }
 
@@ -197,7 +218,7 @@ where
 pub fn from_property_descriptor(agent: &mut Agent, desc: Option<PropertyDescriptor>) -> Option<Object> {
     match desc {
         Some(d) => {
-            let obj = ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             match &d.property {
                 PropertyKind::Data(DataProperty { value, writable }) => {
                     create_data_property_or_throw(agent, &obj, "value", value.clone()).unwrap();
@@ -822,7 +843,7 @@ where
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
+pub fn ordinary_own_property_keys<'a, T>(agent: &mut Agent, o: T) -> Vec<PropertyKey>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -832,7 +853,7 @@ where
     let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
     let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
     for (key, desc) in data.properties.iter() {
-        if key.is_array_index() {
+        if key.is_array_index(agent) {
             keys.push(key.clone())
         } else {
             match key {
@@ -912,6 +933,15 @@ pub trait ObjectInterface: Debug {
         false
     }
     fn is_regexp_object(&self) -> bool {
+        false
+    }
+    fn is_array_object(&self) -> bool {
+        false
+    }
+    fn to_array_object(&self) -> Option<&ArrayObject> {
+        None
+    }
+    fn is_proxy_object(&self) -> bool {
         false
     }
 
@@ -1167,8 +1197,8 @@ impl ObjectInterface for OrdinaryObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 
@@ -1183,7 +1213,6 @@ impl PartialEq for Object {
     }
 }
 
-use std::convert::TryFrom;
 impl TryFrom<ECMAScriptValue> for Object {
     type Error = &'static str;
     fn try_from(source: ECMAScriptValue) -> Result<Self, Self::Error> {
@@ -1219,6 +1248,27 @@ impl Object {
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
     }
+
+    // IsArray ( argument )
+    //
+    // The abstract operation IsArray takes argument argument. It performs the following steps when called:
+    //
+    //  1. If Type(argument) is not Object, return false.
+    //  2. If argument is an Array exotic object, return true.
+    //  3. If argument is a Proxy exotic object, then
+    //      a. If argument.[[ProxyHandler]] is null, throw a TypeError exception.
+    //      b. Let target be argument.[[ProxyTarget]].
+    //      c. Return ? IsArray(target).
+    //  4. Return false.
+    pub fn is_array(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+        if self.o.is_array_object() {
+            Ok(true)
+        } else if self.o.is_proxy_object() {
+            todo!()
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1248,13 +1298,15 @@ pub enum InternalSlotName {
     InitialName,
     Realm,
     NumberData,
-    Nonsense, // For testing purposes, for the time being.
+    ArrayMarker, // No data associated with this; causes an array object to be constructed
+    Nonsense,    // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
 pub const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
 pub const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
 pub const BUILTIN_FUNCTION_SLOTS: [InternalSlotName; 4] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
 pub const NUMBER_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
+pub const ARRAY_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1283,6 +1335,8 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         ErrorObject::object(agent, prototype)
     } else if slot_match(&NUMBER_OBJECT_SLOTS, &slot_set) {
         NumberObject::object(agent, prototype)
+    } else if slot_match(&ARRAY_OBJECT_SLOTS, &slot_set) {
+        ArrayObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);
@@ -1502,6 +1556,87 @@ pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new
     cstr.construct(agent, func, args, nt)
 }
 
+pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject> {
+    match val {
+        ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
+        _ => None,
+    }
+}
+
+// SetIntegrityLevel ( O, level )
+//
+// The abstract operation SetIntegrityLevel takes arguments O (an Object) and level (sealed or frozen). It is used to
+// fix the set of own properties of an object. It performs the following steps when called:
+//
+//  1. Let status be ? O.[[PreventExtensions]]().
+//  2. If status is false, return false.
+//  3. Let keys be ? O.[[OwnPropertyKeys]]().
+//  4. If level is sealed, then
+//      a. For each element k of keys, do
+//          i. Perform ? DefinePropertyOrThrow(O, k, PropertyDescriptor { [[Configurable]]: false }).
+//  5. Else,
+//      a. Assert: level is frozen.
+//      b. For each element k of keys, do
+//          i. Let currentDesc be ? O.[[GetOwnProperty]](k).
+//          ii. If currentDesc is not undefined, then
+//              1. If IsAccessorDescriptor(currentDesc) is true, then
+//                  a. Let desc be the PropertyDescriptor { [[Configurable]]: false }.
+//              2. Else,
+//                  a. Let desc be the PropertyDescriptor { [[Configurable]]: false, [[Writable]]: false }.
+//              3. Perform ? DefinePropertyOrThrow(O, k, desc).
+//  6. Return true.
+//
+// https://tc39.es/ecma262/#sec-setintegritylevel
+#[derive(Debug, PartialEq)]
+pub enum IntegrityLevel {
+    Sealed,
+    Frozen,
+}
+pub fn set_integrity_level(agent: &mut Agent, o: &Object, level: IntegrityLevel) -> AltCompletion<bool> {
+    let status = o.o.prevent_extensions(agent)?;
+    if !status {
+        return Ok(false);
+    }
+    let keys = o.o.own_property_keys(agent)?;
+    if level == IntegrityLevel::Sealed {
+        for k in keys {
+            define_property_or_throw(agent, o, k, PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() })?;
+        }
+    } else {
+        for k in keys {
+            if let Some(current_desc) = o.o.get_own_property(agent, &k)? {
+                let desc = if is_accessor_descriptor(&current_desc) {
+                    PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() }
+                } else {
+                    PotentialPropertyDescriptor { configurable: Some(false), writable: Some(false), ..Default::default() }
+                };
+                define_property_or_throw(agent, o, k, desc)?;
+            }
+        }
+    }
+    Ok(true)
+}
+
+// CreateArrayFromList ( elements )
+//
+// The abstract operation CreateArrayFromList takes argument elements (a List of ECMAScript language values). It is
+// used to create an Array whose elements are provided by elements. It performs the following steps when called:
+//
+//  1. Let array be ! ArrayCreate(0).
+//  2. Let n be 0.
+//  3. For each element e of elements, do
+//      a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
+//      b. Set n to n + 1.
+//  4. Return array.
+pub fn create_array_from_list(agent: &mut Agent, elements: &[ECMAScriptValue]) -> Object {
+    let array = array_create(agent, 0, None).unwrap();
+    for (n, e) in elements.iter().enumerate() {
+        let key = to_string(agent, u64::try_from(n).unwrap()).unwrap();
+        create_data_property_or_throw(agent, &array, key, e.clone()).unwrap();
+    }
+    array
+}
+
 // Invoke ( V, P [ , argumentsList ] )
 //
 // The abstract operation Invoke takes arguments V (an ECMAScript language value) and P (a property key) and optional
@@ -1517,6 +1652,59 @@ pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new
 pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion {
     let func = getv(agent, &v, p)?;
     call(agent, &func, &v, arguments_list)
+}
+
+// EnumerableOwnPropertyNames ( O, kind )
+//
+// The abstract operation EnumerableOwnPropertyNames takes arguments O (an Object) and kind (key, value, or key+value).
+// It performs the following steps when called:
+//
+//  1. Let ownKeys be ? O.[[OwnPropertyKeys]]().
+//  2. Let properties be a new empty List.
+//  3. For each element key of ownKeys, do
+//      a. If Type(key) is String, then
+//          i. Let desc be ? O.[[GetOwnProperty]](key).
+//          ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+//              1. If kind is key, append key to properties.
+//              2. Else,
+//                  a. Let value be ? Get(O, key).
+//                  b. If kind is value, append value to properties.
+//                  c. Else,
+//                      i. Assert: kind is key+value.
+//                      ii. Let entry be ! CreateArrayFromList(« key, value »).
+//                      iii. Append entry to properties.
+//  4. Return properties.
+//
+// https://tc39.es/ecma262/#sec-enumerableownpropertynames
+#[derive(Debug, PartialEq)]
+pub enum EnumerationStyle {
+    Key,
+    Value,
+    KeyPlusValue,
+}
+pub fn enumerable_own_property_names(agent: &mut Agent, obj: &Object, kind: EnumerationStyle) -> AltCompletion<Vec<ECMAScriptValue>> {
+    let own_keys = obj.o.own_property_keys(agent)?;
+    let mut properties: Vec<ECMAScriptValue> = vec![];
+    for key in own_keys.into_iter() {
+        if matches!(key, PropertyKey::String(_)) {
+            if let Some(desc) = obj.o.get_own_property(agent, &key)? {
+                if desc.enumerable {
+                    if kind == EnumerationStyle::Key {
+                        properties.push(ECMAScriptValue::from(key));
+                    } else {
+                        let value = get(agent, obj, &key)?;
+                        if kind == EnumerationStyle::Value {
+                            properties.push(value);
+                        } else {
+                            let entry = create_array_from_list(agent, &[key.into(), value]);
+                            properties.push(entry.into());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(properties)
 }
 
 // OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] )
@@ -1537,10 +1725,10 @@ pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
+pub fn ordinary_object_create(agent: &mut Agent, proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
     let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
     slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(agent, slots.as_slice(), proto.cloned());
+    let o = make_basic_object(agent, slots.as_slice(), proto);
     o
 }
 
@@ -1559,7 +1747,7 @@ pub fn ordinary_object_create(agent: &mut Agent, proto: Option<&Object>, additio
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
 pub fn ordinary_create_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId, internal_slots_list: &[InternalSlotName]) -> AltCompletion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
-    Ok(ordinary_object_create(agent, Some(&proto), internal_slots_list))
+    Ok(ordinary_object_create(agent, Some(proto), internal_slots_list))
 }
 
 // GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto )
@@ -1794,8 +1982,8 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 

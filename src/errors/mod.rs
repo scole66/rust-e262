@@ -150,8 +150,8 @@ impl ObjectInterface for ErrorObject {
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
         ordinary_delete(agent, &*self, key)
     }
-    fn own_property_keys(&self, _agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+        Ok(ordinary_own_property_keys(agent, self))
     }
 }
 
@@ -211,7 +211,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     //    * is an ordinary object.
     //    * is not an Error instance and does not have an [[ErrorData]] internal slot.
     //    * has a [[Prototype]] internal slot whose value is %Object.prototype%.
-    let error_prototype = ordinary_object_create(agent, Some(&object_prototype), &[]);
+    let error_prototype = ordinary_object_create(agent, Some(object_prototype), &[]);
 
     // Error.prototype
     //
@@ -372,7 +372,7 @@ fn provision_native_error_intrinsics(
     //    * is an ordinary object.
     //    * is not an Error instance and does not have an [[ErrorData]] internal slot.
     //    * has a [[Prototype]] internal slot whose value is %Error.prototype%.
-    let native_error_prototype = ordinary_object_create(agent, Some(&error_prototype), &[]);
+    let native_error_prototype = ordinary_object_create(agent, Some(error_prototype), &[]);
 
     // NativeError.prototype
     //

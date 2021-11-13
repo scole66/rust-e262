@@ -139,7 +139,7 @@ impl Agent {
     pub fn set_realm_global_object(&mut self, global_obj: Option<Object>, this_value: Option<Object>) {
         let go = global_obj.unwrap_or_else(|| {
             let object_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
-            ordinary_object_create(self, Some(&object_proto), &[])
+            ordinary_object_create(self, Some(object_proto), &[])
         });
         let tv = this_value.unwrap_or_else(|| go.clone());
         let mut realm = self.running_execution_context().unwrap().realm.borrow_mut();

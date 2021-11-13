@@ -1,10 +1,10 @@
 use crate::agent::{Agent, WksId};
-use crate::arrays::is_array;
 use crate::cr::Completion;
 use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
 use crate::object::{
-    define_property_or_throw, get, ordinary_create_from_constructor, ordinary_object_create, set, to_property_descriptor, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get, ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level,
+    to_property_descriptor, EnumerationStyle, IntegrityLevel, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
@@ -57,7 +57,7 @@ fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
     let o = to_object(agent, this_value).unwrap();
-    let builtin_tag = if is_array(&o)? {
+    let builtin_tag = if o.is_array(agent)? {
         "Array"
     } else if o.o.is_arguments_object() {
         "Arguments"
@@ -251,7 +251,7 @@ fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
     let mut args = Arguments::from(arguments);
     let value = args.next_arg();
     let obj =
-        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(&agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
+        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
     Ok(ECMAScriptValue::from(obj))
 }
 
@@ -309,7 +309,7 @@ fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
 fn object_create(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
-    let o = match &o_arg {
+    let o = match o_arg {
         ECMAScriptValue::Object(o) => Some(o),
         ECMAScriptValue::Null => None,
         _ => {
@@ -413,12 +413,49 @@ fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_
     }
 }
 
-fn object_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+// Object.entries ( O )
+//
+// When the entries function is called with argument O, the following steps are taken:
+//
+//  1. Let obj be ? ToObject(O).
+//  2. Let nameList be ? EnumerableOwnPropertyNames(obj, key+value).
+//  3. Return CreateArrayFromList(nameList).
+//
+// https://tc39.es/ecma262/#sec-object.entries
+fn object_entries(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    let obj = to_object(agent, o_arg)?;
+    let name_list = enumerable_own_property_names(agent, &obj, EnumerationStyle::KeyPlusValue)?;
+    Ok(create_array_from_list(agent, &name_list).into())
 }
-fn object_freeze(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    todo!()
+
+// Object.freeze ( O )
+//
+// When the freeze function is called, the following steps are taken:
+//
+//  1. If Type(O) is not Object, return O.
+//  2. Let status be ? SetIntegrityLevel(O, frozen).
+//  3. If status is false, throw a TypeError exception.
+//  4. Return O.
+//
+// https://tc39.es/ecma262/#sec-object.freeze
+fn object_freeze(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+    let mut args = Arguments::from(arguments);
+    let o_arg = args.next_arg();
+    match o_arg {
+        ECMAScriptValue::Object(o) => {
+            let status = set_integrity_level(agent, &o, IntegrityLevel::Frozen)?;
+            if !status {
+                Err(create_type_error(agent, "Object cannot be frozen"))
+            } else {
+                Ok(o.into())
+            }
+        }
+        _ => Ok(o_arg),
+    }
 }
+
 fn object_from_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     todo!()
 }

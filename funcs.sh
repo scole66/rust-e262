@@ -13,7 +13,9 @@ function objects() {
 function tst() {
   pushd ~/*/rust-e262 > /dev/null
   rm -f res-*.profraw
-  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test "$@"
+  local quiet=
+  if [ $# -eq 0 ]; then quiet=-q; fi
+  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test $quiet "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
   popd > /dev/null
 }

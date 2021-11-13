@@ -377,7 +377,7 @@ mod object_environment_record {
     fn debug() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None);
 
         println!("{:#?}", oer);
@@ -387,7 +387,7 @@ mod object_environment_record {
     fn has_binding_01() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None);
 
         let result = oer.has_binding(&mut agent, &JSString::from("not_here")).unwrap();
@@ -397,7 +397,7 @@ mod object_environment_record {
     fn has_binding_02() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         define_property_or_throw(
             &mut agent,
             &binding_object,
@@ -414,7 +414,7 @@ mod object_environment_record {
     fn has_binding_03() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         define_property_or_throw(
             &mut agent,
             &binding_object,
@@ -436,7 +436,7 @@ mod object_environment_record {
         //    hidden: 10,
         //    visible: false
         // }
-        let unscopables_obj = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let unscopables_obj = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
         define_property_or_throw(
             &mut agent,
             &unscopables_obj,
@@ -457,7 +457,7 @@ mod object_environment_record {
         //    hidden: "This name is not in the environment"
         //    also: "This one also visible"
         // }
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         define_property_or_throw(
             &mut agent,
             &binding_object,
@@ -527,7 +527,7 @@ mod object_environment_record {
         // binding_object.get(@@unscopables) fails
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         // binding_object = {
         //    get [Symbol.unscopables] = %ThrowTypeError%
         //    field: true
@@ -551,14 +551,14 @@ mod object_environment_record {
         // binding_object.@@unscopables.get(field) fails
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
         // binding_object = {
         //    [Symbol.unscopables] = {
         //        get field = %ThrowTypeError%
         //    }
         //    field: true
         // }
-        let unscopables_obj = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let unscopables_obj = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let tte = agent.intrinsic(IntrinsicId::ThrowTypeError);
         let pk = PropertyKey::from("field");
         let property = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(tte)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
@@ -581,7 +581,7 @@ mod object_environment_record {
     fn create_mutable_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object.clone(), true, None);
 
         oer.create_mutable_binding(&mut agent, JSString::from("can_delete"), true).unwrap();
@@ -613,7 +613,7 @@ mod object_environment_record {
     fn create_immutable_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
 
         oer.create_immutable_binding(&mut agent, JSString::from("nothing"), true).unwrap();
@@ -623,7 +623,7 @@ mod object_environment_record {
     fn initialize_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object.clone(), true, None);
         let name = JSString::from("colorado");
         oer.create_mutable_binding(&mut agent, name.clone(), true).unwrap();
@@ -645,7 +645,7 @@ mod object_environment_record {
     fn set_mutable_binding_01() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object.clone(), true, None);
         let name = JSString::from("vegetable");
         oer.create_mutable_binding(&mut agent, name.clone(), true).unwrap();
@@ -668,7 +668,7 @@ mod object_environment_record {
         // binding that's been deleted (or was never there)
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
         let name = JSString::from("vegetable");
 
@@ -695,7 +695,7 @@ mod object_environment_record {
         // set throws
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let name = JSString::from("vegetable");
         let key = PropertyKey::from(name.clone());
         let tte = agent.intrinsic(IntrinsicId::ThrowTypeError);
@@ -713,7 +713,7 @@ mod object_environment_record {
     fn get_binding_value_01() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
         let name = JSString::from("vegetable");
         oer.create_mutable_binding(&mut agent, name.clone(), true).unwrap();
@@ -747,7 +747,7 @@ mod object_environment_record {
     fn delete() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
         let name = JSString::from("vegetable");
         oer.create_mutable_binding(&mut agent, name.clone(), true).unwrap();
@@ -762,7 +762,7 @@ mod object_environment_record {
     fn object_environment_record_has_this_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
 
         assert!(!oer.has_this_binding());
@@ -772,7 +772,7 @@ mod object_environment_record {
     fn object_environment_record_has_super_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None);
 
         assert!(!oer.has_super_binding());
@@ -782,7 +782,7 @@ mod object_environment_record {
     fn object_environment_record_with_base_object_01() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object.clone(), true, None);
 
         assert_eq!(oer.with_base_object(), Some(binding_object));
@@ -792,7 +792,7 @@ mod object_environment_record {
     fn object_environment_record_with_base_object_02() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None);
 
         assert!(oer.with_base_object().is_none());
@@ -805,7 +805,7 @@ mod object_environment_record {
         der.create_immutable_binding(&mut agent, JSString::from("sentinel"), true).unwrap();
         der.initialize_binding(&mut agent, &JSString::from("sentinel"), ECMAScriptValue::from("very unique string")).unwrap();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let binding_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, Some(der));
 
         let outer = oer.get_outer_env().unwrap();
@@ -843,8 +843,8 @@ mod global_environment_record {
 
     fn setup(agent: &mut Agent) -> GlobalEnvironmentRecord {
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
         let ld = JSString::from("lexical_deletable");
         // mutable, deletable lexical binding, named "lexical_deletable"
@@ -894,8 +894,8 @@ mod global_environment_record {
     fn debug() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
         assert_ne!(format!("{:?}", ger), "");
@@ -913,8 +913,8 @@ mod global_environment_record {
             let in_object_key = PropertyKey::from(in_object_name.clone());
 
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let in_object_property =
                 PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
             define_property_or_throw(&mut agent, &global_object, in_object_key, in_object_property).unwrap();
@@ -931,7 +931,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = DeadObject::object(&mut agent);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.has_binding(&mut agent, &JSString::from("a")).unwrap_err();
@@ -950,8 +950,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
 
@@ -975,8 +975,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1001,8 +1001,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
 
@@ -1026,8 +1026,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1050,8 +1050,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1070,8 +1070,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object.clone(), this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1092,8 +1092,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1113,8 +1113,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1139,8 +1139,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1157,8 +1157,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1175,8 +1175,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
 
@@ -1191,8 +1191,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
 
@@ -1214,8 +1214,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1234,8 +1234,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1255,8 +1255,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1275,8 +1275,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), false).unwrap();
@@ -1296,8 +1296,8 @@ mod global_environment_record {
             // Setup
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-            let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
 
@@ -1312,7 +1312,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = DeadObject::object(&mut agent);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.delete_binding(&mut agent, &JSString::from("a")).unwrap_err();
@@ -1325,7 +1325,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = TestObject::object(&mut agent, &[FunctionId::Delete(None)]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
             let test_name = JSString::from("test");
             ger.object_record.create_mutable_binding(&mut agent, test_name.clone(), true).unwrap();
@@ -1346,8 +1346,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
         // Exercise
@@ -1361,8 +1361,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
         // Exercise
@@ -1376,8 +1376,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
         // Exercise
@@ -1391,8 +1391,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
         // Exercise
@@ -1407,8 +1407,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object.clone());
 
         // Exercise function
@@ -1424,8 +1424,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
         let var_name = JSString::from("varstyle");
         ger.create_global_var_binding(&mut agent, var_name, true).unwrap();
@@ -1442,8 +1442,8 @@ mod global_environment_record {
         // Setup
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object, this_object);
         let var_name = JSString::from("varstyle");
         ger.create_global_var_binding(&mut agent, var_name, true).unwrap();
@@ -1473,7 +1473,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = DeadObject::object(&mut agent);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.has_restricted_global_property(&mut agent, &JSString::from("test")).unwrap_err();
@@ -1507,7 +1507,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = TestObject::object(&mut agent, &[method]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.can_declare_global_var(&mut agent, &JSString::from("anything")).unwrap_err();
@@ -1553,7 +1553,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = TestObject::object(&mut agent, &[method]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.can_declare_global_function(&mut agent, &JSString::from("anything")).unwrap_err();
@@ -1622,7 +1622,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = TestObject::object(&mut agent, &[method]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.create_global_var_binding(&mut agent, JSString::from("anything"), true).unwrap_err();
@@ -1669,7 +1669,7 @@ mod global_environment_record {
             let mut agent = test_agent();
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = TestObject::object(&mut agent, &[method]);
-            let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+            let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object);
 
             let err = ger.create_global_function_binding(&mut agent, JSString::from("anything"), ECMAScriptValue::Undefined, true).unwrap_err();
@@ -1681,8 +1681,8 @@ mod global_environment_record {
     fn new() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
-        let this_object = ordinary_object_create(&mut agent, Some(&object_prototype), &[]);
+        let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
+        let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let ger = GlobalEnvironmentRecord::new(global_object.clone(), this_object.clone());
 
         assert_eq!(ger.object_record.binding_object, global_object);

@@ -9,7 +9,7 @@ use super::object::{
 use super::realm::IntrinsicId;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::io::Result as IoResult;
@@ -249,7 +249,7 @@ impl ObjectInterface for TestObject {
         if self.own_property_keys_throws {
             Err(create_type_error(agent, "[[OwnPropertyKeys]] called on TestObject"))
         } else {
-            Ok(ordinary_own_property_keys(self))
+            Ok(ordinary_own_property_keys(agent, self))
         }
     }
 }
@@ -343,6 +343,7 @@ pub struct AdaptableObject {
     set_override: Option<SetFunction>,
     delete_override: Option<DeleteFunction>,
     own_property_keys_override: Option<OwnPropertyKeysFunction>,
+    pub something: Cell<u64>, // Just a place for instances of this to hold state
 }
 
 impl fmt::Debug for AdaptableObject {
@@ -445,7 +446,7 @@ impl ObjectInterface for AdaptableObject {
     fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
         match &self.own_property_keys_override {
             Some(func) => func(agent, self),
-            None => Ok(ordinary_own_property_keys(self)),
+            None => Ok(ordinary_own_property_keys(agent, self)),
         }
     }
 }
@@ -482,7 +483,13 @@ impl AdaptableObject {
                 set_override: methods.set_override,
                 delete_override: methods.delete_override,
                 own_property_keys_override: methods.own_property_keys_override,
+                something: Cell::new(0),
             }),
         }
     }
+}
+
+// error
+pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    Err(create_type_error(agent, "Test Sentinel"))
 }
