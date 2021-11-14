@@ -130,6 +130,12 @@ impl AsyncArrowFunction {
             AsyncArrowFunction::Formals(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // AsyncArrowHead :

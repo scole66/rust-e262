@@ -303,6 +303,19 @@ impl MemberExpression {
             MemberExpressionKind::PrivateId(n, id) => names.contains(&id.string_value) && n.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn is_object_or_array_literal(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(n) => n.is_object_or_array_literal(),
+            MemberExpressionKind::Expression(..)
+            | MemberExpressionKind::IdentifierName(..)
+            | MemberExpressionKind::TemplateLiteral(..)
+            | MemberExpressionKind::SuperProperty(..)
+            | MemberExpressionKind::MetaProperty(..)
+            | MemberExpressionKind::NewArguments(..)
+            | MemberExpressionKind::PrivateId(..) => false,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -891,6 +904,13 @@ impl NewExpression {
             NewExpressionKind::NewExpression(boxed) => boxed.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn is_object_or_array_literal(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.is_object_or_array_literal(),
+            NewExpressionKind::NewExpression(_) => false,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1398,6 +1418,19 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::Call(boxed) => boxed.all_private_identifiers_valid(names),
             LeftHandSideExpression::Optional(boxed) => boxed.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn is_object_or_array_literal(&self) -> bool {
+        match self {
+            LeftHandSideExpression::New(boxed) => boxed.is_object_or_array_literal(),
+            LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => false,
+        }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

@@ -213,6 +213,23 @@ impl RelationalExpression {
             RelationalExpression::PrivateIn(pid, r) => names.contains(&pid.string_value) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            RelationalExpression::ShiftExpression(n) => n.early_errors(agent, strict),
+            RelationalExpression::Less(l, r)
+            | RelationalExpression::Greater(l, r)
+            | RelationalExpression::LessEqual(l, r)
+            | RelationalExpression::GreaterEqual(l, r)
+            | RelationalExpression::InstanceOf(l, r)
+            | RelationalExpression::In(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+            RelationalExpression::PrivateIn(_, r) => r.early_errors(agent, strict),
+        }
+    }
 }
 
 #[cfg(test)]

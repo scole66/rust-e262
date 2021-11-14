@@ -94,10 +94,9 @@ impl ExpressionStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        let ExpressionStatement::Expression(node) = self;
+        node.early_errors(agent, strict)
     }
 }
 

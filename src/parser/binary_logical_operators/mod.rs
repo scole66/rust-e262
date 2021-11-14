@@ -117,6 +117,17 @@ impl LogicalANDExpression {
             LogicalANDExpression::LogicalAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, strict),
+            LogicalANDExpression::LogicalAND(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -229,6 +240,17 @@ impl LogicalORExpression {
             LogicalORExpression::LogicalOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, strict),
+            LogicalORExpression::LogicalOR(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
@@ -312,6 +334,12 @@ impl CoalesceExpression {
         //  2. Return true.
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // CoalesceExpressionHead[In, Yield, Await] :
@@ -379,6 +407,12 @@ impl CoalesceExpressionHead {
             CoalesceExpressionHead::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -477,6 +511,13 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.all_private_identifiers_valid(names),
             ShortCircuitExpression::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, strict),
+            ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent),
         }
     }
 }

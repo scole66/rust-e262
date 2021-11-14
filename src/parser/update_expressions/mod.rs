@@ -176,6 +176,37 @@ impl UpdateExpression {
             UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => n.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        // Static Semantics: Early Errors
+        match self {
+            UpdateExpression::LeftHandSideExpression(n) => n.early_errors(agent),
+            UpdateExpression::PostIncrement(n) | UpdateExpression::PostDecrement(n) => {
+                //  UpdateExpression :
+                //      LeftHandSideExpression ++
+                //      LeftHandSideExpression --
+                // * It is an early Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
+                let mut errs = vec![];
+                if n.assignment_target_type() != ATTKind::Simple {
+                    errs.push(create_syntax_error_object(agent, "Invalid target for update"));
+                }
+                errs.extend(n.early_errors(agent));
+                errs
+            }
+            UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => {
+                //  UpdateExpression :
+                //      ++ UnaryExpression
+                //      -- UnaryExpression
+                // * It is an early Syntax Error if AssignmentTargetType of UnaryExpression is not simple.
+                let mut errs = vec![];
+                if n.assignment_target_type() != ATTKind::Simple {
+                    errs.push(create_syntax_error_object(agent, "Invalid target for update"));
+                }
+                errs.extend(n.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 #[cfg(test)]

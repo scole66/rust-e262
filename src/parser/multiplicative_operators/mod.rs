@@ -170,6 +170,17 @@ impl MultiplicativeExpression {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(n) => n.early_errors(agent, strict),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 #[cfg(test)]

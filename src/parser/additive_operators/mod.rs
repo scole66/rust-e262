@@ -132,6 +132,17 @@ impl AdditiveExpression {
             AdditiveExpression::Subtract(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(agent, strict),
+            AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 #[cfg(test)]

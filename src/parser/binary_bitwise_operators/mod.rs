@@ -32,7 +32,7 @@ impl PrettyPrint for BitwiseANDExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
-        match &self {
+        match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.pprint_with_leftpad(writer, &successive, Spot::Final),
             BitwiseANDExpression::BitwiseAND(be, ee) => {
                 be.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -115,6 +115,17 @@ impl BitwiseANDExpression {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseANDExpression::BitwiseAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, strict),
+            BitwiseANDExpression::BitwiseAND(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
         }
     }
 }
@@ -227,6 +238,17 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseXORExpression::BitwiseXOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, strict),
+            BitwiseXORExpression::BitwiseXOR(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
         }
     }
 }
@@ -350,6 +372,17 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseORExpression::BitwiseOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, strict),
+            BitwiseORExpression::BitwiseOR(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
         }
     }
 }

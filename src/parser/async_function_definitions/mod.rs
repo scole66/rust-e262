@@ -276,6 +276,12 @@ impl AsyncFunctionExpression {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // AsyncMethod[Yield, Await] :
@@ -369,6 +375,12 @@ impl AsyncMethod {
         //  1. If UniqueFormalParameters Contains SuperCall is true, return true.
         //  2. Return AsyncFunctionBody Contains SuperCall.
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -512,6 +524,12 @@ impl AwaitExpression {
         //  2. Return true.
         let AwaitExpression::Await(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

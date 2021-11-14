@@ -125,6 +125,18 @@ impl ConditionalExpression {
             }
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            ConditionalExpression::FallThru(node) => node.early_errors(agent, strict),
+            ConditionalExpression::Conditional(a, b, c) => {
+                let mut errs = a.early_errors(agent, strict);
+                errs.extend(b.early_errors(agent, strict));
+                errs.extend(c.early_errors(agent, strict));
+                errs
+            }
+        }
+    }
 }
 
 #[cfg(test)]

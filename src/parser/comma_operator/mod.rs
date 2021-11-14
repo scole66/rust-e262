@@ -131,10 +131,15 @@ impl Expression {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            Expression::FallThru(node) => node.early_errors(agent, strict),
+            Expression::Comma(left, right) => {
+                let mut errs = left.early_errors(agent, strict);
+                errs.extend(right.early_errors(agent, strict));
+                errs
+            }
+        }
     }
 }
 
