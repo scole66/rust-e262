@@ -327,6 +327,59 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentRestElement[Yield, Await] :
+//      ... DestructuringAssignmentTarget[?Yield, ?Await]
+#[derive(Debug)]
+pub struct AssignmentRestElement(Rc<DestructuringAssignmentTarget>);
+
+impl fmt::Display for AssignmentRestElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "... {}", self.0)
+    }
+}
+
+impl PrettyPrint for AssignmentRestElement {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentRestElement: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentRestElement: {}", first, self)?;
+        pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        self.0.concise_with_leftpad(writer, &successive, Spot::Final)
+    }
+}
+
+impl AssignmentRestElement {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let after_dots = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (target, after_target) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
+        Ok((Rc::new(AssignmentRestElement(target)), after_target))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
+    }
+}
+
 // DestructuringAssignmentTarget[Yield, Await] :
 //      LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
