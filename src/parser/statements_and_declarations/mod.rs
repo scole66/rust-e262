@@ -453,7 +453,7 @@ impl Declaration {
     pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
         match self {
             Declaration::Hoistable(node) => node.early_errors(agent, strict),
-            Declaration::Class(node) => node.early_errors(agent),
+            Declaration::Class(node) => node.early_errors(agent, strict),
             Declaration::Lexical(node) => node.early_errors(agent),
         }
     }

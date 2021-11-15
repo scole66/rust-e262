@@ -180,7 +180,7 @@ impl UpdateExpression {
     pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
         // Static Semantics: Early Errors
         match self {
-            UpdateExpression::LeftHandSideExpression(n) => n.early_errors(agent),
+            UpdateExpression::LeftHandSideExpression(n) => n.early_errors(agent, strict),
             UpdateExpression::PostIncrement(n) | UpdateExpression::PostDecrement(n) => {
                 //  UpdateExpression :
                 //      LeftHandSideExpression ++
@@ -190,7 +190,7 @@ impl UpdateExpression {
                 if n.assignment_target_type() != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid target for update"));
                 }
-                errs.extend(n.early_errors(agent));
+                errs.extend(n.early_errors(agent, strict));
                 errs
             }
             UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => {

@@ -1964,6 +1964,87 @@ impl fmt::Display for RegularExpressionData {
     }
 }
 
+impl RegularExpressionData {
+    pub fn is_valid_regular_expression_literal(&self) -> bool {
+        // Static Semantics: IsValidRegularExpressionLiteral ( literal )
+        //
+        // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
+        // Parse Node). It determines if its argument is a valid regular expression literal. It performs the following
+        // steps when called:
+        //
+        //  1. If FlagText of literal contains any code points other than g, i, m, s, u, or y, or if it contains the
+        //     same code point more than once, return false.
+        //  2. Let patternText be BodyText of literal.
+        //  3. If FlagText of literal contains u, let u be true; else let u be false.
+        //  4. If u is false, then
+        //      a. Let stringValue be CodePointsToString(patternText).
+        //      b. Set patternText to the sequence of code points resulting from interpreting each of the 16-bit
+        //         elements of stringValue as a Unicode BMP code point. UTF-16 decoding is not applied to the elements.
+        //  5. Let parseResult be ParsePattern(patternText, u).
+        //  6. If parseResult is a Parse Node, return true; else return false.
+        let mut g_found = false;
+        let mut i_found = false;
+        let mut m_found = false;
+        let mut s_found = false;
+        let mut u_found = false;
+        let mut y_found = false;
+        for ch in self.flags.chars() {
+            match ch {
+                'g' => {
+                    if g_found {
+                        return false;
+                    } else {
+                        g_found = true;
+                    }
+                }
+                'i' => {
+                    if i_found {
+                        return false;
+                    } else {
+                        i_found = true;
+                    }
+                }
+                'm' => {
+                    if m_found {
+                        return false;
+                    } else {
+                        m_found = true;
+                    }
+                }
+                's' => {
+                    if s_found {
+                        return false;
+                    } else {
+                        s_found = true;
+                    }
+                }
+                'u' => {
+                    if u_found {
+                        return false;
+                    } else {
+                        u_found = true;
+                    }
+                }
+                'y' => {
+                    if y_found {
+                        return false;
+                    } else {
+                        y_found = true;
+                    }
+                }
+                _ => {
+                    return false;
+                }
+            }
+        }
+
+        // todo!()
+        // There's more to do here --- there's a whole pattern parsing thing to make sure you've made a reasonable regex.
+        // Also some unicode vs straight u16 nonsense to handle.
+        true
+    }
+}
+
 pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {

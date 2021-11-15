@@ -338,7 +338,7 @@ impl AssignmentExpression {
                 if left.assignment_target_type() != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
                 }
-                errs.extend(left.early_errors(agent));
+                errs.extend(left.early_errors(agent, strict));
                 errs.extend(right.early_errors(agent, strict));
             }
             AssignmentExpression::Destructuring(pat, exp) => {

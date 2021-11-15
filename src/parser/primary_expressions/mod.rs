@@ -368,6 +368,33 @@ impl PrimaryExpression {
     pub fn is_object_or_array_literal(&self) -> bool {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match &self.kind {
+            PrimaryExpressionKind::This => vec![],
+            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, strict),
+            PrimaryExpressionKind::Literal(lit) => lit.early_errors(),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, strict),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, strict),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, strict),
+            PrimaryExpressionKind::Function(node) => node.early_errors(agent, strict),
+            PrimaryExpressionKind::Class(node) => node.early_errors(agent, strict),
+            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, strict),
+            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, strict),
+            PrimaryExpressionKind::RegularExpression(regex) => {
+                // Static Semantics: Early Errors
+                //      PrimaryExpression : RegularExpressionLiteral
+                //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
+                if regex.is_valid_regular_expression_literal() {
+                    vec![]
+                } else {
+                    vec![create_syntax_error_object(agent, "Invalid regular expression")]
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -496,6 +523,12 @@ impl SpreadElement {
         //  2. Return true.
         let SpreadElement::AssignmentExpression(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -708,6 +741,12 @@ impl ElementList {
             ElementList::ElementListSpreadElement((el, _, se)) => el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ArrayLiteral[Yield, Await] :
@@ -843,6 +882,12 @@ impl ArrayLiteral {
             ArrayLiteral::ElementListElision(boxed, _) => boxed.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // Initializer[In, Yield, Await] :
@@ -915,6 +960,12 @@ impl Initializer {
         let Initializer::AssignmentExpression(node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // CoverInitializedName[Yield, Await] :
@@ -975,6 +1026,12 @@ impl CoverInitializedName {
         //  2. Return true.
         let CoverInitializedName::InitializedName(_, izer) = self;
         izer.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1038,6 +1095,12 @@ impl ComputedPropertyName {
         let ComputedPropertyName::AssignmentExpression(n) = self;
         n.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // LiteralPropertyName :
@@ -1100,6 +1163,12 @@ impl LiteralPropertyName {
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1188,6 +1257,12 @@ impl PropertyName {
             PropertyName::LiteralPropertyName(_) => true,
             PropertyName::ComputedPropertyName(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1329,6 +1404,12 @@ impl PropertyDefinition {
             PropertyDefinition::AssignmentExpression(ae) => ae.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // PropertyDefinitionList[Yield, Await] :
@@ -1413,6 +1494,12 @@ impl PropertyDefinitionList {
             PropertyDefinitionList::OneDef(pd) => pd.all_private_identifiers_valid(names),
             PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.all_private_identifiers_valid(names) && pd.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1511,6 +1598,12 @@ impl ObjectLiteral {
             ObjectLiteral::Normal(pdl) => pdl.all_private_identifiers_valid(names),
             ObjectLiteral::TrailingComma(pdl) => pdl.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1620,6 +1713,10 @@ impl Literal {
             None
         }
     }
+
+    pub fn early_errors(&self) -> Vec<Object> {
+        Vec::new()
+    }
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
@@ -1715,6 +1812,12 @@ impl TemplateLiteral {
             TemplateLiteral::NoSubstitutionTemplate(..) => true,
             TemplateLiteral::SubstitutionTemplate(boxed) => boxed.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

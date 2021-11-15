@@ -316,6 +316,31 @@ impl MemberExpression {
             | MemberExpressionKind::PrivateId(..) => false,
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(n) => n.early_errors(agent, strict),
+            MemberExpressionKind::Expression(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+            MemberExpressionKind::IdentifierName(n, _) => n.early_errors(agent, strict),
+            MemberExpressionKind::TemplateLiteral(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+            MemberExpressionKind::SuperProperty(n) => n.early_errors(agent, strict),
+            MemberExpressionKind::MetaProperty(meta) => meta.early_errors(agent, strict),
+            MemberExpressionKind::NewArguments(l, r) => {
+                let mut errs = l.early_errors(agent, strict);
+                errs.extend(r.early_errors(agent, strict));
+                errs
+            }
+            MemberExpressionKind::PrivateId(n, _) => n.early_errors(agent, strict),
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -411,6 +436,12 @@ impl SuperProperty {
             SuperPropertyKind::IdentifierName(_) => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // MetaProperty :
@@ -494,6 +525,12 @@ impl MetaProperty {
             MetaPropertyKind::NewTarget => kind == ParseNodeKind::NewTarget,
             MetaPropertyKind::ImportMeta => false,
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -607,6 +644,12 @@ impl Arguments {
             ArgumentsKind::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ArgumentList[Yield, Await] :
@@ -676,6 +719,12 @@ impl ArgumentListKind {
         let after_comma = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         let after_ellipsis = scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -792,6 +841,12 @@ impl ArgumentList {
             ArgumentListKind::ArgumentList(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
             ArgumentListKind::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -911,6 +966,13 @@ impl NewExpression {
             NewExpressionKind::NewExpression(_) => false,
         }
     }
+
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.early_errors(agent, strict),
+            NewExpressionKind::NewExpression(boxed) => boxed.early_errors(agent, strict),
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -968,6 +1030,12 @@ impl CallMemberExpression {
         //  2. Return true.
         self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // SuperCall[Yield, Await] :
@@ -1022,6 +1090,12 @@ impl SuperCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.arguments.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1081,6 +1155,12 @@ impl ImportCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.assignment_expression.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1304,6 +1384,12 @@ impl CallExpression {
             CallExpressionKind::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -1427,10 +1513,12 @@ impl LeftHandSideExpression {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+        match self {
+            LeftHandSideExpression::New(boxed) => boxed.early_errors(agent, strict),
+            LeftHandSideExpression::Call(boxed) => boxed.early_errors(agent, strict),
+            LeftHandSideExpression::Optional(boxed) => boxed.early_errors(agent, strict),
+        }
     }
 }
 
@@ -1547,6 +1635,12 @@ impl OptionalExpression {
             OptionalExpression::Call(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             OptionalExpression::Opt(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1793,6 +1887,12 @@ impl OptionalChain {
             //  2. Return false.
             OptionalChain::PlusPrivateId(lst, pid) => names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 

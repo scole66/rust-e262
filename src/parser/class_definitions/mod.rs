@@ -105,7 +105,7 @@ impl ClassDeclaration {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
         // todo!()
         println!("{}:{}: Not yet implemented", file!(), line!());
         Vec::new()
@@ -186,6 +186,12 @@ impl ClassExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.tail.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -294,6 +300,12 @@ impl ClassTail {
         //  2. Return true.
         self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ClassHeritage[Yield, Await] :
@@ -347,6 +359,12 @@ impl ClassHeritage {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -522,6 +540,12 @@ impl ClassElementList {
             ClassElementList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ClassElement[Yield, Await] :
@@ -682,6 +706,12 @@ impl ClassElement {
             ClassElement::Empty => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // FieldDefinition[Yield, Await] :
@@ -767,6 +797,12 @@ impl FieldDefinition {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -860,6 +896,12 @@ impl ClassElementName {
             ClassElementName::PrivateIdentifier(_) => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ClassStaticBlock :
@@ -918,6 +960,12 @@ impl ClassStaticBlock {
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
 }
 
 // ClassStaticBlockBody :
@@ -963,6 +1011,12 @@ impl ClassStaticBlockBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
@@ -1011,6 +1065,12 @@ impl ClassStaticBlockStatementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
     }
 }
 
