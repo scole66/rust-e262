@@ -633,3 +633,46 @@ fn assignment_operator_test_contains_11() {
 fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
+
+mod destructuring_assignment_target {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a")]
+    fn parse(src: &str) {
+        let (node, scanner) = check(DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false));
+        chk_scan(&scanner, 1);
+        pretty_check(&*node, "DestructuringAssignmentTarget: a", vec!["LeftHandSideExpression: a"]);
+        concise_check(&*node, "IdentifierName: a", vec![]);
+        assert_ne!(format!("{:?}", node), "");
+    }
+    #[test_case("" => ("LeftHandSideExpression expected".to_string(), 1); "mismatch")]
+    fn error(src: &str) -> (String, u32) {
+        let err = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap_err();
+        (err.msg, err.column)
+    }
+    #[test_case("blue")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("blue")]
+    fn concise_errors(src: &str) {
+        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("this" => true; "has this")]
+    #[test_case("3" => false; "missing this")]
+    fn contains(src: &str) -> bool {
+        let (node, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        node.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("item.#valid" => true; "valid")]
+    #[test_case("item.#invalid" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}

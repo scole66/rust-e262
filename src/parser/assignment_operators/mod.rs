@@ -327,5 +327,54 @@ impl AssignmentOperator {
     }
 }
 
+// DestructuringAssignmentTarget[Yield, Await] :
+//      LeftHandSideExpression[?Yield, ?Await]
+#[derive(Debug)]
+pub struct DestructuringAssignmentTarget(Rc<LeftHandSideExpression>);
+
+impl fmt::Display for DestructuringAssignmentTarget {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl PrettyPrint for DestructuringAssignmentTarget {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}DestructuringAssignmentTarget: {}", first, self)?;
+        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        self.0.concise_with_leftpad(writer, pad, state)
+    }
+}
+
+impl DestructuringAssignmentTarget {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
+        Ok((Rc::new(DestructuringAssignmentTarget(lhs)), after_lhs))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.0.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.0.all_private_identifiers_valid(names)
+    }
+}
+
 #[cfg(test)]
 mod tests;
