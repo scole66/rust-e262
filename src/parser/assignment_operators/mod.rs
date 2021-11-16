@@ -327,6 +327,113 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentProperty[Yield, Await] :
+//      IdentifierReference[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
+//      PropertyName[?Yield, ?Await] : AssignmentElement[?Yield, ?Await]
+#[derive(Debug)]
+pub enum AssignmentProperty {
+    Ident(Rc<IdentifierReference>, Option<Rc<Initializer>>),
+    Property(Rc<PropertyName>, Rc<AssignmentElement>),
+}
+
+impl fmt::Display for AssignmentProperty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AssignmentProperty::Ident(id, None) => id.fmt(f),
+            AssignmentProperty::Ident(id, Some(init)) => write!(f, "{} {}", id, init),
+            AssignmentProperty::Property(name, ae) => write!(f, "{} : {}", name, ae),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentProperty {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentProperty: {}", first, self)?;
+        match self {
+            AssignmentProperty::Ident(id, None) => id.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AssignmentProperty::Ident(id, Some(init)) => {
+                id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentProperty::Property(name, ae) => {
+                name.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let write_head = |writer: &mut T, pad, state| {
+            let (first, successive) = prettypad(pad, state);
+            writeln!(writer, "{}AssignmentProperty: {}", first, self)?;
+            IoResult::<String>::Ok(successive)
+        };
+
+        match self {
+            AssignmentProperty::Ident(id, None) => id.concise_with_leftpad(writer, pad, state),
+            AssignmentProperty::Ident(id, Some(init)) => {
+                let successive = write_head(writer, pad, state)?;
+                id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            AssignmentProperty::Property(name, ae) => {
+                let successive = write_head(writer, pad, state)?;
+                name.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                ae.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl AssignmentProperty {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        Err(ParseError::new("IdentifierReference or PropertyName expected", scanner.line, scanner.column))
+            .otherwise(|| {
+                let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
+                let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
+                Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
+            })
+            .otherwise(|| {
+                let (idref, after_id) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
+                let (init, after_init) = match Initializer::parse(parser, after_id, true, yield_flag, await_flag) {
+                    Ok((node, scan)) => (Some(node), scan),
+                    Err(_) => (None, after_id),
+                };
+                Ok((Rc::new(AssignmentProperty::Ident(idref, init)), after_init))
+            })
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            AssignmentProperty::Ident(id, None) => id.contains(kind),
+            AssignmentProperty::Ident(id, Some(init)) => id.contains(kind) || init.contains(kind),
+            AssignmentProperty::Property(name, element) => name.contains(kind) || element.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AssignmentProperty::Ident(_, None) => true,
+            AssignmentProperty::Ident(_, Some(init)) => init.all_private_identifiers_valid(names),
+            AssignmentProperty::Property(name, element) => name.all_private_identifiers_valid(names) && element.all_private_identifiers_valid(names),
+        }
+    }
+}
+
 // AssignmentElement[Yield, Await] :
 //      DestructuringAssignmentTarget[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
