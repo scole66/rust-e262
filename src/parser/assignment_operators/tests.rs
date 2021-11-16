@@ -634,6 +634,80 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => Ok((
+        expected_scan(1),
+        sv(&["AssignmentProperty: a", "IdentifierReference: a"]),
+        sv(&["IdentifierName: a"]),
+    )); "IdentifierReference")]
+    #[test_case("a=0" => Ok((
+        expected_scan(3),
+        sv(&["AssignmentProperty: a = 0", "IdentifierReference: a", "Initializer: = 0"]),
+        sv(&["AssignmentProperty: a = 0", "IdentifierName: a", "Initializer: = 0"])
+    )); "IdentifierReference Initializer")]
+    #[test_case("a:b" => Ok((
+        expected_scan(3),
+        sv(&["AssignmentProperty: a : b", "PropertyName: a", "AssignmentElement: b"]),
+        sv(&["AssignmentProperty: a : b", "IdentifierName: a", "Punctuator: :", "IdentifierName: b"])
+    )); "PropertyName : AssignmentElement")]
+    #[test_case("" => Err(ParseError::new("IdentifierReference or PropertyName expected", 1, 1)); "empty")]
+    #[test_case("0" => Err(ParseError::new("‘:’ expected", 1, 2)); "Error after PropertyName")]
+    #[test_case("0:" => Err(ParseError::new("LeftHandSideExpression expected", 1, 3)); "Error after colon")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (item, _) = AssignmentProperty::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        assert_ne!(format!("{:?}", item), "");
+    }
+
+    #[test_case("a")]
+    #[test_case("a=0")]
+    #[test_case("a:b")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("a")]
+    #[test_case("a=0")]
+    #[test_case("a:b")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("a" => false; "IdentifierReference: not present")]
+    #[test_case("a=0" => false; "IdentifierReference Initializer: not present")]
+    #[test_case("a=this" => true; "IdentifierReference Initializer: present in initialier")]
+    #[test_case("[this]:a" => true; "PropertyName : AssignmentElement: present in PropertyName")]
+    #[test_case("a:this" => true; "PropertyName : AssignmentElement: present in AssignmentElement")]
+    #[test_case("a:b" => false; "PropertyName : AssignmentElement: not present")]
+    fn contains(src: &str) -> bool {
+        let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("a" => true; "IdentifierReference")]
+    #[test_case("a=b.#valid" => true; "IdentifierReference Initialier: Initializer valid")]
+    #[test_case("[a.#valid]:0" => true; "PropertyName : AssignmentElement: PropertyName valid")]
+    #[test_case("a:b.#valid" => true; "PropertyName : AssignmentElement: AssignmentElement valid")]
+    #[test_case("a=b.#invalid" => false; "IdentifierReference Initialier: Initializer invalid")]
+    #[test_case("[a.#invalid]:0" => false; "PropertyName : AssignmentElement: PropertyName invalid")]
+    #[test_case("a:b.#invalid" => false; "PropertyName : AssignmentElement: AssignmentElement invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_element {
     use super::*;
     use test_case::test_case;
