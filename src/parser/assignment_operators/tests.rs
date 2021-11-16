@@ -634,6 +634,70 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_element {
+    use super::testhelp::{expected_scan, sv};
+    use super::*;
+    use crate::prettyprint::testhelp::{concise_data, pretty_data};
+    use test_case::test_case;
+
+    #[test_case("a" => Ok((
+        expected_scan(1),
+        sv(&["AssignmentElement: a", "DestructuringAssignmentTarget: a"]),
+        sv(&["IdentifierName: a"]),
+    )); "alone")]
+    #[test_case("a=0" => Ok((
+        expected_scan(3),
+        sv(&["AssignmentElement: a = 0", "DestructuringAssignmentTarget: a", "Initializer: = 0"]),
+        sv(&["AssignmentElement: a = 0", "IdentifierName: a", "Initializer: = 0"]),
+    )); "with initializer")]
+    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        assert_ne!("", format!("{:?}", AssignmentElement::parse(&mut newparser("A"), Scanner::new(), false, false).unwrap()));
+    }
+
+    #[test_case("a")]
+    #[test_case("a=0")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("a")]
+    #[test_case("a=0")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("this" => true; "no init; present")]
+    #[test_case("a" => false; "no init; not present")]
+    #[test_case("this=0" => true; "init; present in target")]
+    #[test_case("a=this" => true; "init; present in init")]
+    #[test_case("a=0" => false; "init; not present")]
+    fn contains(src: &str) -> bool {
+        let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("item.#valid" => true; "no init; valid")]
+    #[test_case("item.#valid=0" => true; "init; target valid")]
+    #[test_case("a=item.#valid" => true; "init; init valid")]
+    #[test_case("item.#invalid" => false; "no init; invalid")]
+    #[test_case("item.#invalid=0" => false; "init; target invalid")]
+    #[test_case("a=item.#invalid" => false; "init; init invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_rest_element {
     use super::*;
     use test_case::test_case;
