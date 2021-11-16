@@ -327,6 +327,76 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentElisionElement[Yield, Await] :
+//      Elision_opt AssignmentElement[?Yield, ?Await]
+#[derive(Debug)]
+pub struct AssignmentElisionElement {
+    elisions: Option<Rc<Elisions>>,
+    element: Rc<AssignmentElement>,
+}
+
+impl fmt::Display for AssignmentElisionElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.elisions {
+            Some(elisions) => write!(f, "{} {}", elisions, self.element),
+            None => self.element.fmt(f),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentElisionElement {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentElisionElement: {}", first, self)?;
+        if let Some(elisions) = &self.elisions {
+            elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        }
+        self.element.pprint_with_leftpad(writer, &successive, Spot::Final)
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match &self.elisions {
+            Some(elisions) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}AssignmentElisionElement: {}", first, self)?;
+                elisions.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                self.element.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+            None => self.element.concise_with_leftpad(writer, pad, state),
+        }
+    }
+}
+
+impl AssignmentElisionElement {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (elisions, after_elision) = match Elisions::parse(parser, scanner) {
+            Ok((node, scan)) => (Some(node), scan),
+            Err(_) => (None, scanner),
+        };
+        let (element, after_ae) = AssignmentElement::parse(parser, after_elision, yield_flag, await_flag)?;
+        Ok((Rc::new(AssignmentElisionElement { elisions, element }), after_ae))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.element.contains(kind)
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        self.element.all_private_identifiers_valid(names)
+    }
+}
+
 // AssignmentProperty[Yield, Await] :
 //      IdentifierReference[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 //      PropertyName[?Yield, ?Await] : AssignmentElement[?Yield, ?Await]

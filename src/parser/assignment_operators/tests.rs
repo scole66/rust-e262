@@ -634,6 +634,66 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_elision_element {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => Ok((
+        expected_scan(1),
+        sv(&["AssignmentElisionElement: a", "AssignmentElement: a"]),
+        sv(&["IdentifierName: a"])
+    )); "AssignmentElement")]
+    #[test_case(",a" => Ok((
+        expected_scan(2),
+        sv(&["AssignmentElisionElement: , a", "Elisions: ,", "AssignmentElement: a"]),
+        sv(&["AssignmentElisionElement: , a", "Elisions: ,", "IdentifierName: a"]),
+    )); "Elision AssignmentElement")]
+    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = AssignmentElisionElement::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("a"; "AssignmentElement")]
+    #[test_case(",a"; "Elision AssignmentElement")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("a"; "AssignmentElement")]
+    #[test_case(",a"; "Elision AssignmentElement")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("a" => false; "AssignmentElement: not present")]
+    #[test_case("a[this]" => true; "AssignmentElement: present")]
+    #[test_case(",a" => false; "Elision AssignmentElement: not present")]
+    #[test_case(",a[this]" => true; "Elision AssignmentElement: present in AssignmentElement")]
+    fn contains(src: &str) -> bool {
+        let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("a.#valid" => true; "AssignmentElement: valid")]
+    #[test_case(",a.#valid" => true; "Elision AssignmentElement: AssignmentElement valid")]
+    #[test_case("a.#invalid" => false; "AssignmentElement: invalid")]
+    #[test_case(",a.#invalid" => false; "Elision AssignmentElement: AssignmentElement invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_property {
     use super::*;
     use test_case::test_case;
