@@ -1,6 +1,6 @@
-use super::testhelp::{check, chk_scan, newparser};
+use super::testhelp::{check, chk_scan, expected_scan, newparser, sv};
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
 use test_case::test_case;
 
 #[test]
@@ -635,9 +635,7 @@ fn assignment_operator_test_contains_12() {
 }
 
 mod assignment_element {
-    use super::testhelp::{expected_scan, sv};
     use super::*;
-    use crate::prettyprint::testhelp::{concise_data, pretty_data};
     use test_case::test_case;
 
     #[test_case("a" => Ok((
@@ -702,19 +700,23 @@ mod assignment_rest_element {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("...a")]
-    fn parse(src: &str) {
-        let (node, scanner) = check(AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), false, false));
-        chk_scan(&scanner, 4);
-        pretty_check(&*node, "AssignmentRestElement: ... a", vec!["DestructuringAssignmentTarget: a"]);
-        concise_check(&*node, "AssignmentRestElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
-        assert_ne!(format!("{:?}", node), "");
+    #[test_case("...a" => Ok((
+        expected_scan(4),
+        sv(&["AssignmentRestElement: ... a", "DestructuringAssignmentTarget: a"]),
+        sv(&["AssignmentRestElement: ... a", "Punctuator: ...", "IdentifierName: a"])
+    )); "normal")]
+    #[test_case("" => Err(ParseError::new("‘...’ expected", 1, 1)); "empty")]
+    #[test_case("..." => Err(ParseError::new("LeftHandSideExpression expected", 1, 4)); "dots")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
     }
-    #[test_case("" => ("‘...’ expected".to_string(), 1); "empty")]
-    #[test_case("..." => ("LeftHandSideExpression expected".to_string(), 4); "dots")]
-    fn error(src: &str) -> (String, u32) {
-        let err = AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap_err();
-        (err.msg, err.column)
+    #[test]
+    fn debug() {
+        let (item, _) = AssignmentRestElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", item));
     }
     #[test_case("...blue")]
     fn pretty_errors(src: &str) {
