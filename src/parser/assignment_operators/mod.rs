@@ -327,6 +327,85 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentElement[Yield, Await] :
+//      DestructuringAssignmentTarget[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
+#[derive(Debug)]
+pub struct AssignmentElement {
+    target: Rc<DestructuringAssignmentTarget>,
+    initializer: Option<Rc<Initializer>>,
+}
+
+impl fmt::Display for AssignmentElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.initializer {
+            None => self.target.fmt(f),
+            Some(init) => write!(f, "{} {}", self.target, init),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentElement {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentElement: {}", first, self)?;
+        match &self.initializer {
+            None => self.target.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Some(init) => {
+                self.target.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match &self.initializer {
+            None => self.target.concise_with_leftpad(writer, pad, state),
+            Some(init) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}AssignmentElement: {}", first, self)?;
+                self.target.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                init.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl AssignmentElement {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (target, after_target) = DestructuringAssignmentTarget::parse(parser, scanner, yield_flag, await_flag)?;
+        let (initializer, after_init) = match Initializer::parse(parser, after_target, true, yield_flag, await_flag) {
+            Ok((node, scan)) => (Some(node), scan),
+            Err(_) => (None, after_target),
+        };
+        Ok((Rc::new(AssignmentElement { target, initializer }), after_init))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match &self.initializer {
+            Some(init) => self.target.contains(kind) || init.contains(kind),
+            None => self.target.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match &self.initializer {
+            Some(init) => self.target.all_private_identifiers_valid(names) && init.all_private_identifiers_valid(names),
+            None => self.target.all_private_identifiers_valid(names),
+        }
+    }
+}
+
 // AssignmentRestElement[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
