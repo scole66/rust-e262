@@ -327,6 +327,91 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentElementList[Yield, Await] :
+//      AssignmentElisionElement[?Yield, ?Await]
+//      AssignmentElementList[?Yield, ?Await] , AssignmentElisionElement[?Yield, ?Await]
+#[derive(Debug)]
+pub enum AssignmentElementList {
+    Item(Rc<AssignmentElisionElement>),
+    List(Rc<AssignmentElementList>, Rc<AssignmentElisionElement>),
+}
+
+impl fmt::Display for AssignmentElementList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AssignmentElementList::Item(item) => item.fmt(f),
+            AssignmentElementList::List(list, item) => write!(f, "{} , {}", list, item),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentElementList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentElementList: {}", first, self)?;
+        match self {
+            AssignmentElementList::Item(item) => item.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AssignmentElementList::List(list, item) => {
+                list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            AssignmentElementList::Item(item) => item.concise_with_leftpad(writer, pad, state),
+            AssignmentElementList::List(list, item) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}AssignmentElementList: {}", first, self)?;
+                list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl AssignmentElementList {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (item, after_item) = AssignmentElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
+        let mut current_production = Rc::new(AssignmentElementList::Item(item));
+        let mut current_scanner = after_item;
+        while let Ok((next_item, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag))
+        {
+            current_production = Rc::new(AssignmentElementList::List(current_production, next_item));
+            current_scanner = after_next;
+        }
+        Ok((current_production, current_scanner))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            AssignmentElementList::Item(item) => item.contains(kind),
+            AssignmentElementList::List(list, item) => list.contains(kind) || item.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AssignmentElementList::Item(item) => item.all_private_identifiers_valid(names),
+            AssignmentElementList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
+}
+
 // AssignmentElisionElement[Yield, Await] :
 //      Elision_opt AssignmentElement[?Yield, ?Await]
 #[derive(Debug)]
