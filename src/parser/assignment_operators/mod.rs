@@ -327,6 +327,91 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentPropertyList[Yield, Await] :
+//      AssignmentProperty[?Yield, ?Await]
+//      AssignmentPropertyList[?Yield, ?Await] , AssignmentProperty[?Yield, ?Await]
+#[derive(Debug)]
+pub enum AssignmentPropertyList {
+    Item(Rc<AssignmentProperty>),
+    List(Rc<AssignmentPropertyList>, Rc<AssignmentProperty>),
+}
+
+impl fmt::Display for AssignmentPropertyList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AssignmentPropertyList::Item(item) => item.fmt(f),
+            AssignmentPropertyList::List(lst, item) => write!(f, "{} , {}", lst, item),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentPropertyList {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentPropertyList: {}", first, self)?;
+        match self {
+            AssignmentPropertyList::Item(item) => item.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AssignmentPropertyList::List(lst, item) => {
+                lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                item.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            AssignmentPropertyList::Item(item) => item.concise_with_leftpad(writer, pad, state),
+            AssignmentPropertyList::List(lst, item) => {
+                let (first, successive) = prettypad(pad, state);
+                writeln!(writer, "{}AssignmentPropertyList: {}", first, self)?;
+                lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+                item.concise_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+}
+
+impl AssignmentPropertyList {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let (item, after_item) = AssignmentProperty::parse(parser, scanner, yield_flag, await_flag)?;
+        let mut current_production = Rc::new(AssignmentPropertyList::Item(item));
+        let mut current_scanner = after_item;
+        while let Ok((next_item, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            .and_then(|after_comma| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag))
+        {
+            current_production = Rc::new(AssignmentPropertyList::List(current_production, next_item));
+            current_scanner = after_next;
+        }
+        Ok((current_production, current_scanner))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            AssignmentPropertyList::Item(item) => item.contains(kind),
+            AssignmentPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AssignmentPropertyList::Item(item) => item.all_private_identifiers_valid(names),
+            AssignmentPropertyList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
+}
+
 // AssignmentElementList[Yield, Await] :
 //      AssignmentElisionElement[?Yield, ?Await]
 //      AssignmentElementList[?Yield, ?Await] , AssignmentElisionElement[?Yield, ?Await]

@@ -634,6 +634,69 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_property_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => Ok((
+        expected_scan(1),
+        sv(&["AssignmentPropertyList: a", "AssignmentProperty: a"]),
+        sv(&["IdentifierName: a"])
+    )); "AssignmentProperty")]
+    #[test_case("a,b" => Ok((
+        expected_scan(3),
+        sv(&["AssignmentPropertyList: a , b", "AssignmentPropertyList: a", "AssignmentProperty: b"]),
+        sv(&["AssignmentPropertyList: a , b", "IdentifierName: a", "Punctuator: ,", "IdentifierName: b"])
+    )); "AssignmentPropertyList , AssignmentProperty")]
+    #[test_case("" => Err(ParseError::new("IdentifierReference or PropertyName expected", 1, 1)); "empty")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = AssignmentPropertyList::parse(&mut newparser("a"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("a"; "AssignmentProperty")]
+    #[test_case("a,b"; "AssignmentPropertyList AssignmentProperty")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("a"; "AssignmentProperty")]
+    #[test_case("a,b"; "AssignmentPropertyList AssignmentProperty")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("a" => false; "AssignmentProperty: not present")]
+    #[test_case("[this]:a" => true; "AssignmentProperty: present")]
+    #[test_case("a,b" => false; "AssignmentPropertyList , AssignmentProperty: not present")]
+    #[test_case("[this]:a,b" => true; "AssignmentPropertyList , AssignmentProperty: present in AssignmentPropertyList")]
+    #[test_case("a,[this]:b" => true; "AssignmentPropertyList , AssignmentProperty: present in AssignmentProperty")]
+    fn contains(src: &str) -> bool {
+        let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("[a.#valid]:q" => true; "AssignmentProperty: valid")]
+    #[test_case("[a.#valid]:q,b" => true; "AssignmentPropertyList , AssignmentProperty: AssignmentPropertyList valid")]
+    #[test_case("a,[b.#valid]:q" => true; "AssignmentPropertyList , AssignmentProperty: AssignmentProperty valid")]
+    #[test_case("[a.#invalid]:q" => false; "AssignmentProperty: invalid")]
+    #[test_case("[a.#invalid]:q,b" => false; "AssignmentPropertyList , AssignmentProperty: AssignmentPropertyList invalid")]
+    #[test_case("a,[b.#invalid]:q" => false; "AssignmentPropertyList , AssignmentProperty: AssignmentProperty invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_element_list {
     use super::*;
     use test_case::test_case;
