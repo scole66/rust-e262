@@ -634,6 +634,56 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_rest_property {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("...a" => Ok((
+        expected_scan(4),
+        sv(&["AssignmentRestProperty: ... a", "DestructuringAssignmentTarget: a"]),
+        sv(&["AssignmentRestProperty: ... a", "Punctuator: ...", "IdentifierName: a"])
+    )); "... DestructuringAssignmentTarget")]
+    #[test_case("" => Err(ParseError::new("‘...’ expected", 1, 1)); "empty")]
+    #[test_case("..." => Err(ParseError::new("LeftHandSideExpression expected", 1, 4)); "dots")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = AssignmentRestProperty::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("...a"; "... DestructuringAssignmentTarget")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("...a"; "... DestructuringAssignmentTarget")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("...this" => true; "has this")]
+    #[test_case("...3" => false; "missing this")]
+    fn contains(src: &str) -> bool {
+        let (node, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        node.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("...item.#valid" => true; "valid")]
+    #[test_case("...item.#invalid" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_property_list {
     use super::*;
     use test_case::test_case;
