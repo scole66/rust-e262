@@ -12,7 +12,7 @@ impl InnerState {
 }
 
 #[derive(Debug)]
-struct State(InnerState);
+pub struct State(InnerState);
 
 impl State {
     pub fn parse(src: &str) -> Self {
@@ -25,4 +25,18 @@ impl State {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_has_true() {
+        let s = State::parse("value");
+        assert!(s.has("value"))
+    }
+
+    #[test]
+    fn state_has_false() {
+        let s = State::parse("value");
+        assert!(!s.has("missing"))
+    }
+}

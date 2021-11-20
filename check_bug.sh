@@ -2,7 +2,7 @@
 
 source funcs.sh
 
-limit_val=50
+limit_val=150
 attempts_remaining=$limit_val
 while [ $attempts_remaining -gt 0 ]; do
     tst statething > /dev/null 2>&1
