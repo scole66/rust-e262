@@ -364,6 +364,10 @@ impl PrimaryExpression {
             PrimaryExpressionKind::RegularExpression(..) => true,
         }
     }
+
+    pub fn is_object_or_array_literal(&self) -> bool {
+        matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
+    }
 }
 
 #[derive(Debug)]

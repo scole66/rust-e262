@@ -437,6 +437,23 @@ fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test_case("this" => false; "This")]
+#[test_case("a" => false; "IdentifierReference")]
+#[test_case("3" => false; "Literal")]
+#[test_case("[]" => true; "ArrayLiteral")]
+#[test_case("{}" => true; "ObjectLiteral")]
+#[test_case("function (){}" => false; "FunctionExpression")]
+#[test_case("class {}" => false; "ClassExpression")]
+#[test_case("function *(){}" => false; "GeneratorExpression")]
+#[test_case("async function (){}" => false; "AsyncFunctionExpression")]
+#[test_case("async function *(){}" => false; "AsyncGeneratorExpression")]
+#[test_case("/a/" => false; "RegularExpressionLiteral")]
+#[test_case("``" => false; "TemplateLiteral")]
+#[test_case("(a)" => false; "ParenthesizedExpression")]
+fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
+    PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+}
+
 // LITERAL
 #[test]
 fn literal_test_debug() {
