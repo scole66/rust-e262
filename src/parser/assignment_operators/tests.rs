@@ -634,6 +634,308 @@ fn assignment_operator_test_contains_12() {
     assert_eq!(AssignmentOperator::Exponentiate.contains(ParseNodeKind::This), false);
 }
 
+mod assignment_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}" => Ok((
+        expected_scan(2),
+        sv(&["AssignmentPattern: { }", "ObjectAssignmentPattern: { }"]),
+        sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
+    )); "ObjectAssignmentPattern")]
+    #[test_case("[]" => Ok((
+        expected_scan(2),
+        sv(&["AssignmentPattern: [ ]", "ArrayAssignmentPattern: [ ]"]),
+        sv(&["ArrayAssignmentPattern: [ ]", "Punctuator: [", "Punctuator: ]"])
+    )); "ArrayAssignmentPattern")]
+    #[test_case("" => Err(ParseError::new("AssignmentPattern expected", 1, 1)); "empty")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = AssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("{}"; "ObjectAssignmentPattern")]
+    #[test_case("[]"; "ArrayAssignmentPattern")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("{}"; "ObjectAssignmentPattern")]
+    #[test_case("[]"; "ArrayAssignmentPattern")]
+    fn concise_errors(src: &str) {
+        let (item, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("{[this]:a}" => true; "ObjectAssignmentPattern: present")]
+    #[test_case("{[p]:a}" => false; "ObjectAssignmentPattern: not present")]
+    #[test_case("[a=this]" => true; "ArrayAssignmentPattern: present")]
+    #[test_case("[a=3]" => false; "ArrayAssignmentPattern: not present")]
+    fn contains(src: &str) -> bool {
+        let (node, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        node.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("{a:b.#valid}" => true; "ObjectAssignmentPattern: valid")]
+    #[test_case("[a=b.#valid]" => true; "ArrayAssignmentPattern: valid")]
+    #[test_case("{a:b.#invalid}" => false; "ObjectAssignmentPattern: invalid")]
+    #[test_case("[a=b.#invalid]" => false; "ArrayAssignmentPattern: invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
+mod object_assignment_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}" => Ok((
+        expected_scan(2),
+        sv(&["ObjectAssignmentPattern: { }"]),
+        sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
+    )); "{ } (empty)")]
+    #[test_case("{...a}" => Ok((
+        expected_scan(6),
+        sv(&["ObjectAssignmentPattern: { ... a }", "AssignmentRestProperty: ... a"]),
+        sv(&["ObjectAssignmentPattern: { ... a }", "Punctuator: {", "AssignmentRestProperty: ... a", "Punctuator: }"]),
+    )); "{ AssignmentRestProperty }")]
+    #[test_case("{a}" => Ok((
+        expected_scan(3),
+        sv(&["ObjectAssignmentPattern: { a }", "AssignmentPropertyList: a"]),
+        sv(&["ObjectAssignmentPattern: { a }", "Punctuator: {", "IdentifierName: a", "Punctuator: }"])
+    )); "{ AssignmentPropertyList }")]
+    #[test_case("{a,}" => Ok((
+        expected_scan(4),
+        sv(&["ObjectAssignmentPattern: { a , }", "AssignmentPropertyList: a"]),
+        sv(&["ObjectAssignmentPattern: { a , }", "Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"])
+    )); "{ AssignmentPropertyList , } (trailing comma)")]
+    #[test_case("{a,...b}" => Ok((
+        expected_scan(8),
+        sv(&["ObjectAssignmentPattern: { a , ... b }", "AssignmentPropertyList: a", "AssignmentRestProperty: ... b"]),
+        sv(&["ObjectAssignmentPattern: { a , ... b }", "Punctuator: {", "IdentifierName: a", "Punctuator: ,", "AssignmentRestProperty: ... b", "Punctuator: }"])
+    )); "{ AssignmentPropertyList , AssignmentRestProperty }")]
+    #[test_case("" => Err(ParseError::new("‘{’ expected", 1, 1)); "empty")]
+    #[test_case("{" => Err(ParseError::new("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected", 1, 2)); "open brace alone")]
+    #[test_case("{a" => Err(ParseError::new("One of [‘,’, ‘}’] expected", 1, 3)); "err after list")]
+    #[test_case("{a," => Err(ParseError::new("‘}’ expected", 1, 4)); "err after list+comma")]
+    #[test_case("{...a" => Err(ParseError::new("‘}’ expected", 1, 6)); "err after rest")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = ObjectAssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("{}"; "{ } (empty)")]
+    #[test_case("{...a}"; "{ AssignmentRestProperty }")]
+    #[test_case("{a}"; "{ AssignmentPropertyList }")]
+    #[test_case("{a,}"; "{ AssignmentPropertyList , } (trailing comma)")]
+    #[test_case("{a,...b}"; "{ AssignmentPropertyList , AssignmentRestProperty }")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+
+    #[test_case("{}"; "{ } (empty)")]
+    #[test_case("{...a}"; "{ AssignmentRestProperty }")]
+    #[test_case("{a}"; "{ AssignmentPropertyList }")]
+    #[test_case("{a,}"; "{ AssignmentPropertyList , } (trailing comma)")]
+    #[test_case("{a,...b}"; "{ AssignmentPropertyList , AssignmentRestProperty }")]
+    fn concise_errors(src: &str) {
+        let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("{}" => false; "{ } (empty): not present")]
+    #[test_case("{...a}" => false; "{ AssignmentRestProperty }: not present")]
+    #[test_case("{...this}" => true; "{ AssignmentRestProperty }: present")]
+    #[test_case("{a}" => false; "{ AssignmentPropertyList }: not present")]
+    #[test_case("{[this]:a}" => true; "{ AssignmentPropertyList }: present")]
+    #[test_case("{a,}" => false; "{ AssignmentPropertyList , } (trailing comma): not present")]
+    #[test_case("{[this]:a,}" => true; "{ AssignmentPropertyList , } (trailing comma): present")]
+    #[test_case("{a,...b}" => false; "{ AssignmentPropertyList , AssignmentRestProperty }: not present")]
+    #[test_case("{[this]:a,...b}" => true; "{ AssignmentPropertyList , AssignmentRestProperty }: present in List")]
+    #[test_case("{a,...this}" => true; "{ AssignmentPropertyList , AssignmentRestProperty }: present in Rest")]
+    fn contains(src: &str) -> bool {
+        let (node, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        node.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("{}" => true; "{ } (empty)")]
+    #[test_case("{...a.#valid}"; "{ AssignmentRestProperty }: valid")]
+    #[test_case("{[a.#valid]:b}"; "{ AssignmentPropertyList }: valid")]
+    #[test_case("{[a.#valid]:b,}"; "{ AssignmentPropertyList , } (trailing comma): valid")]
+    #[test_case("{[a.#valid]:b,...c}"; "{ AssignmentPropertyList , AssignmentRestProperty }: valid List")]
+    #[test_case("{[a]:b,...c.#valid}"; "{ AssignmentPropertyList , AssignmentRestProperty }: valid Rest")]
+    #[test_case("{...a.#invalid}"; "{ AssignmentRestProperty }: invalid")]
+    #[test_case("{[a.#invalid]:b}"; "{ AssignmentPropertyList }: invalid")]
+    #[test_case("{[a.#invalid]:b,}"; "{ AssignmentPropertyList , } (trailing comma): invalid")]
+    #[test_case("{[a.#invalid]:b,...c}"; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid List")]
+    #[test_case("{[a]:b,...c.#invalid}"; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid Rest")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
+mod array_assignment_pattern {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("[]" => Ok((
+        expected_scan(2),
+        sv(&["ArrayAssignmentPattern: [ ]"]),
+        sv(&["ArrayAssignmentPattern: [ ]", "Punctuator: [", "Punctuator: ]"])
+    )); "[ ] (nothing)")]
+    #[test_case("[,]" => Ok((
+        expected_scan(3),
+        sv(&["ArrayAssignmentPattern: [ , ]", "Elisions: ,"]),
+        sv(&["ArrayAssignmentPattern: [ , ]", "Punctuator: [", "Elisions: ,", "Punctuator: ]"])
+    )); "[ Elision ]")]
+    #[test_case("[...a]" => Ok((
+        expected_scan(6),
+        sv(&["ArrayAssignmentPattern: [ ... a ]", "AssignmentRestElement: ... a"]),
+        sv(&["ArrayAssignmentPattern: [ ... a ]", "Punctuator: [", "AssignmentRestElement: ... a", "Punctuator: ]"])
+    )); "[ AssignmentRestElement ]")]
+    #[test_case("[,...a]" => Ok((
+        expected_scan(7),
+        sv(&["ArrayAssignmentPattern: [ , ... a ]", "Elisions: ,", "AssignmentRestElement: ... a"]),
+        sv(&["ArrayAssignmentPattern: [ , ... a ]", "Punctuator: [", "Elisions: ,", "AssignmentRestElement: ... a", "Punctuator: ]"])
+    )); "[ Elision AssignmentRestElement ]")]
+    #[test_case("[a]" => Ok((
+        expected_scan(3),
+        sv(&["ArrayAssignmentPattern: [ a ]", "AssignmentElementList: a"]),
+        sv(&["ArrayAssignmentPattern: [ a ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"])
+    )); "[ AssignmentElementList ]")]
+    #[test_case("[a,]" => Ok((
+        expected_scan(4),
+        sv(&["ArrayAssignmentPattern: [ a , ]", "AssignmentElementList: a"]),
+        sv(&["ArrayAssignmentPattern: [ a , ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"])
+    )); "[ AssignmentElementList , ] (trailing comma)")]
+    #[test_case("[a,,]" => Ok((
+        expected_scan(5),
+        sv(&["ArrayAssignmentPattern: [ a , , ]", "AssignmentElementList: a", "Elisions: ,"]),
+        sv(&["ArrayAssignmentPattern: [ a , , ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"])
+    )); "[ AssignmentElementList , Elision ]")]
+    #[test_case("[a,...b]" => Ok((
+        expected_scan(8),
+        sv(&["ArrayAssignmentPattern: [ a , ... b ]", "AssignmentElementList: a", "AssignmentRestElement: ... b"]),
+        sv(&["ArrayAssignmentPattern: [ a , ... b ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ,", "AssignmentRestElement: ... b", "Punctuator: ]"])
+    )); "[ AssignmentELementList , AssignmentRestElement ]")]
+    #[test_case("[a,,...b]" => Ok((
+        expected_scan(9),
+        sv(&["ArrayAssignmentPattern: [ a , , ... b ]", "AssignmentElementList: a", "Elisions: ,", "AssignmentRestElement: ... b"]),
+        sv(&["ArrayAssignmentPattern: [ a , , ... b ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "AssignmentRestElement: ... b", "Punctuator: ]"])
+    )); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
+    #[test_case("" => Err(ParseError::new("‘[’ expected", 1, 1)); "empty")]
+    #[test_case("[" => Err(ParseError::new("‘,’, ‘]’, or an AssignmentElementList expected", 1, 2)); "open bracket alone")]
+    #[test_case("[a" => Err(ParseError::new("One of [‘,’, ‘]’] expected", 1, 3)); "err after list")]
+    #[test_case("[a," => Err(ParseError::new("‘]’ expected", 1, 4)); "err after list+elision")]
+    #[test_case("[...a" => Err(ParseError::new("‘]’ expected", 1, 6)); "err after rest")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    #[test]
+    fn debug() {
+        let (node, _) = ArrayAssignmentPattern::parse(&mut newparser("[]"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", node));
+    }
+
+    #[test_case("[]"; "[ ] (nothing)")]
+    #[test_case("[,]"; "[ Elision ]")]
+    #[test_case("[...a]"; "[ AssignmentRestElement ]")]
+    #[test_case("[,...a]"; "[ Elision AssignmentRestElement ]")]
+    #[test_case("[a]"; "[ AssignmentElementList ]")]
+    #[test_case("[a,]"; "[ AssignmentElementList , ] (trailing comma)")]
+    #[test_case("[a,,]"; "[ AssignmentElementList , Elision ]")]
+    #[test_case("[a,...b]"; "[ AssignmentELementList , AssignmentRestElement ]")]
+    #[test_case("[a,,...b]"; "[ AssignmentElementList , Elision AssignmentRestElement ]")]
+    fn pretty_errors(src: &str) {
+        let (item, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        pretty_error_validate(&*item);
+    }
+    #[test_case("[]"; "[ ] (nothing)")]
+    #[test_case("[,]"; "[ Elision ]")]
+    #[test_case("[...a]"; "[ AssignmentRestElement ]")]
+    #[test_case("[,...a]"; "[ Elision AssignmentRestElement ]")]
+    #[test_case("[a]"; "[ AssignmentElementList ]")]
+    #[test_case("[a,]"; "[ AssignmentElementList , ] (trailing comma)")]
+    #[test_case("[a,,]"; "[ AssignmentElementList , Elision ]")]
+    #[test_case("[a,...b]"; "[ AssignmentELementList , AssignmentRestElement ]")]
+    #[test_case("[a,,...b]"; "[ AssignmentElementList , Elision AssignmentRestElement ]")]
+    fn concise_errors(src: &str) {
+        let (item, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        concise_error_validate(&*item);
+    }
+
+    #[test_case("[]" => false; "[ ] (nothing)")]
+    #[test_case("[,]" => false; "[ Elision ]")]
+    #[test_case("[...a]" => false; "[ AssignmentRestElement ]: not present")]
+    #[test_case("[...this]" => true; "[ AssignmentRestElement ]: present")]
+    #[test_case("[,...a]" => false; "[ Elision AssignmentRestElement ]: not present")]
+    #[test_case("[,...this]" => true; "[ Elision AssignmentRestElement ]: present")]
+    #[test_case("[a]" => false; "[ AssignmentElementList ]: not present")]
+    #[test_case("[this]" => true; "[ AssignmentElementList ]: present")]
+    #[test_case("[a,]" => false; "[ AssignmentElementList , ] (trailing comma): not present")]
+    #[test_case("[this,]" => true; "[ AssignmentElementList , ] (trailing comma): present")]
+    #[test_case("[a,,]" => false; "[ AssignmentElementList , Elision ]: not present")]
+    #[test_case("[this,,]" => true; "[ AssignmentElementList , Elision ]: present")]
+    #[test_case("[a,...b]" => false; "[ AssignmentELementList , AssignmentRestElement ]: not present")]
+    #[test_case("[this,...b]" => true; "[ AssignmentELementList , AssignmentRestElement ]: present in List")]
+    #[test_case("[a,...this]" => true; "[ AssignmentELementList , AssignmentRestElement ]: present in Rest")]
+    #[test_case("[a,,...b]"=> false; "[ AssignmentElementList , Elision AssignmentRestElement ]: not present")]
+    #[test_case("[this,,...b]" => true; "[ AssignmentElementList , Elision AssignmentRestElement ]: present in List")]
+    #[test_case("[a,,...this]" => true; "[ AssignmentElementList , Elision AssignmentRestElement ]: present in Rest")]
+    fn contains(src: &str) -> bool {
+        let (node, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        node.contains(ParseNodeKind::This)
+    }
+
+    #[test_case("[]" => true; "[ ] (nothing)")]
+    #[test_case("[,]" => true; "[ Elision ]")]
+    #[test_case("[...a.#valid]" => true; "[ AssignmentRestElement ]: valid")]
+    #[test_case("[,...a.#valid]" => true; "[ Elision AssignmentRestElement ]: valid")]
+    #[test_case("[a.#valid]" => true; "[ AssignmentElementList ]: valid")]
+    #[test_case("[a.#valid,]" => true; "[ AssignmentElementList , ] (trailing comma): valid")]
+    #[test_case("[a.#valid,,]" => true; "[ AssignmentElementList , Elision ]: valid")]
+    #[test_case("[a.#valid,...b]" => true; "[ AssignmentELementList , AssignmentRestElement ]: list valid")]
+    #[test_case("[a,...b.#valid]" => true; "[ AssignmentELementList , AssignmentRestElement ]: rest valid")]
+    #[test_case("[a.#valid,,...b]" => true; "[ AssignmentElementList , Elision AssignmentRestElement ]: list valid")]
+    #[test_case("[a,,...b.#valid]" => true; "[ AssignmentElementList , Elision AssignmentRestElement ]: rest valid")]
+    #[test_case("[...a.#invalid]" => false; "[ AssignmentRestElement ]: invalid")]
+    #[test_case("[,...a.#invalid]" => false; "[ Elision AssignmentRestElement ]: invalid")]
+    #[test_case("[a.#invalid]" => false; "[ AssignmentElementList ]: invalid")]
+    #[test_case("[a.#invalid,]" => false; "[ AssignmentElementList , ] (trailing comma): invalid")]
+    #[test_case("[a.#invalid,,]" => false; "[ AssignmentElementList , Elision ]: invalid")]
+    #[test_case("[a.#invalid,...b]" => false; "[ AssignmentELementList , AssignmentRestElement ]: list invalid")]
+    #[test_case("[a,...b.#invalid]" => false; "[ AssignmentELementList , AssignmentRestElement ]: rest invalid")]
+    #[test_case("[a.#invalid,,...b]" => false; "[ AssignmentElementList , Elision AssignmentRestElement ]: list invalid")]
+    #[test_case("[a,,...b.#invalid]" => false; "[ AssignmentElementList , Elision AssignmentRestElement ]: rest invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+}
+
 mod assignment_rest_property {
     use super::*;
     use test_case::test_case;
@@ -1057,25 +1359,38 @@ mod destructuring_assignment_target {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a")]
-    fn parse(src: &str) {
-        let (node, scanner) = check(DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false));
-        chk_scan(&scanner, 1);
-        pretty_check(&*node, "DestructuringAssignmentTarget: a", vec!["LeftHandSideExpression: a"]);
-        concise_check(&*node, "IdentifierName: a", vec![]);
-        assert_ne!(format!("{:?}", node), "");
+    #[test_case("a" => Ok((
+        expected_scan(1),
+        sv(&["DestructuringAssignmentTarget: a", "LeftHandSideExpression: a"]),
+        sv(&["IdentifierName: a"])
+    )); "LeftHandSideExpression")]
+    #[test_case("{}" => Ok((
+        expected_scan(2),
+        sv(&["DestructuringAssignmentTarget: { }", "AssignmentPattern: { }"]),
+        sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
+    )); "AssignmentPattern")]
+    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    #[test_case("{...{},...{}}" => Err(ParseError::new("‘}’ expected", 1, 7)); "ObjectLiteral but not AssignmentPattern")]
+    fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
+        let (node, scanner) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false)?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
     }
-    #[test_case("" => ("LeftHandSideExpression expected".to_string(), 1); "mismatch")]
-    fn error(src: &str) -> (String, u32) {
-        let err = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap_err();
-        (err.msg, err.column)
+    #[test]
+    fn debug() {
+        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
+        assert_ne!("", format!("{:?}", item));
     }
+
     #[test_case("blue")]
+    #[test_case("{}"; "ObjectLiteral")]
     fn pretty_errors(src: &str) {
         let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test_case("blue")]
+    #[test_case("{}"; "ObjectLiteral")]
     fn concise_errors(src: &str) {
         let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
@@ -1083,6 +1398,8 @@ mod destructuring_assignment_target {
 
     #[test_case("this" => true; "has this")]
     #[test_case("3" => false; "missing this")]
+    #[test_case("{[this]:a}" => true; "pattern with this")]
+    #[test_case("{}" => false; "pattern without this")]
     fn contains(src: &str) -> bool {
         let (node, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         node.contains(ParseNodeKind::This)
@@ -1090,6 +1407,8 @@ mod destructuring_assignment_target {
 
     #[test_case("item.#valid" => true; "valid")]
     #[test_case("item.#invalid" => false; "invalid")]
+    #[test_case("{[a.#valid]:b}" => true; "pattern valid")]
+    #[test_case("{[a.#invalid]:b}" => false; "pattern invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
