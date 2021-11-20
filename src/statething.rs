@@ -1,26 +1,12 @@
 #[derive(Debug)]
-struct InnerState(String);
-
-impl InnerState {
+pub struct State(String);
+impl State {
     pub fn parse(src: &str) -> Self {
         Self(String::from(src))
     }
 
     pub fn has(&self, needle: &str) -> bool {
         self.0 == needle
-    }
-}
-
-#[derive(Debug)]
-pub struct State(InnerState);
-
-impl State {
-    pub fn parse(src: &str) -> Self {
-        Self(InnerState::parse(src))
-    }
-
-    pub fn has(&self, needle: &str) -> bool {
-        self.0.has(needle)
     }
 }
 
