@@ -327,6 +327,356 @@ impl AssignmentOperator {
     }
 }
 
+// AssignmentPattern[Yield, Await] :
+//      ObjectAssignmentPattern[?Yield, ?Await]
+//      ArrayAssignmentPattern[?Yield, ?Await]
+#[derive(Debug)]
+pub enum AssignmentPattern {
+    Object(Rc<ObjectAssignmentPattern>),
+    Array(Rc<ArrayAssignmentPattern>),
+}
+
+impl fmt::Display for AssignmentPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AssignmentPattern::Object(obj) => obj.fmt(f),
+            AssignmentPattern::Array(ary) => ary.fmt(f),
+        }
+    }
+}
+
+impl PrettyPrint for AssignmentPattern {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}AssignmentPattern: {}", first, self)?;
+        match self {
+            AssignmentPattern::Object(obj) => obj.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AssignmentPattern::Array(ary) => ary.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        match self {
+            AssignmentPattern::Object(obj) => obj.concise_with_leftpad(writer, pad, state),
+            AssignmentPattern::Array(ary) => ary.concise_with_leftpad(writer, pad, state),
+        }
+    }
+}
+
+impl AssignmentPattern {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        Err(ParseError::new("AssignmentPattern expected", scanner.line, scanner.column))
+            .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
+            .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            AssignmentPattern::Object(obj) => obj.contains(kind),
+            AssignmentPattern::Array(ary) => ary.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            AssignmentPattern::Object(obj) => obj.all_private_identifiers_valid(names),
+            AssignmentPattern::Array(ary) => ary.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
+        // todo!()
+        println!("{}:{}: Not yet implemented", file!(), line!());
+        Vec::new()
+    }
+}
+
+// ObjectAssignmentPattern[Yield, Await] :
+//      { }
+//      { AssignmentRestProperty[?Yield, ?Await] }
+//      { AssignmentPropertyList[?Yield, ?Await] }
+//      { AssignmentPropertyList[?Yield, ?Await] , AssignmentRestProperty[?Yield, ?Await]opt }
+#[derive(Debug)]
+pub enum ObjectAssignmentPattern {
+    Empty,
+    RestOnly(Rc<AssignmentRestProperty>),
+    ListOnly(Rc<AssignmentPropertyList>),
+    ListRest(Rc<AssignmentPropertyList>, Option<Rc<AssignmentRestProperty>>),
+}
+
+impl fmt::Display for ObjectAssignmentPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ObjectAssignmentPattern::Empty => write!(f, "{{ }}"),
+            ObjectAssignmentPattern::RestOnly(arp) => write!(f, "{{ {} }}", arp),
+            ObjectAssignmentPattern::ListOnly(apl) => write!(f, "{{ {} }}", apl),
+            ObjectAssignmentPattern::ListRest(apl, None) => write!(f, "{{ {} , }}", apl),
+            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => write!(f, "{{ {} , {} }}", apl, arp),
+        }
+    }
+}
+
+impl PrettyPrint for ObjectAssignmentPattern {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
+        match self {
+            ObjectAssignmentPattern::Empty => Ok(()),
+            ObjectAssignmentPattern::RestOnly(arp) => arp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => {
+                apl.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                arp.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ObjectAssignmentPattern: {}", first, self)?;
+        pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        match self {
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, _) => {
+                apl.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            _ => {}
+        }
+        if matches!(self, ObjectAssignmentPattern::ListRest(..)) {
+            pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        }
+        match self {
+            ObjectAssignmentPattern::RestOnly(arp) | ObjectAssignmentPattern::ListRest(_, Some(arp)) => {
+                arp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            _ => {}
+        }
+        pprint_token(writer, "}", TokenType::Punctuator, &successive, Spot::Final)
+    }
+}
+
+impl ObjectAssignmentPattern {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        Err(ParseError::new("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected", after_brace.line, after_brace.column))
+            .otherwise(|| {
+                let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
+                let (punct, after_punct) = scan_for_punct_set(after_apl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBrace])?;
+                match punct {
+                    Punctuator::RightBrace => Ok((Rc::new(ObjectAssignmentPattern::ListOnly(apl)), after_punct)),
+                    _ => {
+                        let (arp, after_arp) = match AssignmentRestProperty::parse(parser, after_punct, yield_flag, await_flag) {
+                            Ok((node, scan)) => (Some(node), scan),
+                            Err(_) => (None, after_punct),
+                        };
+                        let after_close = scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                        Ok((Rc::new(ObjectAssignmentPattern::ListRest(apl, arp)), after_close))
+                    }
+                }
+            })
+            .otherwise(|| {
+                let (arp, after_arp) = AssignmentRestProperty::parse(parser, after_brace, yield_flag, await_flag)?;
+                let after_close = scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Rc::new(ObjectAssignmentPattern::RestOnly(arp)), after_close))
+            })
+            .otherwise(|| {
+                let after_close = scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                Ok((Rc::new(ObjectAssignmentPattern::Empty), after_close))
+            })
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ObjectAssignmentPattern::Empty => false,
+            ObjectAssignmentPattern::RestOnly(arp) => arp.contains(kind),
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.contains(kind),
+            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => apl.contains(kind) || arp.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ObjectAssignmentPattern::Empty => true,
+            ObjectAssignmentPattern::RestOnly(arp) => arp.all_private_identifiers_valid(names),
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.all_private_identifiers_valid(names),
+            ObjectAssignmentPattern::ListRest(apl, Some(apr)) => apl.all_private_identifiers_valid(names) && apr.all_private_identifiers_valid(names),
+        }
+    }
+}
+
+// ArrayAssignmentPattern[Yield, Await] :
+//      [ Elision_opt AssignmentRestElement[?Yield, ?Await]opt ]
+//      [ AssignmentElementList[?Yield, ?Await] ]
+//      [ AssignmentElementList[?Yield, ?Await] , Elision_opt AssignmentRestElement[?Yield, ?Await]opt ]
+#[derive(Debug)]
+pub enum ArrayAssignmentPattern {
+    RestOnly(Option<Rc<Elisions>>, Option<Rc<AssignmentRestElement>>),
+    ListOnly(Rc<AssignmentElementList>),
+    ListRest(Rc<AssignmentElementList>, Option<Rc<Elisions>>, Option<Rc<AssignmentRestElement>>),
+}
+
+impl fmt::Display for ArrayAssignmentPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ArrayAssignmentPattern::RestOnly(None, None) => write!(f, "[ ]"),
+            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => write!(f, "[ {} ]", elisions),
+            ArrayAssignmentPattern::RestOnly(None, Some(are)) => write!(f, "[ {} ]", are),
+            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => write!(f, "[ {} {} ]", elisions, are),
+            ArrayAssignmentPattern::ListOnly(ael) => write!(f, "[ {} ]", ael),
+            ArrayAssignmentPattern::ListRest(ael, None, None) => write!(f, "[ {} , ]", ael),
+            ArrayAssignmentPattern::ListRest(ael, Some(elisions), None) => write!(f, "[ {} , {} ]", ael, elisions),
+            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => write!(f, "[ {} , {} ]", ael, are),
+            ArrayAssignmentPattern::ListRest(ael, Some(elisions), Some(are)) => write!(f, "[ {} , {} {} ]", ael, elisions, are),
+        }
+    }
+}
+
+impl PrettyPrint for ArrayAssignmentPattern {
+    fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
+        match self {
+            ArrayAssignmentPattern::RestOnly(None, None) => Ok(()),
+            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => elisions.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayAssignmentPattern::RestOnly(None, Some(are)) => are.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => {
+                elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                are.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, None, None) => ael.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayAssignmentPattern::ListRest(ael, Some(elisions), None) => {
+                ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => {
+                ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                are.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayAssignmentPattern::ListRest(ael, Some(elisions), Some(are)) => {
+                ael.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
+                are.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+        }
+    }
+    fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
+    where
+        T: Write,
+    {
+        let (first, successive) = prettypad(pad, state);
+        writeln!(writer, "{}ArrayAssignmentPattern: {}", first, self)?;
+        pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        match self {
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, ..) => {
+                ael.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            _ => {}
+        }
+        if matches!(self, ArrayAssignmentPattern::ListRest(..)) {
+            pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
+        }
+        match self {
+            ArrayAssignmentPattern::RestOnly(Some(e), _) | ArrayAssignmentPattern::ListRest(_, Some(e), _) => {
+                e.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            _ => {}
+        }
+        match self {
+            ArrayAssignmentPattern::RestOnly(_, Some(are)) | ArrayAssignmentPattern::ListRest(_, _, Some(are)) => {
+                are.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+            }
+            _ => {}
+        }
+        pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
+    }
+}
+
+impl ArrayAssignmentPattern {
+    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+        let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+        Err(ParseError::new("‘,’, ‘]’, or an AssignmentElementList expected", after_open.line, after_open.column))
+            .otherwise(|| {
+                let (el, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
+                let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
+                match punct {
+                    Punctuator::RightBracket => Ok((Rc::new(ArrayAssignmentPattern::ListOnly(el)), after_punct)),
+                    _ => {
+                        let (elisions, after_elisions) = match Elisions::parse(parser, after_punct) {
+                            Ok((node, scan)) => (Some(node), scan),
+                            Err(_) => (None, after_punct),
+                        };
+                        let (are, after_are) = match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                            Ok((node, scan)) => (Some(node), scan),
+                            Err(_) => (None, after_elisions),
+                        };
+                        let after_close = scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                        Ok((Rc::new(ArrayAssignmentPattern::ListRest(el, elisions, are)), after_close))
+                    }
+                }
+            })
+            .otherwise(|| {
+                let (elisions, after_elisions) = match Elisions::parse(parser, after_open) {
+                    Ok((node, scan)) => (Some(node), scan),
+                    Err(_) => (None, after_open),
+                };
+                let (are, after_are) = match AssignmentRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                    Ok((node, scan)) => (Some(node), scan),
+                    Err(_) => (None, after_elisions),
+                };
+                let after_close = scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                Ok((Rc::new(ArrayAssignmentPattern::RestOnly(elisions, are)), after_close))
+            })
+    }
+
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        match self {
+            ArrayAssignmentPattern::RestOnly(_, None) => false,
+            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.contains(kind),
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.contains(kind),
+            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.contains(kind) || are.contains(kind),
+        }
+    }
+
+    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+        // Static Semantics: AllPrivateIdentifiersValid
+        // With parameter names.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
+        //  2. Return true.
+        match self {
+            ArrayAssignmentPattern::RestOnly(_, None) => true,
+            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.all_private_identifiers_valid(names),
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.all_private_identifiers_valid(names),
+            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.all_private_identifiers_valid(names) && are.all_private_identifiers_valid(names),
+        }
+    }
+}
+
 // AssignmentRestProperty[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
@@ -862,11 +1212,17 @@ impl AssignmentRestElement {
 // DestructuringAssignmentTarget[Yield, Await] :
 //      LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub struct DestructuringAssignmentTarget(Rc<LeftHandSideExpression>);
+pub enum DestructuringAssignmentTarget {
+    LeftHandSideExpression(Rc<LeftHandSideExpression>),
+    AssignmentPattern(Rc<AssignmentPattern>),
+}
 
 impl fmt::Display for DestructuringAssignmentTarget {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.fmt(f),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.fmt(f),
+        }
     }
 }
 
@@ -877,24 +1233,41 @@ impl PrettyPrint for DestructuringAssignmentTarget {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}DestructuringAssignmentTarget: {}", first, self)?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.pprint_with_leftpad(writer, &successive, Spot::Final),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        self.0.concise_with_leftpad(writer, pad, state)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.concise_with_leftpad(writer, pad, state),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.concise_with_leftpad(writer, pad, state),
+        }
     }
 }
 
 impl DestructuringAssignmentTarget {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Rc::new(DestructuringAssignmentTarget(lhs)), after_lhs))
+
+        if lhs.is_object_or_array_literal() {
+            // Re-parse the LHS as an AssignmentPattern.
+            let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
+            assert_eq!(after_ap, after_lhs);
+            Ok((Rc::new(DestructuringAssignmentTarget::AssignmentPattern(ap)), after_ap))
+        } else {
+            Ok((Rc::new(DestructuringAssignmentTarget::LeftHandSideExpression(lhs)), after_lhs))
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        match self {
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.contains(kind),
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.contains(kind),
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -904,7 +1277,10 @@ impl DestructuringAssignmentTarget {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.all_private_identifiers_valid(names),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.all_private_identifiers_valid(names),
+        }
     }
 }
 
