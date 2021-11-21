@@ -325,6 +325,20 @@ fn member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("valid2")])
 }
 
+#[test_case("[]" => true; "array literal")]
+#[test_case("{}" => true; "object literal")]
+#[test_case("3" => false; "other literal")]
+#[test_case("a[3]" => false; "MemberExpression [ Expression ]")]
+#[test_case("a.b" => false; "MembreExpression . IdentifierName")]
+#[test_case("a`b`" => false; "MemberExpression TemplateLiteral")]
+#[test_case("super.a" => false; "SuperProperty")]
+#[test_case("new.target" => false; "MetaProperty")]
+#[test_case("new a()" => false; "new MemberExpression Arguments")]
+#[test_case("a.#b" => false; "MemberExpression . PrivateIdentifier")]
+fn member_expression_test_is_object_or_array_literal(src: &str) -> bool {
+    MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+}
+
 // SUPER PROPERTY
 #[test]
 fn super_property_test_expression() {
@@ -855,6 +869,13 @@ fn new_expression_test_as_string_literal(src: &str) -> Option<String> {
 fn new_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
+#[test_case("{}" => true; "ObjectLiteral")]
+#[test_case("3" => false; "Other Literal")]
+#[test_case("new x" => false; "new NewExpression")]
+fn new_expression_test_is_object_or_array_literal(src: &str) -> bool {
+    NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
 }
 
 // CALL MEMBER EXPRESSION
@@ -1917,4 +1938,12 @@ fn left_hand_side_expression_test_as_string_literal(src: &str) -> Option<String>
 fn left_hand_side_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
+#[test_case("{}" => true; "ObjectLiteral")]
+#[test_case("3" => false; "Other Literal")]
+#[test_case("a()" => false; "CallExpression")]
+#[test_case("blue?.green" => false; "OptionalExpression")]
+fn left_hand_side_expression_test_is_object_or_array_literal(src: &str) -> bool {
+    LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
 }

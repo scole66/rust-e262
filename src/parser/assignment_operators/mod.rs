@@ -433,7 +433,7 @@ impl PrettyPrint for AssignmentPattern {
         T: Write,
     {
         let (first, successive) = prettypad(pad, state);
-        writeln!(writer, "{}AssignmentExpression: {}", first, self)?;
+        writeln!(writer, "{}AssignmentPattern: {}", first, self)?;
         match self {
             AssignmentPattern::Object(obj) => obj.pprint_with_leftpad(writer, &successive, Spot::Final),
             AssignmentPattern::Array(ary) => ary.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -452,7 +452,7 @@ impl PrettyPrint for AssignmentPattern {
 
 impl AssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("invalid assignment pattern", scanner.line, scanner.column))
+        Err(ParseError::new("AssignmentPattern expected", scanner.line, scanner.column))
             .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
             .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
     }
@@ -1121,18 +1121,18 @@ impl AssignmentProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new("IdentifierReference or PropertyName expected", scanner.line, scanner.column))
             .otherwise(|| {
+                let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
+                let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
+                Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
+            })
+            .otherwise(|| {
                 let (idref, after_id) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
                 let (init, after_init) = match Initializer::parse(parser, after_id, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_id),
                 };
                 Ok((Rc::new(AssignmentProperty::Ident(idref, init)), after_init))
-            })
-            .otherwise(|| {
-                let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
-                let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
-                Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
             })
     }
 
@@ -1294,11 +1294,17 @@ impl AssignmentRestElement {
 // DestructuringAssignmentTarget[Yield, Await] :
 //      LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub struct DestructuringAssignmentTarget(Rc<LeftHandSideExpression>);
+pub enum DestructuringAssignmentTarget {
+    LeftHandSideExpression(Rc<LeftHandSideExpression>),
+    AssignmentPattern(Rc<AssignmentPattern>),
+}
 
 impl fmt::Display for DestructuringAssignmentTarget {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.fmt(f),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.fmt(f),
+        }
     }
 }
 
@@ -1309,24 +1315,41 @@ impl PrettyPrint for DestructuringAssignmentTarget {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}DestructuringAssignmentTarget: {}", first, self)?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.pprint_with_leftpad(writer, &successive, Spot::Final),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.pprint_with_leftpad(writer, &successive, Spot::Final),
+        }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        self.0.concise_with_leftpad(writer, pad, state)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.concise_with_leftpad(writer, pad, state),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.concise_with_leftpad(writer, pad, state),
+        }
     }
 }
 
 impl DestructuringAssignmentTarget {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
-        Ok((Rc::new(DestructuringAssignmentTarget(lhs)), after_lhs))
+
+        if lhs.is_object_or_array_literal() {
+            // Re-parse the LHS as an AssignmentPattern.
+            let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
+            assert_eq!(after_ap, after_lhs);
+            Ok((Rc::new(DestructuringAssignmentTarget::AssignmentPattern(ap)), after_ap))
+        } else {
+            Ok((Rc::new(DestructuringAssignmentTarget::LeftHandSideExpression(lhs)), after_lhs))
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        match self {
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.contains(kind),
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.contains(kind),
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -1336,7 +1359,10 @@ impl DestructuringAssignmentTarget {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.all_private_identifiers_valid(names),
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.all_private_identifiers_valid(names),
+        }
     }
 }
 
