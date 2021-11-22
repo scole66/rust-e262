@@ -323,17 +323,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     // %Boolean% and %Boolean.prototype%
     let boolean_prototype = ordinary_object_create(agent, Some(object_prototype), &[InternalSlotName::BooleanData]);
     realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
-    let bool_constructor = create_builtin_function(
-        agent,
-        throw_type_error,
-        false,
-        1_f64,
-        PropertyKey::from("Boolean"),
-        BUILTIN_FUNCTION_SLOTS,
-        Some(realm_rec.clone()),
-        Some(function_prototype.clone()),
-        None,
-    );
+    let bool_constructor =
+        create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from("Boolean"), BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
     define_property_or_throw(
         agent,
         &bool_constructor,
