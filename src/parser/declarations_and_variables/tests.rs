@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // LEXICAL DECLARATION
@@ -73,6 +74,14 @@ fn lexical_declaration_test_contains_01() {
 fn lexical_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod lexical_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // LET OR CONST
@@ -156,6 +165,14 @@ fn binding_list_test_contains_02() {
 fn binding_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod binding_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // LEXICAL BINDING
@@ -246,6 +263,14 @@ fn lexical_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod lexical_binding {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // VARIABLE STATMENT
 #[test]
@@ -300,6 +325,14 @@ fn variable_statement_test_contains_02() {
 fn variable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod variable_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        VariableStatement::parse(&mut newparser("var a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // VARIABLE DECLARATION LIST
@@ -381,6 +414,14 @@ fn variable_declaration_list_test_contains_05() {
 fn variable_declaration_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod variable_declaration_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // VARIABLE DECLARATION
@@ -476,6 +517,14 @@ fn variable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod variable_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        VariableDeclaration::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // BINDING PATTERN
 #[test]
@@ -549,6 +598,14 @@ fn binding_pattern_test_contains_04() {
 fn binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod binding_pattern {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingPattern::parse(&mut newparser("{a}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // OBJECT BINDING PATTERN
@@ -707,6 +764,14 @@ fn object_binding_pattern_test_contains_08() {
 fn object_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod object_binding_pattern {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // ARRAY BINDING PATTERN
@@ -980,6 +1045,14 @@ fn array_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod array_binding_pattern {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // BINDING REST PROPERTY
 #[test]
@@ -1017,6 +1090,14 @@ fn binding_rest_property_test_bound_names_01() {
 fn binding_rest_property_test_contains_01() {
     let (item, _) = BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+mod binding_rest_property {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // BINDING PROPERTY LIST
@@ -1102,6 +1183,14 @@ fn binding_property_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod binding_property_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // BINDING ELEMENT LIST
 #[test]
@@ -1186,6 +1275,14 @@ fn binding_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod binding_element_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // BINDING ELISION ELEMENT
 #[test]
@@ -1246,6 +1343,14 @@ fn binding_elision_element_test_contains_04() {
 fn binding_elision_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod binding_elision_element {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // BINDING PROPERTY
@@ -1330,6 +1435,14 @@ fn binding_property_test_contains_05() {
 fn binding_property_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod binding_property {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // BINDING ELEMENT
@@ -1443,6 +1556,14 @@ fn binding_element_test_is_simple_parameter_list(src: &str) -> bool {
     let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.is_simple_parameter_list()
 }
+mod binding_element {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // SINGLE NAME BINDING
 #[test]
@@ -1517,6 +1638,14 @@ fn single_name_binding_test_is_simple_parameter_list(src: &str) -> bool {
     let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.is_simple_parameter_list()
 }
+mod single_name_binding {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        SingleNameBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // BINDING REST ELEMENT
 #[test]
@@ -1588,4 +1717,12 @@ fn binding_rest_element_test_contains_03() {
 fn binding_rest_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod binding_rest_element {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BindingRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

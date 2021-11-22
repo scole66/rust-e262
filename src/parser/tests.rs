@@ -369,7 +369,7 @@ fn scan_for_auto_semi_05() {
     assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
 }
 #[test]
-#[should_panic] // This is an XFAIL -- it _should_ work, but the code's not there yet.
+#[should_panic(expected = "Result::unwrap_err()` on an `Ok` value")] // This is an XFAIL -- it _should_ work, but the code's not there yet.
 fn scan_for_auto_semi_06() {
     let res = scan_for_auto_semi(Scanner::new(), "'\\\n0'", ScanGoal::InputElementDiv).unwrap_err();
     assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
@@ -538,7 +538,7 @@ fn parse_text_03() {
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "not yet implemented")]
 fn parse_text_04() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();

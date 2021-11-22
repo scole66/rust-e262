@@ -101,6 +101,10 @@ impl GeneratorMethod {
         //  2. Return GeneratorBody Contains SuperCall.
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // GeneratorDeclaration[Yield, Await, Default] :
@@ -199,6 +203,10 @@ impl GeneratorDeclaration {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // GeneratorExpression :
@@ -289,6 +297,10 @@ impl GeneratorExpression {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // GeneratorBody :
@@ -349,6 +361,10 @@ impl GeneratorBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -453,6 +469,10 @@ impl YieldExpression {
             YieldExpression::Expression(node) => node.all_private_identifiers_valid(names),
             YieldExpression::From(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

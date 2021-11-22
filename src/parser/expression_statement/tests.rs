@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // EXPRESSION STATEMENT
@@ -83,4 +84,12 @@ fn expression_statement_test_as_string_literal(src: &str) -> Option<JSString> {
 fn expression_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod expression_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ExpressionStatement::parse(&mut newparser("a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

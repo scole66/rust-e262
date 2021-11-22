@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 
 // BREAK STATEMENT
 #[test]
@@ -99,4 +100,12 @@ fn break_statement_test_contains_01() {
 fn break_statement_test_contains_02() {
     let (item, _) = BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+mod break_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

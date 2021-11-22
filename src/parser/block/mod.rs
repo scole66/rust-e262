@@ -82,6 +82,10 @@ impl BlockStatement {
         let BlockStatement::Block(node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -204,6 +208,10 @@ impl Block {
         } else {
             true
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -399,6 +407,10 @@ impl StatementList {
             StatementList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -548,6 +560,10 @@ impl StatementListItem {
             StatementListItem::Statement(node) => node.all_private_identifiers_valid(names),
             StatementListItem::Declaration(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

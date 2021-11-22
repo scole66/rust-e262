@@ -72,6 +72,10 @@ impl ArrowFunction {
         //  2. Return true.
         self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ArrowParameters[Yield, Await] :
@@ -160,6 +164,10 @@ impl ArrowParameters {
             ArrowParameters::Formals(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -228,6 +236,10 @@ impl ArrowFormalParameters {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -320,6 +332,10 @@ impl ConciseBody {
             ConciseBody::Function(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ExpressionBody[In, Await] :
@@ -384,6 +400,10 @@ impl ExpressionBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.expression.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

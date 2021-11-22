@@ -76,6 +76,10 @@ impl BreakStatement {
             BreakStatement::Labelled(label) => label.contains(kind),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

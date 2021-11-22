@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // CLASS DECLARATION
@@ -90,6 +91,14 @@ fn class_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod class_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // CLASS EXPRESSION
 #[test]
@@ -163,6 +172,14 @@ fn class_expression_test_contains_04() {
 fn class_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod class_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CLASS TAIL
@@ -283,6 +300,14 @@ fn class_tail_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassTail::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod class_tail {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassTail::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // CLASS HERITAGE
 #[test]
@@ -326,6 +351,14 @@ fn class_heritage_test_contains_02() {
 fn class_heritage_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassHeritage::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod class_heritage {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CLASS BODY
@@ -381,6 +414,14 @@ fn class_body_test_private_bound_identifiers() {
 fn class_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod class_body {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassBody::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CLASS ELEMENT LIST
@@ -479,6 +520,14 @@ fn class_element_list_test_private_bound_identifiers(src: &str) -> Vec<JSString>
 fn class_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod class_element_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CLASS ELEMENT
@@ -727,6 +776,14 @@ fn class_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod class_element {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // FIELD DEFINITION
 #[test]
@@ -824,6 +881,14 @@ fn field_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FieldDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod field_definition {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // CLASS ELEMENT NAME
 #[test]
@@ -909,6 +974,14 @@ fn class_element_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod class_element_name {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 mod class_static_block {
     // CLASS STATIC BLOCK
@@ -949,6 +1022,11 @@ mod class_static_block {
         let (item, _) = ClassStaticBlock::parse(&mut newparser(src), Scanner::new()).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassStaticBlock::parse(&mut newparser("static { a; }"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 mod class_static_block_body {
@@ -978,6 +1056,11 @@ mod class_static_block_body {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ClassStaticBlockBody::parse(&mut newparser(src), Scanner::new());
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassStaticBlockBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
     }
 }
 
@@ -1019,5 +1102,10 @@ mod class_static_block_statement_list {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ClassStaticBlockStatementList::parse(&mut newparser(src), Scanner::new());
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
     }
 }

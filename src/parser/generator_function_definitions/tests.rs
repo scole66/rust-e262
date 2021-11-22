@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // GENERATOR METHOD
@@ -93,17 +94,20 @@ fn generator_method_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod generator_method {
     use super::*;
-    mod has_direct_super {
-        use super::*;
-        use test_case::test_case;
+    use test_case::test_case;
 
-        #[test_case("*a(){}" => false; "without")]
-        #[test_case("*a(b=super(0)){}" => true; "params")]
-        #[test_case("*a(){super(1);}" => true; "body")]
-        fn f(src: &str) -> bool {
-            let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-            item.has_direct_super()
-        }
+    #[test_case("*a(){}" => false; "without")]
+    #[test_case("*a(b=super(0)){}" => true; "params")]
+    #[test_case("*a(){super(1);}" => true; "body")]
+    fn has_direct_super(src: &str) -> bool {
+        let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.has_direct_super()
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
     }
 }
 
@@ -215,6 +219,14 @@ fn generator_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod generator_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // GENERATOR EXPRESSION
 #[test]
@@ -308,6 +320,14 @@ fn generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod generator_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // GENERATOR BODY
 #[test]
@@ -351,6 +371,14 @@ fn generator_body_test_contains_02() {
 fn generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorBody::parse(&mut newparser(src), Scanner::new());
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod generator_body {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        GeneratorBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // YIELD EXPRESSION
@@ -475,4 +503,12 @@ fn yield_expression_test_contains_05() {
 fn yield_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = YieldExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod yield_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        YieldExpression::parse(&mut newparser("yield a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

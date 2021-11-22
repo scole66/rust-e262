@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ARROW FUNCTION
@@ -92,6 +93,13 @@ fn arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn arrow_function_test_early_errors() {
+    let mut agent = test_agent();
+    ArrowFunction::parse(&mut newparser("x => x"), Scanner::new(), true, false, false).unwrap().0.early_errors(&mut agent, true);
+}
+
 // ARROW PARAMETERS
 #[test]
 fn arrow_parameters_test_01() {
@@ -171,6 +179,13 @@ fn arrow_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn arrow_parameters_test_early_errors() {
+    let mut agent = test_agent();
+    ArrowParameters::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+}
+
 // CONCISE BODY
 #[test]
 fn concise_body_test_01() {
@@ -248,6 +263,13 @@ fn concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn concise_body_test_early_errors() {
+    let mut agent = test_agent();
+    ConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut agent, true);
+}
+
 // EXPRESSION BODY
 #[test]
 fn expression_body_test_01() {
@@ -294,6 +316,12 @@ fn expression_body_test_contains_02() {
 fn expression_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ExpressionBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn expression_body_test_early_errors() {
+    let mut agent = test_agent();
+    ExpressionBody::parse(&mut newparser("x => x"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
 }
 
 // ARROW FORMAL PARAMETERS
@@ -346,4 +374,10 @@ fn arrow_formal_parameters_test_contains_02() {
 fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn arrow_formal_parameters_test_early_errors() {
+    let mut agent = test_agent();
+    ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
 }

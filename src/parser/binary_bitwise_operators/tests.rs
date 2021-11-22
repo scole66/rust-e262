@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 #[test]
@@ -91,6 +92,14 @@ fn bitwise_and_expression_test_all_private_identifiers_valid(src: &str) -> bool 
     let (item, _) = BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod bitwise_and_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BitwiseANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 #[test]
 fn bitwise_xor_expression_test_01() {
@@ -179,6 +188,14 @@ fn bitwise_xor_expression_test_as_string_literal(src: &str) -> Option<JSString> 
 fn bitwise_xor_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod bitwise_xor_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BitwiseXORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 #[test]
@@ -276,4 +293,12 @@ fn bitwise_or_expression_test_as_string_literal(src: &str) -> Option<JSString> {
 fn bitwise_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod bitwise_or_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BitwiseORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

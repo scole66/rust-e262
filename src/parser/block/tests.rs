@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // BLOCK STATEMENT
@@ -78,6 +79,14 @@ fn block_statement_test_contains_undefined_continue_target(src: &str) -> (bool, 
 fn block_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod block_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // BLOCK
@@ -203,6 +212,14 @@ fn block_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool
 fn block_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod block {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // STATEMENT LIST
@@ -394,6 +411,14 @@ fn statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod statement_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        StatementList::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // STATEMENT LIST ITEM
 #[test]
@@ -574,4 +599,12 @@ fn statement_list_item_test_lexically_declared_names(src: &str) -> Vec<JSString>
 fn statement_list_item_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod statement_list_item {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        StatementListItem::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

@@ -115,6 +115,10 @@ impl FunctionDeclaration {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FunctionExpression :
@@ -203,6 +207,10 @@ impl FunctionExpression {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FunctionBody[Yield, Await] :
@@ -287,6 +295,10 @@ impl FunctionBody {
         //      FunctionBody : FunctionStatementList
         //  1. Return LexicallyDeclaredNames of FunctionStatementList.
         self.statements.lexically_declared_names()
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -374,6 +386,10 @@ impl FunctionStatementList {
                 vec![]
             }
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

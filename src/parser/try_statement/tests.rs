@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // TRY STATEMENT
@@ -156,6 +157,14 @@ fn try_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod try_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        TryStatement::parse(&mut newparser("try{}finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // CATCH
 #[test]
@@ -259,6 +268,14 @@ fn catch_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod catch {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Catch::parse(&mut newparser("catch{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // FINALLY
 #[test]
@@ -323,6 +340,14 @@ fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
 fn finally_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod finally {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Finally::parse(&mut newparser("finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CATCH PARAMETER
@@ -390,4 +415,12 @@ fn catch_parameter_test_contains() {
 fn catch_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod catch_parameter {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CatchParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

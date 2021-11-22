@@ -266,6 +266,10 @@ impl AssignmentExpression {
             AssignmentExpression::CoalAssignment(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentOperator : one of
@@ -395,10 +399,8 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -522,6 +524,10 @@ impl ObjectAssignmentPattern {
             ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.all_private_identifiers_valid(names),
             ObjectAssignmentPattern::ListRest(apl, Some(apr)) => apl.all_private_identifiers_valid(names) && apr.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -675,6 +681,10 @@ impl ArrayAssignmentPattern {
             ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => ael.all_private_identifiers_valid(names) && are.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentRestProperty[Yield, Await] :
@@ -727,6 +737,10 @@ impl AssignmentRestProperty {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -813,6 +827,10 @@ impl AssignmentPropertyList {
             AssignmentPropertyList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentElementList[Yield, Await] :
@@ -898,6 +916,10 @@ impl AssignmentElementList {
             AssignmentElementList::List(list, item) => list.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentElisionElement[Yield, Await] :
@@ -967,6 +989,10 @@ impl AssignmentElisionElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.element.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1075,6 +1101,10 @@ impl AssignmentProperty {
             AssignmentProperty::Property(name, element) => name.all_private_identifiers_valid(names) && element.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentElement[Yield, Await] :
@@ -1154,6 +1184,10 @@ impl AssignmentElement {
             None => self.target.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AssignmentRestElement[Yield, Await] :
@@ -1206,6 +1240,10 @@ impl AssignmentRestElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1281,6 +1319,10 @@ impl DestructuringAssignmentTarget {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.all_private_identifiers_valid(names),
             DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

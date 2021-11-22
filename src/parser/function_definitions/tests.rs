@@ -2,6 +2,7 @@ use super::scanner::StringDelimiter;
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // FUNCTION DECLARATION
@@ -117,6 +118,14 @@ fn function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod function_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // FUNCTION EXPRESSION
 #[test]
@@ -211,6 +220,14 @@ fn function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod function_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FunctionExpression::parse(&mut newparser("function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // FUNCTION BODY
 #[test]
@@ -272,6 +289,14 @@ fn function_body_test_function_body_contains_use_strict(src: &str) -> bool {
 fn function_body_test_lexically_declared_names(src: &str) -> Vec<JSString> {
     let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
     item.lexically_declared_names()
+}
+mod function_body {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // FUNCTION STATEMENT LIST
@@ -337,4 +362,12 @@ fn function_statement_list_test_initial_string_tokens(src: &str) -> Vec<StringTo
 fn function_statement_list_test_lexically_declared_names(src: &str) -> Vec<JSString> {
     let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
     item.lexically_declared_names()
+}
+mod function_statement_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+    }
 }

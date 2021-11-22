@@ -86,6 +86,10 @@ impl SwitchStatement {
         //  2. Return true.
         self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -277,6 +281,10 @@ impl CaseBlock {
             _ => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -392,6 +400,10 @@ impl CaseClauses {
             CaseClauses::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -502,6 +514,10 @@ impl CaseClause {
                 Some(node) => node.all_private_identifiers_valid(names),
             }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -604,6 +620,10 @@ impl DefaultClause {
         } else {
             true
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

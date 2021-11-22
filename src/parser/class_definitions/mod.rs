@@ -104,6 +104,10 @@ impl ClassDeclaration {
             ClassDeclaration::Named(_, node) | ClassDeclaration::Unnamed(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ClassExpression[Yield, Await] :
@@ -180,6 +184,10 @@ impl ClassExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.tail.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -288,6 +296,10 @@ impl ClassTail {
         //  2. Return true.
         self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ClassHeritage[Yield, Await] :
@@ -341,6 +353,10 @@ impl ClassHeritage {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -404,6 +420,10 @@ impl ClassBody {
         new_names.extend_from_slice(names);
         new_names.extend(self.private_bound_identifiers());
         self.0.all_private_identifiers_valid(&new_names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -515,6 +535,10 @@ impl ClassElementList {
             ClassElementList::Item(node) => node.all_private_identifiers_valid(names),
             ClassElementList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -676,6 +700,10 @@ impl ClassElement {
             ClassElement::Empty => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FieldDefinition[Yield, Await] :
@@ -761,6 +789,10 @@ impl FieldDefinition {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -854,6 +886,10 @@ impl ClassElementName {
             ClassElementName::PrivateIdentifier(_) => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ClassStaticBlock :
@@ -912,6 +948,10 @@ impl ClassStaticBlock {
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ClassStaticBlockBody :
@@ -957,6 +997,10 @@ impl ClassStaticBlockBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1005,6 +1049,10 @@ impl ClassStaticBlockStatementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

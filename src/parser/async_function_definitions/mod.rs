@@ -109,6 +109,10 @@ impl AsyncFunctionDeclaration {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AsyncFunctionExpression :
@@ -200,6 +204,10 @@ impl AsyncFunctionExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -295,6 +303,10 @@ impl AsyncMethod {
         //  2. Return AsyncFunctionBody Contains SuperCall.
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AsyncFunctionBody :
@@ -370,6 +382,10 @@ impl AsyncFunctionBody {
         //  1. Return LexicallyDeclaredNames of FunctionBody.
         self.0.lexically_declared_names()
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AwaitExpression[Yield] :
@@ -431,6 +447,10 @@ impl AwaitExpression {
         //  2. Return true.
         let AwaitExpression::Await(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

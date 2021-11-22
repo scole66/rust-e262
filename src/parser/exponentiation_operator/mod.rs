@@ -118,6 +118,10 @@ impl ExponentiationExpression {
             ExponentiationExpression::Exponentiation(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

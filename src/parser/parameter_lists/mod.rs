@@ -69,6 +69,10 @@ impl UniqueFormalParameters {
         //  2. Return true.
         self.formals.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FormalParameters[Yield, Await] :
@@ -264,6 +268,10 @@ impl FormalParameters {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -388,6 +396,10 @@ impl FormalParameterList {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -446,6 +458,10 @@ impl FunctionRestParameter {
         // FunctionRestParameter : BindingRestElement
         //  1. Return BoundNames of BindingRestElement.
         self.element.bound_names()
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -524,6 +540,10 @@ impl FormalParameter {
         // FormalParameter : BindingElement
         //  1. Return BoundNames of BindingElement.
         self.element.bound_names()
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

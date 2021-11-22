@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // METHOD DEFINITION
@@ -406,28 +407,31 @@ fn method_definition_test_all_private_identifiers_valid(src: &str) -> bool {
 
 mod method_definition {
     use super::*;
-    mod has_direct_super {
-        use super::*;
-        use test_case::test_case;
+    use test_case::test_case;
 
-        #[test_case("a(){}" => false; "method without")]
-        #[test_case("a(b=super(undefined)){}" => true; "method params with")]
-        #[test_case("a(){super(a);}" => true; "method body with")]
-        #[test_case("get a(){}" => false; "getter without")]
-        #[test_case("get a(){super(b);}" => true; "getter with")]
-        #[test_case("set a(b){}" => false; "setter without")]
-        #[test_case("set a(b=super(c)){}" => true; "setter params with")]
-        #[test_case("set a(b){super(c);}" => true; "setter body with")]
-        #[test_case("*a(){}" => false; "generator without")]
-        #[test_case("*a(){super(0);}" => true; "generator with")]
-        #[test_case("async *a(){}" => false; "async generator without")]
-        #[test_case("async *a(){super(0);}" => true; "async generator with")]
-        #[test_case("async a(){}" => false; "async method without")]
-        #[test_case("async a(){super(0);}" => true; "async method with")]
-        fn f(src: &str) -> bool {
-            let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-            item.has_direct_super()
-        }
+    #[test_case("a(){}" => false; "method without")]
+    #[test_case("a(b=super(undefined)){}" => true; "method params with")]
+    #[test_case("a(){super(a);}" => true; "method body with")]
+    #[test_case("get a(){}" => false; "getter without")]
+    #[test_case("get a(){super(b);}" => true; "getter with")]
+    #[test_case("set a(b){}" => false; "setter without")]
+    #[test_case("set a(b=super(c)){}" => true; "setter params with")]
+    #[test_case("set a(b){super(c);}" => true; "setter body with")]
+    #[test_case("*a(){}" => false; "generator without")]
+    #[test_case("*a(){super(0);}" => true; "generator with")]
+    #[test_case("async *a(){}" => false; "async generator without")]
+    #[test_case("async *a(){super(0);}" => true; "async generator with")]
+    #[test_case("async a(){}" => false; "async method without")]
+    #[test_case("async a(){super(0);}" => true; "async method with")]
+    fn has_direct_super(src: &str) -> bool {
+        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.has_direct_super()
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
     }
 }
 
@@ -468,5 +472,11 @@ mod property_set_parameter_list {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
     }
 }

@@ -76,6 +76,10 @@ impl ContinueStatement {
             ContinueStatement::Labelled(label) => !iteration_set.contains(&label.string_value()),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

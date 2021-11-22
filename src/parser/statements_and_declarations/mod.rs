@@ -335,6 +335,10 @@ impl Statement {
             Statement::Expression(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -429,6 +433,10 @@ impl Declaration {
             Declaration::Class(node) => node.all_private_identifiers_valid(names),
             Declaration::Lexical(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -536,6 +544,10 @@ impl HoistableDeclaration {
             HoistableDeclaration::AsyncFunction(node) => node.all_private_identifiers_valid(names),
             HoistableDeclaration::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -645,6 +657,10 @@ impl BreakableStatement {
             BreakableStatement::Iteration(node) => node.all_private_identifiers_valid(names),
             BreakableStatement::Switch(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

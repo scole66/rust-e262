@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ASYNC GENERATOR METHOD
@@ -111,17 +112,20 @@ fn async_generator_method_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod async_generator_method {
     use super::*;
-    mod has_direct_super {
-        use super::*;
-        use test_case::test_case;
+    use test_case::test_case;
 
-        #[test_case("async *a(){}" => false; "without")]
-        #[test_case("async *a(b=super(true)){}" => true; "params")]
-        #[test_case("async *a(){super(false);}" => true; "body")]
-        fn f(src: &str) -> bool {
-            let (item, _) = AsyncGeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-            item.has_direct_super()
-        }
+    #[test_case("async *a(){}" => false; "without")]
+    #[test_case("async *a(b=super(true)){}" => true; "params")]
+    #[test_case("async *a(){super(false);}" => true; "body")]
+    fn has_direct_super(src: &str) -> bool {
+        let (item, _) = AsyncGeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.has_direct_super()
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
     }
 }
 
@@ -253,6 +257,15 @@ fn async_generator_declaration_test_all_private_identifiers_valid(src: &str) -> 
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+mod async_generator_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
+
 // ASYNC GENERATOR EXPRESSION
 #[test]
 fn async_generator_expression_test_01() {
@@ -362,6 +375,14 @@ fn async_generator_expression_test_all_private_identifiers_valid(src: &str) -> b
     let (item, _) = AsyncGeneratorExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod async_generator_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // ASYNC GENERATOR BODY
 #[test]
@@ -405,4 +426,12 @@ fn async_generator_body_test_contains_02() {
 fn async_generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncGeneratorBody::parse(&mut newparser(src), Scanner::new());
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod async_generator_body {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+    }
 }

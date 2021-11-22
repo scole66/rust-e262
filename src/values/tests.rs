@@ -782,21 +782,21 @@ fn to_object_04() {
     assert_eq!(*number_obj.number_data().borrow(), test_value);
 }
 #[test]
-#[should_panic] // An XFAIL. String objects not yet implemented.
+#[should_panic(expected = "not yet implemented")] // An XFAIL. String objects not yet implemented.
 fn to_object_05() {
     let mut agent = test_agent();
     let test_value = "orange";
     let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
 }
 #[test]
-#[should_panic] // An XFAIL. Symbol objects not yet implemented.
+#[should_panic(expected = "not yet implemented")] // An XFAIL. Symbol objects not yet implemented.
 fn to_object_06() {
     let mut agent = test_agent();
     let test_value = agent.wks(WksId::ToPrimitive);
     let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
 }
 #[test]
-#[should_panic] // An XFAIL. BigInt objects not yet implemented.
+#[should_panic(expected = "not yet implemented")] // An XFAIL. BigInt objects not yet implemented.
 fn to_object_07() {
     let mut agent = test_agent();
     let test_value = BigInt::from(10);

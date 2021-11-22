@@ -81,6 +81,10 @@ impl ReturnStatement {
             ReturnStatement::Expression(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

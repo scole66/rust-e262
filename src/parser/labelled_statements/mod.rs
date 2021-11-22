@@ -107,6 +107,10 @@ impl LabelledStatement {
         //  2. Return true.
         self.item.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LabelledItem[Yield, Await, Return] :
@@ -235,6 +239,10 @@ impl LabelledItem {
             LabelledItem::Statement(node) => node.all_private_identifiers_valid(names),
             LabelledItem::Function(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
