@@ -8,7 +8,7 @@ use num::BigInt;
 #[test]
 fn number_object_debug() {
     let mut agent = test_agent();
-    let no = NumberObject { common: RefCell::new(CommonObjectData::new(&mut agent, None, false, &NUMBER_OBJECT_SLOTS)), number_data: RefCell::new(0.0) };
+    let no = NumberObject { common: RefCell::new(CommonObjectData::new(&mut agent, None, false, NUMBER_OBJECT_SLOTS)), number_data: RefCell::new(0.0) };
 
     assert_ne!(format!("{:?}", no), "");
 }

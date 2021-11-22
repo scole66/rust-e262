@@ -1243,7 +1243,7 @@ impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
 
 impl Object {
     fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
-        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &ORDINARY_OBJECT_SLOTS)) }) }
+        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, ORDINARY_OBJECT_SLOTS)) }) }
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
@@ -1301,12 +1301,12 @@ pub enum InternalSlotName {
     ArrayMarker, // No data associated with this; causes an array object to be constructed
     Nonsense,    // For testing purposes, for the time being.
 }
-pub const ORDINARY_OBJECT_SLOTS: [InternalSlotName; 2] = [InternalSlotName::Prototype, InternalSlotName::Extensible];
-pub const BOOLEAN_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
-pub const ERROR_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
-pub const BUILTIN_FUNCTION_SLOTS: [InternalSlotName; 4] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
-pub const NUMBER_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
-pub const ARRAY_OBJECT_SLOTS: [InternalSlotName; 3] = [InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
+pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
+pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
+pub const ERROR_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
+pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
+pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
+pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1326,16 +1326,16 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         slot_set.insert(slot);
     }
 
-    if slot_match(&ORDINARY_OBJECT_SLOTS, &slot_set) {
+    if slot_match(ORDINARY_OBJECT_SLOTS, &slot_set) {
         // Ordinary Objects
         Object::new(agent, prototype, true)
-    } else if slot_match(&BOOLEAN_OBJECT_SLOTS, &slot_set) {
+    } else if slot_match(BOOLEAN_OBJECT_SLOTS, &slot_set) {
         BooleanObject::object(agent, prototype)
-    } else if slot_match(&ERROR_OBJECT_SLOTS, &slot_set) {
+    } else if slot_match(ERROR_OBJECT_SLOTS, &slot_set) {
         ErrorObject::object(agent, prototype)
-    } else if slot_match(&NUMBER_OBJECT_SLOTS, &slot_set) {
+    } else if slot_match(NUMBER_OBJECT_SLOTS, &slot_set) {
         NumberObject::object(agent, prototype)
-    } else if slot_match(&ARRAY_OBJECT_SLOTS, &slot_set) {
+    } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
         ArrayObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
@@ -1988,7 +1988,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 }
 
 pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option<&Object>) -> Object {
-    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, &ORDINARY_OBJECT_SLOTS)) }) }
+    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, ORDINARY_OBJECT_SLOTS)) }) }
 }
 
 // GetFunctionRealm ( obj )

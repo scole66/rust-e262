@@ -188,7 +188,7 @@ impl ArrayObject {
     }
 
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, &ARRAY_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, ARRAY_OBJECT_SLOTS)) }) }
     }
 
     // ArraySetLength ( A, Desc )
@@ -390,7 +390,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         true,
         1.0,
         PropertyKey::from("Array"),
-        &BUILTIN_FUNCTION_SLOTS,
+        BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
         Some(function_prototype.clone()),
         None,
@@ -400,7 +400,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &array_constructor,
@@ -458,7 +458,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &array_prototype,

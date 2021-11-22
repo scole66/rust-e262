@@ -335,7 +335,7 @@ impl BuiltInFunctionObject {
         is_constructor: bool,
     ) -> Rc<Self> {
         Rc::new(Self {
-            common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, &BUILTIN_FUNCTION_SLOTS)),
+            common: RefCell::new(CommonObjectData::new(agent, prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
             builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
         })
     }

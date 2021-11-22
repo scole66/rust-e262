@@ -412,7 +412,7 @@ mod constructor {
                 false,
                 0.0,
                 "toString".into(),
-                &BUILTIN_FUNCTION_SLOTS,
+                BUILTIN_FUNCTION_SLOTS,
                 Some(agent.running_execution_context().unwrap().realm.clone()),
                 Some(agent.intrinsic(IntrinsicId::FunctionPrototype)),
                 None,
