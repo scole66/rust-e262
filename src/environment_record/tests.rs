@@ -5,7 +5,7 @@ use crate::realm::IntrinsicId;
 use crate::reference::ReferencedName;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error, FunctionId, TestObject};
 
-const ALL_REMOVABILITY: [Removability; 2] = [Removability::Deletable, Removability::Permanent];
+const ALL_REMOVABILITY: &[Removability] = &[Removability::Deletable, Removability::Permanent];
 
 mod removability {
     use super::*;
@@ -37,7 +37,7 @@ mod removability {
     }
 }
 
-const ALL_STRICTNESS: [Strictness; 2] = [Strictness::Strict, Strictness::Sloppy];
+const ALL_STRICTNESS: &[Strictness] = &[Strictness::Strict, Strictness::Sloppy];
 
 mod strictness {
     use super::*;
@@ -74,28 +74,28 @@ mod mutability {
     #[test]
     fn debug() {
         for r in ALL_REMOVABILITY {
-            assert_ne!(format!("{:?}", Mutability::Mutable(r)), "");
+            assert_ne!(format!("{:?}", Mutability::Mutable(*r)), "");
         }
         for s in ALL_STRICTNESS {
-            assert_ne!(format!("{:?}", Mutability::Immutable(s)), "");
+            assert_ne!(format!("{:?}", Mutability::Immutable(*s)), "");
         }
     }
     #[test]
     fn eq() {
         for left in ALL_REMOVABILITY {
             for right in ALL_REMOVABILITY {
-                assert_eq!(Mutability::Mutable(left) == Mutability::Mutable(right), left == right);
+                assert_eq!(Mutability::Mutable(*left) == Mutability::Mutable(*right), left == right);
             }
             for right in ALL_STRICTNESS {
-                assert_eq!(Mutability::Mutable(left) == Mutability::Immutable(right), false);
+                assert_eq!(Mutability::Mutable(*left) == Mutability::Immutable(*right), false);
             }
         }
         for left in ALL_STRICTNESS {
             for right in ALL_REMOVABILITY {
-                assert_eq!(Mutability::Immutable(left) == Mutability::Mutable(right), false);
+                assert_eq!(Mutability::Immutable(*left) == Mutability::Mutable(*right), false);
             }
             for right in ALL_STRICTNESS {
-                assert_eq!(Mutability::Immutable(left) == Mutability::Immutable(right), left == right);
+                assert_eq!(Mutability::Immutable(*left) == Mutability::Immutable(*right), left == right);
             }
         }
     }
@@ -103,18 +103,18 @@ mod mutability {
     fn ne() {
         for left in ALL_REMOVABILITY {
             for right in ALL_REMOVABILITY {
-                assert_eq!(Mutability::Mutable(left) != Mutability::Mutable(right), left != right);
+                assert_eq!(Mutability::Mutable(*left) != Mutability::Mutable(*right), left != right);
             }
             for right in ALL_STRICTNESS {
-                assert_eq!(Mutability::Mutable(left) != Mutability::Immutable(right), true);
+                assert_eq!(Mutability::Mutable(*left) != Mutability::Immutable(*right), true);
             }
         }
         for left in ALL_STRICTNESS {
             for right in ALL_REMOVABILITY {
-                assert_eq!(Mutability::Immutable(left) != Mutability::Mutable(right), true);
+                assert_eq!(Mutability::Immutable(*left) != Mutability::Mutable(*right), true);
             }
             for right in ALL_STRICTNESS {
-                assert_eq!(Mutability::Immutable(left) != Mutability::Immutable(right), left != right);
+                assert_eq!(Mutability::Immutable(*left) != Mutability::Immutable(*right), left != right);
             }
         }
     }
@@ -817,7 +817,7 @@ mod object_environment_record {
 
 mod binding_status {
     use super::*;
-    const ALL_BINDINGSTATUS: [BindingStatus; 3] = [BindingStatus::Lexical, BindingStatus::Initialized, BindingStatus::Uninitialized];
+    const ALL_BINDINGSTATUS: &[BindingStatus] = &[BindingStatus::Lexical, BindingStatus::Initialized, BindingStatus::Uninitialized];
     #[test]
     fn debug() {
         for val in ALL_BINDINGSTATUS {

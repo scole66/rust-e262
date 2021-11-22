@@ -2327,7 +2327,7 @@ mod to_property_descriptor {
         let obj = ordinary_object_create(agent, Some(object_prototype), &[]);
         let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
         let key = PropertyKey::from(name);
-        let getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+        let getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
         let desc = PotentialPropertyDescriptor { enumerable: Some(true), configurable: Some(true), get: Some(ECMAScriptValue::from(getter)), ..Default::default() };
         define_property_or_throw(agent, &obj, key, desc).unwrap();
         ECMAScriptValue::from(obj)

@@ -115,7 +115,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         true,
         1.0,
         PropertyKey::from("Object"),
-        &BUILTIN_FUNCTION_SLOTS,
+        BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
         Some(function_prototype.clone()),
         None,
@@ -125,7 +125,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &object_constructor,
@@ -187,7 +187,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &object_prototype,

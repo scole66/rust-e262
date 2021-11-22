@@ -93,7 +93,7 @@ pub struct ErrorObject {
 
 impl ErrorObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, &ERROR_OBJECT_SLOTS)) }) }
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, ERROR_OBJECT_SLOTS)) }) }
     }
 }
 
@@ -184,7 +184,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         true,
         1_f64,
         PropertyKey::from("Error"),
-        &BUILTIN_FUNCTION_SLOTS,
+        BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
         Some(function_prototype.clone()),
         None,
@@ -252,7 +252,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &error_prototype,
@@ -349,7 +349,7 @@ fn provision_native_error_intrinsics(
     //    * has a "name" property whose value is the String value "NativeError".
 
     let native_error_constructor =
-        create_builtin_function(agent, native_error_constructor_function, true, 1_f64, PropertyKey::from("Error"), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(error), None);
+        create_builtin_function(agent, native_error_constructor_function, true, 1_f64, PropertyKey::from("Error"), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(error), None);
     // Constructor Data Properties
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{

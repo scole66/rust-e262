@@ -301,7 +301,7 @@ impl TestObject {
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         Object {
             o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, Some(prototype), true, &ORDINARY_OBJECT_SLOTS)),
+                common: RefCell::new(CommonObjectData::new(agent, Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
                 get_prototype_of_throws: throwers.contains(&FunctionId::GetPrototypeOf),
                 set_prototype_of_throws: throwers.contains(&FunctionId::SetPrototypeOf),
                 is_extensible_throws: throwers.contains(&FunctionId::IsExtensible),
@@ -471,7 +471,7 @@ impl AdaptableObject {
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         Object {
             o: Rc::new(Self {
-                common: RefCell::new(CommonObjectData::new(agent, Some(prototype), true, &ORDINARY_OBJECT_SLOTS)),
+                common: RefCell::new(CommonObjectData::new(agent, Some(prototype), true, ORDINARY_OBJECT_SLOTS)),
                 get_prototype_of_override: methods.get_prototype_of_override,
                 set_prototype_of_override: methods.set_prototype_of_override,
                 is_extensible_override: methods.is_extensible_override,
