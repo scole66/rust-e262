@@ -95,7 +95,7 @@ impl Script {
                 }
                 body.early_errors(agent, errs);
             }
-            None => {},
+            None => {}
         }
     }
 
@@ -202,7 +202,6 @@ impl ScriptBody {
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
-
 }
 
 #[cfg(test)]
