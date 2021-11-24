@@ -181,6 +181,6 @@ mod if_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        IfStatement::parse(&mut newparser("if(a){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        IfStatement::parse(&mut newparser("if(a){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

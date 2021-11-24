@@ -106,6 +106,6 @@ mod break_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

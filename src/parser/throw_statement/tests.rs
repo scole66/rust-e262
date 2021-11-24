@@ -47,6 +47,6 @@ mod throw_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ThrowStatement::parse(&mut newparser("throw 1;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ThrowStatement::parse(&mut newparser("throw 1;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

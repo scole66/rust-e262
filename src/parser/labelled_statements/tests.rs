@@ -122,7 +122,7 @@ mod labelled_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LabelledStatement::parse(&mut newparser("a:b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LabelledStatement::parse(&mut newparser("a:b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -276,6 +276,6 @@ mod labelled_item {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LabelledItem::parse(&mut newparser("b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LabelledItem::parse(&mut newparser("b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

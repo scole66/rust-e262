@@ -97,7 +97,7 @@ mod bitwise_and_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BitwiseANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BitwiseANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -194,7 +194,7 @@ mod bitwise_xor_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BitwiseXORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BitwiseXORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -299,6 +299,6 @@ mod bitwise_or_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BitwiseORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BitwiseORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

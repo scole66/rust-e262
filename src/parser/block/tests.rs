@@ -85,7 +85,7 @@ mod block_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -218,7 +218,7 @@ mod block {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -416,7 +416,7 @@ mod statement_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        StatementList::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        StatementList::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -605,6 +605,6 @@ mod statement_list_item {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        StatementListItem::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        StatementListItem::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

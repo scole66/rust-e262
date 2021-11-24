@@ -174,6 +174,6 @@ mod multiplicative_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

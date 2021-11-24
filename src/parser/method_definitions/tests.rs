@@ -431,7 +431,7 @@ mod method_definition {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -477,6 +477,6 @@ mod property_set_parameter_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

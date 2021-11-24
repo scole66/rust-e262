@@ -107,7 +107,7 @@ mod generator_method {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -224,7 +224,7 @@ mod generator_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -325,7 +325,7 @@ mod generator_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -377,7 +377,7 @@ mod generator_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        GeneratorBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+        GeneratorBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -509,6 +509,6 @@ mod yield_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        YieldExpression::parse(&mut newparser("yield a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        YieldExpression::parse(&mut newparser("yield a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

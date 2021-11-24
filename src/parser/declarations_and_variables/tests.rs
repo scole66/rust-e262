@@ -80,7 +80,7 @@ mod lexical_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -171,7 +171,7 @@ mod binding_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -268,7 +268,7 @@ mod lexical_binding {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -331,7 +331,7 @@ mod variable_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        VariableStatement::parse(&mut newparser("var a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        VariableStatement::parse(&mut newparser("var a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -420,7 +420,7 @@ mod variable_declaration_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -522,7 +522,7 @@ mod variable_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        VariableDeclaration::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        VariableDeclaration::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -604,7 +604,7 @@ mod binding_pattern {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingPattern::parse(&mut newparser("{a}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingPattern::parse(&mut newparser("{a}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -770,7 +770,7 @@ mod object_binding_pattern {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1050,7 +1050,7 @@ mod array_binding_pattern {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1096,7 +1096,7 @@ mod binding_rest_property {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1188,7 +1188,7 @@ mod binding_property_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1280,7 +1280,7 @@ mod binding_element_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1349,7 +1349,7 @@ mod binding_elision_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1441,7 +1441,7 @@ mod binding_property {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1561,7 +1561,7 @@ mod binding_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1643,7 +1643,7 @@ mod single_name_binding {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SingleNameBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SingleNameBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1723,6 +1723,6 @@ mod binding_rest_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BindingRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

@@ -75,7 +75,7 @@ mod switch_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SwitchStatement::parse(&mut newparser("switch(a){default:;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SwitchStatement::parse(&mut newparser("switch(a){default:;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -265,7 +265,7 @@ mod case_block {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CaseBlock::parse(&mut newparser("{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CaseBlock::parse(&mut newparser("{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -365,7 +365,7 @@ mod case_clauses {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CaseClauses::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CaseClauses::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -464,7 +464,7 @@ mod case_clause {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CaseClause::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CaseClause::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -557,6 +557,6 @@ mod default_clause {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        DefaultClause::parse(&mut newparser("default:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        DefaultClause::parse(&mut newparser("default:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

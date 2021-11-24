@@ -517,6 +517,7 @@ fn parse_node_kind_01() {
     assert_eq!(p1, p1.clone());
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn parse_text_01() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
@@ -531,6 +532,7 @@ fn parse_text_02() {
     assert!(matches!(res, ParsedText::Errors(_)));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn parse_text_03() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();

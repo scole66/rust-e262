@@ -96,7 +96,7 @@ mod class_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -178,7 +178,7 @@ mod class_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -305,7 +305,7 @@ mod class_tail {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassTail::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassTail::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -357,7 +357,7 @@ mod class_heritage {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -420,7 +420,7 @@ mod class_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassBody::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassBody::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -526,7 +526,7 @@ mod class_element_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -781,7 +781,7 @@ mod class_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -886,7 +886,7 @@ mod field_definition {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -979,7 +979,7 @@ mod class_element_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1025,7 +1025,7 @@ mod class_static_block {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassStaticBlock::parse(&mut newparser("static { a; }"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        ClassStaticBlock::parse(&mut newparser("static { a; }"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1060,7 +1060,7 @@ mod class_static_block_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassStaticBlockBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+        ClassStaticBlockBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1106,6 +1106,6 @@ mod class_static_block_statement_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+        ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

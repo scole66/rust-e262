@@ -97,7 +97,7 @@ fn arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn arrow_function_test_early_errors() {
     let mut agent = test_agent();
-    ArrowFunction::parse(&mut newparser("x => x"), Scanner::new(), true, false, false).unwrap().0.early_errors(&mut agent, true);
+    ArrowFunction::parse(&mut newparser("x => x"), Scanner::new(), true, false, false).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
 // ARROW PARAMETERS
@@ -183,7 +183,7 @@ fn arrow_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn arrow_parameters_test_early_errors() {
     let mut agent = test_agent();
-    ArrowParameters::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+    ArrowParameters::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
 // CONCISE BODY
@@ -267,7 +267,7 @@ fn concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn concise_body_test_early_errors() {
     let mut agent = test_agent();
-    ConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut agent, true);
+    ConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
 // EXPRESSION BODY
@@ -321,7 +321,7 @@ fn expression_body_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn expression_body_test_early_errors() {
     let mut agent = test_agent();
-    ExpressionBody::parse(&mut newparser("x => x"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+    ExpressionBody::parse(&mut newparser("x => x"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
 // ARROW FORMAL PARAMETERS
@@ -379,5 +379,5 @@ fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool
 #[should_panic(expected = "not yet implemented")]
 fn arrow_formal_parameters_test_early_errors() {
     let mut agent = test_agent();
-    ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+    ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
