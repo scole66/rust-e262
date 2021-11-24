@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ADDITIVE EXPRESSION
@@ -131,4 +132,11 @@ fn additive_expression_test_as_string_literal(src: &str) -> Option<String> {
 fn additive_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AdditiveExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn additive_expression_test_early_errors() {
+    let mut agent = test_agent();
+    AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
 }

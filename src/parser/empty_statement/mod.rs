@@ -43,6 +43,10 @@ impl EmptyStatement {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

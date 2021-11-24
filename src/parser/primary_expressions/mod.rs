@@ -368,6 +368,10 @@ impl PrimaryExpression {
     pub fn is_object_or_array_literal(&self) -> bool {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -437,6 +441,10 @@ impl Elisions {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // SpreadElement[Yield, Await] :
@@ -496,6 +504,10 @@ impl SpreadElement {
         //  2. Return true.
         let SpreadElement::AssignmentExpression(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -708,6 +720,10 @@ impl ElementList {
             ElementList::ElementListSpreadElement((el, _, se)) => el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ArrayLiteral[Yield, Await] :
@@ -843,6 +859,10 @@ impl ArrayLiteral {
             ArrayLiteral::ElementListElision(boxed, _) => boxed.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // Initializer[In, Yield, Await] :
@@ -915,6 +935,10 @@ impl Initializer {
         let Initializer::AssignmentExpression(node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CoverInitializedName[Yield, Await] :
@@ -975,6 +999,10 @@ impl CoverInitializedName {
         //  2. Return true.
         let CoverInitializedName::InitializedName(_, izer) = self;
         izer.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1038,6 +1066,10 @@ impl ComputedPropertyName {
         let ComputedPropertyName::AssignmentExpression(n) = self;
         n.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LiteralPropertyName :
@@ -1100,6 +1132,10 @@ impl LiteralPropertyName {
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1188,6 +1224,10 @@ impl PropertyName {
             PropertyName::LiteralPropertyName(_) => true,
             PropertyName::ComputedPropertyName(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1329,6 +1369,10 @@ impl PropertyDefinition {
             PropertyDefinition::AssignmentExpression(ae) => ae.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // PropertyDefinitionList[Yield, Await] :
@@ -1413,6 +1457,10 @@ impl PropertyDefinitionList {
             PropertyDefinitionList::OneDef(pd) => pd.all_private_identifiers_valid(names),
             PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.all_private_identifiers_valid(names) && pd.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1511,6 +1559,10 @@ impl ObjectLiteral {
             ObjectLiteral::Normal(pdl) => pdl.all_private_identifiers_valid(names),
             ObjectLiteral::TrailingComma(pdl) => pdl.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1620,6 +1672,10 @@ impl Literal {
             None
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
@@ -1716,6 +1772,10 @@ impl TemplateLiteral {
             TemplateLiteral::SubstitutionTemplate(boxed) => boxed.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // SubstitutionTemplate[Yield, Await, Tagged] :
@@ -1780,6 +1840,10 @@ impl SubstitutionTemplate {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1875,6 +1939,10 @@ impl TemplateSpans {
             TemplateSpans::Tail(..) => true,
             TemplateSpans::List(tml, _, _) => tml.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1979,6 +2047,10 @@ impl TemplateMiddleList {
             TemplateMiddleList::ListMid(tml, _, exp, _) => tml.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // ParenthesizedExpression[Yield, Await] :
@@ -2055,6 +2127,10 @@ impl ParenthesizedExpression {
         //  2. Return true.
         let ParenthesizedExpression::Expression(e) = self;
         e.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -2259,6 +2335,10 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => exp.contains(kind) || id.contains(kind),
             CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => exp.contains(kind) || pat.contains(kind),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

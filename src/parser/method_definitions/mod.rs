@@ -258,6 +258,10 @@ impl MethodDefinition {
             MethodDefinition::AsyncGenerator(node) => node.has_direct_super(),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // PropertySetParameterList :
@@ -308,6 +312,10 @@ impl PropertySetParameterList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.node.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

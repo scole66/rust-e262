@@ -609,7 +609,7 @@ mod object_environment_record {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "unreachable code")]
     fn create_immutable_binding() {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);

@@ -151,6 +151,10 @@ impl EqualityExpression {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

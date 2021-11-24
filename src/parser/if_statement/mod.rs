@@ -139,6 +139,10 @@ impl IfStatement {
             IfStatement::WithoutElse(e, s1) => e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

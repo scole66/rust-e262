@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // LOGICAL AND EXPRESSION
@@ -98,6 +99,14 @@ fn logical_and_expression_test_all_private_identifiers_valid(src: &str) -> bool 
     let (item, _) = LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod logical_and_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LogicalANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // LOGICAL OR EXPRESSION
 #[test]
@@ -194,6 +203,14 @@ fn logical_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod logical_or_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LogicalORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // COALESCE EXPRESSION
 #[test]
@@ -260,6 +277,14 @@ fn coalesce_expression_test_contains_03() {
 fn coalesce_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod coalesce_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CoalesceExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // COALESCE EXPRESSION HEAD
@@ -331,6 +356,16 @@ fn coalesce_expression_head_test_all_private_identifiers_valid(src: &str) -> boo
     let (item_ce, _) = CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
     let item = &item_ce.head;
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod coalesce_expression_head {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        let (item_ce, _) = CoalesceExpression::parse(&mut newparser("item.#valid ?? a"), Scanner::new(), true, false, false).unwrap();
+        let item = &item_ce.head;
+        item.early_errors(&mut test_agent(), true);
+    }
 }
 
 // SHORT CIRCUIT EXPRESSION
@@ -413,4 +448,12 @@ fn short_circuit_expression_test_as_string_literal(src: &str) -> Option<JSString
 fn short_circuit_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod short_circuit_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ShortCircuitExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

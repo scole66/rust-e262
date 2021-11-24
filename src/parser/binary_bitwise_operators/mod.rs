@@ -117,6 +117,10 @@ impl BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -228,6 +232,10 @@ impl BitwiseXORExpression {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseXORExpression::BitwiseXOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -351,6 +359,10 @@ impl BitwiseORExpression {
             BitwiseORExpression::BitwiseXORExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseORExpression::BitwiseOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

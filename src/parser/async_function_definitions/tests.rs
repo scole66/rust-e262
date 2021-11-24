@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ASYNC FUNCTION DECLARATION
@@ -136,6 +137,12 @@ fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> b
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_declaration_test_early_errors() {
+    AsyncFunctionDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+}
+
 // ASYNC FUNCTION EXPRESSION
 #[test]
 fn async_function_expression_test_01() {
@@ -255,6 +262,11 @@ fn async_function_expression_test_contains_02() {
 fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_expression_test_early_errors() {
+    AsyncFunctionExpression::parse(&mut newparser("async function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
 }
 
 // ASYNC METHOD
@@ -381,6 +393,11 @@ mod async_method {
         }
     }
 }
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_method_test_early_errors() {
+    AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+}
 
 // ASYNC FUNCTION BODY
 #[test]
@@ -444,6 +461,11 @@ fn async_function_body_test_lexically_declared_names(src: &str) -> Vec<JSString>
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
     item.lexically_declared_names()
 }
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_body_test_early_errors() {
+    AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+}
 
 // AWAIT EXPRESSION
 #[test]
@@ -487,4 +509,9 @@ fn await_expression_test_contains_02() {
 fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn await_expression_test_early_errors() {
+    AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), true);
 }

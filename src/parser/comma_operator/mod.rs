@@ -130,6 +130,10 @@ impl Expression {
             Expression::Comma(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

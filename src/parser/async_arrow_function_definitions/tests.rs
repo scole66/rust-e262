@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ASYNC ARROW FUNCTION
@@ -151,6 +152,12 @@ fn async_arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_arrow_function_test_early_errors() {
+    AsyncArrowFunction::parse(&mut newparser("async x => x"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+}
+
 // ASYNC CONCISE BODY
 #[test]
 fn async_concise_body_test_01() {
@@ -227,6 +234,12 @@ fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_concise_body_test_early_errors() {
+    AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), true);
+}
+
 // ASYNC ARROW BINDING IDENTIFIER
 #[test]
 fn async_arrow_binding_identifier_test_01() {
@@ -254,6 +267,12 @@ fn async_arrow_binding_identifier_test_conciseerrors_1() {
 fn async_arrow_binding_identifier_test_contains_01() {
     let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_arrow_binding_identifier_test_early_errors() {
+    AsyncArrowBindingIdentifier::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), true);
 }
 
 // COVER CALL EXPRESSION AND ASYNC ARROW HEAD
@@ -306,6 +325,11 @@ fn cceaaah_test_contains_03() {
     let (item, _) = CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn cceaaah_test_early_errors() {
+    CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("x()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+}
 
 // ASYNC ARROW HEAD
 #[test]
@@ -353,4 +377,9 @@ fn async_arrow_head_test_contains_02() {
 fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncArrowHead::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_arrow_head_test_early_errors() {
+    AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
 }

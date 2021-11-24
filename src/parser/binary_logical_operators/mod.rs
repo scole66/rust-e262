@@ -117,6 +117,10 @@ impl LogicalANDExpression {
             LogicalANDExpression::LogicalAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -229,6 +233,10 @@ impl LogicalORExpression {
             LogicalORExpression::LogicalOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
@@ -312,6 +320,10 @@ impl CoalesceExpression {
         //  2. Return true.
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CoalesceExpressionHead[In, Yield, Await] :
@@ -379,6 +391,10 @@ impl CoalesceExpressionHead {
             CoalesceExpressionHead::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -478,6 +494,10 @@ impl ShortCircuitExpression {
             ShortCircuitExpression::LogicalORExpression(n) => n.all_private_identifiers_valid(names),
             ShortCircuitExpression::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

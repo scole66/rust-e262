@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // MEMBER EXPRESSION
@@ -338,6 +339,14 @@ fn member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 fn member_expression_test_is_object_or_array_literal(src: &str) -> bool {
     MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
 }
+mod member_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        MemberExpression::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // SUPER PROPERTY
 #[test]
@@ -428,6 +437,14 @@ fn super_property_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SuperProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod super_property {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        SuperProperty::parse(&mut newparser("super.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // META PROPERTY
 #[test]
@@ -499,6 +516,14 @@ fn meta_property_test_contains_02() {
     let (item, _) = MetaProperty::parse(&mut newparser("import.meta"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
     assert_eq!(item.contains(ParseNodeKind::NewTarget), false);
+}
+mod meta_property {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // ARGUMENTS
@@ -608,6 +633,14 @@ fn arguments_test_contains_05() {
 fn arguments_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Arguments::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod arguments {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Arguments::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // ARGUMENT LIST
@@ -773,6 +806,14 @@ fn argument_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArgumentList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod argument_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ArgumentList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // NEW EXPRESSION
 #[test]
@@ -877,6 +918,14 @@ fn new_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 fn new_expression_test_is_object_or_array_literal(src: &str) -> bool {
     NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
 }
+mod new_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        NewExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // CALL MEMBER EXPRESSION
 #[test]
@@ -928,6 +977,14 @@ fn call_member_expression_test_all_private_identifiers_valid(src: &str) -> bool 
     let (item, _) = CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod call_member_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // SUPER CALL
 #[test]
@@ -974,6 +1031,14 @@ fn super_call_test_contains_02() {
 fn super_call_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SuperCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod super_call {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        SuperCall::parse(&mut newparser("super()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // IMPORT CALL
@@ -1026,6 +1091,14 @@ fn import_call_test_contains_02() {
 fn import_call_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ImportCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod import_call {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ImportCall::parse(&mut newparser("import(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // CALL EXPRESSION
@@ -1337,6 +1410,14 @@ fn call_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CallExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
 }
+mod call_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CallExpression::parse(&mut newparser("b(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // OPTIONAL EXPRESSION
 #[test]
@@ -1468,6 +1549,14 @@ fn optional_expression_test_contains_09() {
 fn optional_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
+}
+mod optional_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
 
 // OPTIONAL CHAIN
@@ -1830,6 +1919,14 @@ fn optional_chain_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("alsovalid")])
 }
+mod optional_chain {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
+}
 
 // LEFT-HAND-SIDE EXPRESSION
 #[test]
@@ -1946,4 +2043,12 @@ fn left_hand_side_expression_test_all_private_identifiers_valid(src: &str) -> bo
 #[test_case("blue?.green" => false; "OptionalExpression")]
 fn left_hand_side_expression_test_is_object_or_array_literal(src: &str) -> bool {
     LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+}
+mod left_hand_side_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

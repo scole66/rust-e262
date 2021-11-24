@@ -103,6 +103,10 @@ impl AsyncGeneratorMethod {
         //  2. Return AsyncGeneratorBody Contains SuperCall.
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AsyncGeneratorDeclaration[Yield, Await, Default] :
@@ -211,6 +215,10 @@ impl AsyncGeneratorDeclaration {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AsyncGeneratorExpression :
@@ -305,6 +313,10 @@ impl AsyncGeneratorExpression {
         //  2. Return true.
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // AsyncGeneratorBody :
@@ -365,6 +377,10 @@ impl AsyncGeneratorBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

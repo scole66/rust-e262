@@ -1466,12 +1466,12 @@ fn array_index_key_01() {
     assert_eq!(array_index_key(&PropertyKey::from("981")), 981);
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "ParseIntError")]
 fn array_index_key_02() {
     array_index_key(&PropertyKey::from("blip"));
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "unreachable code")]
 fn array_index_key_03() {
     let mut agent = test_agent();
     array_index_key(&PropertyKey::from(Symbol::new(&mut agent, None)));
@@ -1644,13 +1644,13 @@ fn ordinary_object_create_03c() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Nonsense")]
 fn make_basic_object_01() {
     let mut agent = test_agent();
     let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense], None);
 }
 #[test]
-#[should_panic]
+#[should_panic(expected = "Nonsense")]
 fn make_basic_object_02() {
     let mut agent = test_agent();
     let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible], None);

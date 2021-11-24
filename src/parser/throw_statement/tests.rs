@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // THROW STATEMENT
@@ -40,4 +41,12 @@ fn throw_statement_test_contains() {
 fn throw_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ThrowStatement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod throw_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ThrowStatement::parse(&mut newparser("throw 1;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }

@@ -92,6 +92,10 @@ impl LexicalDeclaration {
         let LexicalDeclaration::List(_, node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LetOrConst :
@@ -231,6 +235,10 @@ impl BindingList {
             BindingList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LexicalBinding[In, Yield, Await] :
@@ -342,6 +350,10 @@ impl LexicalBinding {
             LexicalBinding::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // VariableStatement[Yield, Await] :
@@ -410,6 +422,10 @@ impl VariableStatement {
         //  2. Return true.
         let VariableStatement::Var(node) = self;
         node.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -519,6 +535,10 @@ impl VariableDeclarationList {
             VariableDeclarationList::Item(node) => node.all_private_identifiers_valid(names),
             VariableDeclarationList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -633,6 +653,10 @@ impl VariableDeclaration {
             VariableDeclaration::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // BindingPattern[Yield, Await] :
@@ -721,6 +745,10 @@ impl BindingPattern {
             BindingPattern::Object(node) => node.all_private_identifiers_valid(names),
             BindingPattern::Array(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -866,6 +894,10 @@ impl ObjectBindingPattern {
             ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => true,
             ObjectBindingPattern::ListOnly(node) | ObjectBindingPattern::ListRest(node, _) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1069,6 +1101,10 @@ impl ArrayBindingPattern {
             ArrayBindingPattern::ListRest(node, _, onode) => node.all_private_identifiers_valid(names) && onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
@@ -1135,6 +1171,10 @@ impl BindingRestProperty {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let BindingRestProperty::Id(node) = self;
         node.contains(kind)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1233,6 +1273,10 @@ impl BindingPropertyList {
             BindingPropertyList::Item(node) => node.all_private_identifiers_valid(names),
             BindingPropertyList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1339,6 +1383,10 @@ impl BindingElementList {
             BindingElementList::List(l, i) => l.all_private_identifiers_valid(names) && i.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -1419,6 +1467,10 @@ impl BindingElisionElement {
         //  2. Return true.
         let BindingElisionElement::Element(_, n) = self;
         n.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1514,6 +1566,10 @@ impl BindingProperty {
             BindingProperty::Single(node) => node.all_private_identifiers_valid(names),
             BindingProperty::Property(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1642,6 +1698,10 @@ impl BindingElement {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -1744,6 +1804,10 @@ impl SingleNameBinding {
         let SingleNameBinding::Id(_, initializer) = self;
         initializer.is_none()
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // BindingRestElement[Yield, Await] :
@@ -1836,6 +1900,10 @@ impl BindingRestElement {
             BindingRestElement::Identifier(_) => true,
             BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

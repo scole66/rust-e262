@@ -316,6 +316,10 @@ impl MemberExpression {
             | MemberExpressionKind::PrivateId(..) => false,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -411,6 +415,10 @@ impl SuperProperty {
             SuperPropertyKind::IdentifierName(_) => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // MetaProperty :
@@ -494,6 +502,10 @@ impl MetaProperty {
             MetaPropertyKind::NewTarget => kind == ParseNodeKind::NewTarget,
             MetaPropertyKind::ImportMeta => false,
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -606,6 +618,10 @@ impl Arguments {
             ArgumentsKind::ArgumentList(n) => n.all_private_identifiers_valid(names),
             ArgumentsKind::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -793,6 +809,10 @@ impl ArgumentList {
             ArgumentListKind::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // NewExpression[Yield, Await] :
@@ -911,6 +931,10 @@ impl NewExpression {
             NewExpressionKind::NewExpression(_) => false,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -968,6 +992,10 @@ impl CallMemberExpression {
         //  2. Return true.
         self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // SuperCall[Yield, Await] :
@@ -1022,6 +1050,10 @@ impl SuperCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.arguments.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1081,6 +1113,10 @@ impl ImportCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.assignment_expression.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1304,6 +1340,10 @@ impl CallExpression {
             CallExpressionKind::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -1426,6 +1466,10 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => false,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
+    }
 }
 
 // OptionalExpression[Yield, Await] :
@@ -1541,6 +1585,10 @@ impl OptionalExpression {
             OptionalExpression::Call(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             OptionalExpression::Opt(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 
@@ -1787,6 +1835,10 @@ impl OptionalChain {
             //  2. Return false.
             OptionalChain::PlusPrivateId(lst, pid) => names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+        todo!()
     }
 }
 

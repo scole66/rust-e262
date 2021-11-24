@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // CONTINUE STATEMENT
@@ -91,4 +92,12 @@ fn continue_statement_test_contains_02() {
 fn continue_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+}
+mod continue_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    }
 }
