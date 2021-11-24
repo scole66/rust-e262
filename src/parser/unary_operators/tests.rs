@@ -349,6 +349,6 @@ mod unary_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        UnaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        UnaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

@@ -162,7 +162,7 @@ mod try_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        TryStatement::parse(&mut newparser("try{}finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        TryStatement::parse(&mut newparser("try{}finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -273,7 +273,7 @@ mod catch {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Catch::parse(&mut newparser("catch{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Catch::parse(&mut newparser("catch{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -346,7 +346,7 @@ mod finally {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Finally::parse(&mut newparser("finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Finally::parse(&mut newparser("finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -421,6 +421,6 @@ mod catch_parameter {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CatchParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CatchParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

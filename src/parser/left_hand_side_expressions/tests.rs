@@ -344,7 +344,7 @@ mod member_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        MemberExpression::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        MemberExpression::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -442,7 +442,7 @@ mod super_property {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SuperProperty::parse(&mut newparser("super.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SuperProperty::parse(&mut newparser("super.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -522,7 +522,7 @@ mod meta_property {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -639,7 +639,7 @@ mod arguments {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Arguments::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Arguments::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -811,7 +811,7 @@ mod argument_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ArgumentList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ArgumentList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -923,7 +923,7 @@ mod new_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        NewExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        NewExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -982,7 +982,7 @@ mod call_member_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1037,7 +1037,7 @@ mod super_call {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SuperCall::parse(&mut newparser("super()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SuperCall::parse(&mut newparser("super()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1097,7 +1097,7 @@ mod import_call {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ImportCall::parse(&mut newparser("import(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ImportCall::parse(&mut newparser("import(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1415,7 +1415,7 @@ mod call_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CallExpression::parse(&mut newparser("b(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CallExpression::parse(&mut newparser("b(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1555,7 +1555,7 @@ mod optional_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1924,7 +1924,7 @@ mod optional_chain {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2049,6 +2049,6 @@ mod left_hand_side_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

@@ -185,6 +185,6 @@ mod shift_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ShiftExpression::parse(&mut newparser("3"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ShiftExpression::parse(&mut newparser("3"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

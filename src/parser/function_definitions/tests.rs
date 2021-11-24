@@ -123,7 +123,7 @@ mod function_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -225,7 +225,7 @@ mod function_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FunctionExpression::parse(&mut newparser("function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        FunctionExpression::parse(&mut newparser("function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -295,7 +295,7 @@ mod function_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+        FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -368,6 +368,6 @@ mod function_statement_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+        FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

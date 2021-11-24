@@ -73,43 +73,54 @@ fn script_test_early_errors_01() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     let (item, _) = Script::parse(&mut newparser(""), Scanner::new()).unwrap();
-    assert_eq!(item.early_errors(&mut agent), &[] as &[Object]);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
+    assert_eq!(errs, &[] as &[Object]);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_test_early_errors_02() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     let (item, _) = Script::parse(&mut newparser("0;"), Scanner::new()).unwrap();
-    assert_eq!(item.early_errors(&mut agent), &[] as &[Object]);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
+    assert_eq!(errs, &[] as &[Object]);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_test_early_errors_03() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     let (item, _) = Script::parse(&mut newparser("let x; const x=10;"), Scanner::new()).unwrap();
-    let mut errs = item.early_errors(&mut agent);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
     assert_eq!(errs.len(), 1);
     let err = errs.pop().unwrap();
     let msg = unwind_syntax_error_object(&mut agent, err);
     assert_eq!(msg, "Duplicate lexically declared names");
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_test_early_errors_04() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     let (item, _) = Script::parse(&mut newparser("let x; var x=10;"), Scanner::new()).unwrap();
-    let mut errs = item.early_errors(&mut agent);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
     assert_eq!(errs.len(), 1);
     let err = errs.pop().unwrap();
     let msg = unwind_syntax_error_object(&mut agent, err);
     assert_eq!(msg, "Name defined both lexically and var-style");
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_test_early_errors_05() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     let (item, _) = Script::parse(&mut newparser("break a;"), Scanner::new()).unwrap();
-    let mut errs = item.early_errors(&mut agent);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
     assert_eq!(errs.len(), 1);
     let err = errs.pop().unwrap();
     let msg = unwind_syntax_error_object(&mut agent, err);
@@ -155,7 +166,8 @@ fn script_body_ee_check_core(p: &mut Parser, desired: Option<&str>) {
     let (item, _) = ScriptBody::parse(p, Scanner::new()).unwrap();
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
-    let mut errs = item.early_errors(&mut agent);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs);
     match desired {
         Some(expected_message) => {
             assert_eq!(errs.len(), 1);
@@ -178,38 +190,47 @@ fn script_body_ee_check_direct(src: &str, desired: Option<&str>) {
     script_body_ee_check_core(&mut p, desired);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_01() {
     script_body_ee_check("super();", Some("`super' not allowed in top-level code"));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_02() {
     script_body_ee_check("b=new.target;", Some("`new.target` not allowed in top-level code"));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_03() {
     script_body_ee_check("break t;", Some("undefined break target detected"));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_04() {
     script_body_ee_check_direct("super();", None);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_05() {
     script_body_ee_check_direct("a=new.target;", None);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_06() {
     script_body_ee_check(";", None);
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_07() {
     script_body_ee_check("t:{t:;}", Some("duplicate labels detected"));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_08() {
     script_body_ee_check("continue bob;", Some("undefined continue target detected"));
 }
 #[test]
+#[should_panic(expected = "not yet implemented")]
 fn script_body_test_early_errors_09() {
     script_body_ee_check("a.#mystery;", Some("invalid private identifier detected"));
 }
@@ -234,4 +255,16 @@ fn script_body_test_directive_prologue_02() {
 
     let dp = item.directive_prologue();
     assert_eq!(dp, &[]);
+}
+mod script_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a;" => false; "no prologue")]
+    #[test_case("'a'; func();" => false; "prologue without clause")]
+    #[test_case("'a'; 'use strict'; b();" => true; "prologue with clause")]
+    #[test_case("'a'; 'use\\x20strict'; b();" => false; "prologue with escape")]
+    fn contains_use_strict(src: &str) -> bool {
+        ScriptBody::parse(&mut newparser(src), Scanner::new()).unwrap().0.contains_use_strict()
+    }
 }

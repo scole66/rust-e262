@@ -459,7 +459,7 @@ mod primary_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -592,7 +592,7 @@ mod literal {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Literal::parse(&mut newparser("3"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        Literal::parse(&mut newparser("3"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -643,7 +643,7 @@ mod elision {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -697,7 +697,7 @@ mod spread_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SpreadElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SpreadElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1002,7 +1002,7 @@ mod element_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1179,7 +1179,7 @@ mod array_literal {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1237,7 +1237,7 @@ mod initializer {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Initializer::parse(&mut newparser("=a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Initializer::parse(&mut newparser("=a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1290,7 +1290,7 @@ mod cover_initialized_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CoverInitializedName::parse(&mut newparser("b=a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CoverInitializedName::parse(&mut newparser("b=a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1347,7 +1347,7 @@ mod computed_property_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1429,7 +1429,7 @@ mod literal_property_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1518,7 +1518,7 @@ mod property_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        PropertyName::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        PropertyName::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1700,7 +1700,7 @@ mod property_definition {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        PropertyDefinition::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        PropertyDefinition::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1794,7 +1794,7 @@ mod property_definition_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        PropertyDefinitionList::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        PropertyDefinitionList::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1909,7 +1909,7 @@ mod object_literal {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1968,7 +1968,7 @@ mod parenthesized_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2066,7 +2066,7 @@ mod template_middle_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2141,7 +2141,7 @@ mod template_spans {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2205,7 +2205,7 @@ mod substitution_template {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2291,7 +2291,7 @@ mod template_literal {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2534,6 +2534,6 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

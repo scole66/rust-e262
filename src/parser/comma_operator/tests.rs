@@ -106,6 +106,6 @@ mod expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Expression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Expression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

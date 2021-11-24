@@ -36,6 +36,6 @@ mod empty_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        EmptyStatement::parse(&mut newparser(";"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        EmptyStatement::parse(&mut newparser(";"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

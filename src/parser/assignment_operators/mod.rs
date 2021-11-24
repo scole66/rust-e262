@@ -267,7 +267,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -399,7 +399,7 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -526,7 +526,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -682,7 +682,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -739,7 +739,7 @@ impl AssignmentRestProperty {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -828,7 +828,7 @@ impl AssignmentPropertyList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -917,7 +917,7 @@ impl AssignmentElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -991,7 +991,7 @@ impl AssignmentElisionElement {
         self.element.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1102,7 +1102,7 @@ impl AssignmentProperty {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1185,7 +1185,7 @@ impl AssignmentElement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1242,7 +1242,7 @@ impl AssignmentRestElement {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1321,7 +1321,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

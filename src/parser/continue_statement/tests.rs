@@ -98,6 +98,6 @@ mod continue_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

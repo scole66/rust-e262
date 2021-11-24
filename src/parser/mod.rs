@@ -422,7 +422,8 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
                     ParsedText::Errors(vec![syntax_error])
                 }
                 Ok((node, _)) => {
-                    let errs = node.early_errors(agent);
+                    let mut errs = vec![];
+                    node.early_errors(agent, &mut errs);
                     if errs.is_empty() {
                         ParsedText::Script(node)
                     } else {

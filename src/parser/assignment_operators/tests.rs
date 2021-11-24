@@ -590,7 +590,7 @@ fn assignment_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn assignment_expression_test_early_errors() {
     let mut agent = test_agent();
-    AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, true);
+    AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
 #[test]
@@ -705,7 +705,7 @@ mod assignment_pattern {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         let mut agent = test_agent();
-        AssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+        AssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -811,7 +811,7 @@ mod object_assignment_pattern {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         let mut agent = test_agent();
-        ObjectAssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+        ObjectAssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -961,7 +961,7 @@ mod array_assignment_pattern {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         let mut agent = test_agent();
-        ArrayAssignmentPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+        ArrayAssignmentPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -1018,7 +1018,7 @@ mod assignment_rest_property {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         let mut agent = test_agent();
-        AssignmentRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+        AssignmentRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -1087,7 +1087,7 @@ mod assignment_property_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1156,7 +1156,7 @@ mod assignment_element_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1222,7 +1222,7 @@ mod assignment_elision_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1302,7 +1302,7 @@ mod assignment_property {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1370,7 +1370,7 @@ mod assignment_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1423,7 +1423,7 @@ mod assignment_rest_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AssignmentRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AssignmentRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1489,6 +1489,6 @@ mod destructuring_assignment_target {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        DestructuringAssignmentTarget::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        DestructuringAssignmentTarget::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

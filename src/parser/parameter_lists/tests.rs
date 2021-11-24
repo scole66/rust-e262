@@ -52,7 +52,7 @@ mod unique_formal_parameters {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        UniqueFormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+        UniqueFormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -245,7 +245,7 @@ mod formal_parameters {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), true);
+        FormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -345,7 +345,7 @@ mod formal_parameter_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FormalParameterList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        FormalParameterList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -398,7 +398,7 @@ mod function_rest_parameter {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FunctionRestParameter::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        FunctionRestParameter::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -465,6 +465,6 @@ mod formal_parameter {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        FormalParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        FormalParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

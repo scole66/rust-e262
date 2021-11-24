@@ -109,7 +109,7 @@ impl Identifier {
         false
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, in_module: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
         // Static Semantics: Early Errors
         //      Identifier : IdentifierName but not ReservedWord
         //  * It is a Syntax Error if this phrase is contained in strict mode code and the StringValue of IdentifierName
@@ -119,7 +119,6 @@ impl Identifier {
         //  * It is a Syntax Error if StringValue of IdentifierName is the same String value as the StringValue of any
         //    ReservedWord except for yield or await.
         let id = &self.name;
-        let mut errs = Vec::new();
 
         if strict
             && (id.string_value == "implements"
@@ -176,7 +175,6 @@ impl Identifier {
         {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str()));
         }
-        errs
     }
 }
 
@@ -315,9 +313,8 @@ impl IdentifierReference {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        let mut errs = vec![];
         match &self.kind {
             IdentifierReferenceKind::Identifier(id) => {
                 // IdentifierReference : Identifier
@@ -330,7 +327,7 @@ impl IdentifierReference {
                 if self.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
                 }
-                errs.extend(id.early_errors(agent, strict, self.in_module));
+                id.early_errors(agent, errs, strict, self.in_module);
             }
             IdentifierReferenceKind::Yield => {
                 // IdentifierReference : yield
@@ -347,7 +344,6 @@ impl IdentifierReference {
                 }
             }
         }
-        errs
     }
 }
 
@@ -466,9 +462,8 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        let mut errs = vec![];
         match &self.kind {
             BindingIdentifierKind::Identifier(id) => {
                 // BindingIdentifier : Identifier
@@ -486,7 +481,7 @@ impl BindingIdentifier {
                 if self.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
                 }
-                errs.extend(id.early_errors(agent, strict, self.in_module));
+                id.early_errors(agent, errs, strict, self.in_module);
             }
             BindingIdentifierKind::Yield => {
                 // BindingIdentifier : yield
@@ -511,7 +506,6 @@ impl BindingIdentifier {
                 }
             }
         }
-        errs
     }
 }
 
@@ -619,9 +613,8 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        let mut errs = vec![];
         match &self.kind {
             LabelIdentifierKind::Identifier(id) => {
                 // LabelIdentifier : Identifier
@@ -634,7 +627,7 @@ impl LabelIdentifier {
                 if self.await_flag && sv == "await" {
                     errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
                 }
-                errs.extend(id.early_errors(agent, strict, self.in_module));
+                id.early_errors(agent, errs, strict, self.in_module);
             }
             LabelIdentifierKind::Yield => {
                 // LabelIdentifier : yield
@@ -651,7 +644,6 @@ impl LabelIdentifier {
                 }
             }
         }
-        errs
     }
 }
 

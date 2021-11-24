@@ -104,7 +104,7 @@ mod logical_and_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LogicalANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LogicalANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -208,7 +208,7 @@ mod logical_or_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LogicalORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        LogicalORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -283,7 +283,7 @@ mod coalesce_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        CoalesceExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        CoalesceExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -364,7 +364,7 @@ mod coalesce_expression_head {
     fn early_errors() {
         let (item_ce, _) = CoalesceExpression::parse(&mut newparser("item.#valid ?? a"), Scanner::new(), true, false, false).unwrap();
         let item = &item_ce.head;
-        item.early_errors(&mut test_agent(), true);
+        item.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -454,6 +454,6 @@ mod short_circuit_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ShortCircuitExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ShortCircuitExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

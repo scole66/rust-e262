@@ -140,7 +140,7 @@ fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> b
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_function_declaration_test_early_errors() {
-    AsyncFunctionDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    AsyncFunctionDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // ASYNC FUNCTION EXPRESSION
@@ -266,7 +266,7 @@ fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bo
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_function_expression_test_early_errors() {
-    AsyncFunctionExpression::parse(&mut newparser("async function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+    AsyncFunctionExpression::parse(&mut newparser("async function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // ASYNC METHOD
@@ -396,7 +396,7 @@ mod async_method {
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_method_test_early_errors() {
-    AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+    AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // ASYNC FUNCTION BODY
@@ -464,7 +464,7 @@ fn async_function_body_test_lexically_declared_names(src: &str) -> Vec<JSString>
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_function_body_test_early_errors() {
-    AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+    AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // AWAIT EXPRESSION
@@ -513,5 +513,5 @@ fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn await_expression_test_early_errors() {
-    AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), true);
+    AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }

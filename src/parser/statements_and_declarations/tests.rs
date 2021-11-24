@@ -480,7 +480,7 @@ mod statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Statement::parse(&mut newparser(";"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Statement::parse(&mut newparser(";"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -580,7 +580,7 @@ mod declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Declaration::parse(&mut newparser("let a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        Declaration::parse(&mut newparser("let a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -712,7 +712,7 @@ mod hoistable_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -823,6 +823,6 @@ mod breakable_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BreakableStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        BreakableStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

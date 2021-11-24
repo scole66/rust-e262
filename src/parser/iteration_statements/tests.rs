@@ -226,7 +226,7 @@ mod iteration_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        IterationStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        IterationStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -331,7 +331,7 @@ mod do_while_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        DoWhileStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        DoWhileStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -424,7 +424,7 @@ mod while_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        WhileStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        WhileStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1060,7 +1060,7 @@ mod for_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ForStatement::parse(&mut newparser("for(;;){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ForStatement::parse(&mut newparser("for(;;){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1763,7 +1763,7 @@ mod for_in_of_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ForInOfStatement::parse(&mut newparser("for(x in y);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ForInOfStatement::parse(&mut newparser("for(x in y);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1833,7 +1833,7 @@ mod for_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ForDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ForDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1923,6 +1923,6 @@ mod for_binding {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ForBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ForBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

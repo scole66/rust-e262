@@ -125,7 +125,7 @@ mod async_generator_method {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -262,7 +262,7 @@ mod async_generator_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -380,7 +380,7 @@ mod async_generator_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), true);
+        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -432,6 +432,6 @@ mod async_generator_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut test_agent(), true);
+        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

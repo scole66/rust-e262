@@ -189,7 +189,7 @@ impl TryStatement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -288,7 +288,7 @@ impl Catch {
         self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -364,7 +364,7 @@ impl Finally {
         self.block.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -456,7 +456,7 @@ impl CatchParameter {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

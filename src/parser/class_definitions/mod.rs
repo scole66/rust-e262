@@ -105,7 +105,7 @@ impl ClassDeclaration {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -186,7 +186,7 @@ impl ClassExpression {
         self.tail.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -297,7 +297,7 @@ impl ClassTail {
         self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -355,7 +355,7 @@ impl ClassHeritage {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -422,7 +422,7 @@ impl ClassBody {
         self.0.all_private_identifiers_valid(&new_names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -537,7 +537,7 @@ impl ClassElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -701,7 +701,7 @@ impl ClassElement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -791,7 +791,7 @@ impl FieldDefinition {
         self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -887,7 +887,7 @@ impl ClassElementName {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -949,7 +949,7 @@ impl ClassStaticBlock {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -999,7 +999,7 @@ impl ClassStaticBlockBody {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1051,7 +1051,7 @@ impl ClassStaticBlockStatementList {
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

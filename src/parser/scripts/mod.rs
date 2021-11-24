@@ -80,10 +80,9 @@ impl Script {
     // * It is a Syntax Error if the LexicallyDeclaredNames of ScriptBody contains any duplicate entries.
     // * It is a Syntax Error if any element of the LexicallyDeclaredNames of ScriptBody also occurs in the
     //   VarDeclaredNames of ScriptBody.
-    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         match &self.0 {
             Some(body) => {
-                let mut errs: Vec<Object> = Vec::new();
                 let lex_names = body.lexically_declared_names();
                 let var_names = body.var_declared_names();
                 if !has_unique_elements(lex_names.clone()) {
@@ -94,10 +93,9 @@ impl Script {
                 if !lex_names_set.is_disjoint(&var_names_set) {
                     errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
                 }
-                errs.extend(body.early_errors(agent));
-                errs
+                body.early_errors(agent, errs);
             }
-            None => vec![],
+            None => {}
         }
     }
 
@@ -167,8 +165,7 @@ impl ScriptBody {
     //  * It is a Syntax Error if ContainsUndefinedContinueTarget of StatementList with arguments « » and « » is true.
     //  * It is a Syntax Error if AllPrivateIdentifiersValid of StatementList with argument « » is false unless the
     //    source code containing ScriptBody is eval code that is being processed by a direct eval.
-    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
-        let mut errs = vec![];
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
                 errs.push(create_syntax_error_object(agent, "`super' not allowed in top-level code"));
@@ -189,8 +186,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        //errs.extend(self.statement_list.early_errors(agent));
-        errs
+        self.statement_list.early_errors(agent, errs, self.contains_use_strict());
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -199,6 +195,12 @@ impl ScriptBody {
 
     pub fn directive_prologue(&self) -> Vec<StringToken> {
         self.statement_list.initial_string_tokens()
+    }
+
+    pub fn contains_use_strict(&self) -> bool {
+        let prologue = self.directive_prologue();
+        let needle = JSString::from("use strict");
+        prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
 }
 

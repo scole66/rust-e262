@@ -96,6 +96,6 @@ mod return_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), true);
+        ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

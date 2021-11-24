@@ -138,5 +138,5 @@ fn additive_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn additive_expression_test_early_errors() {
     let mut agent = test_agent();
-    AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, true);
+    AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }

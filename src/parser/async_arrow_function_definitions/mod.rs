@@ -131,7 +131,7 @@ impl AsyncArrowFunction {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -191,7 +191,7 @@ impl AsyncArrowHead {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -286,7 +286,7 @@ impl AsyncConciseBody {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -331,7 +331,7 @@ impl AsyncArrowBindingIdentifier {
         self.0.contains(kind)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -395,7 +395,7 @@ impl CoverCallExpressionAndAsyncArrowHead {
         self.expression.contains(kind) || self.args.contains(kind)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

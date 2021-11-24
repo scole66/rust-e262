@@ -177,7 +177,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
