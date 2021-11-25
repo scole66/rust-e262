@@ -1592,6 +1592,13 @@ impl fmt::Display for Numeric {
     }
 }
 
+impl Numeric {
+    fn has_legacy_octal_syntax(&self) -> bool {
+        // Need to actually implement legacy octal before this makes any sense at all
+        false
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum LiteralKind {
     NullLiteral,
@@ -1674,7 +1681,33 @@ impl Literal {
     }
 
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+        // Since we don't implement Legacy Octal syntax (yet), these two errors are never generated. That makes this
+        // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
+        // assertions that are supposed to fail once we do actually implement legacy octal. That will be my reminder to
+        // uncomment the rest of this function.
+        match &self.kind {
+            LiteralKind::NumericLiteral(n) => {
+                assert!(!n.has_legacy_octal_syntax());
+            }
+            LiteralKind::StringLiteral(s) => {
+                assert!(!s.has_legacy_octal_escapes());
+            }
+            LiteralKind::BooleanLiteral(..) | LiteralKind::NullLiteral => {}
+        }
+
+        //match &self.kind {
+        //    LiteralKind::BooleanLiteral(..) | LiteralKind::NullLiteral => {},
+        //    LiteralKind::StringLiteral(s) => {
+        //        if strict && s.has_legacy_octal_escapes() {
+        //            errs.push(create_syntax_error_object(agent, "Legacy octal escapes not allowed in strict mode"));
+        //        }
+        //    }
+        //    LiteralKind::NumericLiteral(n) => {
+        //        if strict && n.has_legacy_octal_syntax() {
+        //            errs.push(create_syntax_error_object(agent, "Legacy octal syntax not allowed in strict mode"));
+        //        }
+        //    }
+        //}
     }
 }
 

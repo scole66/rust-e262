@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // PRIMARY EXPRESSION
@@ -577,6 +578,10 @@ fn literal_kind_ne() {
     assert!(lk3 == lk4);
 }
 #[test]
+fn numeric_has_legacy_octal() {
+    assert!(!Numeric::Number(0.0).has_legacy_octal_syntax());
+}
+#[test]
 fn literal_test_contains_01() {
     let (item, _) = Literal::parse(&mut newparser("10"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
@@ -589,10 +594,16 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
 }
 mod literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Literal::parse(&mut newparser("3"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("3", true => AHashSet::<String>::new(); "Numeric")]
+    #[test_case("null", true => AHashSet::<String>::new(); "Null")]
+    #[test_case("true", true => AHashSet::<String>::new(); "Boolean")]
+    #[test_case("'a'", true => AHashSet::<String>::new(); "String")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
