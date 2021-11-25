@@ -1404,6 +1404,10 @@ fn scanner_clone() {
 fn string_token_debug() {
     assert_ne!(format!("{:?}", StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Double, raw: None }), "");
 }
+#[test]
+fn string_token_has_legacy_octal() {
+    assert!(!StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }.has_legacy_octal_escapes());
+}
 
 #[test]
 fn token_debug() {

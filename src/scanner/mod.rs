@@ -243,6 +243,13 @@ impl fmt::Display for StringToken {
     }
 }
 
+impl StringToken {
+    pub fn has_legacy_octal_escapes(&self) -> bool {
+        // Need to implement legacy octal syntax before this makes any sense.
+        false
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Eof,
