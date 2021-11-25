@@ -145,10 +145,8 @@ impl IterationStatement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -241,6 +239,10 @@ impl DoWhileStatement {
         let DoWhileStatement::Do(s, e) = self;
         s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -327,6 +329,10 @@ impl WhileStatement {
         //  2. Return true.
         let WhileStatement::While(e, s) = self;
         e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -588,6 +594,10 @@ impl ForStatement {
                     && s.all_private_identifiers_valid(names)
             }
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -907,6 +917,10 @@ impl ForInOfStatement {
             }
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 fn pp_two<T, U, UU, V, VV>(writer: &mut T, pad: &str, n1: &U, n2: &V) -> IoResult<()>
@@ -1018,6 +1032,10 @@ impl ForDeclaration {
         let ForDeclaration::Binding(_, node) = self;
         node.all_private_identifiers_valid(names)
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // ForBinding[Yield, Await] :
@@ -1112,6 +1130,10 @@ impl ForBinding {
             ForBinding::Identifier(_) => true,
             ForBinding::Pattern(node) => node.all_private_identifiers_valid(names),
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 

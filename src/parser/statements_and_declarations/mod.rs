@@ -336,22 +336,22 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         match self {
-            Statement::Block(node) => node.early_errors(agent, strict, within_iteration),
-            Statement::Break(node) => node.early_errors(agent),
-            Statement::Breakable(node) => node.early_errors(agent),
-            Statement::Continue(node) => node.early_errors(agent, strict, within_iteration),
-            Statement::Debugger(node) => node.early_errors(agent),
-            Statement::Empty(node) => node.early_errors(agent),
-            Statement::Expression(node) => node.early_errors(agent, strict),
-            Statement::If(node) => node.early_errors(agent),
-            Statement::Labelled(node) => node.early_errors(agent),
-            Statement::Return(node) => node.early_errors(agent, strict),
-            Statement::Throw(node) => node.early_errors(agent),
-            Statement::Try(node) => node.early_errors(agent),
-            Statement::Variable(node) => node.early_errors(agent),
-            Statement::With(node) => node.early_errors(agent),
+            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Break(node) => node.early_errors(agent, errs, strict),
+            Statement::Breakable(node) => node.early_errors(agent, errs, strict),
+            Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Debugger(node) => node.early_errors(agent, errs),
+            Statement::Empty(node) => node.early_errors(agent, errs),
+            Statement::Expression(node) => node.early_errors(agent, errs, strict),
+            Statement::If(node) => node.early_errors(agent, errs, strict),
+            Statement::Labelled(node) => node.early_errors(agent, errs, strict),
+            Statement::Return(node) => node.early_errors(agent, errs, strict),
+            Statement::Throw(node) => node.early_errors(agent, errs, strict),
+            Statement::Try(node) => node.early_errors(agent, errs, strict),
+            Statement::Variable(node) => node.early_errors(agent, errs, strict),
+            Statement::With(node) => node.early_errors(agent, errs, strict),
         }
     }
 }
@@ -450,11 +450,11 @@ impl Declaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Declaration::Hoistable(node) => node.early_errors(agent, strict),
-            Declaration::Class(node) => node.early_errors(agent, strict),
-            Declaration::Lexical(node) => node.early_errors(agent),
+            Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
+            Declaration::Class(node) => node.early_errors(agent, errs, strict),
+            Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
         }
     }
 }
@@ -565,12 +565,12 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            HoistableDeclaration::Function(node) => node.early_errors(agent),
-            HoistableDeclaration::Generator(node) => node.early_errors(agent),
-            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent, strict),
-            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent),
+            HoistableDeclaration::Function(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::Generator(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
         }
     }
 }
@@ -683,10 +683,10 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BreakableStatement::Iteration(node) => node.early_errors(agent),
-            BreakableStatement::Switch(node) => node.early_errors(agent),
+            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict),
+            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict),
         }
     }
 }

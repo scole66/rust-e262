@@ -210,7 +210,8 @@ mod identifier {
         fn strict(id: &str, strict: bool) -> Result<(), String> {
             let mut agent = test_agent();
             let (identifier, _) = Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
-            let mut errs = identifier.early_errors(&mut agent, strict, false);
+            let mut errs = vec![];
+            identifier.early_errors(&mut agent, &mut errs, strict, false);
             if errs.is_empty() {
                 Ok(())
             } else {
@@ -258,7 +259,8 @@ mod identifier {
         fn keyword(id: &str) -> String {
             let mut agent = test_agent();
             let (identifier, _) = Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
-            let mut errs = identifier.early_errors(&mut agent, false, false);
+            let mut errs = vec![];
+            identifier.early_errors(&mut agent, &mut errs, false, false);
             assert_eq!(errs.len(), 1);
             unwind_syntax_error_object(&mut agent, errs.swap_remove(0))
         }
@@ -268,7 +270,8 @@ mod identifier {
         fn module(src: &str, in_module: bool) -> Result<(), String> {
             let mut agent = test_agent();
             let (ident, _) = Identifier::parse(&mut newparser(src), Scanner::new()).unwrap();
-            let mut errs = ident.early_errors(&mut agent, false, in_module);
+            let mut errs = vec![];
+            ident.early_errors(&mut agent, &mut errs, false, in_module);
             if errs.is_empty() {
                 Ok(())
             } else {
@@ -523,7 +526,8 @@ mod identifier_reference {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = IdentifierReference::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
-            let errs = item.early_errors(&mut agent, strict);
+            let mut errs = vec![];
+            item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
     }
@@ -769,7 +773,8 @@ mod binding_identifier {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
-            let errs = item.early_errors(&mut agent, strict);
+            let mut errs = vec![];
+            item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
     }
@@ -992,7 +997,8 @@ mod label_identifier {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
             let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
-            let errs = item.early_errors(&mut agent, strict);
+            let mut errs = vec![];
+            item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
     }

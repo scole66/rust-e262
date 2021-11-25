@@ -200,9 +200,9 @@ impl UnaryExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            UnaryExpression::UpdateExpression(n) => n.early_errors(agent, strict),
+            UnaryExpression::UpdateExpression(n) => n.early_errors(agent, errs, strict),
             UnaryExpression::Delete(_n) => {
                 // Static Semantics: Early Errors
                 //      UnaryExpression : delete UnaryExpression
@@ -225,9 +225,9 @@ impl UnaryExpression {
                 todo!()
             }
             UnaryExpression::Void(n) | UnaryExpression::Typeof(n) | UnaryExpression::NoOp(n) | UnaryExpression::Negate(n) | UnaryExpression::Complement(n) | UnaryExpression::Not(n) => {
-                n.early_errors(agent, strict)
+                n.early_errors(agent, errs, strict)
             }
-            UnaryExpression::Await(n) => n.early_errors(agent),
+            UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
         }
     }
 }

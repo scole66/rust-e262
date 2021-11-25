@@ -243,12 +243,12 @@ mod reference {
             assert_eq!(reference.get_this_value(), this_value);
         }
         #[test]
-        #[should_panic]
+        #[should_panic(expected = "unreachable code")]
         fn unresolvable() {
             Reference::new(Base::Unresolvable, "blurp", true, None).get_this_value();
         }
         #[test]
-        #[should_panic]
+        #[should_panic(expected = "unreachable code")]
         fn environment() {
             Reference::new(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None))), "blurp", true, None).get_this_value();
         }
@@ -565,21 +565,21 @@ mod initialize_referenced_binding {
         assert_eq!(from_env, value);
     }
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "unreachable code")]
     fn value_ref() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "phrase", true, None);
         initialize_referenced_binding(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
     }
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "unreachable code")]
     fn unresolveable_ref() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Unresolvable, "phrase", true, None);
         initialize_referenced_binding(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
     }
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "unreachable code")]
     fn value() {
         let mut agent = test_agent();
         initialize_referenced_binding(&mut agent, Ok(SuperValue::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined)).unwrap();

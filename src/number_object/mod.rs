@@ -161,7 +161,7 @@ impl NumberObjectInterface for NumberObject {
 
 impl NumberObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, &NUMBER_OBJECT_SLOTS)), number_data: RefCell::new(0_f64) }) }
+        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, NUMBER_OBJECT_SLOTS)), number_data: RefCell::new(0_f64) }) }
     }
 }
 
@@ -192,7 +192,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         true,
         1_f64,
         PropertyKey::from("Number"),
-        &BUILTIN_FUNCTION_SLOTS,
+        BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
         Some(function_prototype.clone()),
         None,
@@ -202,7 +202,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &number_constructor,
@@ -349,7 +349,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), &BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
             define_property_or_throw(
                 agent,
                 &number_prototype,

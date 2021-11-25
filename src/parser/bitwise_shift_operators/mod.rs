@@ -140,13 +140,12 @@ impl ShiftExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ShiftExpression::AdditiveExpression(n) => n.early_errors(agent, strict),
+            ShiftExpression::AdditiveExpression(n) => n.early_errors(agent, errs, strict),
             ShiftExpression::LeftShift(l, r) | ShiftExpression::SignedRightShift(l, r) | ShiftExpression::UnsignedRightShift(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }

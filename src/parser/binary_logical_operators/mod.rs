@@ -118,13 +118,12 @@ impl LogicalANDExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, strict),
+            LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
             LogicalANDExpression::LogicalAND(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }
@@ -241,13 +240,12 @@ impl LogicalORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, strict),
+            LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, errs, strict),
             LogicalORExpression::LogicalOR(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }
@@ -335,10 +333,8 @@ impl CoalesceExpression {
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -409,10 +405,8 @@ impl CoalesceExpressionHead {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -514,10 +508,10 @@ impl ShortCircuitExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, strict),
-            ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent),
+            ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, errs, strict),
+            ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
         }
     }
 }

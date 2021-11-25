@@ -131,10 +131,8 @@ impl AsyncArrowFunction {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -191,6 +189,10 @@ impl AsyncArrowHead {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -283,6 +285,10 @@ impl AsyncConciseBody {
             AsyncConciseBody::Function(node) => node.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :
@@ -323,6 +329,10 @@ impl AsyncArrowBindingIdentifier {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -383,6 +393,10 @@ impl CoverCallExpressionAndAsyncArrowHead {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.args.contains(kind)
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 

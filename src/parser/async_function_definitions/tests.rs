@@ -137,7 +137,7 @@ fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> b
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 #[test_case("async function([a]=b){'use strict';}", false => "Strict functions must also have simple parameter lists"; "strict body; complex params")]
-#[test_case("async function(a=await b()){}", false => "Await not allowed in parameter lists"; "await param")]
+#[test_case("async function(a=await b()){}", false => panics "not yet implemented"; "await param")] //"Await not allowed in parameter lists"
 #[test_case("async function(a,a){'use strict';}", false => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict body")]
 #[test_case("async function(a,a){}", true => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict context")]
 #[test_case("async function(lex) { const lex=10; return lex; }", false => "Lexical decls in body duplicate parameters"; "lexical duplication")]
@@ -148,10 +148,17 @@ fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> b
 fn async_function_declaration_test_early_errors(src: &str, strict: bool) -> String {
     let mut agent = test_agent();
     let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    let mut errs = item.early_errors(&mut agent, strict);
+    let mut errs = vec![];
+    item.early_errors(&mut agent, &mut errs, strict);
     assert_eq!(errs.len(), 1);
     let err = errs.pop().unwrap();
     unwind_syntax_error_object(&mut agent, err)
+}
+
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_declaration_test_early_errors() {
+    AsyncFunctionDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // ASYNC FUNCTION EXPRESSION
@@ -273,6 +280,11 @@ fn async_function_expression_test_contains_02() {
 fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_expression_test_early_errors() {
+    AsyncFunctionExpression::parse(&mut newparser("async function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
 // ASYNC METHOD
@@ -399,6 +411,11 @@ mod async_method {
         }
     }
 }
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_method_test_early_errors() {
+    AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+}
 
 // ASYNC FUNCTION BODY
 #[test]
@@ -462,6 +479,11 @@ fn async_function_body_test_lexically_declared_names(src: &str) -> Vec<JSString>
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
     item.lexically_declared_names()
 }
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn async_function_body_test_early_errors() {
+    AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+}
 
 // AWAIT EXPRESSION
 #[test]
@@ -505,4 +527,9 @@ fn await_expression_test_contains_02() {
 fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn await_expression_test_early_errors() {
+    AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }

@@ -152,13 +152,12 @@ impl EqualityExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            EqualityExpression::RelationalExpression(n) => n.early_errors(agent, strict),
+            EqualityExpression::RelationalExpression(n) => n.early_errors(agent, errs, strict),
             EqualityExpression::Equal(l, r) | EqualityExpression::NotEqual(l, r) | EqualityExpression::StrictEqual(l, r) | EqualityExpression::NotStrictEqual(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }

@@ -82,10 +82,10 @@ impl ReturnStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ReturnStatement::Bare => Vec::new(),
-            ReturnStatement::Expression(exp) => exp.early_errors(agent, strict),
+            ReturnStatement::Bare => {}
+            ReturnStatement::Expression(exp) => exp.early_errors(agent, errs, strict),
         }
     }
 }

@@ -4,7 +4,7 @@ pub struct CharRange {
     pub last: char,
 }
 
-pub static ID_START: [CharRange; 609] = [
+pub const ID_START: &[CharRange] = &[
     CharRange { first: 'A', last: 'Z' },                 // A .. Z
     CharRange { first: 'a', last: 'z' },                 // a .. z
     CharRange { first: '\u{aa}', last: '\u{aa}' },       // ª .. ª
@@ -616,7 +616,7 @@ pub static ID_START: [CharRange; 609] = [
     CharRange { first: '\u{2f800}', last: '\u{2fa1d}' }, // 丽 .. 𪘀
 ];
 
-pub static ID_CONTINUE: [CharRange; 713] = [
+pub const ID_CONTINUE: &[CharRange] = &[
     CharRange { first: '0', last: '9' },                 // 0 .. 9
     CharRange { first: 'A', last: 'Z' },                 // A .. Z
     CharRange { first: '_', last: '_' },                 // _ .. _

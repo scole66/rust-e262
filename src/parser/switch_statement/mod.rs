@@ -87,10 +87,8 @@ impl SwitchStatement {
         self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -283,6 +281,10 @@ impl CaseBlock {
             _ => true,
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -398,6 +400,10 @@ impl CaseClauses {
             CaseClauses::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
         }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -508,6 +514,10 @@ impl CaseClause {
                 Some(node) => node.all_private_identifiers_valid(names),
             }
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -610,6 +620,10 @@ impl DefaultClause {
         } else {
             true
         }
+    }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 

@@ -1,6 +1,7 @@
 use super::testhelp::{check, chk_scan, expected_scan, newparser, sv};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 #[test]
@@ -586,6 +587,13 @@ fn assignment_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 
 #[test]
+#[should_panic(expected = "not yet implemented")]
+fn assignment_expression_test_early_errors() {
+    let mut agent = test_agent();
+    AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+}
+
+#[test]
 fn assignment_operator_test_contains_01() {
     assert_eq!(AssignmentOperator::Multiply.contains(ParseNodeKind::This), false);
 }
@@ -692,6 +700,13 @@ mod assignment_pattern {
         let (item, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        let mut agent = test_agent();
+        AssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+    }
 }
 
 mod object_assignment_pattern {
@@ -790,6 +805,13 @@ mod object_assignment_pattern {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        let mut agent = test_agent();
+        ObjectAssignmentPattern::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -934,6 +956,13 @@ mod array_assignment_pattern {
         let (item, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        let mut agent = test_agent();
+        ArrayAssignmentPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+    }
 }
 
 mod assignment_rest_property {
@@ -983,6 +1012,13 @@ mod assignment_rest_property {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        let mut agent = test_agent();
+        AssignmentRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
     }
 }
 
@@ -1047,6 +1083,12 @@ mod assignment_property_list {
         let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentPropertyList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 mod assignment_element_list {
@@ -1110,6 +1152,12 @@ mod assignment_element_list {
         let (item, _) = AssignmentElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 mod assignment_elision_element {
@@ -1169,6 +1217,12 @@ mod assignment_elision_element {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentElisionElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1244,6 +1298,12 @@ mod assignment_property {
         let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentProperty::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 mod assignment_element {
@@ -1306,6 +1366,12 @@ mod assignment_element {
         let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentElement::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 mod assignment_rest_element {
@@ -1352,6 +1418,12 @@ mod assignment_rest_element {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        AssignmentRestElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1412,5 +1484,11 @@ mod destructuring_assignment_target {
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        DestructuringAssignmentTarget::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }

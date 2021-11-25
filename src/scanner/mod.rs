@@ -684,11 +684,11 @@ fn unicode_range_checker(ch: char, range: &[ranges::CharRange]) -> bool {
 }
 
 fn is_unicode_id_start(ch: char) -> bool {
-    unicode_range_checker(ch, &ranges::ID_START)
+    unicode_range_checker(ch, ranges::ID_START)
 }
 
 fn is_unicode_id_continue(ch: char) -> bool {
-    unicode_range_checker(ch, &ranges::ID_CONTINUE)
+    unicode_range_checker(ch, ranges::ID_CONTINUE)
 }
 
 fn identifier_piece<F>(scanner: &Scanner, source: &str, validate: F, style: &str) -> Result<Option<Scanner>, String>

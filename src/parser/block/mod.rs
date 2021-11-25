@@ -84,9 +84,9 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let BlockStatement::Block(node) = self;
-        node.early_errors(agent, strict, within_iteration)
+        node.early_errors(agent, errs, strict, within_iteration);
     }
 }
 
@@ -212,14 +212,13 @@ impl Block {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         if let Block::Statements(Some(sl)) = self {
             // Static Semantics: Early Errors
             // Block : { StatementList }
             //  * It is a Syntax Error if the LexicallyDeclaredNames of StatementList contains any duplicate entries.
             //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of StatementList also occurs in
             //    the VarDeclaredNames of StatementList.
-            let mut errs = Vec::new();
             let ldn = sl.lexically_declared_names();
             let lexname_count = ldn.len();
             let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
@@ -232,10 +231,7 @@ impl Block {
             if !lex_names_set.is_disjoint(&var_names_set) {
                 errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
             }
-            errs.extend(sl.early_errors(agent, strict, within_iteration));
-            errs
-        } else {
-            Vec::new()
+            sl.early_errors(agent, errs, strict, within_iteration);
         }
     }
 }
@@ -433,13 +429,12 @@ impl StatementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         match self {
-            StatementList::Item(node) => node.early_errors(agent, strict, within_iteration),
+            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration),
             StatementList::List(lst, item) => {
-                let mut errs = lst.early_errors(agent, strict, within_iteration);
-                errs.extend(item.early_errors(agent, strict, within_iteration));
-                errs
+                lst.early_errors(agent, errs, strict, within_iteration);
+                item.early_errors(agent, errs, strict, within_iteration);
             }
         }
     }
@@ -594,10 +589,10 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         match self {
-            StatementListItem::Statement(node) => node.early_errors(agent, strict, within_iteration),
-            StatementListItem::Declaration(node) => node.early_errors(agent, strict),
+            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration),
+            StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
         }
     }
 }

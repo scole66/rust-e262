@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // PRIMARY EXPRESSION
@@ -453,6 +454,14 @@ fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
 fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
     PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
 }
+mod primary_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // LITERAL
 #[test]
@@ -578,6 +587,14 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
     let (item, _) = Literal::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.as_string_literal().map(|st| String::from(st.value))
 }
+mod literal {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Literal::parse(&mut newparser("3"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
+    }
+}
 
 // ELISION
 #[test]
@@ -620,6 +637,14 @@ fn elision_test_conciseerrors_1() {
 fn elision_test_contains_01() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+mod elision {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // SPREAD ELEMENT
@@ -666,6 +691,14 @@ fn spread_element_test_contains_02() {
 fn spread_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SpreadElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod spread_element {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        SpreadElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // ELEMENT LIST
@@ -964,6 +997,14 @@ fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod element_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // ARRAY LITERAL
 #[test]
@@ -1133,6 +1174,14 @@ fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod array_literal {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // INITIALIZER
 #[test]
@@ -1183,6 +1232,14 @@ fn initializer_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Initializer::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod initializer {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Initializer::parse(&mut newparser("=a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // COVER INITIALIZED NAME
 #[test]
@@ -1227,6 +1284,14 @@ fn cover_initialized_name_test_contains_02() {
 fn cover_initialized_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod cover_initialized_name {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CoverInitializedName::parse(&mut newparser("b=a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // COMPUTED PROPERTY NAME
@@ -1276,6 +1341,14 @@ fn computed_property_name_test_contains_02() {
 fn computed_property_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod computed_property_name {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // LITERAL PROPERTY NAME
@@ -1350,6 +1423,14 @@ fn literal_property_name_test_conciseerrors_3() {
 fn literal_property_name_test_contains_01() {
     let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+mod literal_property_name {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // PROPERTY NAME
@@ -1431,6 +1512,14 @@ fn property_name_test_computed_property_contains_03() {
 fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod property_name {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        PropertyName::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // PROPERTY DEFINITION
@@ -1606,6 +1695,14 @@ fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod property_definition {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        PropertyDefinition::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // PROPERTY DEFINITION LIST
 #[test]
@@ -1691,6 +1788,14 @@ fn property_definition_list_test_contains_05() {
 fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod property_definition_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        PropertyDefinitionList::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // OBJECT LITERAL
@@ -1799,6 +1904,14 @@ fn object_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod object_literal {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // PARENTHESIZED EXPRESSION
 #[test]
@@ -1849,6 +1962,14 @@ fn parenthesized_expression_test_contains_02() {
 fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod parenthesized_expression {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // TEMPLATE MIDDLE LIST
@@ -1940,6 +2061,14 @@ fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod template_middle_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // TEMPLATE SPANS
 #[test]
@@ -2007,6 +2136,14 @@ fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod template_spans {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // SUBSTITUTION TEMPLATE
 #[test]
@@ -2062,6 +2199,14 @@ fn substitution_template_test_contains_03() {
 fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod substitution_template {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // TEMPLATE LITERAL
@@ -2140,6 +2285,14 @@ fn template_literal_test_contains_03() {
 fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod template_literal {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
@@ -2375,4 +2528,12 @@ fn cpeaapl_test_contains_10() {
 fn cpeaapl_test_contains_11() {
     let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(b, ...[a])"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
+}
+mod cover_parenthesized_expression_and_arrow_parameter_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }

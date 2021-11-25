@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // UNIQUE FORMAL PARAMETERS
@@ -45,6 +46,14 @@ fn unique_formal_parameters_test_contains_02() {
 fn unique_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod unique_formal_parameters {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        UniqueFormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // FORMAL PARAMETERS
@@ -231,6 +240,14 @@ fn formal_parameters_test_bound_names(src: &str) -> Vec<JSString> {
     let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
     item.bound_names()
 }
+mod formal_parameters {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FormalParameters::parse(&mut newparser("a"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // FORMAL PARAMETER LIST
 #[test]
@@ -323,6 +340,14 @@ fn formal_parameter_list_test_bound_names(src: &str) -> Vec<JSString> {
     let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.bound_names()
 }
+mod formal_parameter_list {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FormalParameterList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // FUNCTION REST PARAMETER
 #[test]
@@ -367,6 +392,14 @@ fn function_rest_parameter_test_all_private_identifiers_valid(src: &str) -> bool
 fn function_rest_parameter_test_bound_names(src: &str) -> Vec<JSString> {
     let (item, _) = FunctionRestParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.bound_names()
+}
+mod function_rest_parameter {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FunctionRestParameter::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // FORMAL PARAMETER
@@ -426,4 +459,12 @@ fn formal_parameter_test_is_simple_parameter_list(src: &str) -> bool {
 fn formal_parameter_test_bound_names(src: &str) -> Vec<JSString> {
     let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.bound_names()
+}
+mod formal_parameter {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        FormalParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }

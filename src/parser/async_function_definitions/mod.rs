@@ -111,7 +111,7 @@ impl AsyncFunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AsyncFunctionDeclaration :
         //     async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
@@ -130,7 +130,6 @@ impl AsyncFunctionDeclaration {
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
-        let mut errs = Vec::new();
         let body_contains_use_strict = self.body.function_body_contains_use_strict();
         if body_contains_use_strict && !self.params.is_simple_parameter_list() {
             // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
@@ -176,13 +175,12 @@ impl AsyncFunctionDeclaration {
 
         // All the children
         if let Some(binding_identifier) = &self.ident {
-            errs.extend(binding_identifier.early_errors(agent, strict));
+            binding_identifier.early_errors(agent, errs, strict);
         }
-        errs.extend(self.params.early_errors(agent));
-        errs.extend(self.body.early_errors(agent));
+        self.params.early_errors(agent, errs, strict);
+        self.body.early_errors(agent, errs, strict);
 
         // And done.
-        errs
     }
 }
 
@@ -277,10 +275,8 @@ impl AsyncFunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -377,10 +373,8 @@ impl AsyncMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -458,10 +452,8 @@ impl AsyncFunctionBody {
         self.0.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -526,10 +518,8 @@ impl AwaitExpression {
         boxed.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 

@@ -44,9 +44,7 @@ impl EmptyStatement {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent) -> Vec<Object> {
-        Vec::new()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>) {}
 }
 
 #[cfg(test)]

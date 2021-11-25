@@ -77,21 +77,19 @@ impl ContinueStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool, within_iteration: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         // ContinueStatement :
         //      continue ;
         //      continue LabelIdentifier ;
         //  * It is a Syntax Error if this ContinueStatement is not nested, directly or indirectly (but not crossing
         //    function or static initialization block boundaries), within an IterationStatement.
-        let mut errs = Vec::new();
         if !within_iteration {
             errs.push(create_syntax_error_object(agent, "Continue statements must lie within iteration statements."));
         }
         if let ContinueStatement::Labelled(label) = self {
-            errs.extend(label.early_errors(agent, strict));
+            label.early_errors(agent, errs, strict);
         }
-        errs
     }
 }
 

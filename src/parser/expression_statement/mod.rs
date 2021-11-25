@@ -94,9 +94,9 @@ impl ExpressionStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ExpressionStatement::Expression(node) = self;
-        node.early_errors(agent, strict)
+        node.early_errors(agent, errs, strict);
     }
 }
 

@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // STATEMENT
@@ -474,6 +475,14 @@ fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Statement::parse(&mut newparser(";"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, true);
+    }
+}
 
 // DECLARATION
 #[test]
@@ -565,6 +574,14 @@ fn declaration_test_contains() {
 fn declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        Declaration::parse(&mut newparser("let a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // HOISTABLE DECLARATION
@@ -690,6 +707,14 @@ fn hoistable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod hoistable_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // BREAKABLE STATEMENT
 #[test]
@@ -792,4 +817,12 @@ fn breakable_statement_test_contains_undefined_continue_target(src: &str) -> (bo
 fn breakable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod breakable_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        BreakableStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }

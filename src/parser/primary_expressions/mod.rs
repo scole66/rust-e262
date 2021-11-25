@@ -369,28 +369,26 @@ impl PrimaryExpression {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match &self.kind {
-            PrimaryExpressionKind::This => vec![],
-            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, strict),
-            PrimaryExpressionKind::Literal(lit) => lit.early_errors(),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, strict),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, strict),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, strict),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, strict),
-            PrimaryExpressionKind::Function(node) => node.early_errors(agent, strict),
-            PrimaryExpressionKind::Class(node) => node.early_errors(agent, strict),
-            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, strict),
-            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, strict),
+            PrimaryExpressionKind::This => {}
+            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Literal(lit) => lit.early_errors(agent, errs),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
             PrimaryExpressionKind::RegularExpression(regex) => {
                 // Static Semantics: Early Errors
                 //      PrimaryExpression : RegularExpressionLiteral
                 //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
-                if regex.is_valid_regular_expression_literal() {
-                    vec![]
-                } else {
-                    vec![create_syntax_error_object(agent, "Invalid regular expression")]
+                if !regex.is_valid_regular_expression_literal() {
+                    errs.push(create_syntax_error_object(agent, "Invalid regular expression"));
                 }
             }
         }
@@ -464,6 +462,10 @@ impl Elisions {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
 }
 
 // SpreadElement[Yield, Await] :
@@ -525,10 +527,8 @@ impl SpreadElement {
         boxed.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -742,10 +742,8 @@ impl ElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -883,10 +881,8 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -961,10 +957,8 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1028,10 +1022,8 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1096,10 +1088,8 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1165,10 +1155,8 @@ impl LiteralPropertyName {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1259,10 +1247,8 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1405,10 +1391,8 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1496,10 +1480,8 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1600,10 +1582,8 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1714,9 +1694,7 @@ impl Literal {
         }
     }
 
-    pub fn early_errors(&self) -> Vec<Object> {
-        Vec::new()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>) {}
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
@@ -1814,10 +1792,8 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
     }
 }
 
@@ -1885,17 +1861,15 @@ impl SubstitutionTemplate {
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // SubstitutionTemplate[Yield, Await, Tagged] : TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
-        let mut errs = vec![];
         if !self.tagged && self.template_head.tv.is_none() {
             errs.push(create_syntax_error_object(agent, "invalid escape sequence in template literal"));
         }
-        errs.extend(self.expression.early_errors(agent, strict));
-        errs.extend(self.template_spans.early_errors(agent, strict));
-        errs
+        self.expression.early_errors(agent, errs, strict);
+        self.template_spans.early_errors(agent, errs, strict);
     }
 }
 
@@ -1993,11 +1967,10 @@ impl TemplateSpans {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // TemplateSpans[Yield, Await, Tagged] : TemplateTail
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateTail Contains NotEscapeSequence.
-        let mut errs = vec![];
         let (tail, tagged) = match self {
             TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => (tail, *tagged),
         };
@@ -2007,10 +1980,9 @@ impl TemplateSpans {
         match self {
             TemplateSpans::Tail(..) => {}
             TemplateSpans::List(lst, ..) => {
-                errs.extend(lst.early_errors(agent, strict));
+                lst.early_errors(agent, errs, strict);
             }
         }
-        errs
     }
 }
 
@@ -2116,14 +2088,13 @@ impl TemplateMiddleList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateMiddleList[Yield, Await, Tagged] :
         //      TemplateMiddle Expression[+In, ?Yield, ?Await]
         //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
         //
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateMiddle Contains NotEscapeSequence.
-        let mut errs = vec![];
         let (template_middle, tagged) = match self {
             TemplateMiddleList::ListHead(tm, _, tagged) | TemplateMiddleList::ListMid(_, tm, _, tagged) => (tm, *tagged),
         };
@@ -2132,14 +2103,13 @@ impl TemplateMiddleList {
         }
         match self {
             TemplateMiddleList::ListHead(_, exp, _) => {
-                errs.extend(exp.early_errors(agent, strict));
+                exp.early_errors(agent, errs, strict);
             }
             TemplateMiddleList::ListMid(tml, _, exp, _) => {
-                errs.extend(tml.early_errors(agent, strict));
-                errs.extend(exp.early_errors(agent, strict));
+                tml.early_errors(agent, errs, strict);
+                exp.early_errors(agent, errs, strict);
             }
         }
-        errs
     }
 }
 
@@ -2219,11 +2189,11 @@ impl ParenthesizedExpression {
         e.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // Nothing specific: just pitch to the child nodes
         let ParenthesizedExpression::Expression(e) = self;
-        e.early_errors(agent, strict)
+        e.early_errors(agent, errs, strict);
     }
 }
 
@@ -2430,24 +2400,22 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // Nothing specific: just pitch to the child nodes
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => vec![],
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.early_errors(agent),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.early_errors(agent, errs, strict),
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
-                let mut errs = exp.early_errors(agent, strict);
-                errs.extend(id.early_errors(agent, strict));
-                errs
+                exp.early_errors(agent, errs, strict);
+                id.early_errors(agent, errs, strict);
             }
             CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
-                let mut errs = exp.early_errors(agent, strict);
-                errs.extend(pat.early_errors(agent));
-                errs
+                exp.early_errors(agent, errs, strict);
+                pat.early_errors(agent, errs, strict);
             }
         }
     }

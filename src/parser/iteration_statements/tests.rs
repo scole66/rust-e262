@@ -1,6 +1,7 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
+use crate::tests::test_agent;
 use test_case::test_case;
 
 // ITERATION STATEMENT
@@ -220,6 +221,14 @@ fn iteration_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod iteration_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        IterationStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // DO WHILE STATEMENT
 #[test]
@@ -317,6 +326,14 @@ fn do_while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod do_while_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        DoWhileStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // WHILE STATEMENT
 #[test]
@@ -401,6 +418,14 @@ fn while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, 
 fn while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod while_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        WhileStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // FOR STATEMENT
@@ -1029,6 +1054,14 @@ fn for_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bo
 fn for_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod for_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ForStatement::parse(&mut newparser("for(;;){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // FOR IN-OF STATEMENT
@@ -1725,6 +1758,14 @@ fn for_in_of_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+mod for_in_of_statement {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ForInOfStatement::parse(&mut newparser("for(x in y);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+}
 
 // FOR DECLARATION
 #[test]
@@ -1786,6 +1827,14 @@ fn for_declaration_test_contains_02() {
 fn for_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod for_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ForDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }
 
 // FOR BINDING
@@ -1868,4 +1917,12 @@ fn for_binding_test_contains_03() {
 fn for_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
+}
+mod for_binding {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn early_errors() {
+        ForBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
 }

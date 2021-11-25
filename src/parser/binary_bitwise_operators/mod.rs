@@ -118,13 +118,12 @@ impl BitwiseANDExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, strict),
+            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, errs, strict),
             BitwiseANDExpression::BitwiseAND(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }
@@ -241,13 +240,12 @@ impl BitwiseXORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, strict),
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, errs, strict),
             BitwiseXORExpression::BitwiseXOR(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }
@@ -375,13 +373,12 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, strict),
+            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, errs, strict),
             BitwiseORExpression::BitwiseOR(l, r) => {
-                let mut errs = l.early_errors(agent, strict);
-                errs.extend(r.early_errors(agent, strict));
-                errs
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
             }
         }
     }

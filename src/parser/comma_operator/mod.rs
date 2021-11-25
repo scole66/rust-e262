@@ -131,13 +131,12 @@ impl Expression {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, strict: bool) -> Vec<Object> {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            Expression::FallThru(node) => node.early_errors(agent, strict),
+            Expression::FallThru(node) => node.early_errors(agent, errs, strict),
             Expression::Comma(left, right) => {
-                let mut errs = left.early_errors(agent, strict);
-                errs.extend(right.early_errors(agent, strict));
-                errs
+                left.early_errors(agent, errs, strict);
+                right.early_errors(agent, errs, strict);
             }
         }
     }
