@@ -31,19 +31,22 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use parser::scripts::Script;
-use parser::Parser;
+use agent::Agent;
+use parser::{parse_text, ParseGoal, ParsedText};
 use prettyprint::PrettyPrint;
-use scanner::Scanner;
+use values::to_string;
 
 #[derive(Debug)]
 struct VM {
     // Holds the state for the virtual machine. Anything shared between execution contexts winds up here.
+    pub agent: Agent,
 }
 
 impl VM {
     fn new() -> VM {
-        VM {}
+        let mut agent = Agent::new();
+        agent.initialize_host_defined_realm();
+        VM { agent }
     }
 
     //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {
@@ -55,15 +58,19 @@ impl VM {
     }
 }
 
-fn interpret(_vm: &mut VM, source: &str) -> Result<i32, String> {
-    let mut parser = Parser::new(source, false, false, parser::ParseGoal::Script);
-    let result = Script::parse(&mut parser, Scanner::new());
-    match result {
-        Ok((node, _)) => {
+fn interpret(vm: &mut VM, source: &str) -> Result<i32, String> {
+    let parsed = parse_text(&mut vm.agent, source, ParseGoal::Script);
+    match parsed {
+        ParsedText::Errors(errs) => {
+            for err in errs {
+                println!("{}", to_string(&mut vm.agent, err).unwrap());
+            }
+            Err("See above".to_string())
+        }
+        ParsedText::Script(node) => {
             node.pprint_concise(&mut io::stdout()).expect("Output Error");
             Ok(0)
         }
-        Err(err) => Err(format!("{}:{}: {}", err.line, err.column, err.msg)),
     }
 }
 
