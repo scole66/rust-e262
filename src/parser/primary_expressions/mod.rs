@@ -295,12 +295,12 @@ impl PrimaryExpression {
         let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
-            _ => Err(ParseError::new("Expected regular expression", scanner.line, scanner.column)),
+            _ => Err(ParseError2 { code: PECode::RegularExpressionExpected, location: scanner.into() }),
         }
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::PrimaryExpressionExpected, location: scanner.into() })
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
             .otherwise(|| Self::parse_async_gen(parser, scanner))
@@ -417,7 +417,7 @@ impl Elisions {
             let (token, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
             if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
-                    Err(ParseError::new("Expected one or more commas", current_scanner.line, current_scanner.column))
+                    Err(ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Comma), location: current_scanner.into() })
                 } else {
                     Ok((Rc::new(Elisions { count: comma_count }), current_scanner))
                 };
@@ -647,7 +647,7 @@ enum ELItemKind {
 }
 
 impl ElementList {
-    fn non_recursive_part(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Option<Rc<Elisions>>, ELItemKind, Scanner), ParseError> {
+    fn non_recursive_part(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Option<Rc<Elisions>>, ELItemKind, Scanner), ParseError2> {
         let pot_elision = Elisions::parse(parser, scanner);
         let (elision, after_e_scanner) = match pot_elision {
             Ok((boxed, after_elision)) => (Some(boxed), after_elision),
@@ -663,10 +663,10 @@ impl ElementList {
                 match pot_se {
                     Ok((boxed, after_se_scanner)) => Ok((elision, ELItemKind::SE(boxed), after_se_scanner)),
                     Err(pe) => {
-                        let err_default = Some(ParseError::new("AssignmentExpression or SpreadElement expected", after_e_scanner.line, after_e_scanner.column));
+                        let err_default = Some(ParseError2 { code: PECode::AssignmentExpressionOrSpreadElementExpected, location: after_e_scanner.into() });
                         let err_se = Some(pe);
-                        let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less { err_ae } else { err_default };
-                        let err2 = if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
+                        let err1 = if ParseError2::compare_option(&err_default, &err_ae) == Ordering::Less { err_ae } else { err_default };
+                        let err2 = if ParseError2::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
                         Err(err2.unwrap())
                     }
                 }
@@ -812,7 +812,7 @@ impl ArrayLiteral {
     // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
-        Err(ParseError::new("‘,’, ‘]’, or an ElementList expected", after.line, after.column))
+        Err(ParseError2 { code: PECode::CommaLeftBracketElementListExpected, location: after.into() })
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
@@ -1126,7 +1126,7 @@ impl LiteralPropertyName {
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
             Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
-            _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
+            _ => Err(ParseError2 { code: PECode::IdentifierStringNumberExpected, location: scanner.into() }),
         }
     }
 
@@ -1182,7 +1182,7 @@ impl PrettyPrint for PropertyName {
 
 impl PropertyName {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::PropertyNameExpected, location: scanner.into() })
             .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
             .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
     }
@@ -1310,7 +1310,7 @@ impl PropertyDefinition {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 Ok((Rc::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
             }
-            _ => Err(ParseError::new("‘:’ expected", after_pn.line, after_pn.column)),
+            _ => Err(ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Colon), location: after_pn.into() }),
         }
     }
 
@@ -1336,7 +1336,7 @@ impl PropertyDefinition {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::PropertyNameExpected, location: scanner.into()})
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))

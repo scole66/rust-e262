@@ -25,6 +25,8 @@ use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 use std::rc::Rc;
 use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
@@ -133,7 +135,7 @@ pub struct YieldAwaitDefaultKey {
     default_flag: bool,
 }
 
-type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
+type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError2>;
 
 #[derive(Default)]
 pub struct Parser<'a> {
@@ -192,6 +194,112 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     pub fn new(source: &'a str, strict: bool, direct: bool, goal: ParseGoal) -> Self {
         Self { source, strict, direct, goal, ..Default::default() }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+pub struct Span {
+    pub starting_index: usize,
+    pub length: usize,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+pub struct Location {
+    pub starting_line: u32,
+    pub starting_column: u32,
+    pub span: Span,
+}
+
+impl From<&Scanner> for Location {
+    fn from(src: &Scanner) -> Location {
+        Location::from(*src)
+    }
+}
+
+impl From<Scanner> for Location {
+    fn from(src: Scanner) -> Location {
+        Location { starting_line: src.line, starting_column: src.column, span: Span { starting_index: src.start_idx, length: 0 } }
+    }
+}
+
+impl PartialOrd for Location {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.span.starting_index.cmp(&other.span.starting_index))
+    }
+}
+impl Ord for Location {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.span.starting_index.cmp(&other.span.starting_index)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum PECode {
+    AsyncConciseBodyExpected,
+    EoFExpected,
+    IdentifierNameExpected,
+    ImproperNewline,
+    InvalidIdentifier,
+    KeywordExpected(Keyword),
+    KeywordUsedAsIdentifier(Keyword),
+    OneOfKeywordExpected(Vec<Keyword>),
+    OneOfPunctuatorExpected(Vec<Punctuator>),
+    PrivateIdentifierExpected,
+    PunctuatorExpected(Punctuator),
+    RegularExpressionExpected,
+    PrimaryExpressionExpected,
+    AssignmentExpressionOrSpreadElementExpected,
+    CommaLeftBracketElementListExpected,
+    IdentifierStringNumberExpected,
+    PropertyNameExpected,
+}
+
+impl fmt::Display for PECode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PECode::AsyncConciseBodyExpected => f.write_str("AsyncConciseBody expected"),
+            PECode::EoFExpected => f.write_str("end-of-file expected"),
+            PECode::IdentifierNameExpected => f.write_str("IdentifierName expected"),
+            PECode::ImproperNewline => f.write_str("newline not allowed here"),
+            PECode::InvalidIdentifier => f.write_str("not an identifier"),
+            PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
+            PECode::KeywordUsedAsIdentifier(kwd) => write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd),
+            PECode::OneOfKeywordExpected(kwd_set) => write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")),
+            PECode::OneOfPunctuatorExpected(punct_set) => write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")),
+            PECode::PrivateIdentifierExpected => f.write_str("PrivateIdentifier expected"),
+            PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
+            PECode::RegularExpressionExpected => f.write_str("regular expression expected"),
+            PECode::PrimaryExpressionExpected => f.write_str("PrimaryExpression expected"),
+            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str( "AssignmentExpression or SpreadElement expected"),
+            PECode::CommaLeftBracketElementListExpected => f.write_str("‘,’, ‘]’, or an ElementList expected"),
+            PECode::IdentifierStringNumberExpected => f.write_str("Identifier, String, or Number expected"),
+            PECode::PropertyNameExpected => f.write_str("PropertyName expected"),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError2 {
+    code: PECode,
+    location: Location,
+}
+impl fmt::Display for ParseError2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.code.fmt(f)
+    }
+}
+impl Error for ParseError2 {}
+impl ParseError2 {
+    pub fn compare(left: &ParseError2, right: &ParseError2) -> Ordering {
+        left.location.cmp(&right.location)
+    }
+    pub fn new(code: PECode, location: impl Into<Location>) -> Self {
+        Self { code, location: location.into() }
+    }
+    pub fn compare_option(left: &Option<Self>, right: &Option<Self>) -> Ordering {
+        let location_left = left.as_ref().map(|pe| &pe.location);
+        let location_right = right.as_ref().map(|pe| &pe.location);
+
+        location_left.cmp(&location_right)
     }
 }
 
@@ -258,18 +366,26 @@ impl From<ParseError> for String {
 //    parse_first_kind(parse_args)
 //       .otherwise(|| parse_second_kind(parse_args))
 //       .otherwise(|| parse_third_kind(parse_args))
-pub trait Otherwise<T> {
-    fn otherwise<O>(self, f: O) -> Result<T, ParseError>
+pub trait Otherwise<T, E> {
+    fn otherwise<O>(self, f: O) -> Result<T, E>
     where
-        O: FnOnce() -> Result<T, ParseError>;
+        O: FnOnce() -> Result<T, E>;
 }
 
-impl<T> Otherwise<T> for Result<T, ParseError> {
+impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     fn otherwise<O>(self, f: O) -> Self
     where
         O: FnOnce() -> Result<T, ParseError>,
     {
         self.or_else(|err1| f().map_err(|err2| cmp::max_by(err2, err1, ParseError::compare)))
+    }
+}
+impl<T> Otherwise<T, ParseError2> for Result<T, ParseError2> {
+    fn otherwise<O>(self, f: O) -> Self
+    where
+        O: FnOnce() -> Result<T, ParseError2>,
+    {
+        self.or_else(|err1| f().map_err(|err2| cmp::max_by(err2, err1, ParseError2::compare)))
     }
 }
 
@@ -298,25 +414,25 @@ pub trait AssignmentTargetType {
     fn assignment_target_type(&self) -> ATTKind;
 }
 
-pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
+pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(punct) {
         Ok(after_tok)
     } else {
-        Err(ParseError::new(format!("‘{}’ expected", punct), scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::PunctuatorExpected(punct), scanner))
     }
 }
 
-pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError> {
+pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
         Ok((p, after_tok))
     } else {
-        Err(ParseError::new(format!("One of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")), scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
     }
 }
 
-pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError> {
+pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(Punctuator::Semicolon) {
         Ok(after_tok)
@@ -324,52 +440,52 @@ pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result
         // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
         Ok(scanner)
     } else {
-        Err(ParseError::new("‘;’ expected", scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
     }
 }
 
-pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError> {
+pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_keyword(kwd) {
         Ok(after_tok)
     } else {
-        Err(ParseError::new(format!("‘{}’ expected", kwd), scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::KeywordExpected(kwd), scanner))
     }
 }
 
-pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError> {
+pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
         Ok((k, after_tok))
     } else {
-        Err(ParseError::new(format!("One of [{}] expected", itertools::join(kwds.iter().map(|&k| format!("‘{}’", k)), ", ")), scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
     }
 }
 
-pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
+pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError::new("IdentifierName expected", scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::IdentifierNameExpected, scanner))
     }
 }
 
-pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
+pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError::new("Private Identifier expected", scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::PrivateIdentifierExpected, scanner))
     }
 }
 
-pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
+pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError2> {
     let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok == Token::Eof {
         Ok(after_tok)
     } else {
-        Err(ParseError::new("EoF expected", scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::EoFExpected, scanner))
     }
 }
 
@@ -379,12 +495,12 @@ pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> 
 //
 // (Note that this is really supposed to be between the current spot and the _start_ of the next token,
 // but the scanner doesn't support that yet. Some tokens span more than one line.)
-pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
+pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError2> {
     let (_, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if after_tok.line == scanner.line {
         Ok(())
     } else {
-        Err(ParseError::new("Newline not allowed here.", scanner.line, scanner.column))
+        Err(ParseError2::new(PECode::ImproperNewline, scanner))
     }
 }
 
@@ -418,7 +534,7 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
             let potential_script = Script::parse(&mut parser, Scanner::new());
             match potential_script {
                 Err(pe) => {
-                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.line, pe.column, pe.msg).as_str());
+                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str());
                     ParsedText::Errors(vec![syntax_error])
                 }
                 Ok((node, _)) => {

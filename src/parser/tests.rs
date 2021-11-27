@@ -295,9 +295,10 @@ fn scan_for_punct_02() {
     let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::LeftParen);
     assert!(res.is_err());
     if let Err(pe) = res {
-        assert_eq!(pe.msg, "‘(’ expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
+        assert_eq!(
+            pe,
+            ParseError2 { code: PECode::PunctuatorExpected(Punctuator::LeftParen), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 1, length: 0 } } }
+        );
     }
 }
 
@@ -334,13 +335,14 @@ fn scan_for_punct_set_03() {
 #[test]
 fn scan_for_punct_set_04() {
     // No match
-    let res = scan_for_punct_set(Scanner::new(), "&&&&&", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]);
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "One of [‘:’, ‘=’, ‘;’] expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let pe = scan_for_punct_set(Scanner::new(), "&&&&&", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]).unwrap_err();
+    assert_eq!(
+        pe,
+        ParseError2 {
+            code: PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 1, length: 0 } }
+        }
+    );
 }
 
 #[test]
@@ -366,13 +368,19 @@ fn scan_for_auto_semi_04() {
 #[test]
 fn scan_for_auto_semi_05() {
     let res = scan_for_auto_semi(Scanner::new(), "0", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
+    assert_eq!(
+        res,
+        ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Semicolon), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } }
+    );
 }
 #[test]
 #[should_panic(expected = "Result::unwrap_err()` on an `Ok` value")] // This is an XFAIL -- it _should_ work, but the code's not there yet.
 fn scan_for_auto_semi_06() {
     let res = scan_for_auto_semi(Scanner::new(), "'\\\n0'", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(res, ParseError { msg: String::from("‘;’ expected"), line: 1, column: 1 });
+    assert_eq!(
+        res,
+        ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Semicolon), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } }
+    );
 }
 
 #[test]
@@ -385,13 +393,8 @@ fn scan_for_keyword_01() {
 }
 #[test]
 fn scan_for_keyword_02() {
-    let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::For);
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "‘for’ expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::For).unwrap_err();
+    assert_eq!(res, ParseError2 { code: PECode::KeywordExpected(Keyword::For), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
 }
 
 #[test]
@@ -427,64 +430,44 @@ fn scan_for_keywords_03() {
 #[test]
 fn scan_for_keywords_04() {
     // No match
-    let res = scan_for_keywords(Scanner::new(), "import food", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]);
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "One of [‘for’, ‘class’, ‘break’] expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let res = scan_for_keywords(Scanner::new(), "import food", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]).unwrap_err();
+    assert_eq!(
+        res,
+        ParseError2 {
+            code: PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+        }
+    );
 }
 
 #[test]
 fn scan_for_identifiername_01() {
-    let res = scan_for_identifiername(Scanner::new(), "rust", ScanGoal::InputElementDiv);
-    assert!(res.is_ok());
-    if let Ok((id, after)) = res {
-        assert_eq!(after, Scanner { line: 1, column: 5, start_idx: 4 });
-        assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 1 });
-    }
+    let (id, after) = scan_for_identifiername(Scanner::new(), "rust", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(after, Scanner { line: 1, column: 5, start_idx: 4 });
+    assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 1 });
 }
 #[test]
 fn scan_for_identifiername_02() {
-    let res = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv);
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "IdentifierName expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let pe = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(pe, ParseError2 { code: PECode::IdentifierNameExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
 }
 
 #[test]
 fn scan_for_private_identifier_01() {
-    let res = scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv);
-    assert!(res.is_ok());
-    if let Ok((id, after)) = res {
-        assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
-        assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 2 });
-    }
+    let (id, after) = scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv).unwrap();
+    assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
+    assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 2 });
 }
 #[test]
 fn scan_for_private_identifier_02() {
-    let res = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv);
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "Private Identifier expected");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let pe = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(pe, ParseError2 { code: PECode::PrivateIdentifierExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
 }
 
 #[test]
 fn no_line_terminator_01() {
-    let res = no_line_terminator(Scanner::new(), "\n\nfor");
-    assert!(res.is_err());
-    if let Err(pe) = res {
-        assert_eq!(pe.msg, "Newline not allowed here.");
-        assert_eq!(pe.line, 1);
-        assert_eq!(pe.column, 1);
-    }
+    let pe = no_line_terminator(Scanner::new(), "\n\nfor").unwrap_err();
+    assert_eq!(pe, ParseError2 { code: PECode::ImproperNewline, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
 }
 #[test]
 fn no_line_terminator_02() {
@@ -494,11 +477,8 @@ fn no_line_terminator_02() {
 
 #[test]
 fn scan_for_eof_01() {
-    let res = scan_for_eof(Scanner::new(), "rust");
-    let pe = res.unwrap_err();
-    assert_eq!(pe.msg, "EoF expected");
-    assert_eq!(pe.line, 1);
-    assert_eq!(pe.column, 1);
+    let pe = scan_for_eof(Scanner::new(), "rust").unwrap_err();
+    assert_eq!(pe, ParseError2 { code: PECode::EoFExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
 }
 #[test]
 fn scan_for_eof_02() {

@@ -16,7 +16,7 @@ pub enum ScanGoal {
     InputElementDiv,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum Keyword {
     Await,
     Break,
@@ -156,7 +156,7 @@ impl IdentifierData {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Punctuator {
     LeftParen,    // (
     RightParen,   // )
