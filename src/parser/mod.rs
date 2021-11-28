@@ -235,6 +235,7 @@ impl Ord for Location {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum PECode {
+    Generic,
     AsyncConciseBodyExpected,
     EoFExpected,
     IdentifierNameExpected,
@@ -261,11 +262,18 @@ pub enum PECode {
     TemplateMiddleExpected,
     ExpressionSpreadOrRPExpected,
     BindingIdOrPatternExpected,
+    MemberExpressionExpected,
+    NewOrMEExpected,
+    CallExpressionExpected,
+    LHSExpected,
+    OptionalExpressionExpected,
+    ChainFailed,
 }
 
 impl fmt::Display for PECode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            PECode::Generic => f.write_str("error"),
             PECode::AsyncConciseBodyExpected => f.write_str("AsyncConciseBody expected"),
             PECode::EoFExpected => f.write_str("end-of-file expected"),
             PECode::IdentifierNameExpected => f.write_str("IdentifierName expected"),
@@ -292,6 +300,12 @@ impl fmt::Display for PECode {
             PECode::TemplateMiddleExpected => f.write_str("TemplateMiddle expected"),
             PECode::ExpressionSpreadOrRPExpected => f.write_str("Expression, spread pattern, or closing paren expected"),
             PECode::BindingIdOrPatternExpected => f.write_str("BindingIdentifier or BindingPattern expected"),
+            PECode::MemberExpressionExpected => f.write_str("MemberExpression expected"),
+            PECode::NewOrMEExpected => f.write_str("‘new’ or MemberExpression expected"),
+            PECode::CallExpressionExpected => f.write_str("CallExpression expected"),
+            PECode::LHSExpected => f.write_str("LeftHandSideExpression expected"),
+            PECode::OptionalExpressionExpected => f.write_str("OptionalExpression expected"),
+            PECode::ChainFailed => f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"),
         }
     }
 }
