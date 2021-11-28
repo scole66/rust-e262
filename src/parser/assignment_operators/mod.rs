@@ -153,12 +153,12 @@ impl AssignmentTargetType for AssignmentExpression {
 
 impl AssignmentExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("AssignmentExpression expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::AssignmentExpressionExpected, location: scanner.into() })
             .otherwise(|| {
                 if yield_flag {
                     YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield))
                 } else {
-                    Err(ParseError::new(String::new(), scanner.line, scanner.column))
+                    Err(ParseError2 { code: PECode::Generic, location: scanner.into() })
                 }
             })
             .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Rc::new(AssignmentExpression::Arrow(af)), after_af)))
@@ -374,7 +374,7 @@ impl PrettyPrint for AssignmentPattern {
 
 impl AssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("AssignmentPattern expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::AssignmentPatternExpected, location: scanner.into() })
             .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
             .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
     }
@@ -475,7 +475,7 @@ impl PrettyPrint for ObjectAssignmentPattern {
 impl ObjectAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
-        Err(ParseError::new("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected", after_brace.line, after_brace.column))
+        Err(ParseError2 { code: PECode::ObjectAssignmentPatternEndFailure, location: after_brace.into() })
             .otherwise(|| {
                 let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_apl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBrace])?;
@@ -624,7 +624,7 @@ impl PrettyPrint for ArrayAssignmentPattern {
 impl ArrayAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
-        Err(ParseError::new("‘,’, ‘]’, or an AssignmentElementList expected", after_open.line, after_open.column))
+        Err(ParseError2 { code: PECode::ArrayAssignmentPatternEndFailure, location: after_open.into() })
             .otherwise(|| {
                 let (el, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
@@ -1063,7 +1063,7 @@ impl PrettyPrint for AssignmentProperty {
 
 impl AssignmentProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("IdentifierReference or PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::IdRefOrPropertyNameExpected, location: scanner.into() })
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;

@@ -20,6 +20,9 @@ pub fn expected_scan(count: u32) -> Scanner {
 pub fn sv(strings: &[&str]) -> Vec<String> {
     strings.iter().map(|s| String::from(*s)).collect()
 }
+pub fn expected_err(code: PECode, column: u32) -> ParseError2 {
+    ParseError2 { code, location: Location { starting_line: 1, starting_column: column, span: Span { starting_index: column as usize - 1, length: 0 } } }
+}
 pub fn chk_scan(scanner: &Scanner, count: u32) {
     assert_eq!(*scanner, expected_scan(count));
 }

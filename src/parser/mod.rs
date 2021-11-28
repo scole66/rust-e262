@@ -250,6 +250,7 @@ pub enum PECode {
     RegularExpressionExpected,
     PrimaryExpressionExpected,
     AssignmentExpressionOrSpreadElementExpected,
+    AssignmentExpressionExpected,
     CommaLeftBracketElementListExpected,
     IdentifierStringNumberExpected,
     PropertyNameExpected,
@@ -268,6 +269,13 @@ pub enum PECode {
     LHSExpected,
     OptionalExpressionExpected,
     ChainFailed,
+    ConciseBodyExpected,
+    ExpressionBodyExpected,
+    IdOrFormalsExpected,
+    AssignmentPatternExpected,
+    ObjectAssignmentPatternEndFailure,
+    ArrayAssignmentPatternEndFailure,
+    IdRefOrPropertyNameExpected,
 }
 
 impl fmt::Display for PECode {
@@ -306,6 +314,14 @@ impl fmt::Display for PECode {
             PECode::LHSExpected => f.write_str("LeftHandSideExpression expected"),
             PECode::OptionalExpressionExpected => f.write_str("OptionalExpression expected"),
             PECode::ChainFailed => f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"),
+            PECode::ConciseBodyExpected => f.write_str("ConciseBody expected"),
+            PECode::ExpressionBodyExpected => f.write_str("ExpressionBody expected"),
+            PECode::IdOrFormalsExpected => f.write_str("Identifier of Formal Parameters expected"),
+            PECode::AssignmentExpressionExpected => f.write_str("AssignmentExpression expected"),
+            PECode::AssignmentPatternExpected => f.write_str("AssignmentPattern expected"),
+            PECode::ObjectAssignmentPatternEndFailure => f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"),
+            PECode::ArrayAssignmentPatternEndFailure => f.write_str("‘,’, ‘]’, or an AssignmentElementList expected"),
+            PECode::IdRefOrPropertyNameExpected => f.write_str("IdentifierReference or PropertyName expected"),
         }
     }
 }
