@@ -252,6 +252,15 @@ pub enum PECode {
     CommaLeftBracketElementListExpected,
     IdentifierStringNumberExpected,
     PropertyNameExpected,
+    LiteralExpected,
+    NoSubstitutionTemplateExpected,
+    TemplateLiteralExpected,
+    SubstitutionTemplateExpected,
+    TemplateTailExpected,
+    TemplateSpansExpected,
+    TemplateMiddleExpected,
+    ExpressionSpreadOrRPExpected,
+    BindingIdOrPatternExpected,
 }
 
 impl fmt::Display for PECode {
@@ -270,10 +279,19 @@ impl fmt::Display for PECode {
             PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
             PECode::RegularExpressionExpected => f.write_str("regular expression expected"),
             PECode::PrimaryExpressionExpected => f.write_str("PrimaryExpression expected"),
-            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str( "AssignmentExpression or SpreadElement expected"),
+            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str("AssignmentExpression or SpreadElement expected"),
             PECode::CommaLeftBracketElementListExpected => f.write_str("‘,’, ‘]’, or an ElementList expected"),
             PECode::IdentifierStringNumberExpected => f.write_str("Identifier, String, or Number expected"),
             PECode::PropertyNameExpected => f.write_str("PropertyName expected"),
+            PECode::LiteralExpected => f.write_str("Literal expected"),
+            PECode::NoSubstitutionTemplateExpected => f.write_str("NoSubstitutionTemplate expected"),
+            PECode::TemplateLiteralExpected => f.write_str("TemplateLiteral expected"),
+            PECode::SubstitutionTemplateExpected => f.write_str("SubstitutionTemplate expected"),
+            PECode::TemplateTailExpected => f.write_str("TemplateTail expected"),
+            PECode::TemplateSpansExpected => f.write_str("TemplateSpans expected"),
+            PECode::TemplateMiddleExpected => f.write_str("TemplateMiddle expected"),
+            PECode::ExpressionSpreadOrRPExpected => f.write_str("Expression, spread pattern, or closing paren expected"),
+            PECode::BindingIdOrPatternExpected => f.write_str("BindingIdentifier or BindingPattern expected"),
         }
     }
 }

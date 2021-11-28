@@ -90,9 +90,7 @@ impl Identifier {
                 | Some(Keyword::Yield) => Err(ParseError2 { code: PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), location: Location::from(scanner) }),
                 _ => Ok((Rc::new(Identifier { name: id }), after_tok)),
             },
-            _ =>  Err(ParseError2 {
-                code : PECode::InvalidIdentifier, location: Location::from(scanner)
-            })
+            _ => Err(ParseError2 { code: PECode::InvalidIdentifier, location: Location::from(scanner) }),
         }
     }
 

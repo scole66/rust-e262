@@ -32,6 +32,6 @@ where
     U: Into<String>,
 {
     let pe = result.unwrap_err();
-    assert_eq!(pe.location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 }});
+    assert_eq!(pe.location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } });
     assert_eq!(format!("{}", pe), msg.into());
 }

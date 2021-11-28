@@ -1336,7 +1336,7 @@ impl PropertyDefinition {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::PropertyNameExpected, location: scanner.into()})
+        Err(ParseError2 { code: PECode::PropertyNameExpected, location: scanner.into() })
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))
@@ -1664,7 +1664,7 @@ impl Literal {
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
             Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
-            _ => Err(ParseError::new("Literal expected", scanner.line, scanner.column)),
+            _ => Err(ParseError2 { code: PECode::LiteralExpected, location: scanner.into() }),
         }
     }
 
@@ -1759,7 +1759,7 @@ impl TemplateLiteral {
         if let Token::NoSubstitutionTemplate(td) = tok {
             Ok((Rc::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
         } else {
-            Err(ParseError::new("NoSubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError2 { code: PECode::NoSubstitutionTemplateExpected, location: scanner.into() })
         }
     }
 
@@ -1769,7 +1769,7 @@ impl TemplateLiteral {
     }
 
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateLiteral expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::TemplateLiteralExpected, location: scanner.into() })
             .otherwise(|| Self::parse_nst(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -1857,7 +1857,7 @@ impl SubstitutionTemplate {
             let (spans_boxed, after_spans) = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
             Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
         } else {
-            Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError2 { code: PECode::SubstitutionTemplateExpected, location: scanner.into() })
         }
     }
 
@@ -1935,7 +1935,7 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", scanner.line, scanner.column))
+            Err(ParseError2 { code: PECode::TemplateTailExpected, location: scanner.into() })
         }
     }
 
@@ -1945,11 +1945,11 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", after_tml.line, after_tml.column))
+            Err(ParseError2 { code: PECode::TemplateTailExpected, location: after_tml.into() })
         }
     }
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::TemplateSpansExpected, location: scanner.into() })
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -2037,13 +2037,13 @@ impl PrettyPrint for TemplateMiddleList {
 }
 
 impl TemplateMiddleList {
-    fn parse_tm_exp_unboxed(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError> {
+    fn parse_tm_exp_unboxed(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError2> {
         let (middle, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateMiddle(td) = middle {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
             Ok((td, exp, after_exp))
         } else {
-            Err(ParseError::new("TemplateMiddle expected", scanner.line, scanner.column))
+            Err(ParseError2 { code: PECode::TemplateMiddleExpected, location: scanner.into() })
         }
     }
 
@@ -2276,7 +2276,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             Pat(Rc<BindingPattern>),
         }
         let after_lparen = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        Err(ParseError::new("Expression, spread pattern, or closing paren expected", after_lparen.line, after_lparen.column))
+        Err(ParseError2 { code: PECode::ExpressionSpreadOrRPExpected, location: after_lparen.into() })
             .otherwise(|| {
                 // ( )
                 let after_rparen = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
@@ -2286,7 +2286,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
                 let after_ellipsis = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-                Err(ParseError::new("BindingIdentifier or BindingPattern expected", after_ellipsis.line, after_ellipsis.column)).otherwise(|| {
+                Err(ParseError2 { code: PECode::BindingIdOrPatternExpected, location: after_ellipsis.into() }).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
                         .otherwise(|| BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag).map(|(bp, scan)| (BndType::Pat(bp), scan)))
