@@ -86,7 +86,7 @@ impl AsyncArrowFunction {
         in_flag: bool,
         yield_flag: bool,
         await_flag: bool,
-    ) -> Result<(Rc<AsyncArrowHead>, Scanner, Rc<AsyncConciseBody>, Scanner), ParseError> {
+    ) -> Result<(Rc<AsyncArrowHead>, Scanner, Rc<AsyncConciseBody>, Scanner), ParseError2> {
         let (_cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
@@ -100,7 +100,7 @@ impl AsyncArrowFunction {
         let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
-            (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError::compare)),
+            (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError2::compare)),
             (Err(_), Ok((real_params, _, body, after_covered))) => Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
             // (Ok(norm), Ok(covered)) can never happen, given the particulars of the productions
             (norm, covered) => {
@@ -247,7 +247,7 @@ impl PrettyPrint for AsyncConciseBody {
 impl AsyncConciseBody {
     // No caching required. Only parent is AsyncArrowFunction
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("AsyncConciseBody expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::AsyncConciseBodyExpected, location: scanner.into() })
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
@@ -261,7 +261,7 @@ impl AsyncConciseBody {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, true)?;
                         Ok((Rc::new(AsyncConciseBody::Expression(exp)), after_exp))
                     }
-                    Ok(_) => Err(ParseError::new(String::new(), scanner.line, scanner.column)),
+                    Ok(_) => Err(ParseError2 { code: PECode::Generic, location: scanner.into() }),
                 }
             })
     }

@@ -44,7 +44,7 @@ impl Default for ParseGoal {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ParseNodeKind {
     ScriptBody,
     StatementList,
@@ -75,6 +75,47 @@ pub enum ParseNodeKind {
     ClassBody,
     Literal,
     AwaitExpression,
+    ClassElement,
+    ClassElementName,
+    Expression,
+}
+impl fmt::Display for ParseNodeKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            ParseNodeKind::ScriptBody => "ScriptBody",
+            ParseNodeKind::StatementList => "StatementList",
+            ParseNodeKind::StatementListItem => "StatementListItem",
+            ParseNodeKind::Statement => "Statement",
+            ParseNodeKind::Declaration => "Declaration",
+            ParseNodeKind::BlockStatement => "BlockStatement",
+            ParseNodeKind::VariableStatement => "VariableStatement",
+            ParseNodeKind::EmptyStatement => "EmptyStatement",
+            ParseNodeKind::ExpressionStatement => "ExpressionStatement",
+            ParseNodeKind::IfStatement => "IfStatement",
+            ParseNodeKind::BreakableStatement => "BreakableStatement",
+            ParseNodeKind::ContinueStatement => "ContinueStatement",
+            ParseNodeKind::BreakStatement => "BreakStatement",
+            ParseNodeKind::WithStatement => "WithStatement",
+            ParseNodeKind::LabelledStatement => "LabelledStatement",
+            ParseNodeKind::ThrowStatement => "ThrowStatement",
+            ParseNodeKind::TryStatement => "TryStatement",
+            ParseNodeKind::DebuggerStatement => "DebuggerStatement",
+            ParseNodeKind::ReturnStatement => "ReturnStatement",
+            ParseNodeKind::MethodDefinition => "MethodDefinition",
+            ParseNodeKind::SuperProperty => "SuperProperty",
+            ParseNodeKind::SuperCall => "SuperCall",
+            ParseNodeKind::Super => "Super",
+            ParseNodeKind::This => "This",
+            ParseNodeKind::NewTarget => "NewTarget",
+            ParseNodeKind::ClassHeritage => "ClassHeritage",
+            ParseNodeKind::ClassBody => "ClassBody",
+            ParseNodeKind::Literal => "Literal",
+            ParseNodeKind::AwaitExpression => "AwaitExpression",
+            ParseNodeKind::ClassElement => "ClassElement",
+            ParseNodeKind::ClassElementName => "ClassElementName",
+            ParseNodeKind::Expression => "Expression",
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -276,6 +317,10 @@ pub enum PECode {
     ObjectAssignmentPatternEndFailure,
     ArrayAssignmentPatternEndFailure,
     IdRefOrPropertyNameExpected,
+    InvalidCoalesceExpression,
+    ImproperExpression,
+    DeclarationOrStatementExpected,
+    ParseNodeExpected(ParseNodeKind),
 }
 
 impl fmt::Display for PECode {
@@ -322,6 +367,10 @@ impl fmt::Display for PECode {
             PECode::ObjectAssignmentPatternEndFailure => f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"),
             PECode::ArrayAssignmentPatternEndFailure => f.write_str("‘,’, ‘]’, or an AssignmentElementList expected"),
             PECode::IdRefOrPropertyNameExpected => f.write_str("IdentifierReference or PropertyName expected"),
+            PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
+            PECode::ImproperExpression => f.write_str("Improper Expression"),
+            PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
+            PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
         }
     }
 }
