@@ -78,6 +78,12 @@ pub enum ParseNodeKind {
     ClassElement,
     ClassElementName,
     Expression,
+    LexicalBinding,
+    BindingPattern,
+    ObjectBindingPattern,
+    VariableDeclaration,
+    BindingProperty,
+    BindingElement,
 }
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -114,6 +120,12 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::ClassElement => "ClassElement",
             ParseNodeKind::ClassElementName => "ClassElementName",
             ParseNodeKind::Expression => "Expression",
+            ParseNodeKind::LexicalBinding => "LexicalBinding",
+            ParseNodeKind::BindingPattern => "BindingPattern",
+            ParseNodeKind::ObjectBindingPattern => "ObjectBindingPattern",
+            ParseNodeKind::VariableDeclaration => "VariableDeclaration",
+            ParseNodeKind::BindingProperty => "BindingProperty",
+            ParseNodeKind::BindingElement => "BindingElement",
         })
     }
 }
@@ -321,6 +333,7 @@ pub enum PECode {
     ImproperExpression,
     DeclarationOrStatementExpected,
     ParseNodeExpected(ParseNodeKind),
+    OpenOrIdentExpected,
 }
 
 impl fmt::Display for PECode {
@@ -371,6 +384,7 @@ impl fmt::Display for PECode {
             PECode::ImproperExpression => f.write_str("Improper Expression"),
             PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
             PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
+            PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
         }
     }
 }
