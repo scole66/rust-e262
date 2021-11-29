@@ -369,8 +369,29 @@ impl PrimaryExpression {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match &self.kind {
+            PrimaryExpressionKind::This => {}
+            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Literal(lit) => lit.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::RegularExpression(regex) => {
+                // Static Semantics: Early Errors
+                //      PrimaryExpression : RegularExpressionLiteral
+                //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
+                if !regex.is_valid_regular_expression_literal() {
+                    errs.push(create_syntax_error_object(agent, "Invalid regular expression"));
+                }
+            }
+        }
     }
 }
 

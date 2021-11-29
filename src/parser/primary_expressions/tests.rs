@@ -457,10 +457,28 @@ fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
 }
 mod primary_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("this", true => AHashSet::<String>::new(); "this")]
+    #[test_case("a", true => AHashSet::<String>::new(); "simple identifier")]
+    #[test_case("yield", true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield/strict")]
+    #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
+    #[test_case("3", true => AHashSet::<String>::new(); "literal")]
+    #[test_case("[]", true => panics "not yet implemented"; "ArrayLiteral")]
+    #[test_case("{}", true => panics "not yet implemented"; "ObjectLiteral")]
+    #[test_case("function (){}", true => panics "not yet implemented"; "FunctionExpression")]
+    #[test_case("class {}", true => panics "not yet implemented"; "ClassExpression")]
+    #[test_case("function *(){}", true => panics "not yet implemented"; "GeneratorExpression")]
+    #[test_case("async function (){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
+    #[test_case("async function *(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
+    #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
+    #[test_case("/a/xx", true => AHashSet::from_iter(["Invalid regular expression".to_string()]); "RegularExpressionLiteral with errors")]
+    #[test_case("``", true => panics "not yet implemented"; "TemplateLiteral")]
+    #[test_case("(a)", true => panics "not yet implemented"; "ParenthesizedExpression")]
+        fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
