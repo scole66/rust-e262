@@ -135,12 +135,12 @@ impl UnaryExpression {
             Token::Punctuator(Punctuator::Minus) => unary_helper(UnaryExpression::Negate),
             Token::Punctuator(Punctuator::Tilde) => unary_helper(UnaryExpression::Complement),
             Token::Punctuator(Punctuator::Bang) => unary_helper(UnaryExpression::Not),
-            _ => Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::UnaryExpression), location: scanner.into() })
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UnaryExpression), scanner))
                 .otherwise(|| {
                     if await_flag {
                         AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
                     } else {
-                        Err(ParseError2::default())
+                        Err(ParseError::default())
                     }
                 })
                 .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))),

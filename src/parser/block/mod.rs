@@ -457,7 +457,7 @@ impl PrettyPrint for StatementListItem {
 impl StatementListItem {
     // no caching needed
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::DeclarationOrStatementExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::DeclarationOrStatementExpected, scanner))
             .otherwise(|| {
                 Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(|(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement))
             })

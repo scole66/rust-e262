@@ -65,7 +65,7 @@ impl ExpressionStatement {
         };
 
         if invalid {
-            Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::ExpressionStatement), location: scanner.into() })
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExpressionStatement), scanner))
         } else {
             let (exp, after_exp) = Expression::parse(parser, scanner, true, yield_flag, await_flag)?;
             let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;

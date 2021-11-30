@@ -77,7 +77,7 @@ impl AssignmentTargetType for Expression {
 
 impl Expression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::Expression), location: scanner.into() }).otherwise(|| {
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Expression), scanner)).otherwise(|| {
             AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
                 let mut current = Rc::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;

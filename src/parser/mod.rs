@@ -206,7 +206,7 @@ pub struct YieldAwaitDefaultKey {
     default_flag: bool,
 }
 
-type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError2>;
+type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
 
 #[derive(Default)]
 pub struct Parser<'a> {
@@ -290,6 +290,24 @@ impl Default for Location {
 impl From<&Scanner> for Location {
     fn from(src: &Scanner) -> Location {
         Location::from(*src)
+    }
+}
+
+#[cfg(test)]
+impl From<u32> for Location {
+    fn from(src: u32) -> Self {
+        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
+    }
+}
+#[cfg(test)]
+impl From<(u32, u32)> for Location {
+    fn from(src: (u32, u32)) -> Self {
+        let (line, column) = src;
+        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
+        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
+        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
+        // do we know? Making lines really long helps that intuition make better tests.)
+        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
     }
 }
 
@@ -427,18 +445,18 @@ impl Default for PECode {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ParseError2 {
+pub struct ParseError {
     code: PECode,
     location: Location,
 }
-impl fmt::Display for ParseError2 {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.code.fmt(f)
     }
 }
-impl Error for ParseError2 {}
-impl ParseError2 {
-    pub fn compare(left: &ParseError2, right: &ParseError2) -> Ordering {
+impl Error for ParseError {}
+impl ParseError {
+    pub fn compare(left: &ParseError, right: &ParseError) -> Ordering {
         left.location.cmp(&right.location)
     }
     pub fn new(code: PECode, location: impl Into<Location>) -> Self {
@@ -449,55 +467,6 @@ impl ParseError2 {
         let location_right = right.as_ref().map(|pe| &pe.location);
 
         location_left.cmp(&location_right)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParseError {
-    pub msg: String,
-    pub line: u32,
-    pub column: u32,
-}
-
-impl ParseError {
-    pub fn new<T>(msg: T, line: u32, column: u32) -> Self
-    where
-        T: Into<String>,
-    {
-        ParseError { msg: msg.into(), line, column }
-    }
-
-    // compare: returns Less, Equal, Greater based on the line & column of the error.
-    // Note that this _is not_ PartialOrd, because we're not looking at the error string.
-    // Implementing PartialOrd would mean we need to implement PartialEq, and I don't
-    // want to say two Errors are Eq if they simply reside at the same position!
-    pub fn compare(left: &ParseError, right: &ParseError) -> Ordering {
-        if left.line < right.line {
-            Ordering::Less
-        } else if left.line > right.line {
-            Ordering::Greater
-        } else if left.column < right.column {
-            Ordering::Less
-        } else if left.column > right.column {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    }
-
-    pub fn compare_option(left: &Option<ParseError>, right: &Option<ParseError>) -> Ordering {
-        match (left, right) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(l), Some(r)) => Self::compare(l, r),
-        }
-    }
-}
-
-impl From<ParseError> for String {
-    fn from(source: ParseError) -> Self {
-        format!("{}:{}: {}", source.line, source.column, source.msg)
     }
 }
 
@@ -529,14 +498,6 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
         self.or_else(|err1| f().map_err(|err2| cmp::max_by(err2, err1, ParseError::compare)))
     }
 }
-impl<T> Otherwise<T, ParseError2> for Result<T, ParseError2> {
-    fn otherwise<O>(self, f: O) -> Self
-    where
-        O: FnOnce() -> Result<T, ParseError2>,
-    {
-        self.or_else(|err1| f().map_err(|err2| cmp::max_by(err2, err1, ParseError2::compare)))
-    }
-}
 
 pub trait StringValue {
     fn string_value(&self) -> JSString;
@@ -563,25 +524,25 @@ pub trait AssignmentTargetType {
     fn assignment_target_type(&self) -> ATTKind;
 }
 
-pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError2> {
+pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(punct) {
         Ok(after_tok)
     } else {
-        Err(ParseError2::new(PECode::PunctuatorExpected(punct), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(punct), scanner))
     }
 }
 
-pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError2> {
+pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
         Ok((p, after_tok))
     } else {
-        Err(ParseError2::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
     }
 }
 
-pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError2> {
+pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(Punctuator::Semicolon) {
         Ok(after_tok)
@@ -589,52 +550,52 @@ pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result
         // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
         Ok(scanner)
     } else {
-        Err(ParseError2::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
     }
 }
 
-pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError2> {
+pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_keyword(kwd) {
         Ok(after_tok)
     } else {
-        Err(ParseError2::new(PECode::KeywordExpected(kwd), scanner))
+        Err(ParseError::new(PECode::KeywordExpected(kwd), scanner))
     }
 }
 
-pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError2> {
+pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
         Ok((k, after_tok))
     } else {
-        Err(ParseError2::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
     }
 }
 
-pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError2> {
+pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError2::new(PECode::IdentifierNameExpected, scanner))
+        Err(ParseError::new(PECode::IdentifierNameExpected, scanner))
     }
 }
 
-pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError2> {
+pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError2::new(PECode::PrivateIdentifierExpected, scanner))
+        Err(ParseError::new(PECode::PrivateIdentifierExpected, scanner))
     }
 }
 
-pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError2> {
+pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok == Token::Eof {
         Ok(after_tok)
     } else {
-        Err(ParseError2::new(PECode::EoFExpected, scanner))
+        Err(ParseError::new(PECode::EoFExpected, scanner))
     }
 }
 
@@ -644,12 +605,12 @@ pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError2>
 //
 // (Note that this is really supposed to be between the current spot and the _start_ of the next token,
 // but the scanner doesn't support that yet. Some tokens span more than one line.)
-pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError2> {
+pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
     let (_, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if after_tok.line == scanner.line {
         Ok(())
     } else {
-        Err(ParseError2::new(PECode::ImproperNewline, scanner))
+        Err(ParseError::new(PECode::ImproperNewline, scanner))
     }
 }
 

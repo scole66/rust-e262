@@ -627,7 +627,7 @@ impl PrettyPrint for ClassElement {
 
 impl ClassElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::ClassElement), location: scanner.into() })
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElement), scanner))
             .otherwise(|| ClassStaticBlock::parse(parser, scanner).map(|(sb, after_sb)| (Rc::new(ClassElement::StaticBlock(sb)), after_sb)))
             .otherwise(|| {
                 scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
@@ -840,7 +840,7 @@ impl PrettyPrint for ClassElementName {
 
 impl ClassElementName {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::ClassElementName), location: scanner.into() }).otherwise(|| {
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElementName), scanner)).otherwise(|| {
             PropertyName::parse(parser, scanner, yield_flag, await_flag)
                 .map(|(item, scan)| (Rc::new(ClassElementName::PropertyName(item)), scan))
                 .otherwise(|| scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv).map(|(item, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan)))

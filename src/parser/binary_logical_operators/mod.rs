@@ -289,7 +289,7 @@ impl CoalesceExpression {
                 current_scanner = after_right;
             }
             match current_head {
-                CoalesceExpressionHead::BitwiseORExpression(_) => Err(ParseError2 { code: PECode::InvalidCoalesceExpression, location: scanner.into() }),
+                CoalesceExpressionHead::BitwiseORExpression(_) => Err(ParseError::new(PECode::InvalidCoalesceExpression, scanner)),
                 CoalesceExpressionHead::CoalesceExpression(exp) => Ok((exp, exp_scanner)),
             }
         })
@@ -460,7 +460,7 @@ impl AssignmentTargetType for ShortCircuitExpression {
 impl ShortCircuitExpression {
     // No need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::ImproperExpression, location: scanner.into() })
+        Err(ParseError::new(PECode::ImproperExpression, scanner))
             .otherwise(|| {
                 CoalesceExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(coal, after_coal)| (Rc::new(ShortCircuitExpression::CoalesceExpression(coal)), after_coal))
             })

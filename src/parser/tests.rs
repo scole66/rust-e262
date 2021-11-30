@@ -1,5 +1,4 @@
 #![allow(clippy::clone_on_copy)]
-use super::testhelp::expected_err;
 use super::*;
 use ahash::AHasher;
 use std::hash::{Hash, Hasher};
@@ -179,57 +178,6 @@ fn parser_01() {
 }
 
 #[test]
-#[allow(clippy::redundant_clone)]
-fn parse_error_01() {
-    let e1 = ParseError::new("&str style error", 10, 11);
-    let e2 = ParseError::new(String::from("String style error"), 20, 22);
-    assert_eq!(e1.msg, "&str style error");
-    assert_eq!(e1.line, 10);
-    assert_eq!(e1.column, 11);
-    assert_eq!(e2.msg, "String style error");
-    assert_eq!(e2.line, 20);
-    assert_eq!(e2.column, 22);
-    let e3 = e2.clone();
-    assert_eq!(e3.msg, "String style error");
-    assert_eq!(e3.line, 20);
-    assert_eq!(e3.column, 22);
-    format!("{:?}", e1);
-}
-#[test]
-fn parse_error_compare_01() {
-    let e1 = ParseError::new("&str style error", 10, 11);
-    let e2 = ParseError::new(String::from("String style error"), 20, 22);
-
-    assert_eq!(ParseError::compare(&e1, &e2), Ordering::Less);
-    assert_eq!(ParseError::compare(&e2, &e1), Ordering::Greater);
-
-    let e3 = ParseError::new("other", 10, 20);
-    assert_eq!(ParseError::compare(&e1, &e3), Ordering::Less);
-    assert_eq!(ParseError::compare(&e3, &e1), Ordering::Greater);
-
-    let e4 = ParseError::new("overlap", 10, 11);
-    assert_eq!(ParseError::compare(&e1, &e4), Ordering::Equal);
-    assert_eq!(ParseError::compare(&e4, &e1), Ordering::Equal);
-}
-#[test]
-fn parse_error_compare_options_01() {
-    let e1 = None;
-    let e2 = None;
-    assert_eq!(ParseError::compare_option(&e1, &e2), Ordering::Equal);
-    let e3 = Some(ParseError::new("At (10, 10)", 10, 10));
-    assert_eq!(ParseError::compare_option(&e1, &e3), Ordering::Less);
-    assert_eq!(ParseError::compare_option(&e3, &e1), Ordering::Greater);
-    let e4 = Some(ParseError::new("At (10, 30)", 10, 30));
-    assert_eq!(ParseError::compare_option(&e3, &e4), Ordering::Less);
-}
-#[test]
-fn parse_error_to_string() {
-    let e1 = ParseError::new("special message", 25, 50);
-    let s1 = String::from(e1);
-    assert_eq!(s1, "25:50: special message")
-}
-
-#[test]
 fn otherwise_01() {
     let item: Result<i32, ParseError> = Ok(10);
     let result = item.otherwise(|| Ok(1));
@@ -240,7 +188,7 @@ fn otherwise_01() {
 }
 #[test]
 fn otherwise_02() {
-    let item: Result<i32, ParseError> = Err(ParseError::new("otherwise_02", 10, 20));
+    let item: Result<i32, ParseError> = Err(ParseError::new(PECode::Generic, (10, 20)));
     let result = item.otherwise(|| Ok(1));
     assert!(result.is_ok());
     if let Ok(i) = result {
@@ -249,29 +197,29 @@ fn otherwise_02() {
 }
 #[test]
 fn otherwise_03() {
-    let item: Result<i32, ParseError> = Err(ParseError::new("otherwise_03", 10, 20));
-    let result = item.otherwise(|| Err(ParseError::new("otherwise_after", 20, 3)));
+    let item: Result<i32, ParseError> = Err(ParseError::new(PECode::Generic, (10, 20)));
+    let result = item.otherwise(|| Err(ParseError::new(PECode::ChainFailed, (20, 3))));
     assert!(result.is_err());
     if let Err(pe) = result {
-        assert_eq!(pe.msg, "otherwise_after");
+        assert_eq!(pe.code, PECode::ChainFailed);
     }
 }
 #[test]
 fn otherwise_04() {
-    let item: Result<i32, ParseError> = Err(ParseError::new("earlier in time", 10, 20));
-    let result = item.otherwise(|| Err(ParseError::new("earlier in position", 2, 3)));
+    let item: Result<i32, ParseError> = Err(ParseError::new(PECode::Generic, (10, 20))); // earlier in time
+    let result = item.otherwise(|| Err(ParseError::new(PECode::ChainFailed, (2, 3)))); // earlier in position
     assert!(result.is_err());
     if let Err(pe) = result {
-        assert_eq!(pe.msg, "earlier in time");
+        assert_eq!(pe.code, PECode::Generic);
     }
 }
 #[test]
 fn otherwise_05() {
-    let item: Result<i32, ParseError> = Err(ParseError::new("earlier in time", 10, 20));
-    let result = item.otherwise(|| Err(ParseError::new("later in time", 10, 20)));
+    let item: Result<i32, ParseError> = Err(ParseError::new(PECode::Generic, (10, 20))); // earlier in time
+    let result = item.otherwise(|| Err(ParseError::new(PECode::ChainFailed, (10, 20)))); // later in time
     assert!(result.is_err());
     if let Err(pe) = result {
-        assert_eq!(pe.msg, "earlier in time");
+        assert_eq!(pe.code, PECode::Generic);
     }
 }
 
@@ -296,7 +244,7 @@ fn scan_for_punct_02() {
     let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::LeftParen);
     assert!(res.is_err());
     if let Err(pe) = res {
-        assert_eq!(pe, expected_err(PECode::PunctuatorExpected(Punctuator::LeftParen), 1));
+        assert_eq!(pe, ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftParen), 1));
     }
 }
 
@@ -334,7 +282,7 @@ fn scan_for_punct_set_03() {
 fn scan_for_punct_set_04() {
     // No match
     let pe = scan_for_punct_set(Scanner::new(), "&&&&&", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]).unwrap_err();
-    assert_eq!(pe, expected_err(PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]), 1));
+    assert_eq!(pe, ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]), 1));
 }
 
 #[test]
@@ -360,44 +308,32 @@ fn scan_for_auto_semi_04() {
 #[test]
 fn scan_for_auto_semi_05() {
     let res = scan_for_auto_semi(Scanner::new(), "0", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(
-        res,
-        ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Semicolon), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } }
-    );
+    assert_eq!(res, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), 1));
 }
 #[test]
 #[should_panic(expected = "Result::unwrap_err()` on an `Ok` value")] // This is an XFAIL -- it _should_ work, but the code's not there yet.
 fn scan_for_auto_semi_06() {
     let res = scan_for_auto_semi(Scanner::new(), "'\\\n0'", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(
-        res,
-        ParseError2 { code: PECode::PunctuatorExpected(Punctuator::Semicolon), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } }
-    );
+    assert_eq!(res, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), 1));
 }
 
 #[test]
 fn scan_for_keyword_01() {
-    let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::Class);
-    assert!(res.is_ok());
-    if let Ok(scanner) = res {
-        assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
-    }
+    let scanner = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::Class).unwrap();
+    assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
 }
 #[test]
 fn scan_for_keyword_02() {
     let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::For).unwrap_err();
-    assert_eq!(res, ParseError2 { code: PECode::KeywordExpected(Keyword::For), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
+    assert_eq!(res, ParseError::new(PECode::KeywordExpected(Keyword::For), 1));
 }
 
 #[test]
 fn scan_for_keywords_01() {
     // Match at the beginning
-    let res = scan_for_keywords(Scanner::new(), "for (;;)", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]);
-    assert!(res.is_ok());
-    if let Ok((kwd, scan)) = res {
-        assert_eq!(kwd, Keyword::For);
-        assert_eq!(scan, Scanner { line: 1, column: 4, start_idx: 3 });
-    }
+    let (kwd, scan) = scan_for_keywords(Scanner::new(), "for (;;)", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]).unwrap();
+    assert_eq!(kwd, Keyword::For);
+    assert_eq!(scan, Scanner { line: 1, column: 4, start_idx: 3 });
 }
 #[test]
 fn scan_for_keywords_02() {
@@ -423,13 +359,7 @@ fn scan_for_keywords_03() {
 fn scan_for_keywords_04() {
     // No match
     let res = scan_for_keywords(Scanner::new(), "import food", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]).unwrap_err();
-    assert_eq!(
-        res,
-        ParseError2 {
-            code: PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()),
-            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
-        }
-    );
+    assert_eq!(res, ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), 1));
 }
 
 #[test]
@@ -441,7 +371,7 @@ fn scan_for_identifiername_01() {
 #[test]
 fn scan_for_identifiername_02() {
     let pe = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError2 { code: PECode::IdentifierNameExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
+    assert_eq!(pe, ParseError::new(PECode::IdentifierNameExpected, 1));
 }
 
 #[test]
@@ -453,13 +383,13 @@ fn scan_for_private_identifier_01() {
 #[test]
 fn scan_for_private_identifier_02() {
     let pe = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError2 { code: PECode::PrivateIdentifierExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
+    assert_eq!(pe, ParseError::new(PECode::PrivateIdentifierExpected, 1));
 }
 
 #[test]
 fn no_line_terminator_01() {
     let pe = no_line_terminator(Scanner::new(), "\n\nfor").unwrap_err();
-    assert_eq!(pe, ParseError2 { code: PECode::ImproperNewline, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
+    assert_eq!(pe, ParseError::new(PECode::ImproperNewline, 1));
 }
 #[test]
 fn no_line_terminator_02() {
@@ -470,7 +400,7 @@ fn no_line_terminator_02() {
 #[test]
 fn scan_for_eof_01() {
     let pe = scan_for_eof(Scanner::new(), "rust").unwrap_err();
-    assert_eq!(pe, ParseError2 { code: PECode::EoFExpected, location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } } });
+    assert_eq!(pe, ParseError::new(PECode::EoFExpected, 1));
 }
 #[test]
 fn scan_for_eof_02() {

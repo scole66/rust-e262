@@ -198,13 +198,7 @@ where
     Ok((Rc::new(MemberExpression { kind: T::to_member_expression_kind(node) }), scanner))
 }
 
-fn member_expression_head_recursive(
-    parser: &mut Parser,
-    yield_flag: bool,
-    await_flag: bool,
-    me: Rc<MemberExpression>,
-    scan: Scanner,
-) -> Result<(Rc<MemberExpression>, Scanner), ParseError2> {
+fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await_flag: bool, me: Rc<MemberExpression>, scan: Scanner) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
     enum After {
         Exp(Rc<Expression>),
         Id(IdentifierData),
@@ -248,7 +242,7 @@ impl MemberExpression {
     }
 
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::MemberExpressionExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::MemberExpressionExpected, scanner))
             // First: All the non-head-recursive productions
             .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
@@ -260,7 +254,7 @@ impl MemberExpression {
             // And then all the head-recursive productions.
             .and_then(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
     }
-    fn new_memberexpression_arguments(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Rc<MemberExpression>, Rc<Arguments>, Scanner), ParseError2> {
+    fn new_memberexpression_arguments(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Rc<MemberExpression>, Rc<Arguments>, Scanner), ParseError> {
         let after_new = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
         let (me, after_me) = MemberExpression::parse(parser, after_new, yield_flag, await_flag)?;
         let (args, after_args) = Arguments::parse(parser, after_me, yield_flag, await_flag)?;
@@ -646,7 +640,7 @@ pub enum ArgumentListKind {
 
 impl ArgumentListKind {
     // Package the results of a successful assignment_expression into an ArgumentListKind::FallThru.
-    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError2> {
+    fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError> {
         let (ae_boxed, scanner) = pair;
         Ok((Self::FallThru(ae_boxed), scanner))
     }
@@ -661,7 +655,7 @@ impl ArgumentListKind {
     // returning one of:
     //    * an ArgumentListKind that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
-    pub fn parse_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError2> {
+    pub fn parse_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
         AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).and_then(Self::ae_bundle)
     }
 
@@ -671,7 +665,7 @@ impl ArgumentListKind {
     //    * an ArgumentListKind that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
     // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
-    pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError2> {
+    pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
         let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Self::Dots(ae), after_ae))
@@ -892,7 +886,7 @@ impl AssignmentTargetType for NewExpression {
 
 impl NewExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::NewOrMEExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::NewOrMEExpected, scanner))
             .otherwise(|| {
                 let (me, after_me) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(NewExpression { kind: NewExpressionKind::MemberExpression(me) }), after_me))
@@ -1251,7 +1245,7 @@ impl AssignmentTargetType for CallExpression {
 
 impl CallExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::CallExpressionExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::CallExpressionExpected, scanner))
             .otherwise(|| {
                 CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Rc::new(Self { kind: CallExpressionKind::CallMemberExpression(cme) }), after_cme))
             })
@@ -1419,7 +1413,7 @@ impl AssignmentTargetType for LeftHandSideExpression {
 
 impl LeftHandSideExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::LHSExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::LHSExpected, scanner))
             .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Rc::new(Self::Optional(opt)), after_opt)))
             .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Rc::new(Self::Call(ce)), after_ce)))
             .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Rc::new(Self::New(ne)), after_ne)))
@@ -1547,7 +1541,7 @@ impl PrettyPrint for OptionalExpression {
 
 impl OptionalExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError2 { code: PECode::OptionalExpressionExpected, location: scanner.into() })
+        Err(ParseError::new(PECode::OptionalExpressionExpected, scanner))
             .otherwise(|| {
                 MemberExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(me, after_me)| {
                     let (oc, after_oc) = OptionalChain::parse(parser, after_me, yield_flag, await_flag)?;
@@ -1736,7 +1730,7 @@ impl PrettyPrint for OptionalChain {
 impl OptionalChain {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_opt = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
-        let (mut current, mut current_scan) = Err(ParseError2 { code: PECode::ChainFailed, location: after_opt.into() })
+        let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, after_opt, yield_flag, await_flag)?;
                 Ok((Rc::new(OptionalChain::Args(args)), after_args))
@@ -1764,7 +1758,7 @@ impl OptionalChain {
             Id(IdentifierData),
             Pid(IdentifierData),
         }
-        while let Ok((follow, scan)) = Err(ParseError2 { code: PECode::Generic, location: current_scan.into() })
+        while let Ok((follow, scan)) = Err(ParseError::new(PECode::Generic, current_scan))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, current_scan, yield_flag, await_flag)?;
                 Ok((Follow::Args(args), after_args))
