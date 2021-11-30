@@ -1,4 +1,5 @@
 #![allow(clippy::clone_on_copy)]
+use super::testhelp::expected_err;
 use super::*;
 use ahash::AHasher;
 use std::hash::{Hash, Hasher};
@@ -295,10 +296,7 @@ fn scan_for_punct_02() {
     let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::LeftParen);
     assert!(res.is_err());
     if let Err(pe) = res {
-        assert_eq!(
-            pe,
-            ParseError2 { code: PECode::PunctuatorExpected(Punctuator::LeftParen), location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 1, length: 0 } } }
-        );
+        assert_eq!(pe, expected_err(PECode::PunctuatorExpected(Punctuator::LeftParen), 1));
     }
 }
 
@@ -336,13 +334,7 @@ fn scan_for_punct_set_03() {
 fn scan_for_punct_set_04() {
     // No match
     let pe = scan_for_punct_set(Scanner::new(), "&&&&&", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]).unwrap_err();
-    assert_eq!(
-        pe,
-        ParseError2 {
-            code: PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]),
-            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 1, length: 0 } }
-        }
-    );
+    assert_eq!(pe, expected_err(PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]), 1));
 }
 
 #[test]

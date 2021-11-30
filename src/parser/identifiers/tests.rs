@@ -170,7 +170,7 @@ fn identifier_test_yield() {
 #[test]
 fn identifier_test_err() {
     let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
-    check_parse_error(result, "Not an identifier");
+    check_parse_error(result, "not an identifier");
 }
 
 mod identifier {
@@ -284,7 +284,7 @@ mod identifier {
 #[test]
 fn identifier_test_nothing() {
     let result = Identifier::parse(&mut newparser("."), Scanner::new());
-    check_parse_error(result, "Not an identifier");
+    check_parse_error(result, "not an identifier");
 }
 #[test]
 fn identifier_test_successful_bob() {
@@ -382,7 +382,7 @@ fn identifier_reference_test_kwd() {
 #[test]
 fn identifier_reference_test_punct() {
     let idref = IdentifierReference::parse(&mut newparser("*"), Scanner::new(), true, true);
-    check_parse_error(idref, "Not an identifier");
+    check_parse_error(idref, "not an identifier");
 }
 #[test]
 fn identifier_reference_test_att_strict() {
@@ -592,7 +592,7 @@ fn binding_identifier_test_non_matches() {
     check_parse_error(r1, "‘function’ is a reserved word and may not be used as an identifier");
     let mut p2 = newparser("*");
     let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
-    check_parse_error(r2, "Not an identifier");
+    check_parse_error(r2, "not an identifier");
 }
 #[test]
 fn binding_identifier_prettycheck_1() {

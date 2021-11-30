@@ -622,7 +622,7 @@ fn for_statement_test_err_02() {
 }
 #[test]
 fn for_statement_test_err_03() {
-    check_err(ForStatement::parse(&mut newparser("for("), Scanner::new(), true, true, true), "Badly formed for-statement initializer", 1, 5);
+    check_err(ForStatement::parse(&mut newparser("for("), Scanner::new(), true, true, true), "‘var’, LexicalDeclaration, or Expression expected", 1, 5);
 }
 #[test]
 fn for_statement_test_err_04() {
@@ -1191,7 +1191,7 @@ fn for_in_of_statement_test_err_04() {
 }
 #[test]
 fn for_in_of_statement_test_err_05() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a"), Scanner::new(), true, true, true), "One of [‘of’, ‘in’] expected", 1, 10);
+    check_err(ForInOfStatement::parse(&mut newparser("for(var a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 10);
 }
 #[test]
 fn for_in_of_statement_test_err_06() {
@@ -1223,7 +1223,7 @@ fn for_in_of_statement_test_err_12() {
 }
 #[test]
 fn for_in_of_statement_test_err_13() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a"), Scanner::new(), true, true, true), "One of [‘of’, ‘in’] expected", 1, 10);
+    check_err(ForInOfStatement::parse(&mut newparser("for(let a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 10);
 }
 #[test]
 fn for_in_of_statement_test_err_14() {
@@ -1263,7 +1263,7 @@ fn for_in_of_statement_test_err_22() {
 }
 #[test]
 fn for_in_of_statement_test_err_23() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a"), Scanner::new(), true, true, true), "One of [‘of’, ‘in’] expected", 1, 6);
+    check_err(ForInOfStatement::parse(&mut newparser("for(a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 6);
 }
 #[test]
 fn for_in_of_statement_test_err_24() {
@@ -1786,7 +1786,7 @@ fn for_declaration_test_02() {
 }
 #[test]
 fn for_declaration_test_err_01() {
-    check_err(ForDeclaration::parse(&mut newparser(""), Scanner::new(), true, true), "One of [‘let’, ‘const’] expected", 1, 1);
+    check_err(ForDeclaration::parse(&mut newparser(""), Scanner::new(), true, true), "one of [‘let’, ‘const’] expected", 1, 1);
 }
 #[test]
 fn for_declaration_test_err_02() {

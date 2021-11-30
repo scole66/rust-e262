@@ -29,15 +29,15 @@ fn async_arrow_function_test_err_01() {
 }
 #[test]
 fn async_arrow_function_test_err_02() {
-    check_err(AsyncArrowFunction::parse(&mut newparser("async\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 6);
+    check_err(AsyncArrowFunction::parse(&mut newparser("async\n"), Scanner::new(), true, false, false), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_arrow_function_test_err_03() {
-    check_err(AsyncArrowFunction::parse(&mut newparser("async"), Scanner::new(), true, false, false), "Not an identifier", 1, 6);
+    check_err(AsyncArrowFunction::parse(&mut newparser("async"), Scanner::new(), true, false, false), "not an identifier", 1, 6);
 }
 #[test]
 fn async_arrow_function_test_err_04() {
-    check_err(AsyncArrowFunction::parse(&mut newparser("async a\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 8);
+    check_err(AsyncArrowFunction::parse(&mut newparser("async a\n"), Scanner::new(), true, false, false), "newline not allowed here", 1, 8);
 }
 #[test]
 fn async_arrow_function_test_err_05() {
@@ -61,7 +61,7 @@ fn async_arrow_function_test_err_09() {
 }
 #[test]
 fn async_arrow_function_test_err_10() {
-    check_err(AsyncArrowFunction::parse(&mut newparser("async (a)\n"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 10);
+    check_err(AsyncArrowFunction::parse(&mut newparser("async (a)\n"), Scanner::new(), true, false, false), "newline not allowed here", 1, 10);
 }
 #[test]
 fn async_arrow_function_test_err_11() {
@@ -251,7 +251,7 @@ fn async_arrow_binding_identifier_test_01() {
 }
 #[test]
 fn async_arrow_binding_identifier_test_err_01() {
-    check_err(AsyncArrowBindingIdentifier::parse(&mut newparser(""), Scanner::new(), false), "Not an identifier", 1, 1);
+    check_err(AsyncArrowBindingIdentifier::parse(&mut newparser(""), Scanner::new(), false), "not an identifier", 1, 1);
 }
 #[test]
 fn async_arrow_binding_identifier_test_prettyerrors_1() {
@@ -346,7 +346,7 @@ fn async_arrow_head_test_err_01() {
 }
 #[test]
 fn async_arrow_head_test_err_02() {
-    check_err(AsyncArrowHead::parse(&mut newparser("async\n"), Scanner::new()), "Newline not allowed here.", 1, 6);
+    check_err(AsyncArrowHead::parse(&mut newparser("async\n"), Scanner::new()), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_arrow_head_test_err_03() {

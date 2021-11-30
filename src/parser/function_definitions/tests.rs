@@ -49,7 +49,7 @@ fn function_declaration_test_err_02() {
 }
 #[test]
 fn function_declaration_test_err_03() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false), "Not an identifier", 1, 9);
+    check_err(FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false), "not an identifier", 1, 9);
 }
 #[test]
 fn function_declaration_test_err_04() {

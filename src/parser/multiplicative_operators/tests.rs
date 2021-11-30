@@ -34,7 +34,7 @@ fn multiplicative_operator_test_03() {
 }
 #[test]
 fn multiplicative_operator_test_04() {
-    check_err(MultiplicativeOperator::parse(&mut newparser("@"), Scanner::new()), "One of [‘*’, ‘/’, ‘%’] expected", 1, 1);
+    check_err(MultiplicativeOperator::parse(&mut newparser("@"), Scanner::new()), "one of [‘*’, ‘/’, ‘%’] expected", 1, 1);
 }
 #[test]
 fn multiplicative_operator_test_prettycheck_1() {
