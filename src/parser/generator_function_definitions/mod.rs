@@ -430,16 +430,15 @@ impl PrettyPrint for YieldExpression {
 
 impl YieldExpression {
     fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(String::new(), scanner.line, scanner.column))
-            .otherwise(|| {
-                let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
-                let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
-                Ok((Rc::new(YieldExpression::From(ae)), after_ae))
-            })
-            .otherwise(|| {
-                let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
-                Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
-            })
+        (|| {
+            let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+            let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
+            Ok((Rc::new(YieldExpression::From(ae)), after_ae))
+        })()
+        .otherwise(|| {
+            let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
+            Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
+        })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {

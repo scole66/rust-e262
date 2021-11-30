@@ -84,6 +84,15 @@ pub enum ParseNodeKind {
     VariableDeclaration,
     BindingProperty,
     BindingElement,
+    ExponentiationExpression,
+    IterationStatement,
+    ForBinding,
+    LabelledItem,
+    RelationalExpression,
+    HoistableDeclaration,
+    CatchParameter,
+    UnaryExpression,
+    UpdateExpression,
 }
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -126,6 +135,15 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::VariableDeclaration => "VariableDeclaration",
             ParseNodeKind::BindingProperty => "BindingProperty",
             ParseNodeKind::BindingElement => "BindingElement",
+            ParseNodeKind::ExponentiationExpression => "ExponetiationExpression",
+            ParseNodeKind::IterationStatement => "IterationStatement",
+            ParseNodeKind::ForBinding => "ForBinding",
+            ParseNodeKind::LabelledItem => "LabelledItem",
+            ParseNodeKind::RelationalExpression => "RelationalExpression",
+            ParseNodeKind::HoistableDeclaration => "HoistableDeclaration",
+            ParseNodeKind::CatchParameter => "CatchParameter",
+            ParseNodeKind::UnaryExpression => "UnaryExpression",
+            ParseNodeKind::UpdateExpression => "UpdateExpression",
         })
     }
 }
@@ -250,7 +268,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Default)]
 pub struct Span {
     pub starting_index: usize,
     pub length: usize,
@@ -261,6 +279,12 @@ pub struct Location {
     pub starting_line: u32,
     pub starting_column: u32,
     pub span: Span,
+}
+
+impl Default for Location {
+    fn default() -> Self {
+        Location { starting_line: 1, starting_column: 1, span: Span::default() }
+    }
 }
 
 impl From<&Scanner> for Location {
@@ -334,6 +358,10 @@ pub enum PECode {
     DeclarationOrStatementExpected,
     ParseNodeExpected(ParseNodeKind),
     OpenOrIdentExpected,
+    ForStatementDefinitionError,
+    ForInOfDefinitionError,
+    CaseBlockCloseExpected,
+    TryBlockError,
 }
 
 impl fmt::Display for PECode {
@@ -385,10 +413,20 @@ impl fmt::Display for PECode {
             PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
             PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
             PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
+            PECode::ForStatementDefinitionError => f.write_str("‘var’, LexicalDeclaration, or Expression expected"),
+            PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),
+            PECode::CaseBlockCloseExpected => f.write_str("‘}’, ‘case’, or ‘default’ expected"),
+            PECode::TryBlockError => f.write_str("Catch or Finally block expected"),
         }
     }
 }
-#[derive(Debug, Clone, PartialEq)]
+impl Default for PECode {
+    fn default() -> Self {
+        PECode::Generic
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ParseError2 {
     code: PECode,
     location: Location,

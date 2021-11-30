@@ -88,7 +88,7 @@ impl TryStatement {
             Finally(Rc<Finally>),
             Full(Rc<Catch>, Rc<Finally>),
         }
-        Err(ParseError::new("Catch or Finally block expected", after_block.line, after_block.column))
+        Err(ParseError2 { code: PECode::TryBlockError, location: after_block.into() })
             .otherwise(|| {
                 let (fin, after_fin) = Finally::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
                 Ok((CaseKind::Finally(fin), after_fin))
@@ -244,7 +244,7 @@ impl PrettyPrint for Catch {
 impl Catch {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
-        Err(ParseError::new("( or { expected", after_catch.line, after_catch.column))
+        Err(ParseError2 { code: PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]), location: after_catch.into() })
             .otherwise(|| {
                 let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Catch { parameter: None, block }), after_block))
@@ -413,7 +413,7 @@ impl PrettyPrint for CatchParameter {
 
 impl CatchParameter {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("CatchParameter expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::CatchParameter), location: scanner.into() })
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(CatchParameter::Ident(bi)), after_bi))

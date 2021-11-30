@@ -125,7 +125,7 @@ impl RelationalExpression {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("RelationalExpression expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::RelationalExpression), location: scanner.into() })
             .otherwise(|| {
                 ShiftExpression::parse(parser, scanner, yield_flag, await_flag).map(|(se, after_se)| {
                     let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
@@ -165,7 +165,7 @@ impl RelationalExpression {
                         })
                     })
                 } else {
-                    Err(ParseError::new("", 0, 0))
+                    Err(ParseError2 { code: PECode::Generic, location: scanner.into() })
                 }
             })
     }

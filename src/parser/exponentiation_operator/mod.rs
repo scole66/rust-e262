@@ -79,7 +79,7 @@ impl AssignmentTargetType for ExponentiationExpression {
 
 impl ExponentiationExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("ExponentiationExpression expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), location: scanner.into() })
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_op = scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;

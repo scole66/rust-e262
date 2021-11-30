@@ -119,7 +119,7 @@ impl PrettyPrint for MethodDefinition {
 
 impl MethodDefinition {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("MethodDefinition expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::MethodDefinition), location: scanner.into() })
             .otherwise(|| {
                 let after_get = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_get, yield_flag, await_flag)?;

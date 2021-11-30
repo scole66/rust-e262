@@ -157,7 +157,7 @@ impl PrettyPrint for LabelledItem {
 
 impl LabelledItem {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("LabelledItem expected", scanner.line, scanner.column))
+        Err(ParseError2 { code: PECode::ParseNodeExpected(ParseNodeKind::LabelledItem), location: scanner.into() })
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(LabelledItem::Statement(stmt)), after_stmt))
