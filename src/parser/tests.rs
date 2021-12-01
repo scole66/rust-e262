@@ -371,7 +371,7 @@ fn scan_for_identifiername_01() {
 #[test]
 fn scan_for_identifiername_02() {
     let pe = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::IdentifierNameExpected, 1));
+    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), 1));
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn scan_for_private_identifier_01() {
 #[test]
 fn scan_for_private_identifier_02() {
     let pe = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::PrivateIdentifierExpected, 1));
+    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), 1));
 }
 
 #[test]

@@ -247,7 +247,7 @@ impl PrettyPrint for AsyncConciseBody {
 impl AsyncConciseBody {
     // No caching required. Only parent is AsyncArrowFunction
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(PECode::AsyncConciseBodyExpected, scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AsyncConciseBody), scanner))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);

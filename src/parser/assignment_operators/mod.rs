@@ -153,7 +153,7 @@ impl AssignmentTargetType for AssignmentExpression {
 
 impl AssignmentExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(PECode::AssignmentExpressionExpected, scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), scanner))
             .otherwise(|| {
                 if yield_flag {
                     YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield))
@@ -374,7 +374,7 @@ impl PrettyPrint for AssignmentPattern {
 
 impl AssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(PECode::AssignmentPatternExpected, scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentPattern), scanner))
             .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
             .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
     }

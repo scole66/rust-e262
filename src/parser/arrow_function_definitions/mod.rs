@@ -294,7 +294,7 @@ impl PrettyPrint for ConciseBody {
 impl ConciseBody {
     // ConciseBody's only direct parent is ArrowFunction. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(PECode::ConciseBodyExpected, scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ConciseBody), scanner))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
@@ -308,7 +308,7 @@ impl ConciseBody {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
                         Ok((Rc::new(ConciseBody::Expression(exp)), after_exp))
                     }
-                    Ok(_) => Err(ParseError::new(PECode::ExpressionBodyExpected, scanner)),
+                    Ok(_) => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExpressionBody), scanner)),
                 }
             })
     }
