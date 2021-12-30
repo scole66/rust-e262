@@ -9,8 +9,7 @@ use super::errors::{
 use super::function_object::create_builtin_function;
 use super::number_object::provision_number_intrinsic;
 use super::object::{
-    define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
-    BUILTIN_FUNCTION_SLOTS,
+    define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::object_object::provision_object_intrinsic;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -402,12 +401,8 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(agent, throw_type_error, false, 0_f64, PropertyKey::from(""), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     fcn.o.prevent_extensions(agent).unwrap();
-    let key = PropertyKey::from("length");
-    let length = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(agent, &fcn, key, PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(false)).unwrap();
-    let key = PropertyKey::from("name");
-    let name = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(agent, &fcn, key, PotentialPropertyDescriptor::new().value(name).writable(false).enumerable(false).configurable(false)).unwrap();
+    define_property_or_throw(agent, &fcn, "length".into(), PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false)).unwrap();
+    define_property_or_throw(agent, &fcn, "name".into(), PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false)).unwrap();
 
     fcn
 }
