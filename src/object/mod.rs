@@ -1482,8 +1482,8 @@ pub fn create_data_property_or_throw(agent: &mut Agent, obj: &Object, p: impl In
 //  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
 //  4. If success is false, throw a TypeError exception.
 //  5. Return success.
-pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<()> {
-    let success = obj.o.define_own_property(agent, p, desc)?;
+pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: impl Into<PropertyKey>, desc: PotentialPropertyDescriptor) -> AltCompletion<()> {
+    let success = obj.o.define_own_property(agent, p.into(), desc)?;
     if !success {
         Err(create_type_error(agent, "Property cannot be assigned to"))
     } else {

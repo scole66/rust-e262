@@ -3,7 +3,7 @@ use super::execution_context::{get_global_object, ExecutionContext};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::realm::{create_realm, IntrinsicId};
 use super::strings::JSString;
-use super::values::{ECMAScriptValue, PropertyKey, Symbol, SymbolInternals};
+use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use std::rc::Rc;
 
 // Agents
@@ -173,7 +173,7 @@ impl Agent {
                 define_property_or_throw(
                     self,
                     &global,
-                    PropertyKey::from($name),
+                    $name,
                     PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
                 )
                 .unwrap();
