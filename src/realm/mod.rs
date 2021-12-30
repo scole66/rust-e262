@@ -329,13 +329,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         agent,
         &bool_constructor,
         PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(&boolean_prototype)),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor::new().value(&boolean_prototype).writable(false).enumerable(false).configurable(false),
     )
     .unwrap();
     realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
@@ -343,13 +337,11 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
         agent,
         &boolean_prototype,
         PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(bool_constructor)), // consumes bool_constructor
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor::new()
+            .value(bool_constructor) // consumes bool_constructor
+            .writable(true)
+            .enumerable(false)
+            .configurable(true),
     )
     .unwrap();
     ///////////////////////////////////////////////////////////////////
@@ -383,20 +375,9 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
-    define_property_or_throw(
-        agent,
-        f,
-        PropertyKey::from("caller"),
-        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower.clone()), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        f,
-        PropertyKey::from("arguments"),
-        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-    )
-    .unwrap();
+    define_property_or_throw(agent, f, PropertyKey::from("caller"), PotentialPropertyDescriptor::new().get(thrower.clone()).set(thrower.clone()).enumerable(false).configurable(true))
+        .unwrap();
+    define_property_or_throw(agent, f, PropertyKey::from("arguments"), PotentialPropertyDescriptor::new().get(thrower.clone()).set(thrower).enumerable(false).configurable(true)).unwrap();
 }
 
 // %ThrowTypeError% ( )
@@ -423,22 +404,10 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     fcn.o.prevent_extensions(agent).unwrap();
     let key = PropertyKey::from("length");
     let length = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(
-        agent,
-        &fcn,
-        key,
-        PotentialPropertyDescriptor { value: Some(length), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-    )
-    .unwrap();
+    define_property_or_throw(agent, &fcn, key, PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(false)).unwrap();
     let key = PropertyKey::from("name");
     let name = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(
-        agent,
-        &fcn,
-        key,
-        PotentialPropertyDescriptor { value: Some(name), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-    )
-    .unwrap();
+    define_property_or_throw(agent, &fcn, key, PotentialPropertyDescriptor::new().value(name).writable(false).enumerable(false).configurable(false)).unwrap();
 
     fcn
 }

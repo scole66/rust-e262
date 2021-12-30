@@ -113,13 +113,11 @@ impl ObjectInterface for ArrayObject {
                             agent,
                             self,
                             length_key,
-                            PotentialPropertyDescriptor {
-                                value: Some(ECMAScriptValue::from(index + 1)),
-                                writable: Some(old_len_desc.writable),
-                                enumerable: Some(old_len_desc.enumerable),
-                                configurable: Some(old_len_desc.configurable),
-                                ..Default::default()
-                            },
+                            PotentialPropertyDescriptor::new()
+                                .value(ECMAScriptValue::from(index + 1))
+                                .writable(old_len_desc.writable)
+                                .enumerable(old_len_desc.enumerable)
+                                .configurable(old_len_desc.configurable),
                         )
                         .unwrap();
                     }
@@ -177,13 +175,7 @@ impl ArrayObject {
         let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| agent.intrinsic(IntrinsicId::ArrayPrototype));
         let a = make_basic_object(agent, &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker], Some(proto));
-        ordinary_define_own_property(
-            agent,
-            &a,
-            "length".into(),
-            PotentialPropertyDescriptor { value: Some(length.into()), writable: Some(true), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-        )
-        .unwrap();
+        ordinary_define_own_property(agent, &a, "length".into(), PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false)).unwrap();
         Ok(a)
     }
 
@@ -279,7 +271,7 @@ impl ArrayObject {
             }
         }
         if !new_writable {
-            ordinary_define_own_property(agent, self, "length".into(), PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            ordinary_define_own_property(agent, self, "length".into(), PotentialPropertyDescriptor::new().writable(false)).unwrap();
         }
         Ok(true)
     }
@@ -401,19 +393,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &array_constructor,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &array_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
     constructor_function!(array_from, "from", 1.0);
@@ -444,13 +424,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         agent,
         &array_constructor,
         PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(array_prototype.clone())),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor::new().value(array_prototype.clone()).writable(false).enumerable(false).configurable(false),
     )
     .unwrap();
 
@@ -459,19 +433,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &array_prototype,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &array_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
 
@@ -517,13 +479,7 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         agent,
         &array_prototype,
         PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(array_constructor.clone())),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
+        PotentialPropertyDescriptor::new().value(array_constructor.clone()).writable(true).enumerable(false).configurable(true),
     )
     .unwrap();
 

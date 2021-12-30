@@ -675,15 +675,12 @@ impl ElementList {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let mut current_production;
-        let mut current_scanner;
-
         let (elision, item, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
-        current_production = match item {
+        let mut current_production = match item {
             ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression((elision, boxed_ae))),
             ELItemKind::SE(boxed_se) => Rc::new(ElementList::SpreadElement((elision, boxed_se))),
         };
-        current_scanner = after;
+        let mut current_scanner = after;
 
         while let Ok((elision, item, after)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
             .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))

@@ -97,7 +97,7 @@ pub trait DescriptorKind {
     fn is_data_descriptor(&self) -> bool;
     fn is_accessor_descriptor(&self) -> bool;
     fn is_generic_descriptor(&self) -> bool;
-    fn writable(&self) -> Option<bool>;
+    fn is_writable(&self) -> Option<bool>;
 }
 
 impl DescriptorKind for PropertyDescriptor {
@@ -116,7 +116,7 @@ impl DescriptorKind for PropertyDescriptor {
     fn is_generic_descriptor(&self) -> bool {
         false
     }
-    fn writable(&self) -> Option<bool> {
+    fn is_writable(&self) -> Option<bool> {
         match &self.property {
             PropertyKind::Data(d) => Some(d.writable),
             PropertyKind::Accessor(_) => None,
@@ -134,6 +134,42 @@ pub struct PotentialPropertyDescriptor {
     pub configurable: Option<bool>,
 }
 
+impl PotentialPropertyDescriptor {
+    pub fn new() -> Self {
+        PotentialPropertyDescriptor::default()
+    }
+
+    pub fn value(mut self, value: impl Into<ECMAScriptValue>) -> Self {
+        self.value = Some(value.into());
+        self
+    }
+
+    pub fn writable(mut self, writable: bool) -> Self {
+        self.writable = Some(writable);
+        self
+    }
+
+    pub fn enumerable(mut self, enumerable: bool) -> Self {
+        self.enumerable = Some(enumerable);
+        self
+    }
+
+    pub fn configurable(mut self, configurable: bool) -> Self {
+        self.configurable = Some(configurable);
+        self
+    }
+
+    pub fn get(mut self, get: impl Into<ECMAScriptValue>) -> Self {
+        self.get = Some(get.into());
+        self
+    }
+
+    pub fn set(mut self, set: impl Into<ECMAScriptValue>) -> Self {
+        self.set = Some(set.into());
+        self
+    }
+}
+
 impl DescriptorKind for PotentialPropertyDescriptor {
     fn is_accessor_descriptor(&self) -> bool {
         !(self.get.is_none() && self.set.is_none())
@@ -144,7 +180,7 @@ impl DescriptorKind for PotentialPropertyDescriptor {
     fn is_generic_descriptor(&self) -> bool {
         !self.is_accessor_descriptor() && !self.is_data_descriptor()
     }
-    fn writable(&self) -> Option<bool> {
+    fn is_writable(&self) -> Option<bool> {
         self.writable
     }
 }
@@ -776,7 +812,7 @@ where
                             PropertyKind::Data(existing_data_fields) => match existing_data_fields.writable {
                                 false => Ok(false),
                                 true => {
-                                    let value_desc = PotentialPropertyDescriptor { value: Some(v), ..Default::default() };
+                                    let value_desc = PotentialPropertyDescriptor::new().value(v);
                                     receiver.o.define_own_property(agent, p, value_desc)
                                 }
                             },
@@ -1407,7 +1443,7 @@ pub fn set(agent: &mut Agent, obj: &Object, propkey: PropertyKey, value: ECMAScr
 //          created by the ECMAScript language assignment operator. Normally, the property will not already exist. If it
 //          does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]] will return false.
 pub fn create_data_property(agent: &mut Agent, obj: &Object, p: PropertyKey, v: ECMAScriptValue) -> AltCompletion<bool> {
-    let new_desc = PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let new_desc = PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(true);
     obj.o.define_own_property(agent, p, new_desc)
 }
 
@@ -1600,15 +1636,15 @@ pub fn set_integrity_level(agent: &mut Agent, o: &Object, level: IntegrityLevel)
     let keys = o.o.own_property_keys(agent)?;
     if level == IntegrityLevel::Sealed {
         for k in keys {
-            define_property_or_throw(agent, o, k, PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() })?;
+            define_property_or_throw(agent, o, k, PotentialPropertyDescriptor::new().configurable(false))?;
         }
     } else {
         for k in keys {
             if let Some(current_desc) = o.o.get_own_property(agent, &k)? {
                 let desc = if is_accessor_descriptor(&current_desc) {
-                    PotentialPropertyDescriptor { configurable: Some(false), ..Default::default() }
+                    PotentialPropertyDescriptor::new().configurable(false)
                 } else {
-                    PotentialPropertyDescriptor { configurable: Some(false), writable: Some(false), ..Default::default() }
+                    PotentialPropertyDescriptor::new().configurable(false).writable(false)
                 };
                 define_property_or_throw(agent, o, k, desc)?;
             }
