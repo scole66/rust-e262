@@ -25,6 +25,8 @@ use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 use std::rc::Rc;
 use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
@@ -42,37 +44,148 @@ impl Default for ParseGoal {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ParseNodeKind {
+    AssignmentExpression,
+    AssignmentPattern,
+    AsyncConciseBody,
+    AwaitExpression,
+    BindingElement,
+    BindingPattern,
+    BindingProperty,
+    BlockStatement,
+    BreakableStatement,
+    BreakStatement,
+    CallExpression,
+    CatchParameter,
+    ClassBody,
+    ClassElement,
+    ClassElementName,
+    ClassHeritage,
+    ConciseBody,
+    ContinueStatement,
+    DebuggerStatement,
+    Declaration,
+    EmptyStatement,
+    ExponentiationExpression,
+    Expression,
+    ExpressionBody,
+    ExpressionStatement,
+    ForBinding,
+    HoistableDeclaration,
+    IdentifierName,
+    IfStatement,
+    IterationStatement,
+    LabelledItem,
+    LabelledStatement,
+    LeftHandSideExpression,
+    LexicalBinding,
+    Literal,
+    MemberExpression,
+    MethodDefinition,
+    NewTarget,
+    NoSubstitutionTemplate,
+    ObjectBindingPattern,
+    OptionalExpression,
+    PrimaryExpression,
+    PrivateIdentifier,
+    PropertyName,
+    RegularExpression,
+    RelationalExpression,
+    ReturnStatement,
     ScriptBody,
+    Statement,
     StatementList,
     StatementListItem,
-    Statement,
-    Declaration,
-    BlockStatement,
-    VariableStatement,
-    EmptyStatement,
-    ExpressionStatement,
-    IfStatement,
-    BreakableStatement,
-    ContinueStatement,
-    BreakStatement,
-    WithStatement,
-    LabelledStatement,
+    SubstitutionTemplate,
+    Super,
+    SuperCall,
+    SuperProperty,
+    TemplateLiteral,
+    TemplateMiddle,
+    TemplateSpans,
+    TemplateTail,
+    This,
     ThrowStatement,
     TryStatement,
-    DebuggerStatement,
-    ReturnStatement,
-    MethodDefinition,
-    SuperProperty,
-    SuperCall,
-    Super,
-    This,
-    NewTarget,
-    ClassHeritage,
-    ClassBody,
-    Literal,
-    AwaitExpression,
+    UnaryExpression,
+    UpdateExpression,
+    VariableDeclaration,
+    VariableStatement,
+    WithStatement,
+}
+impl fmt::Display for ParseNodeKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            ParseNodeKind::AssignmentExpression => "AssignmentExpression",
+            ParseNodeKind::AssignmentPattern => "AssignmentPattern",
+            ParseNodeKind::AsyncConciseBody => "AsyncConciseBody",
+            ParseNodeKind::AwaitExpression => "AwaitExpression",
+            ParseNodeKind::BindingElement => "BindingElement",
+            ParseNodeKind::BindingPattern => "BindingPattern",
+            ParseNodeKind::BindingProperty => "BindingProperty",
+            ParseNodeKind::BlockStatement => "BlockStatement",
+            ParseNodeKind::BreakableStatement => "BreakableStatement",
+            ParseNodeKind::BreakStatement => "BreakStatement",
+            ParseNodeKind::CallExpression => "CallExpression",
+            ParseNodeKind::CatchParameter => "CatchParameter",
+            ParseNodeKind::ClassBody => "ClassBody",
+            ParseNodeKind::ClassElement => "ClassElement",
+            ParseNodeKind::ClassElementName => "ClassElementName",
+            ParseNodeKind::ClassHeritage => "ClassHeritage",
+            ParseNodeKind::ConciseBody => "ConciseBody",
+            ParseNodeKind::ContinueStatement => "ContinueStatement",
+            ParseNodeKind::DebuggerStatement => "DebuggerStatement",
+            ParseNodeKind::Declaration => "Declaration",
+            ParseNodeKind::EmptyStatement => "EmptyStatement",
+            ParseNodeKind::ExponentiationExpression => "ExponentiationExpression",
+            ParseNodeKind::Expression => "Expression",
+            ParseNodeKind::ExpressionBody => "ExpressionBody",
+            ParseNodeKind::ExpressionStatement => "ExpressionStatement",
+            ParseNodeKind::ForBinding => "ForBinding",
+            ParseNodeKind::HoistableDeclaration => "HoistableDeclaration",
+            ParseNodeKind::IdentifierName => "IdentifierName",
+            ParseNodeKind::IfStatement => "IfStatement",
+            ParseNodeKind::IterationStatement => "IterationStatement",
+            ParseNodeKind::LabelledItem => "LabelledItem",
+            ParseNodeKind::LabelledStatement => "LabelledStatement",
+            ParseNodeKind::LeftHandSideExpression => "LeftHandSideExpression",
+            ParseNodeKind::LexicalBinding => "LexicalBinding",
+            ParseNodeKind::Literal => "Literal",
+            ParseNodeKind::MemberExpression => "MemberExpression",
+            ParseNodeKind::MethodDefinition => "MethodDefinition",
+            ParseNodeKind::NewTarget => "NewTarget",
+            ParseNodeKind::NoSubstitutionTemplate => "NoSubstitutionTemplate",
+            ParseNodeKind::ObjectBindingPattern => "ObjectBindingPattern",
+            ParseNodeKind::OptionalExpression => "OptionalExpression",
+            ParseNodeKind::PrimaryExpression => "PrimaryExpression",
+            ParseNodeKind::PrivateIdentifier => "PrivateIdentifier",
+            ParseNodeKind::PropertyName => "PropertyName",
+            ParseNodeKind::RegularExpression => "RegularExpression",
+            ParseNodeKind::RelationalExpression => "RelationalExpression",
+            ParseNodeKind::ReturnStatement => "ReturnStatement",
+            ParseNodeKind::ScriptBody => "ScriptBody",
+            ParseNodeKind::Statement => "Statement",
+            ParseNodeKind::StatementList => "StatementList",
+            ParseNodeKind::StatementListItem => "StatementListItem",
+            ParseNodeKind::SubstitutionTemplate => "SubstitutionTemplate",
+            ParseNodeKind::Super => "Super",
+            ParseNodeKind::SuperCall => "SuperCall",
+            ParseNodeKind::SuperProperty => "SuperProperty",
+            ParseNodeKind::TemplateLiteral => "TemplateLiteral",
+            ParseNodeKind::TemplateMiddle => "TemplateMiddle",
+            ParseNodeKind::TemplateSpans => "TemplateSpans",
+            ParseNodeKind::TemplateTail => "TemplateTail",
+            ParseNodeKind::This => "This",
+            ParseNodeKind::ThrowStatement => "ThrowStatement",
+            ParseNodeKind::TryStatement => "TryStatement",
+            ParseNodeKind::UnaryExpression => "UnaryExpression",
+            ParseNodeKind::UpdateExpression => "UpdateExpression",
+            ParseNodeKind::VariableDeclaration => "VariableDeclaration",
+            ParseNodeKind::VariableStatement => "VariableStatement",
+            ParseNodeKind::WithStatement => "WithStatement",
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -195,52 +308,163 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Default)]
+pub struct Span {
+    pub starting_index: usize,
+    pub length: usize,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+pub struct Location {
+    pub starting_line: u32,
+    pub starting_column: u32,
+    pub span: Span,
+}
+
+impl Default for Location {
+    fn default() -> Self {
+        Location { starting_line: 1, starting_column: 1, span: Span::default() }
+    }
+}
+
+impl From<&Scanner> for Location {
+    fn from(src: &Scanner) -> Location {
+        Location::from(*src)
+    }
+}
+
+#[cfg(test)]
+impl From<u32> for Location {
+    fn from(src: u32) -> Self {
+        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
+    }
+}
+#[cfg(test)]
+impl From<(u32, u32)> for Location {
+    fn from(src: (u32, u32)) -> Self {
+        let (line, column) = src;
+        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
+        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
+        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
+        // do we know? Making lines really long helps that intuition make better tests.)
+        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
+    }
+}
+
+impl From<Scanner> for Location {
+    fn from(src: Scanner) -> Location {
+        Location { starting_line: src.line, starting_column: src.column, span: Span { starting_index: src.start_idx, length: 0 } }
+    }
+}
+
+impl PartialOrd for Location {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.span.starting_index.cmp(&other.span.starting_index))
+    }
+}
+impl Ord for Location {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.span.starting_index.cmp(&other.span.starting_index)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum PECode {
+    Generic,
+    EoFExpected,
+    ImproperNewline,
+    InvalidIdentifier,
+    KeywordExpected(Keyword),
+    KeywordUsedAsIdentifier(Keyword),
+    OneOfKeywordExpected(Vec<Keyword>),
+    OneOfPunctuatorExpected(Vec<Punctuator>),
+    PunctuatorExpected(Punctuator),
+    AssignmentExpressionOrSpreadElementExpected,
+    CommaLeftBracketElementListExpected,
+    IdentifierStringNumberExpected,
+    ExpressionSpreadOrRPExpected,
+    BindingIdOrPatternExpected,
+    NewOrMEExpected,
+    ChainFailed,
+    IdOrFormalsExpected,
+    ObjectAssignmentPatternEndFailure,
+    ArrayAssignmentPatternEndFailure,
+    IdRefOrPropertyNameExpected,
+    InvalidCoalesceExpression,
+    ImproperExpression,
+    DeclarationOrStatementExpected,
+    ParseNodeExpected(ParseNodeKind),
+    OpenOrIdentExpected,
+    ForStatementDefinitionError,
+    ForInOfDefinitionError,
+    CaseBlockCloseExpected,
+    TryBlockError,
+}
+
+impl fmt::Display for PECode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PECode::Generic => f.write_str("error"),
+            PECode::EoFExpected => f.write_str("end-of-file expected"),
+            PECode::ImproperNewline => f.write_str("newline not allowed here"),
+            PECode::InvalidIdentifier => f.write_str("not an identifier"),
+            PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
+            PECode::KeywordUsedAsIdentifier(kwd) => write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd),
+            PECode::OneOfKeywordExpected(kwd_set) => write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")),
+            PECode::OneOfPunctuatorExpected(punct_set) => write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")),
+            PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
+            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str("AssignmentExpression or SpreadElement expected"),
+            PECode::CommaLeftBracketElementListExpected => f.write_str("‘,’, ‘]’, or an ElementList expected"),
+            PECode::IdentifierStringNumberExpected => f.write_str("Identifier, String, or Number expected"),
+            PECode::ExpressionSpreadOrRPExpected => f.write_str("Expression, spread pattern, or closing paren expected"),
+            PECode::BindingIdOrPatternExpected => f.write_str("BindingIdentifier or BindingPattern expected"),
+            PECode::NewOrMEExpected => f.write_str("‘new’ or MemberExpression expected"),
+            PECode::ChainFailed => f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"),
+            PECode::IdOrFormalsExpected => f.write_str("Identifier or Formal Parameters expected"),
+            PECode::ObjectAssignmentPatternEndFailure => f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"),
+            PECode::ArrayAssignmentPatternEndFailure => f.write_str("‘,’, ‘]’, or an AssignmentElementList expected"),
+            PECode::IdRefOrPropertyNameExpected => f.write_str("IdentifierReference or PropertyName expected"),
+            PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
+            PECode::ImproperExpression => f.write_str("Improper Expression"),
+            PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
+            PECode::ParseNodeExpected(pn) => write!(f, "{} expected", pn),
+            PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
+            PECode::ForStatementDefinitionError => f.write_str("‘var’, LexicalDeclaration, or Expression expected"),
+            PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),
+            PECode::CaseBlockCloseExpected => f.write_str("‘}’, ‘case’, or ‘default’ expected"),
+            PECode::TryBlockError => f.write_str("Catch or Finally block expected"),
+        }
+    }
+}
+impl Default for PECode {
+    fn default() -> Self {
+        PECode::Generic
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ParseError {
-    pub msg: String,
-    pub line: u32,
-    pub column: u32,
+    code: PECode,
+    location: Location,
 }
-
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.code.fmt(f)
+    }
+}
+impl Error for ParseError {}
 impl ParseError {
-    pub fn new<T>(msg: T, line: u32, column: u32) -> Self
-    where
-        T: Into<String>,
-    {
-        ParseError { msg: msg.into(), line, column }
-    }
-
-    // compare: returns Less, Equal, Greater based on the line & column of the error.
-    // Note that this _is not_ PartialOrd, because we're not looking at the error string.
-    // Implementing PartialOrd would mean we need to implement PartialEq, and I don't
-    // want to say two Errors are Eq if they simply reside at the same position!
     pub fn compare(left: &ParseError, right: &ParseError) -> Ordering {
-        if left.line < right.line {
-            Ordering::Less
-        } else if left.line > right.line {
-            Ordering::Greater
-        } else if left.column < right.column {
-            Ordering::Less
-        } else if left.column > right.column {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
+        left.location.cmp(&right.location)
     }
-
-    pub fn compare_option(left: &Option<ParseError>, right: &Option<ParseError>) -> Ordering {
-        match (left, right) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(l), Some(r)) => Self::compare(l, r),
-        }
+    pub fn new(code: PECode, location: impl Into<Location>) -> Self {
+        Self { code, location: location.into() }
     }
-}
+    pub fn compare_option(left: &Option<Self>, right: &Option<Self>) -> Ordering {
+        let location_left = left.as_ref().map(|pe| &pe.location);
+        let location_right = right.as_ref().map(|pe| &pe.location);
 
-impl From<ParseError> for String {
-    fn from(source: ParseError) -> Self {
-        format!("{}:{}: {}", source.line, source.column, source.msg)
+        location_left.cmp(&location_right)
     }
 }
 
@@ -258,13 +482,13 @@ impl From<ParseError> for String {
 //    parse_first_kind(parse_args)
 //       .otherwise(|| parse_second_kind(parse_args))
 //       .otherwise(|| parse_third_kind(parse_args))
-pub trait Otherwise<T> {
-    fn otherwise<O>(self, f: O) -> Result<T, ParseError>
+pub trait Otherwise<T, E> {
+    fn otherwise<O>(self, f: O) -> Result<T, E>
     where
-        O: FnOnce() -> Result<T, ParseError>;
+        O: FnOnce() -> Result<T, E>;
 }
 
-impl<T> Otherwise<T> for Result<T, ParseError> {
+impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     fn otherwise<O>(self, f: O) -> Self
     where
         O: FnOnce() -> Result<T, ParseError>,
@@ -303,7 +527,7 @@ pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctu
     if tok.matches_punct(punct) {
         Ok(after_tok)
     } else {
-        Err(ParseError::new(format!("‘{}’ expected", punct), scanner.line, scanner.column))
+        Err(ParseError::new(PECode::PunctuatorExpected(punct), scanner))
     }
 }
 
@@ -312,7 +536,7 @@ pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
         Ok((p, after_tok))
     } else {
-        Err(ParseError::new(format!("One of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")), scanner.line, scanner.column))
+        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
     }
 }
 
@@ -324,7 +548,7 @@ pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result
         // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
         Ok(scanner)
     } else {
-        Err(ParseError::new("‘;’ expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
     }
 }
 
@@ -333,7 +557,7 @@ pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keywor
     if tok.matches_keyword(kwd) {
         Ok(after_tok)
     } else {
-        Err(ParseError::new(format!("‘{}’ expected", kwd), scanner.line, scanner.column))
+        Err(ParseError::new(PECode::KeywordExpected(kwd), scanner))
     }
 }
 
@@ -342,7 +566,7 @@ pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Ke
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
         Ok((k, after_tok))
     } else {
-        Err(ParseError::new(format!("One of [{}] expected", itertools::join(kwds.iter().map(|&k| format!("‘{}’", k)), ", ")), scanner.line, scanner.column))
+        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
     }
 }
 
@@ -351,7 +575,7 @@ pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> R
     if let Token::Identifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError::new("IdentifierName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), scanner))
     }
 }
 
@@ -360,7 +584,7 @@ pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) 
     if let Token::PrivateIdentifier(id) = tok {
         Ok((id, after_tok))
     } else {
-        Err(ParseError::new("Private Identifier expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), scanner))
     }
 }
 
@@ -369,7 +593,7 @@ pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> 
     if tok == Token::Eof {
         Ok(after_tok)
     } else {
-        Err(ParseError::new("EoF expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::EoFExpected, scanner))
     }
 }
 
@@ -384,7 +608,7 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
     if after_tok.line == scanner.line {
         Ok(())
     } else {
-        Err(ParseError::new("Newline not allowed here.", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ImproperNewline, scanner))
     }
 }
 
@@ -418,7 +642,7 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
             let potential_script = Script::parse(&mut parser, Scanner::new());
             match potential_script {
                 Err(pe) => {
-                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.line, pe.column, pe.msg).as_str());
+                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str());
                     ParsedText::Errors(vec![syntax_error])
                 }
                 Ok((node, _)) => {

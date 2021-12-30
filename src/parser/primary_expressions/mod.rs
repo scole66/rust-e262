@@ -295,12 +295,12 @@ impl PrimaryExpression {
         let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
-            _ => Err(ParseError::new("Expected regular expression", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RegularExpression), scanner)),
         }
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrimaryExpression), scanner))
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
             .otherwise(|| Self::parse_async_gen(parser, scanner))
@@ -417,7 +417,7 @@ impl Elisions {
             let (token, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
             if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
-                    Err(ParseError::new("Expected one or more commas", current_scanner.line, current_scanner.column))
+                    Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Comma), current_scanner))
                 } else {
                     Ok((Rc::new(Elisions { count: comma_count }), current_scanner))
                 };
@@ -663,7 +663,7 @@ impl ElementList {
                 match pot_se {
                     Ok((boxed, after_se_scanner)) => Ok((elision, ELItemKind::SE(boxed), after_se_scanner)),
                     Err(pe) => {
-                        let err_default = Some(ParseError::new("AssignmentExpression or SpreadElement expected", after_e_scanner.line, after_e_scanner.column));
+                        let err_default = Some(ParseError::new(PECode::AssignmentExpressionOrSpreadElementExpected, after_e_scanner));
                         let err_se = Some(pe);
                         let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less { err_ae } else { err_default };
                         let err2 = if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
@@ -809,7 +809,7 @@ impl ArrayLiteral {
     // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
-        Err(ParseError::new("‘,’, ‘]’, or an ElementList expected", after.line, after.column))
+        Err(ParseError::new(PECode::CommaLeftBracketElementListExpected, after))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
@@ -1123,7 +1123,7 @@ impl LiteralPropertyName {
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
             Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
-            _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
         }
     }
 
@@ -1179,7 +1179,7 @@ impl PrettyPrint for PropertyName {
 
 impl PropertyName {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
             .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
             .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
     }
@@ -1307,7 +1307,7 @@ impl PropertyDefinition {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 Ok((Rc::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
             }
-            _ => Err(ParseError::new("‘:’ expected", after_pn.line, after_pn.column)),
+            _ => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Colon), after_pn)),
         }
     }
 
@@ -1333,7 +1333,7 @@ impl PropertyDefinition {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))
@@ -1661,7 +1661,7 @@ impl Literal {
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
             Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
-            _ => Err(ParseError::new("Literal expected", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
         }
     }
 
@@ -1756,7 +1756,7 @@ impl TemplateLiteral {
         if let Token::NoSubstitutionTemplate(td) = tok {
             Ok((Rc::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
         } else {
-            Err(ParseError::new("NoSubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::NoSubstitutionTemplate), scanner))
         }
     }
 
@@ -1766,7 +1766,7 @@ impl TemplateLiteral {
     }
 
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateLiteral expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateLiteral), scanner))
             .otherwise(|| Self::parse_nst(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -1854,7 +1854,7 @@ impl SubstitutionTemplate {
             let (spans_boxed, after_spans) = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
             Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
         } else {
-            Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::SubstitutionTemplate), scanner))
         }
     }
 
@@ -1932,7 +1932,7 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), scanner))
         }
     }
 
@@ -1942,11 +1942,11 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", after_tml.line, after_tml.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), after_tml))
         }
     }
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateSpans), scanner))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -2040,7 +2040,7 @@ impl TemplateMiddleList {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
             Ok((td, exp, after_exp))
         } else {
-            Err(ParseError::new("TemplateMiddle expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateMiddle), scanner))
         }
     }
 
@@ -2273,7 +2273,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             Pat(Rc<BindingPattern>),
         }
         let after_lparen = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        Err(ParseError::new("Expression, spread pattern, or closing paren expected", after_lparen.line, after_lparen.column))
+        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
             .otherwise(|| {
                 // ( )
                 let after_rparen = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
@@ -2283,7 +2283,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
                 let after_ellipsis = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-                Err(ParseError::new("BindingIdentifier or BindingPattern expected", after_ellipsis.line, after_ellipsis.column)).otherwise(|| {
+                Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
                         .otherwise(|| BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag).map(|(bp, scan)| (BndType::Pat(bp), scan)))

@@ -158,7 +158,7 @@ fn generator_declaration_test_075() {
 }
 #[test]
 fn generator_declaration_test_076() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "Not an identifier", 1, 11);
+    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11);
 }
 #[test]
 fn generator_declaration_test_08() {

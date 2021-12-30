@@ -242,7 +242,7 @@ impl MemberExpression {
     }
 
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("MemberExpression expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MemberExpression), scanner))
             // First: All the non-head-recursive productions
             .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
@@ -886,7 +886,7 @@ impl AssignmentTargetType for NewExpression {
 
 impl NewExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("‘new’ or MemberExpression expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::NewOrMEExpected, scanner))
             .otherwise(|| {
                 let (me, after_me) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(NewExpression { kind: NewExpressionKind::MemberExpression(me) }), after_me))
@@ -1245,7 +1245,7 @@ impl AssignmentTargetType for CallExpression {
 
 impl CallExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
-        Err(ParseError::new("CallExpression expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::CallExpression), scanner))
             .otherwise(|| {
                 CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Rc::new(Self { kind: CallExpressionKind::CallMemberExpression(cme) }), after_cme))
             })
@@ -1413,7 +1413,7 @@ impl AssignmentTargetType for LeftHandSideExpression {
 
 impl LeftHandSideExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
-        Err(ParseError::new("LeftHandSideExpression expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), scanner))
             .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Rc::new(Self::Optional(opt)), after_opt)))
             .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Rc::new(Self::Call(ce)), after_ce)))
             .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Rc::new(Self::New(ne)), after_ne)))
@@ -1541,7 +1541,7 @@ impl PrettyPrint for OptionalExpression {
 
 impl OptionalExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("OptionalExpression expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::OptionalExpression), scanner))
             .otherwise(|| {
                 MemberExpression::parse(parser, scanner, yield_flag, await_flag).and_then(|(me, after_me)| {
                     let (oc, after_oc) = OptionalChain::parse(parser, after_me, yield_flag, await_flag)?;
@@ -1730,7 +1730,7 @@ impl PrettyPrint for OptionalChain {
 impl OptionalChain {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_opt = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
-        let (mut current, mut current_scan) = Err(ParseError::new("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)", after_opt.line, after_opt.column))
+        let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, after_opt, yield_flag, await_flag)?;
                 Ok((Rc::new(OptionalChain::Args(args)), after_args))
@@ -1758,7 +1758,7 @@ impl OptionalChain {
             Id(IdentifierData),
             Pid(IdentifierData),
         }
-        while let Ok((follow, scan)) = Err(ParseError::new(String::new(), current_scan.line, current_scan.column))
+        while let Ok((follow, scan)) = Err(ParseError::new(PECode::Generic, current_scan))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, current_scan, yield_flag, await_flag)?;
                 Ok((Follow::Args(args), after_args))

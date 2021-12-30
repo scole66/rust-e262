@@ -610,7 +610,7 @@ mod literal {
 // ELISION
 #[test]
 fn elision_test_01() {
-    check_err(Elisions::parse(&mut newparser(""), Scanner::new()), "Expected one or more commas", 1, 1);
+    check_err(Elisions::parse(&mut newparser(""), Scanner::new()), "‘,’ expected", 1, 1);
 }
 #[test]
 fn elision_test_02() {
@@ -1073,7 +1073,7 @@ fn array_literal_test_err_03() {
 }
 #[test]
 fn array_literal_test_err_04() {
-    check_err(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false), "One of [‘,’, ‘]’] expected", 1, 3);
+    check_err(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘,’, ‘]’] expected", 1, 3);
 }
 #[test]
 fn array_literal_test_err_05() {
@@ -1255,7 +1255,7 @@ mod initializer {
 // COVER INITIALIZED NAME
 #[test]
 fn cover_initialized_name_test_nomatch_1() {
-    check_err(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false), "Not an identifier", 1, 1);
+    check_err(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false), "not an identifier", 1, 1);
 }
 #[test]
 fn cover_initialized_name_test_nomatch_2() {
@@ -1845,7 +1845,7 @@ fn object_literal_test_05() {
 }
 #[test]
 fn object_literal_test_06() {
-    check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "One of [‘}’, ‘,’] expected", 1, 5);
+    check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "one of [‘}’, ‘,’] expected", 1, 5);
 }
 #[test]
 fn object_literal_test_07() {

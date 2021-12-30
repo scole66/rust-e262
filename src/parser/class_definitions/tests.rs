@@ -27,7 +27,7 @@ fn class_declaration_test_err_01() {
 }
 #[test]
 fn class_declaration_test_err_02() {
-    check_err(ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false), "Not an identifier", 1, 6);
+    check_err(ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false), "not an identifier", 1, 6);
 }
 #[test]
 fn class_declaration_test_err_03() {

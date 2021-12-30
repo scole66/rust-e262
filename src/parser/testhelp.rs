@@ -8,9 +8,10 @@ pub fn check_err<T>(res: ParseResult<T>, msg: &str, line: u32, column: u32)
 where
     T: fmt::Debug,
 {
-    assert!(res.is_err());
     let err = res.unwrap_err();
-    assert_eq!((err.msg, err.line, err.column), (String::from(msg), line, column));
+    assert_eq!(err.location.starting_line, line);
+    assert_eq!(err.location.starting_column, column);
+    assert_eq!(format!("{}", err), String::from(msg));
 }
 pub fn expected_scan(count: u32) -> Scanner {
     // Expected Scanner for tests. (The real world will be more varied.)
@@ -30,9 +31,7 @@ where
     T: fmt::Debug,
     U: Into<String>,
 {
-    assert!(result.is_err());
     let pe = result.unwrap_err();
-    assert_eq!(pe.line, 1);
-    assert_eq!(pe.column, 1);
-    assert_eq!(pe.msg, msg.into());
+    assert_eq!(pe.location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } });
+    assert_eq!(format!("{}", pe), msg.into());
 }

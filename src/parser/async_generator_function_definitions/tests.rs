@@ -166,7 +166,7 @@ fn async_generator_declaration_test_04() {
 }
 #[test]
 fn async_generator_declaration_test_041() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true), "Newline not allowed here.", 1, 6);
+    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_generator_declaration_test_05() {
@@ -186,7 +186,7 @@ fn async_generator_declaration_test_075() {
 }
 #[test]
 fn async_generator_declaration_test_076() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false), "Not an identifier", 1, 11 + 6);
+    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11 + 6);
 }
 #[test]
 fn async_generator_declaration_test_08() {
@@ -307,7 +307,7 @@ fn async_generator_expression_test_04() {
 }
 #[test]
 fn async_generator_expression_test_041() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()), "Newline not allowed here.", 1, 6);
+    check_err(AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_generator_expression_test_05() {

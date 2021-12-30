@@ -177,7 +177,7 @@ impl CaseBlock {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_open),
         };
-        Err(ParseError::new("‘}’, ‘case’, or ‘default’ expected", after_pre.line, after_pre.column))
+        Err(ParseError::new(PECode::CaseBlockCloseExpected, after_pre))
             .otherwise(|| {
                 let after_close = scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((None, after_close))

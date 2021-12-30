@@ -656,7 +656,7 @@ mod assignment_pattern {
         sv(&["AssignmentPattern: [ ]", "ArrayAssignmentPattern: [ ]"]),
         sv(&["ArrayAssignmentPattern: [ ]", "Punctuator: [", "Punctuator: ]"])
     )); "ArrayAssignmentPattern")]
-    #[test_case("" => Err(ParseError::new("AssignmentPattern expected", 1, 1)); "empty")]
+    #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentPattern), 1)); "empty")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -738,11 +738,11 @@ mod object_assignment_pattern {
         sv(&["ObjectAssignmentPattern: { a , ... b }", "AssignmentPropertyList: a", "AssignmentRestProperty: ... b"]),
         sv(&["ObjectAssignmentPattern: { a , ... b }", "Punctuator: {", "IdentifierName: a", "Punctuator: ,", "AssignmentRestProperty: ... b", "Punctuator: }"])
     )); "{ AssignmentPropertyList , AssignmentRestProperty }")]
-    #[test_case("" => Err(ParseError::new("‘{’ expected", 1, 1)); "empty")]
-    #[test_case("{" => Err(ParseError::new("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected", 1, 2)); "open brace alone")]
-    #[test_case("{a" => Err(ParseError::new("One of [‘,’, ‘}’] expected", 1, 3)); "err after list")]
-    #[test_case("{a," => Err(ParseError::new("‘}’ expected", 1, 4)); "err after list+comma")]
-    #[test_case("{...a" => Err(ParseError::new("‘}’ expected", 1, 6)); "err after rest")]
+    #[test_case("" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftBrace), 1)); "empty")]
+    #[test_case("{" => Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, 2)); "open brace alone")]
+    #[test_case("{a" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), 3)); "err after list")]
+    #[test_case("{a," => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 4)); "err after list+comma")]
+    #[test_case("{...a" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 6)); "err after rest")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -864,11 +864,11 @@ mod array_assignment_pattern {
         sv(&["ArrayAssignmentPattern: [ a , , ... b ]", "AssignmentElementList: a", "Elisions: ,", "AssignmentRestElement: ... b"]),
         sv(&["ArrayAssignmentPattern: [ a , , ... b ]", "Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "AssignmentRestElement: ... b", "Punctuator: ]"])
     )); "[ AssignmentElementList , Elision AssignmentRestElement ]")]
-    #[test_case("" => Err(ParseError::new("‘[’ expected", 1, 1)); "empty")]
-    #[test_case("[" => Err(ParseError::new("‘,’, ‘]’, or an AssignmentElementList expected", 1, 2)); "open bracket alone")]
-    #[test_case("[a" => Err(ParseError::new("One of [‘,’, ‘]’] expected", 1, 3)); "err after list")]
-    #[test_case("[a," => Err(ParseError::new("‘]’ expected", 1, 4)); "err after list+elision")]
-    #[test_case("[...a" => Err(ParseError::new("‘]’ expected", 1, 6)); "err after rest")]
+    #[test_case("" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftBracket), 1)); "empty")]
+    #[test_case("[" => Err(ParseError::new(PECode::ArrayAssignmentPatternEndFailure, 2)); "open bracket alone")]
+    #[test_case("[a" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), 3)); "err after list")]
+    #[test_case("[a," => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBracket), 4)); "err after list+elision")]
+    #[test_case("[...a" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBracket), 6)); "err after rest")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -974,8 +974,8 @@ mod assignment_rest_property {
         sv(&["AssignmentRestProperty: ... a", "DestructuringAssignmentTarget: a"]),
         sv(&["AssignmentRestProperty: ... a", "Punctuator: ...", "IdentifierName: a"])
     )); "... DestructuringAssignmentTarget")]
-    #[test_case("" => Err(ParseError::new("‘...’ expected", 1, 1)); "empty")]
-    #[test_case("..." => Err(ParseError::new("LeftHandSideExpression expected", 1, 4)); "dots")]
+    #[test_case("" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Ellipsis), 1)); "empty")]
+    #[test_case("..." => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 4)); "dots")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1036,7 +1036,7 @@ mod assignment_property_list {
         sv(&["AssignmentPropertyList: a , b", "AssignmentPropertyList: a", "AssignmentProperty: b"]),
         sv(&["AssignmentPropertyList: a , b", "IdentifierName: a", "Punctuator: ,", "IdentifierName: b"])
     )); "AssignmentPropertyList , AssignmentProperty")]
-    #[test_case("" => Err(ParseError::new("IdentifierReference or PropertyName expected", 1, 1)); "empty")]
+    #[test_case("" => Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, 1)); "empty")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1105,7 +1105,7 @@ mod assignment_element_list {
         sv(&["AssignmentElementList: a , b", "AssignmentElementList: a", "AssignmentElisionElement: b"]),
         sv(&["AssignmentElementList: a , b", "IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]),
     )); "AssignmentElementList , AssignmentElisionElement")]
-    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentElementList::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1174,7 +1174,7 @@ mod assignment_elision_element {
         sv(&["AssignmentElisionElement: , a", "Elisions: ,", "AssignmentElement: a"]),
         sv(&["AssignmentElisionElement: , a", "Elisions: ,", "IdentifierName: a"]),
     )); "Elision AssignmentElement")]
-    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1245,9 +1245,9 @@ mod assignment_property {
         sv(&["AssignmentProperty: a : b", "PropertyName: a", "AssignmentElement: b"]),
         sv(&["AssignmentProperty: a : b", "IdentifierName: a", "Punctuator: :", "IdentifierName: b"])
     )); "PropertyName : AssignmentElement")]
-    #[test_case("" => Err(ParseError::new("IdentifierReference or PropertyName expected", 1, 1)); "empty")]
-    #[test_case("0" => Err(ParseError::new("‘:’ expected", 1, 2)); "Error after PropertyName")]
-    #[test_case("0:" => Err(ParseError::new("LeftHandSideExpression expected", 1, 3)); "Error after colon")]
+    #[test_case("" => Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, 1)); "empty")]
+    #[test_case("0" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Colon), 2)); "Error after PropertyName")]
+    #[test_case("0:" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 3)); "Error after colon")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1320,7 +1320,7 @@ mod assignment_element {
         sv(&["AssignmentElement: a = 0", "DestructuringAssignmentTarget: a", "Initializer: = 0"]),
         sv(&["AssignmentElement: a = 0", "IdentifierName: a", "Initializer: = 0"]),
     )); "with initializer")]
-    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
+    #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1383,8 +1383,8 @@ mod assignment_rest_element {
         sv(&["AssignmentRestElement: ... a", "DestructuringAssignmentTarget: a"]),
         sv(&["AssignmentRestElement: ... a", "Punctuator: ...", "IdentifierName: a"])
     )); "normal")]
-    #[test_case("" => Err(ParseError::new("‘...’ expected", 1, 1)); "empty")]
-    #[test_case("..." => Err(ParseError::new("LeftHandSideExpression expected", 1, 4)); "dots")]
+    #[test_case("" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Ellipsis), 1)); "empty")]
+    #[test_case("..." => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 4)); "dots")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1441,8 +1441,8 @@ mod destructuring_assignment_target {
         sv(&["DestructuringAssignmentTarget: { }", "AssignmentPattern: { }"]),
         sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
     )); "AssignmentPattern")]
-    #[test_case("" => Err(ParseError::new("LeftHandSideExpression expected", 1, 1)); "empty")]
-    #[test_case("{...{},...{}}" => Err(ParseError::new("‘}’ expected", 1, 7)); "ObjectLiteral but not AssignmentPattern")]
+    #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
+    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 7)); "ObjectLiteral but not AssignmentPattern")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);

@@ -189,7 +189,7 @@ fn catch_test_err_01() {
 }
 #[test]
 fn catch_test_err_02() {
-    check_err(Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true), "( or { expected", 1, 6);
+    check_err(Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true), "one of [‘(’, ‘{’] expected", 1, 6);
 }
 #[test]
 fn catch_test_err_03() {
