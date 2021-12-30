@@ -9,8 +9,7 @@ use super::errors::{
 use super::function_object::create_builtin_function;
 use super::number_object::provision_number_intrinsic;
 use super::object::{
-    define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
-    BUILTIN_FUNCTION_SLOTS,
+    define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::object_object::provision_object_intrinsic;
 use super::values::{ECMAScriptValue, PropertyKey};
