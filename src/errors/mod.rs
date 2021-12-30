@@ -15,13 +15,7 @@ use std::rc::Rc;
 
 fn create_native_error_object(agent: &mut Agent, message: &str, error_constructor: Object, proto_id: IntrinsicId) -> Object {
     let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
-    let desc = PotentialPropertyDescriptor {
-        value: Some(ECMAScriptValue::String(JSString::from(message))),
-        writable: Some(true),
-        enumerable: Some(false),
-        configurable: Some(true),
-        ..Default::default()
-    };
+    let desc = PotentialPropertyDescriptor::new().value(message).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(agent, &o, PropertyKey::from("message"), desc).unwrap();
     o
 }
@@ -193,13 +187,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
             let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &error_constructor,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &error_constructor, key, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
         }};
     }
 
@@ -224,13 +212,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
             let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &error_prototype,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &error_prototype, key, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
         }};
     }
     // Error.prototype.constructor
@@ -253,19 +235,7 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &error_prototype,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &error_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
 
@@ -354,13 +324,7 @@ fn provision_native_error_intrinsics(
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
             let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &native_error_constructor,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &native_error_constructor, key, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
         }};
     }
     constructor_data!(name, "name");
@@ -386,13 +350,7 @@ fn provision_native_error_intrinsics(
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
             let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &native_error_prototype,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &native_error_prototype, key, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
         }};
     }
     // NativeError.prototype.constructor
@@ -447,7 +405,7 @@ fn native_error_constructor_function(agent: &mut Agent, _this_value: ECMAScriptV
     let o = ordinary_create_from_constructor(agent, nt, intrinsic_id, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(agent, message)?;
-        let msg_desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(msg)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() };
+        let msg_desc = PotentialPropertyDescriptor::new().value(msg).writable(true).enumerable(false).configurable(true);
         define_property_or_throw(agent, &o, PropertyKey::from("message"), msg_desc).unwrap();
     }
     Ok(ECMAScriptValue::from(o))

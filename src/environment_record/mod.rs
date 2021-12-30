@@ -481,7 +481,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     fn create_mutable_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> AltCompletion<()> {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
-        let desc = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(true), configurable: Some(deletable), ..Default::default() };
+        let desc = PotentialPropertyDescriptor::new().value(ECMAScriptValue::Undefined).writable(true).enumerable(true).configurable(deletable);
         define_property_or_throw(agent, binding_object, name_key, desc)
     }
 
@@ -1220,7 +1220,7 @@ impl GlobalEnvironmentRecord {
         let existing_prop = global_object.o.get_own_property(agent, &name.clone().into())?;
         match existing_prop {
             None => is_extensible(agent, global_object),
-            Some(prop) => Ok(prop.configurable || (prop.is_data_descriptor() && prop.writable() == Some(true) && prop.enumerable)),
+            Some(prop) => Ok(prop.configurable || (prop.is_data_descriptor() && prop.is_writable() == Some(true) && prop.enumerable)),
         }
     }
 
@@ -1284,11 +1284,11 @@ impl GlobalEnvironmentRecord {
         let global_object = &self.object_record.binding_object;
         let prop_key = PropertyKey::from(name.clone());
         let existing_prop = global_object.o.get_own_property(agent, &prop_key)?;
-        let full_pd = |v, d| PotentialPropertyDescriptor { value: Some(v), writable: Some(true), enumerable: Some(true), configurable: Some(d), ..Default::default() };
+        let full_pd = |v, d| PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(d);
         let desc = match existing_prop {
             None => full_pd(val.clone(), deletable),
             Some(prop) if prop.configurable => full_pd(val.clone(), deletable),
-            _ => PotentialPropertyDescriptor { value: Some(val.clone()), ..Default::default() },
+            _ => PotentialPropertyDescriptor::new().value(val.clone()),
         };
         define_property_or_throw(agent, global_object, prop_key.clone(), desc)?;
         set(agent, global_object, prop_key, val, false)?;
