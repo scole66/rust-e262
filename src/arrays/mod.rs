@@ -420,13 +420,8 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // The value of Array.prototype is the Array prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    define_property_or_throw(
-        agent,
-        &array_constructor,
-        PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor::new().value(array_prototype.clone()).writable(false).enumerable(false).configurable(false),
-    )
-    .unwrap();
+    define_property_or_throw(agent, &array_constructor, "prototype", PotentialPropertyDescriptor::new().value(array_prototype.clone()).writable(false).enumerable(false).configurable(false))
+        .unwrap();
 
     // Prototype function properties
     macro_rules! prototype_function {
@@ -475,13 +470,8 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // Array.prototype.constructor
     //
     // The initial value of Array.prototype.constructor is %Array%.
-    define_property_or_throw(
-        agent,
-        &array_prototype,
-        PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor::new().value(array_constructor.clone()).writable(true).enumerable(false).configurable(true),
-    )
-    .unwrap();
+    define_property_or_throw(agent, &array_prototype, "constructor", PotentialPropertyDescriptor::new().value(array_constructor.clone()).writable(true).enumerable(false).configurable(true))
+        .unwrap();
 
     realm.borrow_mut().intrinsics.array = array_constructor;
     realm.borrow_mut().intrinsics.array_prototype = array_prototype;

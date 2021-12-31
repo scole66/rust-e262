@@ -160,7 +160,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &object_constructor,
-        PropertyKey::from("prototype"),
+        "prototype",
         PotentialPropertyDescriptor::new().value(object_prototype.clone()).writable(false).enumerable(false).configurable(false),
     )
     .unwrap();
@@ -187,7 +187,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &object_prototype,
-        PropertyKey::from("constructor"),
+        "constructor",
         PotentialPropertyDescriptor::new().value(object_constructor.clone()).writable(true).enumerable(false).configurable(true),
     )
     .unwrap();

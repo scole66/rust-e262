@@ -193,8 +193,7 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
     if let Some(builtin) = func.o.to_builtin_function_obj() {
         builtin.builtin_function_data().borrow_mut().initial_name = Some(FunctionName::from(name_after_prefix.clone()));
     }
-    define_property_or_throw(agent, func, PropertyKey::from("name"), PotentialPropertyDescriptor::new().value(name_after_prefix).writable(false).enumerable(false).configurable(true))
-        .unwrap()
+    define_property_or_throw(agent, func, "name", PotentialPropertyDescriptor::new().value(name_after_prefix).writable(false).enumerable(false).configurable(true)).unwrap()
 }
 
 // SetFunctionLength ( F, length )
@@ -206,7 +205,7 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
 //      2. Return ! DefinePropertyOrThrow(F, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
 pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
-    define_property_or_throw(agent, func, PropertyKey::from("length"), PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(true)).unwrap();
+    define_property_or_throw(agent, func, "length", PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(true)).unwrap();
 }
 
 ///////////////////////////////////////////////////////////////////

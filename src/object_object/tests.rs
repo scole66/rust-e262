@@ -420,7 +420,7 @@ mod constructor {
             define_property_or_throw(
                 agent,
                 &obj,
-                "toString".into(),
+                "toString",
                 PotentialPropertyDescriptor { value: Some(tostring_func.into()), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
             )
             .unwrap();

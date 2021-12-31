@@ -2437,7 +2437,7 @@ mod enumerable_own_property_names {
         define_property_or_throw(
             agent,
             &obj,
-            "hidden".into(),
+            "hidden",
             PotentialPropertyDescriptor { value: Some("hidden".into()), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -2506,7 +2506,7 @@ mod set_integrity_level {
         define_property_or_throw(
             agent,
             &obj,
-            "accessor".into(),
+            "accessor",
             PotentialPropertyDescriptor {
                 get: Some(ECMAScriptValue::Undefined),
                 set: Some(ECMAScriptValue::Undefined),

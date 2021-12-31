@@ -479,10 +479,9 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     // NOTE     Normally envRec will not have a binding for N but if it does, the semantics of DefinePropertyOrThrow may
     //          result in an existing binding being replaced or shadowed or cause an abrupt completion to be returned.
     fn create_mutable_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> AltCompletion<()> {
-        let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let desc = PotentialPropertyDescriptor::new().value(ECMAScriptValue::Undefined).writable(true).enumerable(true).configurable(deletable);
-        define_property_or_throw(agent, binding_object, name_key, desc)
+        define_property_or_throw(agent, binding_object, name, desc)
     }
 
     // CreateImmutableBinding ( N, S )

@@ -214,8 +214,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // Constructor Data Properties
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
-            let key = PropertyKey::from($name);
-            define_property_or_throw(agent, &number_constructor, key, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
+            define_property_or_throw(agent, &number_constructor, $name, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
         }};
     }
     // Number.EPSILON
@@ -311,8 +310,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // Prototype Data Properties
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
-            let key = PropertyKey::from($name);
-            define_property_or_throw(agent, &number_prototype, key, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
+            define_property_or_throw(agent, &number_prototype, $name, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
         }};
     }
 
