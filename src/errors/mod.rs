@@ -13,71 +13,65 @@ use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn create_native_error_object(agent: &mut Agent, message: &str, error_constructor: Object, proto_id: IntrinsicId) -> Object {
+fn create_native_error_object(agent: &mut Agent, message: impl Into<JSString>, error_constructor: Object, proto_id: IntrinsicId) -> Object {
     let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc = PotentialPropertyDescriptor::new().value(message).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(agent, &o, "message", desc).unwrap();
     o
 }
 
-pub fn create_type_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_type_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let error_constructor = agent.intrinsic(IntrinsicId::TypeError);
     create_native_error_object(agent, message, error_constructor, IntrinsicId::TypeErrorPrototype)
 }
 
-pub fn create_type_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_type_error_object(agent, msg))), target: None })
+pub fn create_type_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_type_error_object(agent, message))), target: None })
 }
 
-pub fn create_reference_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_reference_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::ReferenceError);
     create_native_error_object(agent, message, cstr, IntrinsicId::ReferenceErrorPrototype)
 }
 
-pub fn create_reference_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, msg))), target: None })
+pub fn create_reference_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_reference_error_object(agent, message))), target: None })
 }
 
-pub fn create_syntax_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_syntax_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::SyntaxError);
     create_native_error_object(agent, message, cstr, IntrinsicId::SyntaxErrorPrototype)
 }
 
-pub fn create_syntax_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_syntax_error_object(agent, msg))), target: None })
+pub fn create_syntax_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_syntax_error_object(agent, message))), target: None })
 }
 
-pub fn create_range_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_range_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::RangeError);
     create_native_error_object(agent, message, cstr, IntrinsicId::RangeErrorPrototype)
 }
 
-pub fn create_range_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_range_error_object(agent, msg))), target: None })
+pub fn create_range_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_range_error_object(agent, message))), target: None })
 }
 
-pub fn create_eval_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_eval_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::EvalError);
     create_native_error_object(agent, message, cstr, IntrinsicId::EvalErrorPrototype)
 }
 
-pub fn create_eval_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_eval_error_object(agent, msg))), target: None })
+pub fn create_eval_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_eval_error_object(agent, message))), target: None })
 }
 
-pub fn create_uri_error_object(agent: &mut Agent, message: &str) -> Object {
+pub fn create_uri_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::URIError);
     create_native_error_object(agent, message, cstr, IntrinsicId::URIErrorPrototype)
 }
 
-pub fn create_uri_error(agent: &mut Agent, message: impl AsRef<str>) -> AbruptCompletion {
-    let msg: &str = message.as_ref();
-    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_uri_error_object(agent, msg))), target: None })
+pub fn create_uri_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
+    AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(create_uri_error_object(agent, message))), target: None })
 }
 
 #[derive(Debug)]
