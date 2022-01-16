@@ -1963,7 +1963,7 @@ impl fmt::Display for RegularExpressionData {
 }
 
 impl RegularExpressionData {
-    pub fn is_valid_regular_expression_literal(&self) -> bool {
+    pub fn validate_regular_expression_literal(&self) -> Result<(), String> {
         // Static Semantics: IsValidRegularExpressionLiteral ( literal )
         //
         // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
@@ -1981,12 +1981,12 @@ impl RegularExpressionData {
         //  5. Let parseResult be ParsePattern(patternText, u).
         //  6. If parseResult is a Parse Node, return true; else return false.
         macro_rules! flag_check {
-            ( $name:ident ) => {
-               if $name {
-                   return false;
-               } else {
-                   $name = true;
-               }
+            ( $name:ident, $ch:literal ) => {
+                if $name {
+                    return Err(format!("Duplicate {} flag found in regex flags `{}`", $ch, self.flags));
+                } else {
+                    $name = true;
+                }
             };
         }
 
@@ -1998,14 +1998,14 @@ impl RegularExpressionData {
         let mut y_found = false;
         for ch in self.flags.chars() {
             match ch {
-                'g' => flag_check!(g_found),
-                'i' => flag_check!(i_found),
-                'm' => flag_check!(m_found),
-                's' => flag_check!(s_found),
-                'u' => flag_check!(u_found),
-                'y' => flag_check!(y_found),
+                'g' => flag_check!(g_found, 'g'),
+                'i' => flag_check!(i_found, 'i'),
+                'm' => flag_check!(m_found, 'm'),
+                's' => flag_check!(s_found, 's'),
+                'u' => flag_check!(u_found, 'u'),
+                'y' => flag_check!(y_found, 'y'),
                 _ => {
-                    return false;
+                    return Err(format!("Unknown regex flag {} in flags `{}`", ch, self.flags));
                 }
             }
         }
@@ -2013,7 +2013,7 @@ impl RegularExpressionData {
         // todo!()
         // There's more to do here --- there's a whole pattern parsing thing to make sure you've made a reasonable regex.
         // Also some unicode vs straight u16 nonsense to handle.
-        true
+        Ok(())
     }
 }
 

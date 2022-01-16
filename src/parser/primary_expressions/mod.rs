@@ -387,8 +387,8 @@ impl PrimaryExpression {
                 // Static Semantics: Early Errors
                 //      PrimaryExpression : RegularExpressionLiteral
                 //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
-                if !regex.is_valid_regular_expression_literal() {
-                    errs.push(create_syntax_error_object(agent, "Invalid regular expression"));
+                if let Err(msg) = regex.validate_regular_expression_literal() {
+                    errs.push(create_syntax_error_object(agent, msg));
                 }
             }
         }

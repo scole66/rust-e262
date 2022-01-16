@@ -474,7 +474,7 @@ mod primary_expression {
     #[test_case("/a/xx", true => AHashSet::from_iter(["Invalid regular expression".to_string()]); "RegularExpressionLiteral with errors")]
     #[test_case("``", true => panics "not yet implemented"; "TemplateLiteral")]
     #[test_case("(a)", true => panics "not yet implemented"; "ParenthesizedExpression")]
-        fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
