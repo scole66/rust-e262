@@ -107,7 +107,7 @@ fn member_expression_test_errs_01() {
 }
 #[test]
 fn member_expression_test_errs_02() {
-    check_err(MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false), "One of [‘.’, ‘[’] expected", 1, 6);
+    check_err(MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
 }
 #[test]
 fn member_expression_test_errs_04() {
@@ -390,7 +390,7 @@ fn super_property_test_incomplete_expression() {
 }
 #[test]
 fn super_property_test_bad_following_token() {
-    check_err(SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false), "One of [‘.’, ‘[’] expected", 1, 6);
+    check_err(SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
 }
 #[test]
 fn super_property_test_prettyerrors_1() {
@@ -467,7 +467,7 @@ fn meta_property_test_importmeta() {
 }
 #[test]
 fn meta_property_test_nomatch_01() {
-    check_err(MetaProperty::parse(&mut newparser("silly"), Scanner::new()), "One of [‘new’, ‘import’] expected", 1, 1);
+    check_err(MetaProperty::parse(&mut newparser("silly"), Scanner::new()), "one of [‘new’, ‘import’] expected", 1, 1);
 }
 #[test]
 fn meta_property_test_nomatch_02() {
@@ -564,7 +564,7 @@ fn arguments_test_unclosed_01() {
 }
 #[test]
 fn arguments_test_unclosed_02() {
-    check_err(Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false), "One of [‘,’, ‘)’] expected", 1, 4);
+    check_err(Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false), "one of [‘,’, ‘)’] expected", 1, 4);
 }
 #[test]
 fn arguments_test_unclosed_03() {

@@ -39,7 +39,7 @@ fn lexical_declaration_test_asi_01() {
 }
 #[test]
 fn lexical_declaration_test_err_01() {
-    check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "One of [‘let’, ‘const’] expected", 1, 1);
+    check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "one of [‘let’, ‘const’] expected", 1, 1);
 }
 #[test]
 fn lexical_declaration_test_err_02() {
@@ -884,7 +884,7 @@ fn array_binding_pattern_test_err_02() {
 }
 #[test]
 fn array_binding_pattern_test_err_03() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false), "One of [‘]’, ‘,’] expected", 1, 3);
+    check_err(ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘]’, ‘,’] expected", 1, 3);
 }
 #[test]
 fn array_binding_pattern_test_err_04() {
@@ -1079,7 +1079,7 @@ fn binding_rest_property_test_err_01() {
 }
 #[test]
 fn binding_rest_property_test_err_02() {
-    check_err(BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false), "Not an identifier", 1, 4);
+    check_err(BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false), "not an identifier", 1, 4);
 }
 #[test]
 fn binding_rest_property_test_bound_names_01() {
@@ -1598,7 +1598,7 @@ fn single_name_binding_test_cache_01() {
 }
 #[test]
 fn single_name_binding_test_err_01() {
-    check_err(SingleNameBinding::parse(&mut newparser(""), Scanner::new(), false, false), "Not an identifier", 1, 1);
+    check_err(SingleNameBinding::parse(&mut newparser(""), Scanner::new(), false, false), "not an identifier", 1, 1);
 }
 #[test]
 fn single_name_binding_test_bound_names_01() {

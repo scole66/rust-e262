@@ -87,10 +87,10 @@ impl Identifier {
                 | Some(Keyword::Void)
                 | Some(Keyword::While)
                 | Some(Keyword::With)
-                | Some(Keyword::Yield) => Err(ParseError::new(format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value), scanner.line, scanner.column)),
+                | Some(Keyword::Yield) => Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), scanner)),
                 _ => Ok((Rc::new(Identifier { name: id }), after_tok)),
             },
-            _ => Err(ParseError::new("Not an identifier", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::InvalidIdentifier, scanner)),
         }
     }
 
