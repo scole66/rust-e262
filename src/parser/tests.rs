@@ -410,13 +410,36 @@ fn scan_for_eof_02() {
     assert_eq!(res.start_idx, 0);
 }
 
-#[test]
-fn parse_node_kind_01() {
-    let p1 = ParseNodeKind::Literal;
-    let p2 = p1;
-    assert_eq!(p1, p2);
-    format!("{:?}", p1);
-    assert_eq!(p1, p1.clone());
+mod parse_node_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", ParseNodeKind::Literal), "");
+    }
+    #[test_case(ParseNodeKind::Literal, ParseNodeKind::This => false; "not equal")]
+    #[test_case(ParseNodeKind::Literal, ParseNodeKind::Literal => true; "equal")]
+    fn eq(a: ParseNodeKind, b: ParseNodeKind) -> bool {
+        a == b
+    }
+    #[test_case(ParseNodeKind::Literal, ParseNodeKind::This => true; "not equal")]
+    #[test_case(ParseNodeKind::Literal, ParseNodeKind::Literal => false; "equal")]
+    fn ne(a: ParseNodeKind, b: ParseNodeKind) -> bool {
+        a != b
+    }
+    #[test]
+    fn clone() {
+        let p1 = ParseNodeKind::Literal;
+        let p2 = p1;
+        assert_eq!(p1, p2);
+        assert_eq!(p1, p1.clone());
+    }
+    #[test_case(ParseNodeKind::AssignmentExpression, ParseNodeKind::ConciseBody => false; "not equal")]
+    #[test_case(ParseNodeKind::AssignmentExpression, ParseNodeKind::AssignmentExpression => true; "equal")]
+    fn hash(a: ParseNodeKind, b: ParseNodeKind) -> bool {
+        calculate_hash(&a) == calculate_hash(&b)
+    }
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
