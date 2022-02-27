@@ -792,16 +792,16 @@ mod object_assignment_pattern {
     }
 
     #[test_case("{}" => true; "{ } (empty)")]
-    #[test_case("{...a.#valid}"; "{ AssignmentRestProperty }: valid")]
-    #[test_case("{[a.#valid]:b}"; "{ AssignmentPropertyList }: valid")]
-    #[test_case("{[a.#valid]:b,}"; "{ AssignmentPropertyList , } (trailing comma): valid")]
-    #[test_case("{[a.#valid]:b,...c}"; "{ AssignmentPropertyList , AssignmentRestProperty }: valid List")]
-    #[test_case("{[a]:b,...c.#valid}"; "{ AssignmentPropertyList , AssignmentRestProperty }: valid Rest")]
-    #[test_case("{...a.#invalid}"; "{ AssignmentRestProperty }: invalid")]
-    #[test_case("{[a.#invalid]:b}"; "{ AssignmentPropertyList }: invalid")]
-    #[test_case("{[a.#invalid]:b,}"; "{ AssignmentPropertyList , } (trailing comma): invalid")]
-    #[test_case("{[a.#invalid]:b,...c}"; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid List")]
-    #[test_case("{[a]:b,...c.#invalid}"; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid Rest")]
+    #[test_case("{...a.#valid}" => true; "{ AssignmentRestProperty }: valid")]
+    #[test_case("{[a.#valid]:b}" => true; "{ AssignmentPropertyList }: valid")]
+    #[test_case("{[a.#valid]:b,}" => true; "{ AssignmentPropertyList , } (trailing comma): valid")]
+    #[test_case("{[a.#valid]:b,...c}" => true; "{ AssignmentPropertyList , AssignmentRestProperty }: valid List")]
+    #[test_case("{[a]:b,...c.#valid}" => true; "{ AssignmentPropertyList , AssignmentRestProperty }: valid Rest")]
+    #[test_case("{...a.#invalid}" => false; "{ AssignmentRestProperty }: invalid")]
+    #[test_case("{[a.#invalid]:b}" => false; "{ AssignmentPropertyList }: invalid")]
+    #[test_case("{[a.#invalid]:b,}" => false; "{ AssignmentPropertyList , } (trailing comma): invalid")]
+    #[test_case("{[a.#invalid]:b,...c}" => false; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid List")]
+    #[test_case("{[a]:b,...c.#invalid}" => false; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid Rest")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("valid")])

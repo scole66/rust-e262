@@ -93,7 +93,7 @@ impl LexicalDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -236,7 +236,7 @@ impl BindingList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -351,7 +351,7 @@ impl LexicalBinding {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -424,7 +424,7 @@ impl VariableStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -537,7 +537,7 @@ impl VariableDeclarationList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -654,7 +654,7 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -747,7 +747,7 @@ impl BindingPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -896,7 +896,7 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1102,7 +1102,7 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1173,7 +1173,7 @@ impl BindingRestProperty {
         node.contains(kind)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1275,7 +1275,7 @@ impl BindingPropertyList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1384,7 +1384,7 @@ impl BindingElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1469,7 +1469,7 @@ impl BindingElisionElement {
         n.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1568,7 +1568,7 @@ impl BindingProperty {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1699,7 +1699,7 @@ impl BindingElement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1805,7 +1805,7 @@ impl SingleNameBinding {
         initializer.is_none()
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -1902,7 +1902,7 @@ impl BindingRestElement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }

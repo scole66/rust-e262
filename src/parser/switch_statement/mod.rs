@@ -87,7 +87,7 @@ impl SwitchStatement {
         self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -282,7 +282,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -401,7 +401,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -515,7 +515,7 @@ impl CaseClause {
             }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -622,7 +622,7 @@ impl DefaultClause {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }

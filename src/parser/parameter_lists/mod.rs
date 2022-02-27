@@ -70,7 +70,7 @@ impl UniqueFormalParameters {
         self.formals.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -269,7 +269,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -397,7 +397,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -460,7 +460,7 @@ impl FunctionRestParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
@@ -542,7 +542,7 @@ impl FormalParameter {
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }

@@ -82,7 +82,7 @@ impl ReturnStatement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
         todo!()
     }
 }
