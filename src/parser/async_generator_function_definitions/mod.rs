@@ -104,7 +104,8 @@ impl AsyncGeneratorMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -216,7 +217,8 @@ impl AsyncGeneratorDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -314,7 +316,8 @@ impl AsyncGeneratorExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -379,7 +382,8 @@ impl AsyncGeneratorBody {
         self.0.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

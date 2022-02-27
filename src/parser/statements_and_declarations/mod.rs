@@ -336,7 +336,8 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -435,7 +436,8 @@ impl Declaration {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -546,7 +548,8 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -659,7 +662,8 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

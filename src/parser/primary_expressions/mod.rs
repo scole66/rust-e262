@@ -369,7 +369,8 @@ impl PrimaryExpression {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -442,7 +443,8 @@ impl Elisions {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -506,7 +508,8 @@ impl SpreadElement {
         boxed.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -718,7 +721,8 @@ impl ElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -857,7 +861,8 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -933,7 +938,8 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -998,7 +1004,8 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1064,7 +1071,8 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1131,7 +1139,8 @@ impl LiteralPropertyName {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1223,7 +1232,8 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1367,7 +1377,8 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1456,7 +1467,8 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1558,7 +1570,8 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1677,7 +1690,8 @@ impl Literal {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         // Since we don't implement Legacy Octal syntax (yet), these two errors are never generated. That makes this
         // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
         // assertions that are supposed to fail once we do actually implement legacy octal. That will be my reminder to
@@ -1803,7 +1817,8 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1872,7 +1887,8 @@ impl SubstitutionTemplate {
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -1971,7 +1987,8 @@ impl TemplateSpans {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -2078,7 +2095,8 @@ impl TemplateMiddleList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -2159,7 +2177,8 @@ impl ParenthesizedExpression {
         e.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -2367,7 +2386,8 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }

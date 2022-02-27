@@ -83,7 +83,8 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -210,7 +211,8 @@ impl Block {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -408,7 +410,8 @@ impl StatementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
@@ -562,7 +565,8 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut [Object], _strict: bool) {
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
 }
