@@ -471,7 +471,7 @@ mod primary_expression {
     #[test_case("async function (){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
     #[test_case("async function *(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
     #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
-    #[test_case("/a/xx", true => AHashSet::from_iter(["Invalid regular expression".to_string()]); "RegularExpressionLiteral with errors")]
+    #[test_case("/a/xx", true => AHashSet::from_iter(["Unknown regex flag ‘x’ in flags ‘xx’".to_string()]); "RegularExpressionLiteral with errors")]
     #[test_case("``", true => panics "not yet implemented"; "TemplateLiteral")]
     #[test_case("(a)", true => panics "not yet implemented"; "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {

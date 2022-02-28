@@ -1983,7 +1983,7 @@ impl RegularExpressionData {
         macro_rules! flag_check {
             ( $name:ident, $ch:literal ) => {
                 if $name {
-                    return Err(format!("Duplicate {} flag found in regex flags `{}`", $ch, self.flags));
+                    return Err(format!("Duplicate ‘{}’ flag found in regex flags ‘{}’", $ch, self.flags));
                 } else {
                     $name = true;
                 }
@@ -2005,7 +2005,7 @@ impl RegularExpressionData {
                 'u' => flag_check!(u_found, 'u'),
                 'y' => flag_check!(y_found, 'y'),
                 _ => {
-                    return Err(format!("Unknown regex flag {} in flags `{}`", ch, self.flags));
+                    return Err(format!("Unknown regex flag ‘{}’ in flags ‘{}’", ch, self.flags));
                 }
             }
         }

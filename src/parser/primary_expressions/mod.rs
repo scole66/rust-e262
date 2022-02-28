@@ -463,9 +463,7 @@ impl Elisions {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // SpreadElement[Yield, Await] :
@@ -527,8 +525,9 @@ impl SpreadElement {
         boxed.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let SpreadElement::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -739,8 +738,35 @@ impl ElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ElementList::AssignmentExpression((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::SpreadElement((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListAssignmentExpression((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListSpreadElement((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -878,8 +904,17 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrayLiteral::Empty(_) => {}
+            ArrayLiteral::ElementList(node) => node.early_errors(agent, errs, strict),
+            ArrayLiteral::ElementListElision(node, b) => {
+                node.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+            }
+        }
     }
 }
 
@@ -954,8 +989,9 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let Initializer::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1019,8 +1055,10 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let CoverInitializedName::InitializedName(a, b) = self;
+        a.early_errors(agent, errs, strict);
+        b.early_errors(agent, errs, strict);
     }
 }
 
@@ -1085,8 +1123,9 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ComputedPropertyName::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1152,9 +1191,7 @@ impl LiteralPropertyName {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // PropertyName[Yield, Await] :
@@ -1244,8 +1281,11 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            PropertyName::LiteralPropertyName(x) => x.early_errors(agent, errs, strict),
+            PropertyName::ComputedPropertyName(x) => x.early_errors(agent, errs, strict),
+        }
     }
 }
 
