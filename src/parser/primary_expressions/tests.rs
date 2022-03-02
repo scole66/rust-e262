@@ -463,7 +463,7 @@ mod primary_expression {
     #[test_case("yield", true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield/strict")]
     #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
     #[test_case("3", true => AHashSet::<String>::new(); "literal")]
-    #[test_case("[]", true => panics "not yet implemented"; "ArrayLiteral")]
+    #[test_case("[]", true => AHashSet::<String>::new(); "ArrayLiteral")]
     #[test_case("{}", true => panics "not yet implemented"; "ObjectLiteral")]
     #[test_case("function (){}", true => panics "not yet implemented"; "FunctionExpression")]
     #[test_case("class {}", true => panics "not yet implemented"; "ClassExpression")]
@@ -670,9 +670,10 @@ fn elision_test_contains_01() {
 mod elision {
     use super::*;
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        let mut errs = vec![];
+        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
+        assert!(errs.is_empty());
     }
 }
 
@@ -1205,10 +1206,15 @@ fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod array_literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
+    #[test_case("[a.#invalid]", true => panics "not yet implemented"; "ElementList")]
+    #[test_case("[a.#invalid,,]", true => panics "not yet implemented"; "ElementList Elision")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ArrayLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1456,9 +1462,10 @@ fn literal_property_name_test_contains_01() {
 mod literal_property_name {
     use super::*;
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        let mut errs = Vec::new();
+        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
+        assert!(errs.is_empty());
     }
 }
 
@@ -1544,10 +1551,14 @@ fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod property_name {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertyName::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("0", true => AHashSet::<String>::new(); "LiteralPropertyName")]
+    #[test_case("[a.#invalid]", true => panics "not yet implemented"; "ComputedPropertyName")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
