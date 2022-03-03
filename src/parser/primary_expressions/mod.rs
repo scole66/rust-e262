@@ -1428,8 +1428,49 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => idref.early_errors(agent, errs, strict),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.early_errors(agent, errs, strict);
+                ae.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::AssignmentExpression(ae) => ae.early_errors(agent, errs, strict),
+            PropertyDefinition::MethodDefinition(md) => {
+                // PropertyDefinition : MethodDefinition
+                //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
+                //  * It is a Syntax Error if PrivateBoundIdentifiers of MethodDefinition is not empty.
+                if md.has_direct_super() {
+                    // E.g.: x = { b() { super(); } };
+                    errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
+                }
+                if !md.private_bound_identifiers().is_empty() {
+                    // E.g.: x = { #b() {} };
+                    errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
+                }
+                md.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::CoverInitializedName(cin) => {
+                // In addition to describing an actual object initializer, the ObjectLiteral productions are also used
+                // as a cover grammar for ObjectAssignmentPattern and may be recognized as part of a
+                // CoverParenthesizedExpressionAndArrowParameterList. When ObjectLiteral appears in a context where
+                // ObjectAssignmentPattern is required the following Early Error rules are not applied. In addition,
+                // they are not applied when initially parsing a CoverParenthesizedExpressionAndArrowParameterList or
+                // CoverCallExpressionAndAsyncArrowHead.
+                //
+                // PropertyDefinition : CoverInitializedName
+                //  * It is a Syntax Error if any source text is matched by this production.
+                //
+                // NOTE |   This production exists so that ObjectLiteral can serve as a cover grammar for
+                //      |   ObjectAssignmentPattern. It cannot occur in an actual object initializer.
+
+                // Programming Note. Since covered expressions always wind up getting uncovered before early errors are
+                // checked, if we _actually_ get here, this really is an error.
+                errs.push(create_syntax_error_object(agent, "Illegal destructuring syntax in non-destructuring context"));
+                cin.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1517,8 +1558,15 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.early_errors(agent, errs, strict),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.early_errors(agent, errs, strict);
+                pd.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1619,8 +1667,26 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            ObjectLiteral::Empty => {},
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+                // ObjectLiteral :
+                //      { PropertyDefinitionList }
+                //      { PropertyDefinitionList , }
+                //  * It is a Syntax Error if PropertyNameList of PropertyDefinitionList contains any duplicate entries
+                //    for "__proto__" and at least two of those entries were obtained from productions of the form
+                //    PropertyDefinition : PropertyName : AssignmentExpression . This rule is not applied if this
+                //    ObjectLiteral is contained within a Script that is being parsed for JSON.parse (see step 4 of
+                //    JSON.parse).
+                //
+                // NOTE |   The List returned by PropertyNameList does not include property names defined using a
+                //          ComputedPropertyName.
+                pdl.early_errors(agent, errs, strict);
+                todo!();
+            }
+        }
     }
 }
 
