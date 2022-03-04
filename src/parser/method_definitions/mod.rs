@@ -263,6 +263,24 @@ impl MethodDefinition {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => {
+                // MethodDefinition :
+                //      ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //      get ClassElementName ( ) { FunctionBody }
+                //      set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+                //  1. Return PropName of ClassElementName.
+                cen.prop_name()
+            }
+            MethodDefinition::Generator(node) => node.prop_name(),
+            MethodDefinition::Async(node) => node.prop_name(),
+            MethodDefinition::AsyncGenerator(node) => node.prop_name(),
+        }
+    }
 }
 
 // PropertySetParameterList :

@@ -392,6 +392,12 @@ mod async_method {
             item.has_direct_super()
         }
     }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]

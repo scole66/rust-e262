@@ -899,6 +899,19 @@ impl ClassElementName {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            ClassElementName::PropertyName(node) => node.prop_name(),
+            ClassElementName::PrivateIdentifier(_) => {
+                // ClassElementName : PrivateIdentifier
+                //  1. Return empty.
+                None
+            }
+        }
+    }
 }
 
 // ClassStaticBlock :
