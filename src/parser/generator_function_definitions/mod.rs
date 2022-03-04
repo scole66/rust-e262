@@ -106,6 +106,14 @@ impl GeneratorMethod {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        //      GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
+        //  1. Return PropName of ClassElementName.
+        self.name.prop_name()
+    }
 }
 
 // GeneratorDeclaration[Yield, Await, Default] :

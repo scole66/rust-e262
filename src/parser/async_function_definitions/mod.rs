@@ -310,6 +310,14 @@ impl AsyncMethod {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        //      AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
+        //  1. Return PropName of ClassElementName.
+        self.ident.prop_name()
+    }
 }
 
 // AsyncFunctionBody :

@@ -433,6 +433,17 @@ mod method_definition {
     fn early_errors() {
         MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
+    #[test_case("get a(){}" => Some(JSString::from("a")); "getter")]
+    #[test_case("set a(arg){}" => Some(JSString::from("a")); "setter")]
+    #[test_case("*a(){}" => Some(JSString::from("a")); "generator")]
+    #[test_case("async a(){}" => Some(JSString::from("a")); "async fun")]
+    #[test_case("async *a(){}" => Some(JSString::from("a")); "async gen")]
+    fn prop_name(src: &str) -> Option<JSString> {
+        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.prop_name()
+    }
 }
 
 mod property_set_parameter_list {

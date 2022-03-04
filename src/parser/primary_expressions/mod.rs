@@ -1008,6 +1008,13 @@ impl CoverInitializedName {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> JSString {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        let CoverInitializedName::InitializedName(idref, _) = self;
+        idref.string_value()
+    }
 }
 
 // ComputedPropertyName[Yield, Await] :
@@ -1143,6 +1150,32 @@ impl LiteralPropertyName {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn prop_name(&self) -> JSString {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            LiteralPropertyName::IdentifierName(id) => {
+                // LiteralPropertyName : IdentifierName
+                //  1. Return StringValue of IdentifierName.
+                id.string_value.clone()
+            }
+            LiteralPropertyName::StringLiteral(s) => {
+                // LiteralPropertyName : StringLiteral
+                //  1. Return the SV of StringLiteral.
+                s.value.clone()
+            }
+            LiteralPropertyName::NumericLiteral(Numeric::Number(num)) => {
+                // LiteralPropertyName : NumericLiteral
+                //  1. Let nbr be the NumericValue of NumericLiteral.
+                //  2. Return ! ToString(nbr).
+                let mut s = Vec::new();
+                number_to_string(&mut s, *num).unwrap();
+                JSString::from(s)
+            }
+            LiteralPropertyName::NumericLiteral(Numeric::BigInt(bi)) => JSString::from(bi.to_string()),
+        }
+    }
 }
 
 // PropertyName[Yield, Await] :
@@ -1235,6 +1268,15 @@ impl PropertyName {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            PropertyName::LiteralPropertyName(lpn) => Some(lpn.prop_name()),
+            PropertyName::ComputedPropertyName(_) => None,
+        }
     }
 }
 
@@ -1380,6 +1422,30 @@ impl PropertyDefinition {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            PropertyDefinition::IdentifierReference(id) => {
+                // PropertyDefinition : IdentifierReference
+                //  1. Return StringValue of IdentifierReference.
+                Some(id.string_value())
+            }
+            PropertyDefinition::AssignmentExpression(_) => {
+                // PropertyDefinition : ... AssignmentExpression
+                //  1. Return empty.
+                None
+            }
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => {
+                // PropertyDefinition : PropertyName : AssignmentExpression
+                //  1. Return PropName of PropertyName.
+                pn.prop_name()
+            }
+            PropertyDefinition::CoverInitializedName(cin) => Some(cin.prop_name()),
+            PropertyDefinition::MethodDefinition(md) => md.prop_name(),
+        }
     }
 }
 
