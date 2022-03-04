@@ -127,6 +127,12 @@ mod async_generator_method {
     fn early_errors() {
         AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
 }
 
 // ASYNC GENERATOR DECLARATION

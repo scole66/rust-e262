@@ -1327,6 +1327,12 @@ mod cover_initialized_name {
     fn early_errors() {
         CoverInitializedName::parse(&mut newparser("b=a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), JSString::from("a"));
+    }
 }
 
 // COMPUTED PROPERTY NAME
@@ -1461,11 +1467,22 @@ fn literal_property_name_test_contains_01() {
 }
 mod literal_property_name {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     fn early_errors() {
         let mut errs = Vec::new();
         LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
         assert!(errs.is_empty());
+    }
+
+    #[test_case("bob" => JSString::from("bob"); "identifier")]
+    #[test_case("'lit'" => JSString::from("lit"); "string literal")]
+    #[test_case("45" => JSString::from("45"); "numeric 64-bit")]
+    #[test_case("7732n" => JSString::from("7732"); "numeric bigint")]
+    fn prop_name(src: &str) -> JSString {
+        let (item, _) = LiteralPropertyName::parse(&mut newparser(src), Scanner::new()).unwrap();
+        item.prop_name()
     }
 }
 
@@ -1559,6 +1576,13 @@ mod property_name {
         let mut errs = vec![];
         PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => Some(JSString::from("a")); "normal")]
+    #[test_case("[67 + 3]" => None; "computed")]
+    fn prop_name(src: &str) -> Option<JSString> {
+        let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.prop_name()
     }
 }
 
@@ -1737,10 +1761,22 @@ fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod property_definition {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         PropertyDefinition::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => Some(JSString::from("a")); "identifier")]
+    #[test_case("a=b" => Some(JSString::from("a")); "cover init")]
+    #[test_case("a:3" => Some(JSString::from("a")); "property name")]
+    #[test_case("a(){}" => Some(JSString::from("a")); "method def")]
+    #[test_case("...3" => None; "spread element")]
+    fn prop_name(src: &str) -> Option<JSString> {
+        let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.prop_name()
     }
 }
 

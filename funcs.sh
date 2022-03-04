@@ -1,6 +1,6 @@
 function objects() {
     for file in $( \
-            RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test --no-run --message-format=json 2> /dev/null | \
+            RUSTFLAGS="-Cinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test --no-run --message-format=json 2> /dev/null | \
                 jq -r "select(.profile.test == true) | .filenames[]" | \
                 grep -v dSYM - \
             ); do
@@ -11,19 +11,21 @@ function objects() {
 
 
 function tst() {
-  pushd ~/*/rust-e262 > /dev/null
+  local here=$(pwd)
+  cd ~/*/rust-e262
   rm -f res-*.profraw
   local quiet=
   if [ $# -eq 0 ]; then quiet=-q; fi
-  RUST_BACKTRACE=1 RUSTFLAGS="-Zinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test $quiet "$@"
+  RUST_BACKTRACE=1 RUSTFLAGS="-Cinstrument-coverage" LLVM_PROFILE_FILE="res-%m.profraw" cargo test $quiet "$@"
   cargo profdata -- merge res-*.profraw --output=res.profdata
-  popd > /dev/null
+  cd $here
 }
 
 function summary() {
-  pushd ~/*/rust-e262 > /dev/null
+  local here=$(pwd)
+  cd ~/*/rust-e262
   cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' --instr-profile=res.profdata $(objects)
-  popd > /dev/null
+  cd $here
 }
 
 function z() {
@@ -33,7 +35,8 @@ function z() {
 
 # show the routines with uncovered regions:
 function s() {
-  pushd ~/*/rust-e262 > /dev/null
+  local here=$(pwd)
+  cd ~/*/rust-e262
   cargo cov -- show \
     --use-color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
@@ -44,27 +47,28 @@ function s() {
     -Xdemangler=rustfilt \
     --region-coverage-lt=100 \
   | less -R
-  popd > /dev/null
+  cd $here
 }
 
 function report() {
-  pushd ~/*/rust-e262 > /dev/null
+  local here=$(pwd)
+  cd ~/*/rust-e262
 
-  extra_args=
-  pager=cat
+  extra_args=()
+  pager=(cat)
   while [ $# -gt 0 ]; do
     case "$1" in
       --uncovered)
-        extra_args="$extra_args --region-coverage-lt=100"
+        extra_args=("${extra_args[@]}" --region-coverage-lt=100)
         ;;
       --demangled)
-        extra_args="$extra_args -Xdemangler=rustfilt"
+        extra_args=("${extra_args[@]}" -Xdemangler=rustfilt)
         ;;
       --pager)
-        pager="less -R"
+        pager=(less -R)
         ;;
       *)
-        extra_args="$extra_args $1"
+        extra_args=("${extra_args[@]}" "$1")
         ;;
     esac
     shift
@@ -75,7 +79,7 @@ function report() {
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
     --instr-profile=res.profdata $(objects) \
     --show-line-counts-or-regions \
-    $extra_args | $pager
+    "${extra_args[@]}" | "${pager[@]}"
 
-  popd > /dev/null
+  cd $here
 }
