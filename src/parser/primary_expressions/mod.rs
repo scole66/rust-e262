@@ -1540,6 +1540,16 @@ impl PropertyDefinition {
             PropertyDefinition::MethodDefinition(md) => md.prop_name(),
         }
     }
+
+    pub fn special_proto_count(&self) -> u64 {
+        match self {
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => match pn.prop_name() {
+                Some(x) if x == "__proto__" => 1,
+                _ => 0,
+            },
+            _ => 0,
+        }
+    }
 }
 
 // PropertyDefinitionList[Yield, Await] :
@@ -1634,6 +1644,13 @@ impl PropertyDefinitionList {
                 pdl.early_errors(agent, errs, strict);
                 pd.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn special_proto_count(&self) -> u64 {
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.special_proto_count(),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.special_proto_count() + pd.special_proto_count(),
         }
     }
 }
