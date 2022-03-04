@@ -1751,6 +1751,17 @@ mod property_definition {
         let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.prop_name()
     }
+
+    #[test_case("__proto__" => 0; "identifier")]
+    #[test_case("__proto__=b" => 0; "cover init")]
+    #[test_case("a:3" => 0; "property name")]
+    #[test_case("__proto__:3" => 1; "proto detected")]
+    #[test_case("__proto__(){}" => 0; "method def")]
+    #[test_case("...__proto__" => 0; "spread element")]
+    fn special_proto_count(src: &str) -> u64 {
+        let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.special_proto_count()
+    }
 }
 
 // PROPERTY DEFINITION LIST
@@ -1840,10 +1851,23 @@ fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> boo
 }
 mod property_definition_list {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         PropertyDefinitionList::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a:x" => 0; "one item, not proto")]
+    #[test_case("__proto__:x" => 1; "one item, proto")]
+    #[test_case("__proto__:x,a:3" => 1; "two items, first proto")]
+    #[test_case("a:3,__proto__:0" => 1; "two items, second proto")]
+    #[test_case("__proto__:a,__proto__:b" => 2; "two items, all proto")]
+    #[test_case("p:3,x:4" => 0; "two items, no proto")]
+    fn special_proto_count(src: &str) -> u64 {
+        let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.special_proto_count()
     }
 }
 
