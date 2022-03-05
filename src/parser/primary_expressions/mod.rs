@@ -1755,7 +1755,7 @@ impl ObjectLiteral {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            ObjectLiteral::Empty => {},
+            ObjectLiteral::Empty => {}
             ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
                 // ObjectLiteral :
                 //      { PropertyDefinitionList }
@@ -1768,8 +1768,10 @@ impl ObjectLiteral {
                 //
                 // NOTE |   The List returned by PropertyNameList does not include property names defined using a
                 //          ComputedPropertyName.
+                if pdl.special_proto_count() >= 2 {
+                    errs.push(create_syntax_error_object(agent, "Duplicate __proto__ fields are not allowed in object literals"));
+                }
                 pdl.early_errors(agent, errs, strict);
-                todo!();
             }
         }
     }
@@ -2018,7 +2020,16 @@ impl TemplateLiteral {
 
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+        // Static Semantics: Early Errors
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  * It is a Syntax Error if the [Tagged] parameter was not set and
+                //    NoSubstitutionTemplate Contains NotEscapeSequence.
+                todo!()
+            }
+            _ => todo!(),
+        }
     }
 }
 
