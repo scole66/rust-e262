@@ -2018,17 +2018,27 @@ impl TemplateLiteral {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
                 // TemplateLiteral : NoSubstitutionTemplate
                 //  * It is a Syntax Error if the [Tagged] parameter was not set and
                 //    NoSubstitutionTemplate Contains NotEscapeSequence.
-                todo!()
+                if !tagged && td.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+                }
             }
-            _ => todo!(),
+            TemplateLiteral::SubstitutionTemplate(st) => {
+                // TemplateLiteral : SubstitutionTemplate
+                //  * It is a Syntax Error if the number of elements in the result of
+                //    TemplateStrings of TemplateLiteral with argument false is greater
+                //    than 2^32 - 1.
+                if self.template_strings().len() > 4294967295 {
+                    errs.push(create_syntax_error_object(agent, "Template literal too complex"))
+                }
+                st.early_errors(agent, errs, strict);
+            }
         }
     }
 }
