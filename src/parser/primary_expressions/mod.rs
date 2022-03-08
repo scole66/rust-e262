@@ -2553,9 +2553,7 @@ impl ParenthesizedExpression {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // CoverParenthesizedExpressionAndArrowParameterList[Yield, Await] :
@@ -2762,9 +2760,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 #[cfg(test)]
