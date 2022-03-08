@@ -2034,7 +2034,7 @@ impl TemplateLiteral {
                 //  * It is a Syntax Error if the number of elements in the result of
                 //    TemplateStrings of TemplateLiteral with argument false is greater
                 //    than 2^32 - 1.
-                if self.template_strings().len() > 4294967295 {
+                if self.template_strings(false).len() > 4294967295 {
                     errs.push(create_syntax_error_object(agent, "Template literal too complex"))
                 }
                 st.early_errors(agent, errs, strict);
@@ -2133,9 +2133,15 @@ impl SubstitutionTemplate {
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
+        if !self.tagged && self.template_head.tv.is_none() {
+            errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+        }
+        self.expression.early_errors(agent, errs, strict);
+        self.template_spans.early_errors(agent, errs, strict);
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -2255,9 +2261,22 @@ impl TemplateSpans {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  TemplateSpans :
+        //      TemplateTail
+        //      TemplateMiddleList TemplateTail
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateTail Contains NotEscapeSequence.
+        if let TemplateSpans::List(lst, _, _) = self {
+            lst.early_errors(agent, errs, strict);
+        }
+        match self {
+            TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => {
+                if !tagged && tail.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
+            }
+        }
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -2400,9 +2419,23 @@ impl TemplateMiddleList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  TemplateMiddleList :
+        //      TemplateMiddle Expression
+        //      TemplateMiddleList TemplateMiddle Expression
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateMiddle Contains NotEscapeSequence.
+        if let TemplateMiddleList::ListMid(lst, _, _, _) = self {
+            lst.early_errors(agent, errs, strict);
+        }
+        match self {
+            TemplateMiddleList::ListHead(tmid, exp, tagged) | TemplateMiddleList::ListMid(_, tmid, exp, tagged) => {
+                if !tagged && tmid.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
+                exp.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
