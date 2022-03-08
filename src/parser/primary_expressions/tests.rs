@@ -2163,10 +2163,21 @@ fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_middle_list {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("}\\u{66}${0", true => vec![Some(JSString::from("\\u{66}"))]; "item-raw")]
+    #[test_case("}\\u{66}${0", false => vec![Some(JSString::from("f"))]; "item-cooked")]
+    #[test_case("}a${9}\\u{66}${0", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "list-raw")]
+    #[test_case("}a${9}\\u{66}${0", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "list-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2238,10 +2249,21 @@ fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_spans {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("}\\u{66}`", true => vec![Some(JSString::from("\\u{66}"))]; "tail-raw")]
+    #[test_case("}\\u{66}`", false => vec![Some(JSString::from("f"))]; "tail-cooked")]
+    #[test_case("}${0}\\u{66}`", true => vec![Some(JSString::from("")), Some(JSString::from("\\u{66}"))]; "list-raw")]
+    #[test_case("}${0}\\u{66}`", false => vec![Some(JSString::from("")), Some(JSString::from("f"))]; "list-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2302,10 +2324,19 @@ fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod substitution_template {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("`a${0}\\u{66}`", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "raw")]
+    #[test_case("`a${0}\\u{66}`", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2388,10 +2419,21 @@ fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_literal {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("`hello\\u{67}`", true => vec![Some(JSString::from("hello\\u{67}"))]; "nosub-raw")]
+    #[test_case("`hello\\u{67}`", false => vec![Some(JSString::from("hellog"))]; "nosub-cooked")]
+    #[test_case("`before${expression}a\\u{66}ter`", true => vec![Some(JSString::from("before")), Some(JSString::from("a\\u{66}ter"))]; "sub-raw")]
+    #[test_case("`before${expression}a\\u{66}ter`", false => vec![Some(JSString::from("before")), Some(JSString::from("after"))]; "sub-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
