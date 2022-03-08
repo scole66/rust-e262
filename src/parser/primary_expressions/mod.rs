@@ -1904,6 +1904,32 @@ impl TemplateLiteral {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(nst, _) => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  1. If raw is false, then
+                //      a. Let string be the TV of NoSubstitutionTemplate.
+                //  2. Else,
+                //      a. Let string be the TRV of NoSubstitutionTemplate.
+                //  3. Return « string ».
+                match raw {
+                    false => vec![nst.tv.clone()],
+                    true => vec![Some(nst.trv.clone())],
+                }
+            }
+            TemplateLiteral::SubstitutionTemplate(st) => {
+                // TemplateLiteral : SubstitutionTemplate
+                //  1. Return TemplateStrings of SubstitutionTemplate with argument raw.
+                st.template_strings(raw)
+            }
+        }
+    }
 }
 
 // SubstitutionTemplate[Yield, Await, Tagged] :
@@ -1973,6 +1999,28 @@ impl SubstitutionTemplate {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        //  1. If raw is false, then
+        //      a. Let head be the TV of TemplateHead.
+        //  2. Else,
+        //      a. Let head be the TRV of TemplateHead.
+        //  3. Let tail be TemplateStrings of TemplateSpans with argument raw.
+        //  4. Return the list-concatenation of « head » and tail.
+        let mut head = match raw {
+            false => vec![self.template_head.tv.clone()],
+            true => vec![Some(self.template_head.trv.clone())],
+        };
+        let tail = self.template_spans.template_strings(raw);
+        head.extend(tail);
+        head
     }
 }
 
@@ -2073,6 +2121,43 @@ impl TemplateSpans {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateSpans::Tail(tail, _) => {
+                // TemplateSpans : TemplateTail
+                //  1. If raw is false, then
+                //      a. Let tail be the TV of TemplateTail.
+                //  2. Else,
+                //      a. Let tail be the TRV of TemplateTail.
+                //  3. Return « tail ».
+                match raw {
+                    false => vec![tail.tv.clone()],
+                    true => vec![Some(tail.trv.clone())],
+                }
+            }
+            TemplateSpans::List(template_middle_list, template_tail, _) => {
+                // TemplateSpans : TemplateMiddleList TemplateTail
+                //  1. Let middle be TemplateStrings of TemplateMiddleList with argument raw.
+                //  2. If raw is false, then
+                //      a. Let tail be the TV of TemplateTail.
+                //  3. Else,
+                //      a. Let tail be the TRV of TemplateTail.
+                //  4. Return the list-concatenation of middle and « tail ».
+                let mut middle = template_middle_list.template_strings(raw);
+                let tail = match raw {
+                    false => template_tail.tv.clone(),
+                    true => Some(template_tail.trv.clone()),
+                };
+                middle.push(tail);
+                middle
+            }
+        }
     }
 }
 
@@ -2181,6 +2266,43 @@ impl TemplateMiddleList {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateMiddleList::ListHead(template_middle, _, _) => {
+                // TemplateMiddleList : TemplateMiddle Expression
+                //  1. If raw is false, then
+                //      a. Let string be the TV of TemplateMiddle.
+                //  2. Else,
+                //      a. Let string be the TRV of TemplateMiddle.
+                //  3. Return « string ».
+                match raw {
+                    false => vec![template_middle.tv.clone()],
+                    true => vec![Some(template_middle.trv.clone())],
+                }
+            }
+            TemplateMiddleList::ListMid(template_middle_list, template_middle, _, _) => {
+                // TemplateMiddleList : TemplateMiddleList TemplateMiddle Expression
+                //  1. Let front be TemplateStrings of TemplateMiddleList with argument raw.
+                //  2. If raw is false, then
+                //      a. Let last be the TV of TemplateMiddle.
+                //  3. Else,
+                //      a. Let last be the TRV of TemplateMiddle.
+                //  4. Return the list-concatenation of front and « last ».
+                let mut front = template_middle_list.template_strings(raw);
+                let last = match raw {
+                    false => template_middle.tv.clone(),
+                    true => Some(template_middle.trv.clone()),
+                };
+                front.push(last);
+                front
+            }
+        }
     }
 }
 
