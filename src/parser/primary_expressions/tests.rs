@@ -464,16 +464,17 @@ mod primary_expression {
     #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
     #[test_case("3", true => AHashSet::<String>::new(); "literal")]
     #[test_case("[]", true => AHashSet::<String>::new(); "ArrayLiteral")]
-    #[test_case("{}", true => panics "not yet implemented"; "ObjectLiteral")]
-    #[test_case("function (){}", true => panics "not yet implemented"; "FunctionExpression")]
-    #[test_case("class {}", true => panics "not yet implemented"; "ClassExpression")]
-    #[test_case("function *(){}", true => panics "not yet implemented"; "GeneratorExpression")]
-    #[test_case("async function (){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
-    #[test_case("async function *(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
+    #[test_case("[yield]", true => panics "not yet implemented"; "yield-in-array-strict")]
+    #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
+    #[test_case("function eval(){}", true => panics "not yet implemented"; "FunctionExpression")]
+    #[test_case("class yield {}", true => panics "not yet implemented"; "ClassExpression")]
+    #[test_case("function *yield(){}", true => panics "not yet implemented"; "GeneratorExpression")]
+    #[test_case("async function yield(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
+    #[test_case("async function *yield(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
     #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
     #[test_case("/a/xx", true => AHashSet::from_iter(["Unknown regex flag ‘x’ in flags ‘xx’".to_string()]); "RegularExpressionLiteral with errors")]
-    #[test_case("``", true => panics "not yet implemented"; "TemplateLiteral")]
-    #[test_case("(a)", true => panics "not yet implemented"; "ParenthesizedExpression")]
+    #[test_case("`${yield}`", true => panics "not yet implemented"; "TemplateLiteral")]
+    #[test_case("(yield)", true => panics "not yet implemented"; "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1029,10 +1030,25 @@ fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod element_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("yield", true => panics "not yet implemented"; "AssignmentExpression: err")]
+    #[test_case(",yield", true => panics "not yet implemented"; "Elision AssignmentExpression: err")]
+    #[test_case("...yield", true => panics "not yet implemented"; "SpreadElement: err")]
+    #[test_case(",...yield", true => panics "not yet implemented"; "Elision SpreadElement: err")]
+    #[test_case("yield,b", true => panics "not yet implemented"; "ElementList AssignmentExpression: list err")]
+    #[test_case("a,yield", true => panics "not yet implemented"; "ElementList AssignmentExpression: expression err")]
+    #[test_case("yield,,b", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: list err")]
+    #[test_case("a,,yield", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: expression err")]
+    #[test_case("yield,...b", true => panics "not yet implemented"; "ElementList SpreadElement: list err")]
+    #[test_case("a,...yield", true => panics "not yet implemented"; "ElementList SpreadElement: element err")]
+    #[test_case("yield,,...b", true => panics "not yet implemented"; "ElementList Elision SpreadElement: list err")]
+    #[test_case("a,,...yield", true => panics "not yet implemented"; "ElementList Elision SpreadElement: element err")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 

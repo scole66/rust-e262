@@ -2552,8 +2552,10 @@ impl ParenthesizedExpression {
         e.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.early_errors(agent, errs, strict)
+    }
 }
 
 // CoverParenthesizedExpressionAndArrowParameterList[Yield, Await] :
@@ -2759,8 +2761,23 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+                exp.early_errors(agent, errs, strict);
+                id.early_errors(agent, errs, strict);
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+                exp.early_errors(agent, errs, strict);
+                pat.early_errors(agent, errs, strict);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
