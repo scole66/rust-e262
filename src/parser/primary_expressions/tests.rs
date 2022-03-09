@@ -1224,8 +1224,8 @@ mod array_literal {
     use super::*;
     use test_case::test_case;
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("[a.#invalid]", true => panics "not yet implemented"; "ElementList")]
-    #[test_case("[a.#invalid,,]", true => panics "not yet implemented"; "ElementList Elision")]
+    #[test_case("[yield]", true => panics "not yet implemented"; "ElementList")]
+    #[test_case("[yield,,]", true => panics "not yet implemented"; "ElementList Elision")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
