@@ -1962,6 +1962,61 @@ impl fmt::Display for RegularExpressionData {
     }
 }
 
+impl RegularExpressionData {
+    pub fn validate_regular_expression_literal(&self) -> Result<(), String> {
+        // Static Semantics: IsValidRegularExpressionLiteral ( literal )
+        //
+        // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
+        // Parse Node). It determines if its argument is a valid regular expression literal. It performs the following
+        // steps when called:
+        //
+        //  1. If FlagText of literal contains any code points other than g, i, m, s, u, or y, or if it contains the
+        //     same code point more than once, return false.
+        //  2. Let patternText be BodyText of literal.
+        //  3. If FlagText of literal contains u, let u be true; else let u be false.
+        //  4. If u is false, then
+        //      a. Let stringValue be CodePointsToString(patternText).
+        //      b. Set patternText to the sequence of code points resulting from interpreting each of the 16-bit
+        //         elements of stringValue as a Unicode BMP code point. UTF-16 decoding is not applied to the elements.
+        //  5. Let parseResult be ParsePattern(patternText, u).
+        //  6. If parseResult is a Parse Node, return true; else return false.
+        macro_rules! flag_check {
+            ( $name:ident, $ch:literal ) => {
+                if $name {
+                    return Err(format!("Duplicate ‘{}’ flag found in regex flags ‘{}’", $ch, self.flags));
+                } else {
+                    $name = true;
+                }
+            };
+        }
+
+        let mut g_found = false;
+        let mut i_found = false;
+        let mut m_found = false;
+        let mut s_found = false;
+        let mut u_found = false;
+        let mut y_found = false;
+        for ch in self.flags.chars() {
+            match ch {
+                'g' => flag_check!(g_found, 'g'),
+                'i' => flag_check!(i_found, 'i'),
+                'm' => flag_check!(m_found, 'm'),
+                's' => flag_check!(s_found, 's'),
+                'u' => flag_check!(u_found, 'u'),
+                'y' => flag_check!(y_found, 'y'),
+                _ => {
+                    return Err(format!("Unknown regex flag ‘{}’ in flags ‘{}’", ch, self.flags));
+                }
+            }
+        }
+
+        // todo!()
+        // There's more to do here --- there's a whole pattern parsing thing to make sure you've made a reasonable regex.
+        // Also some unicode vs straight u16 nonsense to handle.
+        Ok(())
+    }
+}
+
 pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {

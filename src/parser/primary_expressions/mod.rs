@@ -369,9 +369,29 @@ impl PrimaryExpression {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match &self.kind {
+            PrimaryExpressionKind::This => {}
+            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Literal(lit) => lit.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
+            PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::RegularExpression(regex) => {
+                // Static Semantics: Early Errors
+                //      PrimaryExpression : RegularExpressionLiteral
+                //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
+                if let Err(msg) = regex.validate_regular_expression_literal() {
+                    errs.push(create_syntax_error_object(agent, msg));
+                }
+            }
+        }
     }
 }
 
@@ -444,9 +464,7 @@ impl Elisions {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // SpreadElement[Yield, Await] :
@@ -508,9 +526,9 @@ impl SpreadElement {
         boxed.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let SpreadElement::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -721,9 +739,35 @@ impl ElementList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ElementList::AssignmentExpression((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::SpreadElement((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListAssignmentExpression((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListSpreadElement((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -861,9 +905,17 @@ impl ArrayLiteral {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrayLiteral::Empty(_) => {}
+            ArrayLiteral::ElementList(node) => node.early_errors(agent, errs, strict),
+            ArrayLiteral::ElementListElision(node, b) => {
+                node.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+            }
+        }
     }
 }
 
@@ -938,9 +990,9 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let Initializer::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1004,9 +1056,10 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let CoverInitializedName::InitializedName(a, b) = self;
+        a.early_errors(agent, errs, strict);
+        b.early_errors(agent, errs, strict);
     }
 
     pub fn prop_name(&self) -> JSString {
@@ -1078,9 +1131,9 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ComputedPropertyName::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1147,9 +1200,7 @@ impl LiteralPropertyName {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 
     pub fn prop_name(&self) -> JSString {
         // Static Semantics: PropName
@@ -1265,9 +1316,11 @@ impl PropertyName {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            PropertyName::LiteralPropertyName(x) => x.early_errors(agent, errs, strict),
+            PropertyName::ComputedPropertyName(x) => x.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -1419,9 +1472,49 @@ impl PropertyDefinition {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => idref.early_errors(agent, errs, strict),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.early_errors(agent, errs, strict);
+                ae.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::AssignmentExpression(ae) => ae.early_errors(agent, errs, strict),
+            PropertyDefinition::MethodDefinition(md) => {
+                // PropertyDefinition : MethodDefinition
+                //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
+                //  * It is a Syntax Error if PrivateBoundIdentifiers of MethodDefinition is not empty.
+                if md.has_direct_super() {
+                    // E.g.: x = { b() { super(); } };
+                    errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
+                }
+                if !md.private_bound_identifiers().is_empty() {
+                    // E.g.: x = { #b() {} };
+                    errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
+                }
+                md.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::CoverInitializedName(cin) => {
+                // In addition to describing an actual object initializer, the ObjectLiteral productions are also used
+                // as a cover grammar for ObjectAssignmentPattern and may be recognized as part of a
+                // CoverParenthesizedExpressionAndArrowParameterList. When ObjectLiteral appears in a context where
+                // ObjectAssignmentPattern is required the following Early Error rules are not applied. In addition,
+                // they are not applied when initially parsing a CoverParenthesizedExpressionAndArrowParameterList or
+                // CoverCallExpressionAndAsyncArrowHead.
+                //
+                // PropertyDefinition : CoverInitializedName
+                //  * It is a Syntax Error if any source text is matched by this production.
+                //
+                // NOTE |   This production exists so that ObjectLiteral can serve as a cover grammar for
+                //      |   ObjectAssignmentPattern. It cannot occur in an actual object initializer.
+
+                // Programming Note. Since covered expressions always wind up getting uncovered before early errors are
+                // checked, if we _actually_ get here, this really is an error.
+                errs.push(create_syntax_error_object(agent, "Illegal destructuring syntax in non-destructuring context"));
+                cin.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -1543,9 +1636,15 @@ impl PropertyDefinitionList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.early_errors(agent, errs, strict),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.early_errors(agent, errs, strict);
+                pd.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn special_proto_count(&self) -> u64 {
@@ -1653,9 +1752,28 @@ impl ObjectLiteral {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            ObjectLiteral::Empty => {}
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+                // ObjectLiteral :
+                //      { PropertyDefinitionList }
+                //      { PropertyDefinitionList , }
+                //  * It is a Syntax Error if PropertyNameList of PropertyDefinitionList contains any duplicate entries
+                //    for "__proto__" and at least two of those entries were obtained from productions of the form
+                //    PropertyDefinition : PropertyName : AssignmentExpression . This rule is not applied if this
+                //    ObjectLiteral is contained within a Script that is being parsed for JSON.parse (see step 4 of
+                //    JSON.parse).
+                //
+                // NOTE |   The List returned by PropertyNameList does not include property names defined using a
+                //          ComputedPropertyName.
+                if pdl.special_proto_count() >= 2 {
+                    errs.push(create_syntax_error_object(agent, "Duplicate __proto__ fields are not allowed in object literals"));
+                }
+                pdl.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1900,9 +2018,28 @@ impl TemplateLiteral {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
+        // Static Semantics: Early Errors
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  * It is a Syntax Error if the [Tagged] parameter was not set and
+                //    NoSubstitutionTemplate Contains NotEscapeSequence.
+                if !tagged && td.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+                }
+            }
+            TemplateLiteral::SubstitutionTemplate(st) => {
+                // TemplateLiteral : SubstitutionTemplate
+                //  * It is a Syntax Error if the number of elements in the result of
+                //    TemplateStrings of TemplateLiteral with argument false is greater
+                //    than 2^32 - 1.
+                if self.template_strings(false).len() > ts_limit {
+                    errs.push(create_syntax_error_object(agent, "Template literal too complex"))
+                }
+                st.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -1996,9 +2133,15 @@ impl SubstitutionTemplate {
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
+        if !self.tagged && self.template_head.tv.is_none() {
+            errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+        }
+        self.expression.early_errors(agent, errs, strict);
+        self.template_spans.early_errors(agent, errs, strict);
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -2118,9 +2261,22 @@ impl TemplateSpans {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  TemplateSpans :
+        //      TemplateTail
+        //      TemplateMiddleList TemplateTail
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateTail Contains NotEscapeSequence.
+        if let TemplateSpans::List(lst, _, _) = self {
+            lst.early_errors(agent, errs, strict);
+        }
+        match self {
+            TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => {
+                if !tagged && tail.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
+            }
+        }
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -2263,9 +2419,23 @@ impl TemplateMiddleList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  TemplateMiddleList :
+        //      TemplateMiddle Expression
+        //      TemplateMiddleList TemplateMiddle Expression
+        //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateMiddle Contains NotEscapeSequence.
+        if let TemplateMiddleList::ListMid(lst, _, _, _) = self {
+            lst.early_errors(agent, errs, strict);
+        }
+        match self {
+            TemplateMiddleList::ListHead(tmid, exp, tagged) | TemplateMiddleList::ListMid(_, tmid, exp, tagged) => {
+                if !tagged && tmid.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
+                exp.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
@@ -2382,9 +2552,9 @@ impl ParenthesizedExpression {
         e.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.early_errors(agent, errs, strict)
     }
 }
 
@@ -2591,9 +2761,22 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+                exp.early_errors(agent, errs, strict);
+                id.early_errors(agent, errs, strict);
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+                exp.early_errors(agent, errs, strict);
+                pat.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
