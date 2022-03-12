@@ -377,7 +377,7 @@ impl PrimaryExpression {
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
             PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
@@ -2018,7 +2018,7 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
             TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
@@ -2034,7 +2034,7 @@ impl TemplateLiteral {
                 //  * It is a Syntax Error if the number of elements in the result of
                 //    TemplateStrings of TemplateLiteral with argument false is greater
                 //    than 2^32 - 1.
-                if self.template_strings(false).len() > 4294967295 {
+                if self.template_strings(false).len() > ts_limit {
                     errs.push(create_syntax_error_object(agent, "Template literal too complex"))
                 }
                 st.early_errors(agent, errs, strict);
