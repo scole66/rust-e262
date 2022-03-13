@@ -22,7 +22,7 @@ mod require_object_coercible {
     #[test_case(|_| 200.2.into() => Ok(()); "number")]
     #[test_case(|_| "green".into() => Ok(()); "string")]
     #[test_case(|a| a.wks(WksId::Species).into() => Ok(()); "symbol")]
-    #[test_case(|_| BigInt::from(10).into(); "bigint")]
+    #[test_case(|_| BigInt::from(10).into() => Ok(()); "bigint")]
     #[test_case(|a| ordinary_object_create(a, None, &[]).into() => Ok(()); "object")]
     fn roc(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<(), String> {
         let mut agent = test_agent();

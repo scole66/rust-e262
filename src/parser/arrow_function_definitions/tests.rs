@@ -27,7 +27,7 @@ fn arrow_function_test_04() {
 }
 #[test]
 fn arrow_function_test_05() {
-    check_err(ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false), "Newline not allowed here.", 1, 2);
+    check_err(ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false), "newline not allowed here", 1, 2);
 }
 #[test]
 fn arrow_function_test_prettyerrors_1() {

@@ -93,6 +93,7 @@ impl LexicalDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -236,6 +237,7 @@ impl BindingList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -307,7 +309,7 @@ impl PrettyPrint for LexicalBinding {
 impl LexicalBinding {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("LexicalBinding expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LexicalBinding), scanner))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
                 let (init, after_init) = match Initializer::parse(parser, after_bi, in_flag, yield_flag, await_flag) {
@@ -351,6 +353,7 @@ impl LexicalBinding {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -424,6 +427,7 @@ impl VariableStatement {
         node.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -537,6 +541,7 @@ impl VariableDeclarationList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -608,7 +613,7 @@ impl PrettyPrint for VariableDeclaration {
 impl VariableDeclaration {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("VariableDeclaration expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::VariableDeclaration), scanner))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
                 let pot_init = Initializer::parse(parser, after_bi, in_flag, yield_flag, await_flag);
@@ -654,6 +659,7 @@ impl VariableDeclaration {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -703,7 +709,7 @@ impl PrettyPrint for BindingPattern {
 
 impl BindingPattern {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("BindingPattern expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingPattern), scanner))
             .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(obp, after_obp)| (Rc::new(BindingPattern::Object(obp)), after_obp)))
             .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(abp, after_abp)| (Rc::new(BindingPattern::Array(abp)), after_abp)))
     }
@@ -747,6 +753,7 @@ impl BindingPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -828,7 +835,7 @@ impl PrettyPrint for ObjectBindingPattern {
 impl ObjectBindingPattern {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("ObjectBindingPattern expected", scanner.line, scanner.column)).otherwise(|| {
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ObjectBindingPattern), scanner)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_open| {
                 scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
                     .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
@@ -896,6 +903,7 @@ impl ObjectBindingPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1102,6 +1110,7 @@ impl ArrayBindingPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1173,6 +1182,7 @@ impl BindingRestProperty {
         node.contains(kind)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1275,6 +1285,7 @@ impl BindingPropertyList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1384,6 +1395,7 @@ impl BindingElementList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1469,6 +1481,7 @@ impl BindingElisionElement {
         n.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1528,7 +1541,7 @@ impl PrettyPrint for BindingProperty {
 impl BindingProperty {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("BindingProperty expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingProperty), scanner))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_token = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
@@ -1568,6 +1581,7 @@ impl BindingProperty {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1628,7 +1642,7 @@ impl PrettyPrint for BindingElement {
 
 impl BindingElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("BindingElement expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingElement), scanner))
             .otherwise(|| {
                 let (bp, after_bp) = BindingPattern::parse(parser, scanner, yield_flag, await_flag)?;
                 let (init, after_init) = match Initializer::parse(parser, after_bp, true, yield_flag, await_flag) {
@@ -1699,6 +1713,7 @@ impl BindingElement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1805,6 +1820,7 @@ impl SingleNameBinding {
         initializer.is_none()
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1858,7 +1874,7 @@ impl PrettyPrint for BindingRestElement {
 impl BindingRestElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-        Err(ParseError::new("‘[’, ‘{’, or an identifier expected", after_tok.line, after_tok.column))
+        Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
             .otherwise(|| BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp)))
             .otherwise(|| BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi)))
     }
@@ -1902,6 +1918,7 @@ impl BindingRestElement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

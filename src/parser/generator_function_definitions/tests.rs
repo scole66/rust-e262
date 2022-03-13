@@ -109,6 +109,12 @@ mod generator_method {
     fn early_errors() {
         GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
 }
 
 // GENERATOR DECLARATION
@@ -158,7 +164,7 @@ fn generator_declaration_test_075() {
 }
 #[test]
 fn generator_declaration_test_076() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "Not an identifier", 1, 11);
+    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11);
 }
 #[test]
 fn generator_declaration_test_08() {

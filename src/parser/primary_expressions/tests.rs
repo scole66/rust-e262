@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // PRIMARY EXPRESSION
@@ -456,10 +457,29 @@ fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
 }
 mod primary_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PrimaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("this", true => AHashSet::<String>::new(); "this")]
+    #[test_case("a", true => AHashSet::<String>::new(); "simple identifier")]
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "package/strict")]
+    #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
+    #[test_case("3", true => AHashSet::<String>::new(); "literal")]
+    #[test_case("[]", true => AHashSet::<String>::new(); "ArrayLiteral")]
+    #[test_case("[package]", true => panics "not yet implemented"; "package-in-array-strict")]
+    #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
+    #[test_case("function eval(){}", true => panics "not yet implemented"; "FunctionExpression")]
+    #[test_case("class package {}", true => panics "not yet implemented"; "ClassExpression")]
+    #[test_case("function *package(){}", true => panics "not yet implemented"; "GeneratorExpression")]
+    #[test_case("async function package(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
+    #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
+    #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
+    #[test_case("/a/xx", true => AHashSet::from_iter(["Unknown regex flag ‘x’ in flags ‘xx’".to_string()]); "RegularExpressionLiteral with errors")]
+    #[test_case("`${package}`", true => panics "not yet implemented"; "TemplateLiteral")]
+    #[test_case("(package)", true => panics "not yet implemented"; "ParenthesizedExpression")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -577,6 +597,10 @@ fn literal_kind_ne() {
     assert!(lk3 == lk4);
 }
 #[test]
+fn numeric_has_legacy_octal() {
+    assert!(!Numeric::Number(0.0).has_legacy_octal_syntax());
+}
+#[test]
 fn literal_test_contains_01() {
     let (item, _) = Literal::parse(&mut newparser("10"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
@@ -589,17 +613,23 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
 }
 mod literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Literal::parse(&mut newparser("3"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
+    use test_case::test_case;
+    #[test_case("3", true => AHashSet::<String>::new(); "Numeric")]
+    #[test_case("null", true => AHashSet::<String>::new(); "Null")]
+    #[test_case("true", true => AHashSet::<String>::new(); "Boolean")]
+    #[test_case("'a'", true => AHashSet::<String>::new(); "String")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
 // ELISION
 #[test]
 fn elision_test_01() {
-    check_err(Elisions::parse(&mut newparser(""), Scanner::new()), "Expected one or more commas", 1, 1);
+    check_err(Elisions::parse(&mut newparser(""), Scanner::new()), "‘,’ expected", 1, 1);
 }
 #[test]
 fn elision_test_02() {
@@ -641,9 +671,10 @@ fn elision_test_contains_01() {
 mod elision {
     use super::*;
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        let mut errs = vec![];
+        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
+        assert!(errs.is_empty());
     }
 }
 
@@ -697,7 +728,7 @@ mod spread_element {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        SpreadElement::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        SpreadElement::parse(&mut newparser("...package"), Scanner::new(), false, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -999,10 +1030,25 @@ fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod element_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ElementList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => panics "not yet implemented"; "AssignmentExpression: err")]
+    #[test_case(",package", true => panics "not yet implemented"; "Elision AssignmentExpression: err")]
+    #[test_case("...package", true => panics "not yet implemented"; "SpreadElement: err")]
+    #[test_case(",...package", true => panics "not yet implemented"; "Elision SpreadElement: err")]
+    #[test_case("package,b", true => panics "not yet implemented"; "ElementList AssignmentExpression: list err")]
+    #[test_case("a,package", true => panics "not yet implemented"; "ElementList AssignmentExpression: expression err")]
+    #[test_case("package,,b", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: list err")]
+    #[test_case("a,,package", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: expression err")]
+    #[test_case("package,...b", true => panics "not yet implemented"; "ElementList SpreadElement: list err")]
+    #[test_case("a,...package", true => panics "not yet implemented"; "ElementList SpreadElement: element err")]
+    #[test_case("package,,...b", true => panics "not yet implemented"; "ElementList Elision SpreadElement: list err")]
+    #[test_case("a,,...package", true => panics "not yet implemented"; "ElementList Elision SpreadElement: element err")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ElementList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1062,7 +1108,7 @@ fn array_literal_test_err_03() {
 }
 #[test]
 fn array_literal_test_err_04() {
-    check_err(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false), "One of [‘,’, ‘]’] expected", 1, 3);
+    check_err(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘,’, ‘]’] expected", 1, 3);
 }
 #[test]
 fn array_literal_test_err_05() {
@@ -1176,10 +1222,16 @@ fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod array_literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
+    #[test_case("[package]", true => panics "not yet implemented"; "ElementList")]
+    #[test_case("[package,,]", true => panics "not yet implemented"; "ElementList Elision")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1234,17 +1286,21 @@ fn initializer_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod initializer {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Initializer::parse(&mut newparser("=a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("=package", true => panics "not yet implemented"; "normal")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
 // COVER INITIALIZED NAME
 #[test]
 fn cover_initialized_name_test_nomatch_1() {
-    check_err(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false), "Not an identifier", 1, 1);
+    check_err(CoverInitializedName::parse(&mut newparser(""), Scanner::new(), false, false), "not an identifier", 1, 1);
 }
 #[test]
 fn cover_initialized_name_test_nomatch_2() {
@@ -1287,10 +1343,21 @@ fn cover_initialized_name_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod cover_initialized_name {
     use super::*;
+    use test_case::test_case;
+
+    #[test_case("a=package", true => panics "not yet implemented"; "exp errs")]
+    #[test_case("package=3", true => panics "not yet implemented"; "id errs")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
     #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CoverInitializedName::parse(&mut newparser("b=a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    fn prop_name() {
+        let (item, _) = CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), JSString::from("a"));
     }
 }
 
@@ -1347,7 +1414,7 @@ mod computed_property_name {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        ComputedPropertyName::parse(&mut newparser("[package]"), Scanner::new(), false, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -1426,10 +1493,22 @@ fn literal_property_name_test_contains_01() {
 }
 mod literal_property_name {
     use super::*;
+    use test_case::test_case;
+
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        let mut errs = Vec::new();
+        LiteralPropertyName::parse(&mut newparser("package"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
+        assert!(errs.is_empty());
+    }
+
+    #[test_case("bob" => JSString::from("bob"); "identifier")]
+    #[test_case("'lit'" => JSString::from("lit"); "string literal")]
+    #[test_case("45" => JSString::from("45"); "numeric 64-bit")]
+    #[test_case("7732n" => JSString::from("7732"); "numeric bigint")]
+    fn prop_name(src: &str) -> JSString {
+        let (item, _) = LiteralPropertyName::parse(&mut newparser(src), Scanner::new()).unwrap();
+        item.prop_name()
     }
 }
 
@@ -1515,10 +1594,21 @@ fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod property_name {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertyName::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("package", true => AHashSet::<String>::new(); "LiteralPropertyName")]
+    #[test_case("[a.package]", true => panics "not yet implemented"; "ComputedPropertyName")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertyName::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => Some(JSString::from("a")); "normal")]
+    #[test_case("[67 + 3]" => None; "computed")]
+    fn prop_name(src: &str) -> Option<JSString> {
+        let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.prop_name()
     }
 }
 
@@ -1697,10 +1787,41 @@ fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod property_definition {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertyDefinition::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "identifier")]
+    #[test_case("package=b", true => panics "not yet implemented"; "cover init")]
+    #[test_case("package:3", true => panics "not yet implemented"; "property name")]
+    #[test_case("package(){}", true => panics "not yet implemented"; "method def")]
+    #[test_case("...package", true => panics "not yet implemented"; "spread element")]
+    #[test_case("a(b=super()){}", true => panics "not yet implemented"; "HasDirectSuper of MethodDefinition")]
+    #[test_case("#a(){}", true => panics "not yet implemented"; "unexpected private id in MethodDef")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => Some(JSString::from("a")); "identifier")]
+    #[test_case("a=b" => Some(JSString::from("a")); "cover init")]
+    #[test_case("a:3" => Some(JSString::from("a")); "property name")]
+    #[test_case("a(){}" => Some(JSString::from("a")); "method def")]
+    #[test_case("...3" => None; "spread element")]
+    fn prop_name(src: &str) -> Option<JSString> {
+        let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.prop_name()
+    }
+
+    #[test_case("__proto__" => 0; "identifier")]
+    #[test_case("__proto__=b" => 0; "cover init")]
+    #[test_case("a:3" => 0; "property name")]
+    #[test_case("__proto__:3" => 1; "proto detected")]
+    #[test_case("__proto__(){}" => 0; "method def")]
+    #[test_case("...__proto__" => 0; "spread element")]
+    fn special_proto_count(src: &str) -> u64 {
+        let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.special_proto_count()
     }
 }
 
@@ -1791,10 +1912,27 @@ fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> boo
 }
 mod property_definition_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertyDefinitionList::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package:3", true => panics "not yet implemented"; "item")]
+    #[test_case("package:3,b", true => panics "not yet implemented"; "list head")]
+    #[test_case("a,package:3", true => panics "not yet implemented"; "list tail")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a:x" => 0; "one item, not proto")]
+    #[test_case("__proto__:x" => 1; "one item, proto")]
+    #[test_case("__proto__:x,a:3" => 1; "two items, first proto")]
+    #[test_case("a:3,__proto__:0" => 1; "two items, second proto")]
+    #[test_case("__proto__:a,__proto__:b" => 2; "two items, all proto")]
+    #[test_case("p:3,x:4" => 0; "two items, no proto")]
+    fn special_proto_count(src: &str) -> u64 {
+        let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.special_proto_count()
     }
 }
 
@@ -1834,7 +1972,7 @@ fn object_literal_test_05() {
 }
 #[test]
 fn object_literal_test_06() {
-    check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "One of [‘}’, ‘,’] expected", 1, 5);
+    check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "one of [‘}’, ‘,’] expected", 1, 5);
 }
 #[test]
 fn object_literal_test_07() {
@@ -1906,10 +2044,18 @@ fn object_literal_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod object_literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
+    #[test_case("{a:package}", true => panics "not yet implemented"; "list")]
+    #[test_case("{a:package,}", true => panics "not yet implemented"; "trailing comma")]
+    #[test_case("{__proto__:a,__proto__:b}", true => panics "not yet implemented"; "duplicate proto")]
+    #[test_case("{__proto__:a,__proto__:b,}", true => panics "not yet implemented"; "duplicate proto; trailing comma")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1968,7 +2114,7 @@ mod parenthesized_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        ParenthesizedExpression::parse(&mut newparser("(package)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -2063,10 +2209,29 @@ fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_middle_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        TemplateMiddleList::parse(&mut newparser("}${a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("}${package", true, false => panics "not yet implemented"; "mid exp; exp bad")]
+    #[test_case("}\\u{}${0", true, false => panics "not yet implemented"; "mid exp; mid bad")]
+    #[test_case("}\\u{}${0", true, true => panics "not yet implemented"; "mid exp; mid bad, but tagged")]
+    #[test_case("}list${package}${3", true, false => panics "not yet implemented"; "list mid exp; list bad")]
+    #[test_case("}list${1}\\u{}${3", true, false => panics "not yet implemented"; "list mid exp; mid bad")]
+    #[test_case("}list${1}\\u{}${3", true, true => panics "not yet implemented"; "list mid exp; mid bad, but tagged")]
+    #[test_case("}list${1}${package", true, false => panics "not yet implemented"; "list mid exp; exp bad")]
+    fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("}\\u{66}${0", true => vec![Some(JSString::from("\\u{66}"))]; "item-raw")]
+    #[test_case("}\\u{66}${0", false => vec![Some(JSString::from("f"))]; "item-cooked")]
+    #[test_case("}a${9}\\u{66}${0", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "list-raw")]
+    #[test_case("}a${9}\\u{66}${0", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "list-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2138,10 +2303,27 @@ fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_spans {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        TemplateSpans::parse(&mut newparser("}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("}\\u{}`", true, false => AHashSet::from_iter(["Invalid character escape in template literal".to_string()]); "tail; tail bad")]
+    #[test_case("}\\u{}`", true, true => AHashSet::<String>::new(); "tail; tail bad, but tagged")]
+    #[test_case("}\\u{}${0}`", true, false => panics "not yet implemented"; "list tail; list bad")]
+    #[test_case("}${0}\\u{}`", true, false => panics "not yet implemented"; "list tail; tail bad")]
+    #[test_case("}${0}\\u{}`", true, true => panics "not yet implemented"; "list tail; tail bad, but tagged")]
+    fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("}\\u{66}`", true => vec![Some(JSString::from("\\u{66}"))]; "tail-raw")]
+    #[test_case("}\\u{66}`", false => vec![Some(JSString::from("f"))]; "tail-cooked")]
+    #[test_case("}${0}\\u{66}`", true => vec![Some(JSString::from("")), Some(JSString::from("\\u{66}"))]; "list-raw")]
+    #[test_case("}${0}\\u{66}`", false => vec![Some(JSString::from("")), Some(JSString::from("f"))]; "list-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2202,10 +2384,19 @@ fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod substitution_template {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("`a${0}\\u{66}`", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "raw")]
+    #[test_case("`a${0}\\u{66}`", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2288,10 +2479,48 @@ fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod template_literal {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    mod early_errors {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("``", true, false => AHashSet::<String>::new(); "no-substitution template ok")]
+        #[test_case("`\\u{`", true, false => AHashSet::from_iter(["Invalid escape sequence in template literal".to_string()]); "no-substitution bad escape")]
+        #[test_case("`\\u{`", true, true => AHashSet::<String>::new(); "no-substitution bad escape; tagged")]
+        #[test_case("`${package}`", true, false => panics "not yet implemented"; "substitution template")]
+        fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
+            let mut agent = test_agent();
+            let mut errs = vec![];
+            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict, 4294967295);
+            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+        }
+
+        #[test]
+        #[should_panic(expected = "not yet implemented")]
+        fn complex() {
+            let limit = 1000;
+            let mut agent = test_agent();
+            let mut src = String::with_capacity(2 + 4 * limit);
+            src.push('`');
+            for _ in 0..limit {
+                src.push_str("${0}");
+            }
+            src.push('`');
+            let mut errs = vec![];
+            TemplateLiteral::parse(&mut newparser(&src), Scanner::new(), false, true, false).unwrap().0.early_errors(&mut agent, &mut errs, false, limit - 1);
+            let err_set = AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())));
+            assert_eq!(err_set, AHashSet::from_iter(["Template literal too complex".to_string()]));
+        }
+    }
+
+    #[test_case("`hello\\u{67}`", true => vec![Some(JSString::from("hello\\u{67}"))]; "nosub-raw")]
+    #[test_case("`hello\\u{67}`", false => vec![Some(JSString::from("hellog"))]; "nosub-cooked")]
+    #[test_case("`before${expression}a\\u{66}ter`", true => vec![Some(JSString::from("before")), Some(JSString::from("a\\u{66}ter"))]; "sub-raw")]
+    #[test_case("`before${expression}a\\u{66}ter`", false => vec![Some(JSString::from("before")), Some(JSString::from("after"))]; "sub-cooked")]
+    fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
+        let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        item.template_strings(raw)
     }
 }
 
@@ -2531,9 +2760,21 @@ fn cpeaapl_test_contains_11() {
 }
 mod cover_parenthesized_expression_and_arrow_parameter_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("(package)", true => panics "not yet implemented"; "Expression")]
+    #[test_case("(package,)", true => panics "not yet implemented"; "Expression+Comma")]
+    #[test_case("()", true => AHashSet::<String>::new(); "Empty")]
+    #[test_case("(...package)", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "rest id")]
+    #[test_case("(...{package=a})", true => panics "not yet implemented"; "rest pattern")]
+    #[test_case("(package, ...a)", true => panics "not yet implemented"; "exp rest id; exp bad")]
+    #[test_case("(a, ...package)", true => panics "not yet implemented"; "exp rest id; id bad")]
+    #[test_case("(package, ...{a=b})", true => panics "not yet implemented"; "exp rest pat; exp bad")]
+    #[test_case("(a, ...{package=b})", true => panics "not yet implemented"; "exp rest pat; pat bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

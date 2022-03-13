@@ -66,7 +66,7 @@ impl PrettyPrint for IterationStatement {
 
 impl IterationStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("IterationStatement expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IterationStatement), scanner))
             .otherwise(|| {
                 let (dowhile, after_dowhile) = DoWhileStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(IterationStatement::DoWhile(dowhile)), after_dowhile))
@@ -145,6 +145,7 @@ impl IterationStatement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -240,6 +241,7 @@ impl DoWhileStatement {
         s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -331,6 +333,7 @@ impl WhileStatement {
         e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -454,7 +457,7 @@ impl ForStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_for = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
         let after_open = scan_for_punct(after_for, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        Err(ParseError::new("Badly formed for-statement initializer", after_open.line, after_open.column))
+        Err(ParseError::new(PECode::ForStatementDefinitionError, after_open))
             .otherwise(|| {
                 // for ( var VariableDeclarationList ; Expression ; Expression ) Statement
                 let after_var = scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
@@ -497,7 +500,7 @@ impl ForStatement {
                     if lookahead2.matches_punct(Punctuator::LeftBracket) {
                         // We return an error here, and stop processing, but it will never be seen by our callers
                         // because the error from the Lexical Binding parse happens first, and takes precedence.
-                        return Err(ParseError::new(String::new(), after_open.line, after_open.column));
+                        return Err(ParseError::new(PECode::Generic, after_open));
                     }
                 }
                 let (init, after_init) = match Expression::parse(parser, after_open, false, yield_flag, await_flag) {
@@ -596,6 +599,7 @@ impl ForStatement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -731,7 +735,7 @@ impl ForInOfStatement {
             false => (false, after_for),
         };
         let after_open = scan_for_punct(after_await, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        Err(ParseError::new("‘let’, ‘var’, or a LeftHandSideExpression expected", after_open.line, after_open.column))
+        Err(ParseError::new(PECode::ForInOfDefinitionError, after_open))
             .otherwise(|| {
                 // for var
                 let after_var = scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
@@ -797,7 +801,7 @@ impl ForInOfStatement {
                     })
                 {
                     // Any error message here is masked by the lexical production above, so don't bother writing one.
-                    return Err(ParseError::new(String::new(), after_open.line, after_open.column));
+                    return Err(ParseError::new(PECode::Generic, after_open));
                 }
                 let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, after_open, yield_flag, await_flag)?;
                 let (kwd, after_kwd) = if await_seen {
@@ -918,6 +922,7 @@ impl ForInOfStatement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1033,6 +1038,7 @@ impl ForDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1082,7 +1088,7 @@ impl PrettyPrint for ForBinding {
 
 impl ForBinding {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("ForBinding expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ForBinding), scanner))
             .otherwise(|| {
                 let (id, after_id) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(ForBinding::Identifier(id)), after_id))
@@ -1132,6 +1138,7 @@ impl ForBinding {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

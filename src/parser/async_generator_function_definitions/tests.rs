@@ -127,6 +127,12 @@ mod async_generator_method {
     fn early_errors() {
         AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
 }
 
 // ASYNC GENERATOR DECLARATION
@@ -166,7 +172,7 @@ fn async_generator_declaration_test_04() {
 }
 #[test]
 fn async_generator_declaration_test_041() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true), "Newline not allowed here.", 1, 6);
+    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_generator_declaration_test_05() {
@@ -186,7 +192,7 @@ fn async_generator_declaration_test_075() {
 }
 #[test]
 fn async_generator_declaration_test_076() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false), "Not an identifier", 1, 11 + 6);
+    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11 + 6);
 }
 #[test]
 fn async_generator_declaration_test_08() {
@@ -307,7 +313,7 @@ fn async_generator_expression_test_04() {
 }
 #[test]
 fn async_generator_expression_test_041() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()), "Newline not allowed here.", 1, 6);
+    check_err(AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_generator_expression_test_05() {

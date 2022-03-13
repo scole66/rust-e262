@@ -9,8 +9,7 @@ use super::errors::{
 use super::function_object::create_builtin_function;
 use super::number_object::provision_number_intrinsic;
 use super::object::{
-    define_property_or_throw, get, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor,
-    BUILTIN_FUNCTION_SLOTS,
+    define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::object_object::provision_object_intrinsic;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -325,31 +324,18 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     realm_rec.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
     let bool_constructor =
         create_builtin_function(agent, throw_type_error, false, 1_f64, PropertyKey::from("Boolean"), BUILTIN_FUNCTION_SLOTS, Some(realm_rec.clone()), Some(function_prototype.clone()), None);
-    define_property_or_throw(
-        agent,
-        &bool_constructor,
-        PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(&boolean_prototype)),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    define_property_or_throw(agent, &bool_constructor, "prototype", PotentialPropertyDescriptor::new().value(&boolean_prototype).writable(false).enumerable(false).configurable(false))
+        .unwrap();
     realm_rec.borrow_mut().intrinsics.boolean = bool_constructor.clone();
     define_property_or_throw(
         agent,
         &boolean_prototype,
-        PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(bool_constructor)), // consumes bool_constructor
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
+        "constructor",
+        PotentialPropertyDescriptor::new()
+            .value(bool_constructor) // consumes bool_constructor
+            .writable(true)
+            .enumerable(false)
+            .configurable(true),
     )
     .unwrap();
     ///////////////////////////////////////////////////////////////////
@@ -383,20 +369,8 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
-    define_property_or_throw(
-        agent,
-        f,
-        PropertyKey::from("caller"),
-        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower.clone()), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-    )
-    .unwrap();
-    define_property_or_throw(
-        agent,
-        f,
-        PropertyKey::from("arguments"),
-        PotentialPropertyDescriptor { get: Some(thrower.clone()), set: Some(thrower), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-    )
-    .unwrap();
+    define_property_or_throw(agent, f, "caller", PotentialPropertyDescriptor::new().get(thrower.clone()).set(thrower.clone()).enumerable(false).configurable(true)).unwrap();
+    define_property_or_throw(agent, f, "arguments", PotentialPropertyDescriptor::new().get(thrower.clone()).set(thrower).enumerable(false).configurable(true)).unwrap();
 }
 
 // %ThrowTypeError% ( )
@@ -421,24 +395,8 @@ fn create_throw_type_error_builtin(agent: &mut Agent, realm: Rc<RefCell<Realm>>)
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(agent, throw_type_error, false, 0_f64, PropertyKey::from(""), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
     fcn.o.prevent_extensions(agent).unwrap();
-    let key = PropertyKey::from("length");
-    let length = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(
-        agent,
-        &fcn,
-        key,
-        PotentialPropertyDescriptor { value: Some(length), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-    )
-    .unwrap();
-    let key = PropertyKey::from("name");
-    let name = get(agent, &fcn, &key).unwrap();
-    define_property_or_throw(
-        agent,
-        &fcn,
-        key,
-        PotentialPropertyDescriptor { value: Some(name), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-    )
-    .unwrap();
+    define_property_or_throw(agent, &fcn, "length", PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false)).unwrap();
+    define_property_or_throw(agent, &fcn, "name", PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(false)).unwrap();
 
     fcn
 }

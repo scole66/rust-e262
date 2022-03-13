@@ -102,8 +102,17 @@ impl GeneratorMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        //      GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
+        //  1. Return PropName of ClassElementName.
+        self.name.prop_name()
     }
 }
 
@@ -204,6 +213,7 @@ impl GeneratorDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -298,6 +308,7 @@ impl GeneratorExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -363,6 +374,7 @@ impl GeneratorBody {
         self.0.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -430,16 +442,15 @@ impl PrettyPrint for YieldExpression {
 
 impl YieldExpression {
     fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new(String::new(), scanner.line, scanner.column))
-            .otherwise(|| {
-                let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
-                let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
-                Ok((Rc::new(YieldExpression::From(ae)), after_ae))
-            })
-            .otherwise(|| {
-                let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
-                Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
-            })
+        (|| {
+            let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+            let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
+            Ok((Rc::new(YieldExpression::From(ae)), after_ae))
+        })()
+        .otherwise(|| {
+            let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
+            Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
+        })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -471,6 +482,7 @@ impl YieldExpression {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

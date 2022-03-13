@@ -126,19 +126,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &object_constructor,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &object_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
     constructor_function!(object_assign, "assign", 2.0);
@@ -172,14 +160,8 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &object_constructor,
-        PropertyKey::from("prototype"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(object_prototype.clone())),
-            writable: Some(false),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        },
+        "prototype",
+        PotentialPropertyDescriptor::new().value(object_prototype.clone()).writable(false).enumerable(false).configurable(false),
     )
     .unwrap();
 
@@ -188,19 +170,7 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &object_prototype,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &object_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
 
@@ -217,14 +187,8 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     define_property_or_throw(
         agent,
         &object_prototype,
-        PropertyKey::from("constructor"),
-        PotentialPropertyDescriptor {
-            value: Some(ECMAScriptValue::from(object_constructor.clone())),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(true),
-            ..Default::default()
-        },
+        "constructor",
+        PotentialPropertyDescriptor::new().value(object_constructor.clone()).writable(true).enumerable(false).configurable(true),
     )
     .unwrap();
 

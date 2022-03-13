@@ -3,7 +3,7 @@ use super::execution_context::{get_global_object, ExecutionContext};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::realm::{create_realm, IntrinsicId};
 use super::strings::JSString;
-use super::values::{ECMAScriptValue, PropertyKey, Symbol, SymbolInternals};
+use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use std::rc::Rc;
 
 // Agents
@@ -74,7 +74,7 @@ impl Agent {
     }
 
     pub fn active_function_object(&mut self) -> Option<Object> {
-        self.running_execution_context().map(|ec| ec.function.as_ref().cloned()).flatten()
+        self.running_execution_context().and_then(|ec| ec.function.as_ref().cloned())
     }
 
     pub fn next_object_id(&mut self) -> usize {
@@ -173,14 +173,8 @@ impl Agent {
                 define_property_or_throw(
                     self,
                     &global,
-                    PropertyKey::from($name),
-                    PotentialPropertyDescriptor {
-                        value: Some(ECMAScriptValue::from($value)),
-                        writable: Some($writable),
-                        enumerable: Some($enumerable),
-                        configurable: Some($configurable),
-                        ..Default::default()
-                    },
+                    $name,
+                    PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
                 )
                 .unwrap();
             };

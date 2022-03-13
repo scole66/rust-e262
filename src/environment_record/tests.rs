@@ -401,7 +401,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from("exists"),
+            "exists",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -418,7 +418,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from("exists"),
+            "exists",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -440,14 +440,14 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &unscopables_obj,
-            PropertyKey::from("hidden"),
+            "hidden",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
         define_property_or_throw(
             &mut agent,
             &unscopables_obj,
-            PropertyKey::from("visible"),
+            "visible",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(false)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -461,7 +461,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from("visible"),
+            "visible",
             PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::from("This name is in the environment")),
                 writable: Some(true),
@@ -474,7 +474,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from("hidden"),
+            "hidden",
             PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::from("This name is not in the environment")),
                 writable: Some(true),
@@ -487,7 +487,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from("also"),
+            "also",
             PotentialPropertyDescriptor {
                 value: Some(ECMAScriptValue::from("This one also visible")),
                 writable: Some(true),
@@ -501,7 +501,7 @@ mod object_environment_record {
         define_property_or_throw(
             &mut agent,
             &binding_object,
-            PropertyKey::from(unscopables_sym),
+            unscopables_sym,
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(unscopables_obj)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();

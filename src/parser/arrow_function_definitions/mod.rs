@@ -73,6 +73,7 @@ impl ArrowFunction {
         self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -123,7 +124,7 @@ impl PrettyPrint for ArrowParameters {
 impl ArrowParameters {
     // ArrowParameters's only direct parent is ArrowFunction. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Identifier or Formal Parameters expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::IdOrFormalsExpected, scanner))
             .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
                 let (_covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
@@ -165,6 +166,7 @@ impl ArrowParameters {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -238,6 +240,7 @@ impl ArrowFormalParameters {
         self.0.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -294,7 +297,7 @@ impl PrettyPrint for ConciseBody {
 impl ConciseBody {
     // ConciseBody's only direct parent is ArrowFunction. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("ConciseBody expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ConciseBody), scanner))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
@@ -308,7 +311,7 @@ impl ConciseBody {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
                         Ok((Rc::new(ConciseBody::Expression(exp)), after_exp))
                     }
-                    Ok(_) => Err(ParseError::new("ExpressionBody expected", scanner.line, scanner.column)),
+                    Ok(_) => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExpressionBody), scanner)),
                 }
             })
     }
@@ -333,6 +336,7 @@ impl ConciseBody {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -402,6 +406,7 @@ impl ExpressionBody {
         self.expression.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

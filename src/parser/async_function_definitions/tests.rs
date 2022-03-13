@@ -62,7 +62,7 @@ fn async_function_declaration_test_err_01() {
 }
 #[test]
 fn async_function_declaration_test_err_02() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true), "Newline not allowed here.", 1, 6);
+    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_function_declaration_test_err_03() {
@@ -70,7 +70,7 @@ fn async_function_declaration_test_err_03() {
 }
 #[test]
 fn async_function_declaration_test_err_04() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false), "Not an identifier", 1, 15);
+    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false), "not an identifier", 1, 15);
 }
 #[test]
 fn async_function_declaration_test_err_05() {
@@ -221,7 +221,7 @@ fn async_function_expression_test_err_01() {
 }
 #[test]
 fn async_function_expression_test_err_02() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()), "Newline not allowed here.", 1, 6);
+    check_err(AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_function_expression_test_err_03() {
@@ -319,7 +319,7 @@ fn async_method_test_err_01() {
 }
 #[test]
 fn async_method_test_err_02() {
-    check_err(AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false), "Newline not allowed here.", 1, 6);
+    check_err(AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false), "newline not allowed here", 1, 6);
 }
 #[test]
 fn async_method_test_err_03() {
@@ -409,6 +409,12 @@ mod async_method {
             let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
             item.has_direct_super()
         }
+    }
+
+    #[test]
+    fn prop_name() {
+        let (item, _) = AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap();
+        assert_eq!(item.prop_name(), Some(JSString::from("a")));
     }
 }
 #[test]

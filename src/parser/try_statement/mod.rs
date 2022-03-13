@@ -88,7 +88,7 @@ impl TryStatement {
             Finally(Rc<Finally>),
             Full(Rc<Catch>, Rc<Finally>),
         }
-        Err(ParseError::new("Catch or Finally block expected", after_block.line, after_block.column))
+        Err(ParseError::new(PECode::TryBlockError, after_block))
             .otherwise(|| {
                 let (fin, after_fin) = Finally::parse(parser, after_block, yield_flag, await_flag, return_flag)?;
                 Ok((CaseKind::Finally(fin), after_fin))
@@ -189,6 +189,7 @@ impl TryStatement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -244,7 +245,7 @@ impl PrettyPrint for Catch {
 impl Catch {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
         let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
-        Err(ParseError::new("( or { expected", after_catch.line, after_catch.column))
+        Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]), after_catch))
             .otherwise(|| {
                 let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Catch { parameter: None, block }), after_block))
@@ -288,6 +289,7 @@ impl Catch {
         self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -364,6 +366,7 @@ impl Finally {
         self.block.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -413,7 +416,7 @@ impl PrettyPrint for CatchParameter {
 
 impl CatchParameter {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("CatchParameter expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::CatchParameter), scanner))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
                 Ok((Rc::new(CatchParameter::Ident(bi)), after_bi))
@@ -456,6 +459,7 @@ impl CatchParameter {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
