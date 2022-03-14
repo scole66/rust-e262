@@ -15,7 +15,7 @@ fn labelled_statement_test_01() {
 }
 #[test]
 fn labelled_statement_test_err_01() {
-    check_err(LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "Not an identifier", 1, 1);
+    check_err(LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "not an identifier", 1, 1);
 }
 #[test]
 fn labelled_statement_test_err_02() {

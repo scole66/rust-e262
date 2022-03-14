@@ -29,7 +29,7 @@ fn script_test_err_01() {
 }
 #[test]
 fn script_test_err_02() {
-    check_err(Script::parse(&mut newparser("0;if;"), Scanner::new()), "EoF expected", 1, 3);
+    check_err(Script::parse(&mut newparser("0;if;"), Scanner::new()), "end-of-file expected", 1, 3);
 }
 #[test]
 fn script_test_prettyerrors_1() {

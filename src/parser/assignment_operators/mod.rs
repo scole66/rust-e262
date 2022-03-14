@@ -167,12 +167,12 @@ impl AssignmentTargetType for AssignmentExpression {
 
 impl AssignmentExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let result = Err(ParseError::new("AssignmentExpression expected", scanner.line, scanner.column))
+        let result = Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), scanner))
             .otherwise(|| {
                 if yield_flag {
                     YieldExpression::parse(parser, scanner, in_flag, await_flag).map(|(yieldexp, after_yield)| (Rc::new(AssignmentExpression::Yield(yieldexp)), after_yield, Scanner::new()))
                 } else {
-                    Err(ParseError::new(String::new(), scanner.line, scanner.column))
+                    Err(ParseError::new(PECode::Generic, scanner))
                 }
             })
             .otherwise(|| ArrowFunction::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(af, after_af)| (Rc::new(AssignmentExpression::Arrow(af)), after_af, Scanner::new())))
@@ -237,7 +237,8 @@ impl AssignmentExpression {
                 // Re-parse the LHS as an AssignmentPattern.
                 let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
                 if after_ap != result.2 {
-                    return Err(ParseError::new("Invalid Assignment Pattern", scanner.line, scanner.column));
+                    // This _might_ be impossible.
+                    return Err(ParseError::new(PECode::InvalidAssignmentPattern, scanner));
                 }
                 return Ok((Rc::new(AssignmentExpression::Destructuring(ap, ae.clone())), result.1));
             }
@@ -442,7 +443,7 @@ impl PrettyPrint for AssignmentPattern {
 
 impl AssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("AssignmentPattern expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentPattern), scanner))
             .otherwise(|| ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(oap, after_oap)| (Rc::new(AssignmentPattern::Object(oap)), after_oap)))
             .otherwise(|| ArrayAssignmentPattern::parse(parser, scanner, yield_flag, await_flag).map(|(aap, after_aap)| (Rc::new(AssignmentPattern::Array(aap)), after_aap)))
     }
@@ -467,6 +468,7 @@ impl AssignmentPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -543,7 +545,7 @@ impl PrettyPrint for ObjectAssignmentPattern {
 impl ObjectAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
-        Err(ParseError::new("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected", after_brace.line, after_brace.column))
+        Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, after_brace))
             .otherwise(|| {
                 let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_apl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBrace])?;
@@ -594,6 +596,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -692,7 +695,7 @@ impl PrettyPrint for ArrayAssignmentPattern {
 impl ArrayAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
-        Err(ParseError::new("‘,’, ‘]’, or an AssignmentElementList expected", after_open.line, after_open.column))
+        Err(ParseError::new(PECode::ArrayAssignmentPatternEndFailure, after_open))
             .otherwise(|| {
                 let (el, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
@@ -750,6 +753,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -807,6 +811,7 @@ impl AssignmentRestProperty {
         self.0.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -896,6 +901,7 @@ impl AssignmentPropertyList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -985,6 +991,7 @@ impl AssignmentElementList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1059,6 +1066,7 @@ impl AssignmentElisionElement {
         self.element.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1131,7 +1139,7 @@ impl PrettyPrint for AssignmentProperty {
 
 impl AssignmentProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("IdentifierReference or PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, scanner))
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let after_colon = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
@@ -1170,6 +1178,7 @@ impl AssignmentProperty {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1253,6 +1262,7 @@ impl AssignmentElement {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1310,6 +1320,7 @@ impl AssignmentRestElement {
         self.0.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -1389,6 +1400,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

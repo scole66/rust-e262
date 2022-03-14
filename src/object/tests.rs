@@ -176,7 +176,7 @@ fn property_descriptor_is_generic_descriptor() {
     assert!(!a.is_generic_descriptor());
 }
 #[test]
-fn property_descriptor_writable() {
+fn property_descriptor_is_writable() {
     let writable = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
     let constant = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
     let accessor = PropertyDescriptor {
@@ -186,9 +186,9 @@ fn property_descriptor_writable() {
         spot: 10,
     };
 
-    assert_eq!(writable.writable(), Some(true));
-    assert_eq!(constant.writable(), Some(false));
-    assert_eq!(accessor.writable(), None);
+    assert_eq!(writable.is_writable(), Some(true));
+    assert_eq!(constant.is_writable(), Some(false));
+    assert_eq!(accessor.is_writable(), None);
 }
 
 #[test]
@@ -268,14 +268,14 @@ fn potential_property_descriptor_clone() {
     assert_eq!(ppd1, ppd2);
 }
 #[test]
-fn potential_property_descriptor_writable() {
+fn potential_property_descriptor_is_writable() {
     let ppd1 = PotentialPropertyDescriptor { writable: Some(true), ..Default::default() };
     let ppd2 = PotentialPropertyDescriptor { writable: Some(false), ..Default::default() };
     let ppd3 = PotentialPropertyDescriptor { writable: None, ..Default::default() };
 
-    assert_eq!(ppd1.writable(), Some(true));
-    assert_eq!(ppd2.writable(), Some(false));
-    assert_eq!(ppd3.writable(), None);
+    assert_eq!(ppd1.is_writable(), Some(true));
+    assert_eq!(ppd2.is_writable(), Some(false));
+    assert_eq!(ppd3.is_writable(), None);
 }
 #[test]
 fn potential_property_descriptor_is_generic_descriptor() {
@@ -2437,7 +2437,7 @@ mod enumerable_own_property_names {
         define_property_or_throw(
             agent,
             &obj,
-            "hidden".into(),
+            "hidden",
             PotentialPropertyDescriptor { value: Some("hidden".into()), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -2506,7 +2506,7 @@ mod set_integrity_level {
         define_property_or_throw(
             agent,
             &obj,
-            "accessor".into(),
+            "accessor",
             PotentialPropertyDescriptor {
                 get: Some(ECMAScriptValue::Undefined),
                 set: Some(ECMAScriptValue::Undefined),

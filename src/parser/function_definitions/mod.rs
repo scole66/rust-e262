@@ -116,6 +116,7 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -208,6 +209,7 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -297,6 +299,7 @@ impl FunctionBody {
         self.statements.lexically_declared_names()
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -388,6 +391,7 @@ impl FunctionStatementList {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

@@ -108,6 +108,7 @@ impl LabelledStatement {
         self.item.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -157,7 +158,7 @@ impl PrettyPrint for LabelledItem {
 
 impl LabelledItem {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("LabelledItem expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LabelledItem), scanner))
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(LabelledItem::Statement(stmt)), after_stmt))
@@ -241,6 +242,7 @@ impl LabelledItem {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

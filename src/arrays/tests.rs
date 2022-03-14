@@ -265,7 +265,7 @@ mod array_object {
             define_property_or_throw(
                 agent,
                 &obj,
-                "valueOf".into(),
+                "valueOf",
                 PotentialPropertyDescriptor { value: Some(value_of.into()), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
             )
             .unwrap();
@@ -331,7 +331,7 @@ mod array_object {
         fn readonly_length() {
             let mut agent = test_agent();
             let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
-            define_property_or_throw(&mut agent, &aobj, "length".into(), PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            define_property_or_throw(&mut agent, &aobj, "length", PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
             let a = aobj.o.to_array_object().unwrap();
 
             let result = a
@@ -471,7 +471,7 @@ mod array_object {
             define_property_or_throw(
                 &mut agent,
                 &aobj,
-                "100".into(),
+                "100",
                 PotentialPropertyDescriptor { value: Some("green".into()), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() },
             )
             .unwrap();
@@ -532,7 +532,7 @@ mod array_species_create {
         define_property_or_throw(
             agent,
             &obj,
-            "constructor".into(),
+            "constructor",
             PotentialPropertyDescriptor { get: Some(constructor_getter.into()), set: None, enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -544,7 +544,7 @@ mod array_species_create {
         define_property_or_throw(
             agent,
             &obj,
-            "constructor".into(),
+            "constructor",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();
@@ -560,7 +560,7 @@ mod array_species_create {
         define_property_or_throw(
             agent,
             &obj,
-            "constructor".into(),
+            "constructor",
             PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(false)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
         )
         .unwrap();

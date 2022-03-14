@@ -131,6 +131,7 @@ impl AsyncArrowFunction {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -191,6 +192,7 @@ impl AsyncArrowHead {
         self.0.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -247,7 +249,7 @@ impl PrettyPrint for AsyncConciseBody {
 impl AsyncConciseBody {
     // No caching required. Only parent is AsyncArrowFunction
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("AsyncConciseBody expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AsyncConciseBody), scanner))
             .otherwise(|| {
                 let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
@@ -261,7 +263,7 @@ impl AsyncConciseBody {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, true)?;
                         Ok((Rc::new(AsyncConciseBody::Expression(exp)), after_exp))
                     }
-                    Ok(_) => Err(ParseError::new(String::new(), scanner.line, scanner.column)),
+                    Ok(_) => Err(ParseError::new(PECode::Generic, scanner)),
                 }
             })
     }
@@ -286,6 +288,7 @@ impl AsyncConciseBody {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -331,6 +334,7 @@ impl AsyncArrowBindingIdentifier {
         self.0.contains(kind)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -395,6 +399,7 @@ impl CoverCallExpressionAndAsyncArrowHead {
         self.expression.contains(kind) || self.args.contains(kind)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

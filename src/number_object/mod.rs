@@ -203,19 +203,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &number_constructor,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &number_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
     constructor_function!(number_is_finite, "isFinite", 1_f64);
@@ -226,14 +214,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // Constructor Data Properties
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
-            let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &number_constructor,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(false), enumerable: Some(false), configurable: Some(false), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &number_constructor, $name, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
         }};
     }
     // Number.EPSILON
@@ -329,14 +310,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     // Prototype Data Properties
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
-            let key = PropertyKey::from($name);
-            define_property_or_throw(
-                agent,
-                &number_prototype,
-                key,
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from($value)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &number_prototype, $name, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
         }};
     }
 
@@ -350,19 +324,7 @@ pub fn provision_number_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(
-                agent,
-                &number_prototype,
-                key,
-                PotentialPropertyDescriptor {
-                    value: Some(ECMAScriptValue::from(function_object)),
-                    writable: Some(true),
-                    enumerable: Some(false),
-                    configurable: Some(true),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+            define_property_or_throw(agent, &number_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
         };
     }
     prototype_function!(number_prototype_to_exponential, "toExponential", 1.0);
@@ -581,7 +543,6 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
     }
     let fraction = fraction as i32;
 
-    let exp: i32;
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
     let digits;
@@ -618,7 +579,7 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
         }
         digits = &strbuf[0..null_idx.unwrap()];
     }
-    exp = info.decpt - 1;
+    let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };
 
     Ok(ECMAScriptValue::from(if fraction == 0 {

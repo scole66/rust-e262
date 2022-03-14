@@ -295,12 +295,12 @@ impl PrimaryExpression {
         let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
-            _ => Err(ParseError::new("Expected regular expression", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RegularExpression), scanner)),
         }
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Expected a PrimaryExpression", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrimaryExpression), scanner))
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
             .otherwise(|| Self::parse_async_gen(parser, scanner))
@@ -377,7 +377,7 @@ impl PrimaryExpression {
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
             PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
@@ -387,8 +387,8 @@ impl PrimaryExpression {
                 // Static Semantics: Early Errors
                 //      PrimaryExpression : RegularExpressionLiteral
                 //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
-                if !regex.is_valid_regular_expression_literal() {
-                    errs.push(create_syntax_error_object(agent, "Invalid regular expression"));
+                if let Err(msg) = regex.validate_regular_expression_literal() {
+                    errs.push(create_syntax_error_object(agent, msg));
                 }
             }
         }
@@ -438,7 +438,7 @@ impl Elisions {
             let (token, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
             if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
-                    Err(ParseError::new("Expected one or more commas", current_scanner.line, current_scanner.column))
+                    Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Comma), current_scanner))
                 } else {
                     Ok((Rc::new(Elisions { count: comma_count }), current_scanner))
                 };
@@ -463,9 +463,8 @@ impl Elisions {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
-    }
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // SpreadElement[Yield, Await] :
@@ -527,8 +526,9 @@ impl SpreadElement {
         boxed.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let SpreadElement::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -684,7 +684,7 @@ impl ElementList {
                 match pot_se {
                     Ok((boxed, after_se_scanner)) => Ok((elision, ELItemKind::SE(boxed), after_se_scanner)),
                     Err(pe) => {
-                        let err_default = Some(ParseError::new("AssignmentExpression or SpreadElement expected", after_e_scanner.line, after_e_scanner.column));
+                        let err_default = Some(ParseError::new(PECode::AssignmentExpressionOrSpreadElementExpected, after_e_scanner));
                         let err_se = Some(pe);
                         let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less { err_ae } else { err_default };
                         let err2 = if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
@@ -696,15 +696,12 @@ impl ElementList {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let mut current_production;
-        let mut current_scanner;
-
         let (elision, item, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
-        current_production = match item {
+        let mut current_production = match item {
             ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression((elision, boxed_ae))),
             ELItemKind::SE(boxed_se) => Rc::new(ElementList::SpreadElement((elision, boxed_se))),
         };
-        current_scanner = after;
+        let mut current_scanner = after;
 
         while let Ok((elision, item, after)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
             .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
@@ -742,8 +739,35 @@ impl ElementList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ElementList::AssignmentExpression((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::SpreadElement((a, b)) => {
+                if let Some(elisions) = a {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                b.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListAssignmentExpression((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+            ElementList::ElementListSpreadElement((a, b, c)) => {
+                a.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+                c.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -833,7 +857,7 @@ impl ArrayLiteral {
     // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
-        Err(ParseError::new("‘,’, ‘]’, or an ElementList expected", after.line, after.column))
+        Err(ParseError::new(PECode::CommaLeftBracketElementListExpected, after))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
                 let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
@@ -881,8 +905,17 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrayLiteral::Empty(_) => {}
+            ArrayLiteral::ElementList(node) => node.early_errors(agent, errs, strict),
+            ArrayLiteral::ElementListElision(node, b) => {
+                node.early_errors(agent, errs, strict);
+                if let Some(elisions) = b {
+                    elisions.early_errors(agent, errs, strict);
+                }
+            }
+        }
     }
 }
 
@@ -957,8 +990,9 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let Initializer::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1022,8 +1056,17 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let CoverInitializedName::InitializedName(a, b) = self;
+        a.early_errors(agent, errs, strict);
+        b.early_errors(agent, errs, strict);
+    }
+
+    pub fn prop_name(&self) -> JSString {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        let CoverInitializedName::InitializedName(idref, _) = self;
+        idref.string_value()
     }
 }
 
@@ -1088,8 +1131,9 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ComputedPropertyName::AssignmentExpression(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1147,7 +1191,7 @@ impl LiteralPropertyName {
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
             Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
-            _ => Err(ParseError::new("Identifier, String, or Number expected", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
         }
     }
 
@@ -1155,8 +1199,33 @@ impl LiteralPropertyName {
         false
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    #[allow(clippy::ptr_arg)]
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
+
+    pub fn prop_name(&self) -> JSString {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            LiteralPropertyName::IdentifierName(id) => {
+                // LiteralPropertyName : IdentifierName
+                //  1. Return StringValue of IdentifierName.
+                id.string_value.clone()
+            }
+            LiteralPropertyName::StringLiteral(s) => {
+                // LiteralPropertyName : StringLiteral
+                //  1. Return the SV of StringLiteral.
+                s.value.clone()
+            }
+            LiteralPropertyName::NumericLiteral(Numeric::Number(num)) => {
+                // LiteralPropertyName : NumericLiteral
+                //  1. Let nbr be the NumericValue of NumericLiteral.
+                //  2. Return ! ToString(nbr).
+                let mut s = Vec::new();
+                number_to_string(&mut s, *num).unwrap();
+                JSString::from(s)
+            }
+            LiteralPropertyName::NumericLiteral(Numeric::BigInt(bi)) => JSString::from(bi.to_string()),
+        }
     }
 }
 
@@ -1203,7 +1272,7 @@ impl PrettyPrint for PropertyName {
 
 impl PropertyName {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
             .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
             .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
     }
@@ -1247,8 +1316,20 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            PropertyName::LiteralPropertyName(x) => x.early_errors(agent, errs, strict),
+            PropertyName::ComputedPropertyName(x) => x.early_errors(agent, errs, strict),
+        }
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            PropertyName::LiteralPropertyName(lpn) => Some(lpn.prop_name()),
+            PropertyName::ComputedPropertyName(_) => None,
+        }
     }
 }
 
@@ -1331,7 +1412,7 @@ impl PropertyDefinition {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 Ok((Rc::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
             }
-            _ => Err(ParseError::new("‘:’ expected", after_pn.line, after_pn.column)),
+            _ => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Colon), after_pn)),
         }
     }
 
@@ -1357,7 +1438,7 @@ impl PropertyDefinition {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("PropertyName expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_md(parser, scanner, yield_flag, await_flag))
@@ -1391,8 +1472,83 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinition::IdentifierReference(idref) => idref.early_errors(agent, errs, strict),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.early_errors(agent, errs, strict);
+                ae.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::AssignmentExpression(ae) => ae.early_errors(agent, errs, strict),
+            PropertyDefinition::MethodDefinition(md) => {
+                // PropertyDefinition : MethodDefinition
+                //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
+                //  * It is a Syntax Error if PrivateBoundIdentifiers of MethodDefinition is not empty.
+                if md.has_direct_super() {
+                    // E.g.: x = { b() { super(); } };
+                    errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
+                }
+                if !md.private_bound_identifiers().is_empty() {
+                    // E.g.: x = { #b() {} };
+                    errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
+                }
+                md.early_errors(agent, errs, strict);
+            }
+            PropertyDefinition::CoverInitializedName(cin) => {
+                // In addition to describing an actual object initializer, the ObjectLiteral productions are also used
+                // as a cover grammar for ObjectAssignmentPattern and may be recognized as part of a
+                // CoverParenthesizedExpressionAndArrowParameterList. When ObjectLiteral appears in a context where
+                // ObjectAssignmentPattern is required the following Early Error rules are not applied. In addition,
+                // they are not applied when initially parsing a CoverParenthesizedExpressionAndArrowParameterList or
+                // CoverCallExpressionAndAsyncArrowHead.
+                //
+                // PropertyDefinition : CoverInitializedName
+                //  * It is a Syntax Error if any source text is matched by this production.
+                //
+                // NOTE |   This production exists so that ObjectLiteral can serve as a cover grammar for
+                //      |   ObjectAssignmentPattern. It cannot occur in an actual object initializer.
+
+                // Programming Note. Since covered expressions always wind up getting uncovered before early errors are
+                // checked, if we _actually_ get here, this really is an error.
+                errs.push(create_syntax_error_object(agent, "Illegal destructuring syntax in non-destructuring context"));
+                cin.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        match self {
+            PropertyDefinition::IdentifierReference(id) => {
+                // PropertyDefinition : IdentifierReference
+                //  1. Return StringValue of IdentifierReference.
+                Some(id.string_value())
+            }
+            PropertyDefinition::AssignmentExpression(_) => {
+                // PropertyDefinition : ... AssignmentExpression
+                //  1. Return empty.
+                None
+            }
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => {
+                // PropertyDefinition : PropertyName : AssignmentExpression
+                //  1. Return PropName of PropertyName.
+                pn.prop_name()
+            }
+            PropertyDefinition::CoverInitializedName(cin) => Some(cin.prop_name()),
+            PropertyDefinition::MethodDefinition(md) => md.prop_name(),
+        }
+    }
+
+    pub fn special_proto_count(&self) -> u64 {
+        match self {
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => match pn.prop_name() {
+                Some(x) if x == "__proto__" => 1,
+                _ => 0,
+            },
+            _ => 0,
+        }
     }
 }
 
@@ -1480,8 +1636,22 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.early_errors(agent, errs, strict),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.early_errors(agent, errs, strict);
+                pd.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    pub fn special_proto_count(&self) -> u64 {
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.special_proto_count(),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.special_proto_count() + pd.special_proto_count(),
+        }
     }
 }
 
@@ -1582,8 +1752,28 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            ObjectLiteral::Empty => {}
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+                // ObjectLiteral :
+                //      { PropertyDefinitionList }
+                //      { PropertyDefinitionList , }
+                //  * It is a Syntax Error if PropertyNameList of PropertyDefinitionList contains any duplicate entries
+                //    for "__proto__" and at least two of those entries were obtained from productions of the form
+                //    PropertyDefinition : PropertyName : AssignmentExpression . This rule is not applied if this
+                //    ObjectLiteral is contained within a Script that is being parsed for JSON.parse (see step 4 of
+                //    JSON.parse).
+                //
+                // NOTE |   The List returned by PropertyNameList does not include property names defined using a
+                //          ComputedPropertyName.
+                if pdl.special_proto_count() >= 2 {
+                    errs.push(create_syntax_error_object(agent, "Duplicate __proto__ fields are not allowed in object literals"));
+                }
+                pdl.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1685,7 +1875,7 @@ impl Literal {
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
             Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
-            _ => Err(ParseError::new("Literal expected", scanner.line, scanner.column)),
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
         }
     }
 
@@ -1701,6 +1891,7 @@ impl Literal {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         // Since we don't implement Legacy Octal syntax (yet), these two errors are never generated. That makes this
         // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
@@ -1780,7 +1971,7 @@ impl TemplateLiteral {
         if let Token::NoSubstitutionTemplate(td) = tok {
             Ok((Rc::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
         } else {
-            Err(ParseError::new("NoSubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::NoSubstitutionTemplate), scanner))
         }
     }
 
@@ -1790,7 +1981,7 @@ impl TemplateLiteral {
     }
 
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateLiteral expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateLiteral), scanner))
             .otherwise(|| Self::parse_nst(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -1827,8 +2018,54 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
+        // Static Semantics: Early Errors
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  * It is a Syntax Error if the [Tagged] parameter was not set and
+                //    NoSubstitutionTemplate Contains NotEscapeSequence.
+                if !tagged && td.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+                }
+            }
+            TemplateLiteral::SubstitutionTemplate(st) => {
+                // TemplateLiteral : SubstitutionTemplate
+                //  * It is a Syntax Error if the number of elements in the result of
+                //    TemplateStrings of TemplateLiteral with argument false is greater
+                //    than 2^32 - 1.
+                if self.template_strings(false).len() > ts_limit {
+                    errs.push(create_syntax_error_object(agent, "Template literal too complex"))
+                }
+                st.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(nst, _) => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                //  1. If raw is false, then
+                //      a. Let string be the TV of NoSubstitutionTemplate.
+                //  2. Else,
+                //      a. Let string be the TRV of NoSubstitutionTemplate.
+                //  3. Return « string ».
+                match raw {
+                    false => vec![nst.tv.clone()],
+                    true => vec![Some(nst.trv.clone())],
+                }
+            }
+            TemplateLiteral::SubstitutionTemplate(st) => {
+                // TemplateLiteral : SubstitutionTemplate
+                //  1. Return TemplateStrings of SubstitutionTemplate with argument raw.
+                st.template_strings(raw)
+            }
+        }
     }
 }
 
@@ -1878,7 +2115,7 @@ impl SubstitutionTemplate {
             let (spans_boxed, after_spans) = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
             Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
         } else {
-            Err(ParseError::new("SubstitutionTemplate expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::SubstitutionTemplate), scanner))
         }
     }
 
@@ -1898,13 +2135,35 @@ impl SubstitutionTemplate {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        // SubstitutionTemplate[Yield, Await, Tagged] : TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
         if !self.tagged && self.template_head.tv.is_none() {
-            errs.push(create_syntax_error_object(agent, "invalid escape sequence in template literal"));
+            errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
         }
         self.expression.early_errors(agent, errs, strict);
         self.template_spans.early_errors(agent, errs, strict);
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        //  1. If raw is false, then
+        //      a. Let head be the TV of TemplateHead.
+        //  2. Else,
+        //      a. Let head be the TRV of TemplateHead.
+        //  3. Let tail be TemplateStrings of TemplateSpans with argument raw.
+        //  4. Return the list-concatenation of « head » and tail.
+        let mut head = match raw {
+            false => vec![self.template_head.tv.clone()],
+            true => vec![Some(self.template_head.trv.clone())],
+        };
+        let tail = self.template_spans.template_strings(raw);
+        head.extend(tail);
+        head
     }
 }
 
@@ -1963,7 +2222,7 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), scanner))
         }
     }
 
@@ -1973,11 +2232,11 @@ impl TemplateSpans {
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
         } else {
-            Err(ParseError::new("TemplateTail expected", after_tml.line, after_tml.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), after_tml))
         }
     }
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("TemplateSpans expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateSpans), scanner))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
@@ -2004,18 +2263,55 @@ impl TemplateSpans {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        // TemplateSpans[Yield, Await, Tagged] : TemplateTail
+        //  TemplateSpans :
+        //      TemplateTail
+        //      TemplateMiddleList TemplateTail
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateTail Contains NotEscapeSequence.
-        let (tail, tagged) = match self {
-            TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => (tail, *tagged),
-        };
-        if !tagged && tail.tv.is_none() {
-            errs.push(create_syntax_error_object(agent, "invalid escape sequence in template literal"));
+        if let TemplateSpans::List(lst, _, _) = self {
+            lst.early_errors(agent, errs, strict);
         }
         match self {
-            TemplateSpans::Tail(..) => {}
-            TemplateSpans::List(lst, ..) => {
-                lst.early_errors(agent, errs, strict);
+            TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => {
+                if !tagged && tail.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
+            }
+        }
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateSpans::Tail(tail, _) => {
+                // TemplateSpans : TemplateTail
+                //  1. If raw is false, then
+                //      a. Let tail be the TV of TemplateTail.
+                //  2. Else,
+                //      a. Let tail be the TRV of TemplateTail.
+                //  3. Return « tail ».
+                match raw {
+                    false => vec![tail.tv.clone()],
+                    true => vec![Some(tail.trv.clone())],
+                }
+            }
+            TemplateSpans::List(template_middle_list, template_tail, _) => {
+                // TemplateSpans : TemplateMiddleList TemplateTail
+                //  1. Let middle be TemplateStrings of TemplateMiddleList with argument raw.
+                //  2. If raw is false, then
+                //      a. Let tail be the TV of TemplateTail.
+                //  3. Else,
+                //      a. Let tail be the TRV of TemplateTail.
+                //  4. Return the list-concatenation of middle and « tail ».
+                let mut middle = template_middle_list.template_strings(raw);
+                let tail = match raw {
+                    false => template_tail.tv.clone(),
+                    true => Some(template_tail.trv.clone()),
+                };
+                middle.push(tail);
+                middle
             }
         }
     }
@@ -2085,7 +2381,7 @@ impl TemplateMiddleList {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
             Ok((td, exp, after_exp))
         } else {
-            Err(ParseError::new("TemplateMiddle expected", scanner.line, scanner.column))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateMiddle), scanner))
         }
     }
 
@@ -2125,24 +2421,56 @@ impl TemplateMiddleList {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        //  TemplateMiddleList[Yield, Await, Tagged] :
-        //      TemplateMiddle Expression[+In, ?Yield, ?Await]
-        //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
-        //
+        //  TemplateMiddleList :
+        //      TemplateMiddle Expression
+        //      TemplateMiddleList TemplateMiddle Expression
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateMiddle Contains NotEscapeSequence.
-        let (template_middle, tagged) = match self {
-            TemplateMiddleList::ListHead(tm, _, tagged) | TemplateMiddleList::ListMid(_, tm, _, tagged) => (tm, *tagged),
-        };
-        if !tagged && template_middle.tv.is_none() {
-            errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template"));
+        if let TemplateMiddleList::ListMid(lst, _, _, _) = self {
+            lst.early_errors(agent, errs, strict);
         }
         match self {
-            TemplateMiddleList::ListHead(_, exp, _) => {
+            TemplateMiddleList::ListHead(tmid, exp, tagged) | TemplateMiddleList::ListMid(_, tmid, exp, tagged) => {
+                if !tagged && tmid.tv.is_none() {
+                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                }
                 exp.early_errors(agent, errs, strict);
             }
-            TemplateMiddleList::ListMid(tml, _, exp, _) => {
-                tml.early_errors(agent, errs, strict);
-                exp.early_errors(agent, errs, strict);
+        }
+    }
+
+    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+        // Static Semantics: TemplateStrings
+        //
+        // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
+        // defined piecewise over the following productions:
+        match self {
+            TemplateMiddleList::ListHead(template_middle, _, _) => {
+                // TemplateMiddleList : TemplateMiddle Expression
+                //  1. If raw is false, then
+                //      a. Let string be the TV of TemplateMiddle.
+                //  2. Else,
+                //      a. Let string be the TRV of TemplateMiddle.
+                //  3. Return « string ».
+                match raw {
+                    false => vec![template_middle.tv.clone()],
+                    true => vec![Some(template_middle.trv.clone())],
+                }
+            }
+            TemplateMiddleList::ListMid(template_middle_list, template_middle, _, _) => {
+                // TemplateMiddleList : TemplateMiddleList TemplateMiddle Expression
+                //  1. Let front be TemplateStrings of TemplateMiddleList with argument raw.
+                //  2. If raw is false, then
+                //      a. Let last be the TV of TemplateMiddle.
+                //  3. Else,
+                //      a. Let last be the TRV of TemplateMiddle.
+                //  4. Return the list-concatenation of front and « last ».
+                let mut front = template_middle_list.template_strings(raw);
+                let last = match raw {
+                    false => template_middle.tv.clone(),
+                    true => Some(template_middle.trv.clone()),
+                };
+                front.push(last);
+                front
             }
         }
     }
@@ -2225,10 +2553,8 @@ impl ParenthesizedExpression {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        // Static Semantics: Early Errors
-        // Nothing specific: just pitch to the child nodes
         let ParenthesizedExpression::Expression(e) = self;
-        e.early_errors(agent, errs, strict);
+        e.early_errors(agent, errs, strict)
     }
 }
 
@@ -2341,7 +2667,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             Pat(Rc<BindingPattern>),
         }
         let after_lparen = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        Err(ParseError::new("Expression, spread pattern, or closing paren expected", after_lparen.line, after_lparen.column))
+        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
             .otherwise(|| {
                 // ( )
                 let after_rparen = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
@@ -2351,7 +2677,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
                 let after_ellipsis = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-                Err(ParseError::new("BindingIdentifier or BindingPattern expected", after_ellipsis.line, after_ellipsis.column)).otherwise(|| {
+                Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
                         .otherwise(|| BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag).map(|(bp, scan)| (BndType::Pat(bp), scan)))
@@ -2436,8 +2762,6 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        // Static Semantics: Early Errors
-        // Nothing specific: just pitch to the child nodes
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, errs, strict),
             CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),

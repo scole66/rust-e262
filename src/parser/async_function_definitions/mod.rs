@@ -275,6 +275,7 @@ impl AsyncFunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -373,8 +374,17 @@ impl AsyncMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn prop_name(&self) -> Option<JSString> {
+        // Static Semantics: PropName
+        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+        //      AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
+        //  1. Return PropName of ClassElementName.
+        self.ident.prop_name()
     }
 }
 
@@ -452,6 +462,7 @@ impl AsyncFunctionBody {
         self.0.lexically_declared_names()
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -518,6 +529,7 @@ impl AwaitExpression {
         boxed.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }

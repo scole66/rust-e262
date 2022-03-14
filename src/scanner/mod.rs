@@ -16,7 +16,7 @@ pub enum ScanGoal {
     InputElementDiv,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum Keyword {
     Await,
     Break,
@@ -156,7 +156,7 @@ impl IdentifierData {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Punctuator {
     LeftParen,    // (
     RightParen,   // )
@@ -672,12 +672,11 @@ use std::str;
 fn ues_char_value(source: &str) -> char {
     // We already know this is a valid Unicode Escape Sequence, so there's a lot of checking we don't do.
     let bytes = source.as_bytes();
-    let value;
-    if bytes[1] == b'{' {
-        value = u32::from_str_radix(str::from_utf8(&bytes[2..bytes.len() - 1]).unwrap(), 16).unwrap();
+    let value = if bytes[1] == b'{' {
+        u32::from_str_radix(str::from_utf8(&bytes[2..bytes.len() - 1]).unwrap(), 16).unwrap()
     } else {
-        value = u32::from_str_radix(str::from_utf8(&bytes[1..5]).unwrap(), 16).unwrap();
-    }
+        u32::from_str_radix(str::from_utf8(&bytes[1..5]).unwrap(), 16).unwrap()
+    };
     char::from_u32(value).unwrap()
 }
 
@@ -704,20 +703,18 @@ where
 {
     let mut idx = scanner.start_idx;
     let mut iter = source[idx..].chars();
-    let ch;
-    match iter.next() {
+    let ch = match iter.next() {
         None => return Ok(None),
-        Some(c) => ch = c,
-    }
+        Some(c) => c,
+    };
     idx += ch.len_utf8();
     if validate(ch) {
         Ok(Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: idx }))
     } else if ch == '\\' {
         let ues_scanner = Scanner { line: scanner.line, column: scanner.column + 1, start_idx: idx };
-        let after_scanner;
-        match unicode_escape_sequence(&ues_scanner, source) {
+        let after_scanner = match unicode_escape_sequence(&ues_scanner, source) {
             None => return Ok(None),
-            Some(scanner) => after_scanner = scanner,
+            Some(scanner) => scanner,
         };
         let ch_value = ues_char_value(&source[ues_scanner.start_idx..after_scanner.start_idx]);
         if !validate(ch_value) {
@@ -791,11 +788,10 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
     let mut result: Vec<u16> = vec![];
     let mut iter = id_text.chars();
     loop {
-        let ch;
-        match iter.next() {
+        let ch = match iter.next() {
             None => break,
-            Some(c) => ch = c,
-        }
+            Some(c) => c,
+        };
         if ch != '\\' {
             result.append(&mut code_point_to_utf16_code_units(ch));
         } else {
@@ -1767,12 +1763,7 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
             (Some(vec![]), utf16_encode_code_point(CharVal::from(c)), Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + c.len_utf8() }, 1)
         }
         Some('\r') => {
-            let consumed;
-            if chars.peek() == Some(&'\n') {
-                consumed = 2;
-            } else {
-                consumed = 1;
-            }
+            let consumed = if chars.peek() == Some(&'\n') { 2 } else { 1 };
             (Some(vec![]), vec!['\n' as u16], Scanner { line: scanner.line + 1, column: 1, start_idx: scanner.start_idx + consumed }, consumed)
         }
         Some(c) => (
@@ -1972,7 +1963,7 @@ impl fmt::Display for RegularExpressionData {
 }
 
 impl RegularExpressionData {
-    pub fn is_valid_regular_expression_literal(&self) -> bool {
+    pub fn validate_regular_expression_literal(&self) -> Result<(), String> {
         // Static Semantics: IsValidRegularExpressionLiteral ( literal )
         //
         // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
@@ -1989,6 +1980,16 @@ impl RegularExpressionData {
         //         elements of stringValue as a Unicode BMP code point. UTF-16 decoding is not applied to the elements.
         //  5. Let parseResult be ParsePattern(patternText, u).
         //  6. If parseResult is a Parse Node, return true; else return false.
+        macro_rules! flag_check {
+            ( $name:ident, $ch:literal ) => {
+                if $name {
+                    return Err(format!("Duplicate ‘{}’ flag found in regex flags ‘{}’", $ch, self.flags));
+                } else {
+                    $name = true;
+                }
+            };
+        }
+
         let mut g_found = false;
         let mut i_found = false;
         let mut m_found = false;
@@ -1997,50 +1998,14 @@ impl RegularExpressionData {
         let mut y_found = false;
         for ch in self.flags.chars() {
             match ch {
-                'g' => {
-                    if g_found {
-                        return false;
-                    } else {
-                        g_found = true;
-                    }
-                }
-                'i' => {
-                    if i_found {
-                        return false;
-                    } else {
-                        i_found = true;
-                    }
-                }
-                'm' => {
-                    if m_found {
-                        return false;
-                    } else {
-                        m_found = true;
-                    }
-                }
-                's' => {
-                    if s_found {
-                        return false;
-                    } else {
-                        s_found = true;
-                    }
-                }
-                'u' => {
-                    if u_found {
-                        return false;
-                    } else {
-                        u_found = true;
-                    }
-                }
-                'y' => {
-                    if y_found {
-                        return false;
-                    } else {
-                        y_found = true;
-                    }
-                }
+                'g' => flag_check!(g_found, 'g'),
+                'i' => flag_check!(i_found, 'i'),
+                'm' => flag_check!(m_found, 'm'),
+                's' => flag_check!(s_found, 's'),
+                'u' => flag_check!(u_found, 'u'),
+                'y' => flag_check!(y_found, 'y'),
                 _ => {
-                    return false;
+                    return Err(format!("Unknown regex flag ‘{}’ in flags ‘{}’", ch, self.flags));
                 }
             }
         }
@@ -2048,7 +2013,7 @@ impl RegularExpressionData {
         // todo!()
         // There's more to do here --- there's a whole pattern parsing thing to make sure you've made a reasonable regex.
         // Also some unicode vs straight u16 nonsense to handle.
-        true
+        Ok(())
     }
 }
 
@@ -2060,8 +2025,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Sc
             if after_skippable.start_idx >= source.len() {
                 (Token::Eof, after_skippable)
             } else {
-                let mut r;
-                r = common_token(&after_skippable, source);
+                let mut r = common_token(&after_skippable, source);
                 if r.is_none() {
                     r = div_punctuator(&after_skippable, source, goal);
                     if r.is_none() {

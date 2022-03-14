@@ -301,7 +301,7 @@ impl CoalesceExpression {
                 current_scanner = after_right;
             }
             match current_head {
-                CoalesceExpressionHead::BitwiseORExpression(_) => Err(ParseError::new("Invalid Coalesce Expression", scanner.line, scanner.column)),
+                CoalesceExpressionHead::BitwiseORExpression(_) => Err(ParseError::new(PECode::InvalidCoalesceExpression, scanner)),
                 CoalesceExpressionHead::CoalesceExpression(exp) => Ok((exp, exp_scanner)),
             }
         })
@@ -333,6 +333,7 @@ impl CoalesceExpression {
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -405,6 +406,7 @@ impl CoalesceExpressionHead {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
@@ -472,7 +474,7 @@ impl AssignmentTargetType for ShortCircuitExpression {
 impl ShortCircuitExpression {
     // No need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Improper Expression", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ImproperExpression, scanner))
             .otherwise(|| {
                 CoalesceExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(coal, after_coal)| (Rc::new(ShortCircuitExpression::CoalesceExpression(coal)), after_coal))
             })

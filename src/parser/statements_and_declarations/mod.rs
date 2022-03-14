@@ -128,7 +128,7 @@ impl PrettyPrint for Statement {
 
 impl Statement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Statement expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Statement), scanner))
             .otherwise(|| {
                 let (block, after_block) = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::Block(block)), after_block))
@@ -166,7 +166,7 @@ impl Statement {
                     let (return_node, after_return) = ReturnStatement::parse(parser, scanner, yield_flag, await_flag)?;
                     Ok((Rc::new(Statement::Return(return_node)), after_return))
                 } else {
-                    Err(ParseError::new(String::new(), scanner.line, scanner.column))
+                    Err(ParseError::default())
                 }
             })
             .otherwise(|| {
@@ -405,7 +405,7 @@ impl PrettyPrint for Declaration {
 
 impl Declaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("Declaration expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Declaration), scanner))
             .otherwise(|| {
                 let (hoist, after_hoist) = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
                 Ok((Rc::new(Declaration::Hoistable(hoist)), after_hoist))
@@ -513,7 +513,7 @@ impl PrettyPrint for HoistableDeclaration {
 
 impl HoistableDeclaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("HoistableDeclaration expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::HoistableDeclaration), scanner))
             .otherwise(|| {
                 let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::Function(func)), after_func))
@@ -619,7 +619,7 @@ impl PrettyPrint for BreakableStatement {
 
 impl BreakableStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
-        Err(ParseError::new("BreakableStatement expected", scanner.line, scanner.column))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BreakableStatement), scanner))
             .otherwise(|| {
                 let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Iteration(iter)), after_iter))
