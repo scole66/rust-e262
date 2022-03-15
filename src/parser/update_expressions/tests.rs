@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // UPDATE EXPRESSION
@@ -222,9 +223,21 @@ fn update_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod update_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        UpdateExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall-thru")]
+    #[test_case("package++", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "post-inc, simple")]
+    #[test_case("a(b)++", true => panics "not yet implemented"; "post-inc, complex")]
+    #[test_case("package--", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "post-dec, simple")]
+    #[test_case("a(b)--", true => panics "not yet implemented"; "post-dec, complex")]
+    #[test_case("++package", true => panics "not yet implemented"; "pre-inc, simple")]
+    #[test_case("++a(b)", true => panics "not yet implemented"; "pre-inc, complex")]
+    #[test_case("--package", true => panics "not yet implemented"; "pre-dec, simple")]
+    #[test_case("--a(b)", true => panics "not yet implemented"; "pre-dec, complex")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
