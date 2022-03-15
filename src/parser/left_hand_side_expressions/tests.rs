@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // MEMBER EXPRESSION
@@ -341,10 +342,24 @@ fn member_expression_test_is_object_or_array_literal(src: &str) -> bool {
 }
 mod member_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        MemberExpression::parse(&mut newparser("b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "primary expression")]
+    #[test_case("package[0]", true => panics "not yet implemented"; "array syntax (id bad)")]
+    #[test_case("a[package]", true => panics "not yet implemented"; "array syntax (exp bad)")]
+    #[test_case("package.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "member syntax (id bad)")]
+    #[test_case("package``", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "templ syntax (id bad)")]
+    #[test_case("a`${package}`", true => panics "not yet implemented"; "templ syntax (templ bad)")]
+    #[test_case("super.package", true => AHashSet::<String>::new(); "super property")]
+    #[test_case("import.meta", true => AHashSet::from_iter(["import.meta allowed only in Module code".to_string()]); "meta property")]
+    #[test_case("new package(0)", true => panics "not yet implemented"; "new expr (id bad)")]
+    #[test_case("new a(package)", true => panics "not yet implemented"; "new expr (args bad)")]
+    #[test_case("package.#a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "private id")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -439,10 +454,15 @@ fn super_property_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod super_property {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        SuperProperty::parse(&mut newparser("super.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("super.package", true => AHashSet::<String>::new(); "super.member")]
+    #[test_case("super[package]", true => panics "not yet implemented"; "super[exp]")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -456,14 +476,19 @@ fn meta_property_test_newtarget() {
     pretty_check(&*mp, "MetaProperty: new . target", vec![]);
     concise_check(&*mp, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
 }
-#[test]
-fn meta_property_test_importmeta() {
-    let (mp, scanner) = check(MetaProperty::parse(&mut newparser("import.meta"), Scanner::new()));
+#[test_case(ParseGoal::Script => Some(ParseGoal::Script); "script")]
+#[test_case(ParseGoal::Module => Some(ParseGoal::Module); "module")]
+fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
+    let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
-    assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta));
+    assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta(_)));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
     concise_check(&*mp, "MetaProperty: import . meta", vec!["Keyword: import", "Punctuator: .", "Keyword: meta"]);
+    match mp.kind {
+        MetaPropertyKind::NewTarget => None,
+        MetaPropertyKind::ImportMeta(goal) => Some(goal),
+    }
 }
 #[test]
 fn meta_property_test_nomatch_01() {
@@ -519,10 +544,16 @@ fn meta_property_test_contains_02() {
 }
 mod meta_property {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        MetaProperty::parse(&mut newparser("new.target"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("new.target", true, ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
+    #[test_case("import.meta", true, ParseGoal::Script => AHashSet::from_iter(["import.meta allowed only in Module code".to_string()]); "import.meta (in script)")]
+    #[test_case("import.meta", true, ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
+    fn early_errors(src: &str, strict: bool, goal: ParseGoal) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        MetaProperty::parse(&mut Parser::new(src, strict, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -636,10 +667,16 @@ fn arguments_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod arguments {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Arguments::parse(&mut newparser("()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("()", true => AHashSet::<String>::new(); "empty")]
+    #[test_case("(package)", true => panics "not yet implemented"; "argument list")]
+    #[test_case("(package,)", true => panics "not yet implemented"; "argument list; comma")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -808,10 +845,19 @@ fn argument_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod argument_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ArgumentList::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => panics "not yet implemented"; "one expression")]
+    #[test_case("...package", true => panics "not yet implemented"; "spread expression")]
+    #[test_case("package,0", true => panics "not yet implemented"; "list; head bad")]
+    #[test_case("0,package", true => panics "not yet implemented"; "list; tail bad")]
+    #[test_case("package,...a", true => panics "not yet implemented"; "list, rest; head bad")]
+    #[test_case("0,...package", true => panics "not yet implemented"; "list, rest; rest bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -920,10 +966,15 @@ fn new_expression_test_is_object_or_array_literal(src: &str) -> bool {
 }
 mod new_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        NewExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp")]
+    #[test_case("new package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "new exp")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        NewExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -979,10 +1030,15 @@ fn call_member_expression_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod call_member_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp bad")]
+    #[test_case("a(package)", true => panics "not yet implemented"; "args bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1034,10 +1090,14 @@ fn super_call_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod super_call {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        SuperCall::parse(&mut newparser("super()"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("super(package)", true => panics "not yet implemented"; "normal")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1094,10 +1154,14 @@ fn import_call_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod import_call {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ImportCall::parse(&mut newparser("import(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("import(package)", true => panics "not yet implemented"; "normal")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1412,10 +1476,24 @@ fn call_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod call_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CallExpression::parse(&mut newparser("b(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package(0)", true => panics "not yet implemented"; "cover exp")]
+    #[test_case("super(package)", true => panics "not yet implemented"; "super call")]
+    #[test_case("import(package)", true => panics "not yet implemented"; "import call")]
+    #[test_case("package(0)(1)", true => panics "not yet implemented"; "call args; id bad")]
+    #[test_case("a(0)(package)", true => panics "not yet implemented"; "call args; args bad")]
+    #[test_case("package(0)[a]", true => panics "not yet implemented"; "call array; id bad")]
+    #[test_case("a(0)[package]", true => panics "not yet implemented"; "call array; exp bad")]
+    #[test_case("package(0).id", true => panics "not yet implemented"; "call id")]
+    #[test_case("package(0).#id", true => panics "not yet implemented"; "call private")]
+    #[test_case("package(0)`${0}`", true => panics "not yet implemented"; "call templ; id bad")]
+    #[test_case("a(0)`${package}`", true => panics "not yet implemented"; "call templ; templ bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CallExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1552,10 +1630,19 @@ fn optional_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod optional_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package?.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp opt; exp bad")]
+    #[test_case("a?.(package)", true => panics "not yet implemented"; "exp opt; opt bad")]
+    #[test_case("package()?.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "call opt; call bad")]
+    #[test_case("a()?.(package)", true => panics "not yet implemented"; "call opt; opt bad")]
+    #[test_case("package?.a?.(0)", true => panics "not yet implemented"; "opt opt; head bad")]
+    #[test_case("a?.b?.(package)", true => panics "not yet implemented"; "opt opt; tail bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1921,10 +2008,23 @@ fn optional_chain_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod optional_chain {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("?.(package)", true => panics "not yet implemented"; "args")]
+    #[test_case("?.[package]", true => panics "not yet implemented"; "expression")]
+    #[test_case("?.package", true => AHashSet::<String>::new(); "ident")]
+    #[test_case("?.`${package}`", true => panics "not yet implemented"; "template lit")]
+    #[test_case("?.#package", true => AHashSet::<String>::new(); "private")]
+    #[test_case("?.(package)?.(interface)", true => panics "not yet implemented"; "chain args")]
+    #[test_case("?.(package)?.[interface]", true => panics "not yet implemented"; "chain expression")]
+    #[test_case("?.(package)?.interface", true => panics "not yet implemented"; "chain ident")]
+    #[test_case("?.(package)?.`${interface}`", true => panics "not yet implemented"; "chain template lit")]
+    #[test_case("?.(package)?.#interface", true => panics "not yet implemented"; "chain private")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -2046,9 +2146,15 @@ fn left_hand_side_expression_test_is_object_or_array_literal(src: &str) -> bool 
 }
 mod left_hand_side_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "new expression")]
+    #[test_case("package()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "call expression")]
+    #[test_case("package?.()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "optional expression")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
