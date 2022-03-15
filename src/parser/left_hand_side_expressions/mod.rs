@@ -317,9 +317,26 @@ impl MemberExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(n) => n.early_errors(agent, errs, strict),
+            MemberExpressionKind::Expression(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+            MemberExpressionKind::IdentifierName(n, _) => n.early_errors(agent, errs, strict),
+            MemberExpressionKind::TemplateLiteral(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict, 0xffff_ffff);
+            }
+            MemberExpressionKind::SuperProperty(n) => n.early_errors(agent, errs, strict),
+            MemberExpressionKind::MetaProperty(meta) => meta.early_errors(agent, errs, strict),
+            MemberExpressionKind::NewArguments(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+            MemberExpressionKind::PrivateId(n, _) => n.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -417,9 +434,12 @@ impl SuperProperty {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match &self.kind {
+            SuperPropertyKind::Expression(exp) => exp.early_errors(agent, errs, strict),
+            SuperPropertyKind::IdentifierName(_) => {}
+        }
     }
 }
 
@@ -433,7 +453,7 @@ impl SuperProperty {
 #[derive(Debug)]
 pub enum MetaPropertyKind {
     NewTarget,
-    ImportMeta,
+    ImportMeta(ParseGoal),
 }
 #[derive(Debug)]
 pub struct MetaProperty {
@@ -444,7 +464,7 @@ impl fmt::Display for MetaProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
             MetaPropertyKind::NewTarget => write!(f, "new . target"),
-            MetaPropertyKind::ImportMeta => write!(f, "import . meta"),
+            MetaPropertyKind::ImportMeta(_) => write!(f, "import . meta"),
         }
     }
 }
@@ -469,7 +489,7 @@ impl PrettyPrint for MetaProperty {
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "target", TokenType::Keyword, &successive, Spot::Final)
             }
-            MetaPropertyKind::ImportMeta => {
+            MetaPropertyKind::ImportMeta(_) => {
                 pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "meta", TokenType::Keyword, &successive, Spot::Final)
@@ -495,20 +515,30 @@ impl MetaProperty {
         let (kwd, after_kwd) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
             Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaPropertyKind::NewTarget),
-            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta),
+            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta(parser.goal)),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match &self.kind {
             MetaPropertyKind::NewTarget => kind == ParseNodeKind::NewTarget,
-            MetaPropertyKind::ImportMeta => false,
+            MetaPropertyKind::ImportMeta(_) => false,
         }
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, _strict: bool) {
+        match &self.kind {
+            MetaPropertyKind::NewTarget => {}
+            MetaPropertyKind::ImportMeta(goal) => {
+                // ImportMeta :
+                //  import . meta
+                //  * It is a Syntax Error if the syntactic goal symbol is not Module.
+                if *goal != ParseGoal::Module {
+                    errs.push(create_syntax_error_object(agent, "import.meta allowed only in Module code"));
+                }
+            }
+        }
     }
 }
 
@@ -623,9 +653,12 @@ impl Arguments {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match &self.kind {
+            ArgumentsKind::Empty => {}
+            ArgumentsKind::ArgumentList(n) | ArgumentsKind::ArgumentListComma(n) => n.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -814,9 +847,15 @@ impl ArgumentList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match &self.kind {
+            ArgumentListKind::FallThru(boxed) | ArgumentListKind::Dots(boxed) => boxed.early_errors(agent, errs, strict),
+            ArgumentListKind::ArgumentList(list, exp) | ArgumentListKind::ArgumentListDots(list, exp) => {
+                list.early_errors(agent, errs, strict);
+                exp.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -937,9 +976,11 @@ impl NewExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
+            NewExpressionKind::NewExpression(boxed) => boxed.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -999,9 +1040,9 @@ impl CallMemberExpression {
         self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.member_expression.early_errors(agent, errs, strict);
+        self.arguments.early_errors(agent, errs, strict);
     }
 }
 
@@ -1059,9 +1100,8 @@ impl SuperCall {
         self.arguments.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.arguments.early_errors(agent, errs, strict);
     }
 }
 
@@ -1123,9 +1163,8 @@ impl ImportCall {
         self.assignment_expression.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.assignment_expression.early_errors(agent, errs, strict);
     }
 }
 
@@ -1350,9 +1389,26 @@ impl CallExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
+            CallExpressionKind::SuperCall(node) => node.early_errors(agent, errs, strict),
+            CallExpressionKind::ImportCall(node) => node.early_errors(agent, errs, strict),
+            CallExpressionKind::CallExpressionArguments(node, args) => {
+                node.early_errors(agent, errs, strict);
+                args.early_errors(agent, errs, strict);
+            }
+            CallExpressionKind::CallExpressionExpression(node, exp) => {
+                node.early_errors(agent, errs, strict);
+                exp.early_errors(agent, errs, strict);
+            }
+            CallExpressionKind::CallExpressionIdentifierName(node, _) => node.early_errors(agent, errs, strict),
+            CallExpressionKind::CallExpressionTemplateLiteral(node, tl) => {
+                node.early_errors(agent, errs, strict);
+                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+            }
+            CallExpressionKind::CallExpressionPrivateId(node, _) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -1477,9 +1533,12 @@ impl LeftHandSideExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            LeftHandSideExpression::New(boxed) => boxed.early_errors(agent, errs, strict),
+            LeftHandSideExpression::Call(boxed) => boxed.early_errors(agent, errs, strict),
+            LeftHandSideExpression::Optional(boxed) => boxed.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -1598,9 +1657,21 @@ impl OptionalExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            OptionalExpression::Member(left, right) => {
+                left.early_errors(agent, errs, strict);
+                right.early_errors(agent, errs, strict);
+            }
+            OptionalExpression::Call(left, right) => {
+                left.early_errors(agent, errs, strict);
+                right.early_errors(agent, errs, strict);
+            }
+            OptionalExpression::Opt(left, right) => {
+                left.early_errors(agent, errs, strict);
+                right.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1849,9 +1920,45 @@ impl OptionalChain {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  OptionalChain :
+        //      ?. TemplateLiteral
+        //      OptionalChain TemplateLiteral
+        //  * It is a Syntax Error if any source text is matched by this production.
+        //
+        // NOTE | This production exists in order to prevent automatic semicolon insertion rules (12.9) from being
+        //      | applied to the following code:
+        //      |       a?.b
+        //      |       `c`
+        //      | so that it would be interpreted as two valid statements. The purpose is to maintain consistency with
+        //      | similar code without optional chaining:
+        //      |       a.b
+        //      |       `c`
+        //      | which is a valid statement and where automatic semicolon insertion does not apply.
+        match self {
+            OptionalChain::Template(tl) => {
+                errs.push(create_syntax_error_object(agent, "Template literal not allowed here"));
+                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+            }
+            OptionalChain::PlusTemplate(node, tl) => {
+                node.early_errors(agent, errs, strict);
+                errs.push(create_syntax_error_object(agent, "Template literal not allowed here"));
+                tl.early_errors(agent, errs, strict, 0xffff_ffff);
+            }
+            OptionalChain::Args(node) => node.early_errors(agent, errs, strict),
+            OptionalChain::Exp(node) => node.early_errors(agent, errs, strict),
+            OptionalChain::Ident(_) | OptionalChain::PrivateId(_) => {}
+            OptionalChain::PlusArgs(node, args) => {
+                node.early_errors(agent, errs, strict);
+                args.early_errors(agent, errs, strict);
+            }
+            OptionalChain::PlusExp(node, exp) => {
+                node.early_errors(agent, errs, strict);
+                exp.early_errors(agent, errs, strict);
+            }
+            OptionalChain::PlusIdent(node, _) | OptionalChain::PlusPrivateId(node, _) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
