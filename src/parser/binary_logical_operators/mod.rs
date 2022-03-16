@@ -347,9 +347,9 @@ impl CoalesceExpression {
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.head.early_errors(agent, errs, strict);
+        self.tail.early_errors(agent, errs, strict);
     }
 }
 
@@ -420,9 +420,11 @@ impl CoalesceExpressionHead {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
+            CoalesceExpressionHead::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
+        }
     }
 }
 

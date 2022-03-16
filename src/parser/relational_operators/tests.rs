@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // RELATIONAL EXPRESSION
@@ -349,10 +350,25 @@ mod relational_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        RelationalExpression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
+    #[test_case("package<3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left lt right; left bad")]
+    #[test_case("3<package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left lt right; right bad")]
+    #[test_case("package>3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left gt right; left bad")]
+    #[test_case("3>package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left gt right; right bad")]
+    #[test_case("package<=3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left le right; left bad")]
+    #[test_case("3<=package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left le right; right bad")]
+    #[test_case("package>=3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left ge right; left bad")]
+    #[test_case("3>=package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left ge right; right bad")]
+    #[test_case("package instanceof 3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left instanceof right; left bad")]
+    #[test_case("3 instanceof package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left instanceof right; right bad")]
+    #[test_case("package in 3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left in right; left bad")]
+    #[test_case("3 in package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left in right; right bad")]
+    #[test_case("#a in package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "privateid")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
