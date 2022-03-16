@@ -481,6 +481,24 @@ mod primary_expression {
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("this" => true; "this")]
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("[1]" => true; "array literal")]
+    #[test_case("{a:1}" => true; "object literal")]
+    #[test_case("function (){}" => true; "function expression")]
+    #[test_case("class {}" => true; "class expression")]
+    #[test_case("function *(){}" => true; "generator expression")]
+    #[test_case("async function (){}" => true; "async fn")]
+    #[test_case("async function *(){}" => true; "async gen")]
+    #[test_case("/a/" => true; "regex")]
+    #[test_case("``" => true; "template")]
+    #[test_case("(a)" => false; "parenthesized idref")]
+    #[test_case("(1)" => true; "parenthesized literal")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
 }
 
 // LITERAL
@@ -2111,10 +2129,18 @@ fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> boo
 }
 mod parenthesized_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ParenthesizedExpression::parse(&mut newparser("(package)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("(a)" => false; "parenthesized idref")]
+    #[test_case("(1)" => true; "parenthesized literal")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }
 

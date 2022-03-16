@@ -338,6 +338,19 @@ impl MemberExpression {
             MemberExpressionKind::PrivateId(n, _) => n.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(node) => node.is_strictly_deletable(),
+            MemberExpressionKind::Expression(..)
+            | MemberExpressionKind::IdentifierName(..)
+            | MemberExpressionKind::TemplateLiteral(..)
+            | MemberExpressionKind::SuperProperty(..)
+            | MemberExpressionKind::MetaProperty(..)
+            | MemberExpressionKind::NewArguments(..) => true,
+            MemberExpressionKind::PrivateId(..) => false,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -982,6 +995,13 @@ impl NewExpression {
             NewExpressionKind::NewExpression(boxed) => boxed.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::NewExpression(_) => true,
+            NewExpressionKind::MemberExpression(node) => node.is_strictly_deletable(),
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1410,6 +1430,10 @@ impl CallExpression {
             CallExpressionKind::CallExpressionPrivateId(node, _) => node.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        !matches!(&self.kind, CallExpressionKind::CallExpressionPrivateId(..))
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -1538,6 +1562,14 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::New(boxed) => boxed.early_errors(agent, errs, strict),
             LeftHandSideExpression::Call(boxed) => boxed.early_errors(agent, errs, strict),
             LeftHandSideExpression::Optional(boxed) => boxed.early_errors(agent, errs, strict),
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            LeftHandSideExpression::New(node) => node.is_strictly_deletable(),
+            LeftHandSideExpression::Call(node) => node.is_strictly_deletable(),
+            LeftHandSideExpression::Optional(node) => node.is_strictly_deletable(),
         }
     }
 }
@@ -1671,6 +1703,12 @@ impl OptionalExpression {
                 left.early_errors(agent, errs, strict);
                 right.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            OptionalExpression::Member(_, chain) | OptionalExpression::Call(_, chain) | OptionalExpression::Opt(_, chain) => chain.is_strictly_deletable(),
         }
     }
 }
@@ -1959,6 +1997,10 @@ impl OptionalChain {
             }
             OptionalChain::PlusIdent(node, _) | OptionalChain::PlusPrivateId(node, _) => node.early_errors(agent, errs, strict),
         }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        !matches!(self, OptionalChain::PrivateId(..) | OptionalChain::PlusPrivateId(..))
     }
 }
 

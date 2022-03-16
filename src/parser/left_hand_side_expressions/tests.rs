@@ -361,6 +361,19 @@ mod member_expression {
         MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a[0]" => true; "square brackets")]
+    #[test_case("a.b" => true; "member notation")]
+    #[test_case("a`${1}`" => true; "tagged template")]
+    #[test_case("super.a" => true; "super property")]
+    #[test_case("new.target" => true; "meta property")]
+    #[test_case("new a()" => true; "new member")]
+    #[test_case("a.#u" => false; "private id")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
 }
 
 // SUPER PROPERTY
@@ -976,6 +989,13 @@ mod new_expression {
         NewExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("new a" => true; "new expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
 }
 
 // CALL MEMBER EXPRESSION
@@ -1495,6 +1515,18 @@ mod call_expression {
         CallExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a()" => true; "standard")]
+    #[test_case("super()" => true; "super call")]
+    #[test_case("import(a)" => true; "import")]
+    #[test_case("a()()" => true; "call on call")]
+    #[test_case("a()[0]" => true; "exp lookup")]
+    #[test_case("a().b" => true; "member")]
+    #[test_case("a()`${1}`" => true; "template")]
+    #[test_case("a().#u" => false; "private id")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        CallExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
 }
 
 // OPTIONAL EXPRESSION
@@ -1643,6 +1675,16 @@ mod optional_expression {
         let mut errs = vec![];
         OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a?.b" => true; "member exp")]
+    #[test_case("a?.#b" => false; "private member exp")]
+    #[test_case("a()?.b" => true; "call exp")]
+    #[test_case("a()?.#b" => false; "private call exp")]
+    #[test_case("a?.b?.c" => true; "optional exp")]
+    #[test_case("a?.b?.#c" => false; "private optional exp")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }
 
@@ -2026,6 +2068,25 @@ mod optional_chain {
         OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("?.()" => true; "args")]
+    #[test_case("?.[0]" => true; "expression")]
+    #[test_case("?.a" => true; "member")]
+    #[test_case("?.`${0}`" => true; "template")]
+    #[test_case("?.#a" => false; "private")]
+    #[test_case("?.z()" => true; "chain args")]
+    #[test_case("?.z[0]" => true; "chain expression")]
+    #[test_case("?.z.a" => true; "chain member")]
+    #[test_case("?.z`${0}`" => true; "chain template")]
+    #[test_case("?.z.#a" => false; "chain private")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        let prod = OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0;
+        let mut msg = Vec::new();
+        prod.pprint_concise(&mut msg).unwrap();
+        let whole_message = std::str::from_utf8(&msg).unwrap();
+        println!("{}", whole_message);
+        prod.is_strictly_deletable()
+    }
 }
 
 // LEFT-HAND-SIDE EXPRESSION
@@ -2156,5 +2217,15 @@ mod left_hand_side_expression {
         let mut errs = vec![];
         LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a()" => true; "call expression")]
+    #[test_case("a().#u" => false; "call expression with private id")]
+    #[test_case("a?.b" => true; "optional expression")]
+    #[test_case("a?.#u" => false; "optional with private id")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }

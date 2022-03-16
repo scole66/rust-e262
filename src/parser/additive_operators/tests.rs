@@ -140,3 +140,15 @@ fn additive_expression_test_early_errors() {
     let mut agent = test_agent();
     AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
+
+mod additive_operators {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("a+b" => true; "expression")]
+    #[test_case("1" => true; "literal")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+}

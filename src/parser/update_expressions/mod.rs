@@ -203,6 +203,13 @@ impl UpdateExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            UpdateExpression::LeftHandSideExpression(x) => x.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]
