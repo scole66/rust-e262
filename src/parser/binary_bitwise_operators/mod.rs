@@ -122,6 +122,13 @@ impl BitwiseANDExpression {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -238,6 +245,13 @@ impl BitwiseXORExpression {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
     }
 }
 
@@ -366,6 +380,13 @@ impl BitwiseORExpression {
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // UNARY EXPRESSION
@@ -346,9 +347,37 @@ fn unary_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod unary_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        UnaryExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall-thru")]
+    #[test_case("delete package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "Item is not deletable".to_string()]); "delete")]
+    #[test_case("delete (((foo)))", true => panics "not yet implemented"; "nested ref")]
+    #[test_case("delete a", false => AHashSet::<String>::new(); "non-strict delete")]
+    #[test_case("void package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "void")]
+    #[test_case("typeof package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "typeof_")]
+    #[test_case("+ package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "noop")]
+    #[test_case("- package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "negate")]
+    #[test_case("~ package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "complement")]
+    #[test_case("! package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "not")]
+    #[test_case("await package", true => panics "not yet implemented"; "await_")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("delete x" => true; "delete")]
+    #[test_case("void x" => true; "void")]
+    #[test_case("typeof x" => true; "typeof op")]
+    #[test_case("+a" => true; "unary plus")]
+    #[test_case("-a" => true; "unary minus")]
+    #[test_case("~a" => true; "complement")]
+    #[test_case("!a" => true; "not")]
+    #[test_case("await a" => true; "await op")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        UnaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }

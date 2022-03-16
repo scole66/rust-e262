@@ -271,6 +271,13 @@ impl AssignmentExpression {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            AssignmentExpression::FallThru(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 // AssignmentOperator : one of

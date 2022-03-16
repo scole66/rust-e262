@@ -200,9 +200,48 @@ impl UnaryExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            UnaryExpression::UpdateExpression(exp) => exp.is_strictly_deletable(),
+            _ => true,
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            UnaryExpression::UpdateExpression(n) => n.early_errors(agent, errs, strict),
+            UnaryExpression::Delete(n) => {
+                // Static Semantics: Early Errors
+                //      UnaryExpression : delete UnaryExpression
+                //
+                //  * It is a Syntax Error if the UnaryExpression is contained in strict mode code and the derived
+                //    UnaryExpression is one of:
+                //      PrimaryExpression : IdentifierReference
+                //      MemberExpression : MemberExpression . PrivateIdentifier
+                //      CallExpression : CallExpression . PrivateIdentifier
+                //      OptionalChain : ?. PrivateIdentifier
+                //      OptionalChain : OptionalChain . PrivateIdentifier
+                //  * It is a Syntax Error if the derived UnaryExpression is
+                //      PrimaryExpression : CoverParenthesizedExpressionAndArrowParameterList
+                //    and CoverParenthesizedExpressionAndArrowParameterList ultimately derives a phrase that, if used in
+                //    place of UnaryExpression, would produce a Syntax Error according to these rules. This rule is
+                //    recursively applied.
+                //
+                // NOTE |   The last rule means that expressions such as delete (((foo))) produce early errors because
+                //      |   of recursive application of the first rule.
+                if strict && !n.is_strictly_deletable() {
+                    // node.js errors for these cases:
+                    //  * "Private fields can not be deleted"
+                    //  * "Delete of an unqualified identifier in strict mode."
+                    errs.push(create_syntax_error_object(agent, "Item is not deletable"));
+                }
+                n.early_errors(agent, errs, strict);
+            }
+            UnaryExpression::Void(n) | UnaryExpression::Typeof(n) | UnaryExpression::NoOp(n) | UnaryExpression::Negate(n) | UnaryExpression::Complement(n) | UnaryExpression::Not(n) => {
+                n.early_errors(agent, errs, strict)
+            }
+            UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
+        }
     }
 }
 

@@ -593,6 +593,18 @@ fn assignment_expression_test_early_errors() {
     AssignmentExpression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
+mod assignment_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a=3" => true; "assignment op")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+    }
+}
+
 #[test]
 fn assignment_operator_test_contains_01() {
     assert_eq!(AssignmentOperator::Multiply.contains(ParseNodeKind::This), false);
