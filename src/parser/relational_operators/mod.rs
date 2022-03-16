@@ -214,9 +214,20 @@ impl RelationalExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            RelationalExpression::ShiftExpression(n) => n.early_errors(agent, errs, strict),
+            RelationalExpression::Less(l, r)
+            | RelationalExpression::Greater(l, r)
+            | RelationalExpression::LessEqual(l, r)
+            | RelationalExpression::GreaterEqual(l, r)
+            | RelationalExpression::InstanceOf(l, r)
+            | RelationalExpression::In(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+            RelationalExpression::PrivateIn(_, r) => r.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // ADDITIVE EXPRESSION
@@ -134,11 +135,21 @@ fn additive_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
 
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn additive_expression_test_early_errors() {
-    let mut agent = test_agent();
-    AdditiveExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+mod additive_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "MultiplicativeExpression")]
+    #[test_case("package+3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE plus ME; AE bad")]
+    #[test_case("3+package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE plus ME; ME bad")]
+    #[test_case("package-3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE minus ME; AE bad")]
+    #[test_case("3-package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE minus ME; ME bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 mod additive_operators {
