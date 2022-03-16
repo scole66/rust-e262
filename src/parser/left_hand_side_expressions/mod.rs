@@ -1432,10 +1432,7 @@ impl CallExpression {
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        match &self.kind {
-            CallExpressionKind::CallExpressionPrivateId(..) => false,
-            _ => true,
-        }
+        !matches!(&self.kind, CallExpressionKind::CallExpressionPrivateId(..))
     }
 }
 
@@ -2003,10 +2000,7 @@ impl OptionalChain {
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        match self {
-            OptionalChain::PrivateId(..) | OptionalChain::PlusPrivateId(..) => false,
-            _ => true,
-        }
+        !matches!(self, OptionalChain::PrivateId(..) | OptionalChain::PlusPrivateId(..))
     }
 }
 
