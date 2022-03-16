@@ -127,6 +127,13 @@ impl LogicalANDExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -247,6 +254,13 @@ impl LogicalORExpression {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.is_strictly_deletable(),
+            _ => true,
         }
     }
 }
@@ -514,6 +528,13 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, errs, strict),
             ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.is_strictly_deletable(),
+            _ => true,
         }
     }
 }

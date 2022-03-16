@@ -94,10 +94,19 @@ fn bitwise_and_expression_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod bitwise_and_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         BitwiseANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a & b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }
 
@@ -191,10 +200,18 @@ fn bitwise_xor_expression_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod bitwise_xor_expression {
     use super::*;
+    use test_case::test_case;
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         BitwiseXORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a ^ b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }
 
@@ -296,9 +313,18 @@ fn bitwise_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod bitwise_or_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         BitwiseORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a | b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }

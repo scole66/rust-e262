@@ -229,6 +229,13 @@ impl RelationalExpression {
             RelationalExpression::PrivateIn(_, r) => r.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            RelationalExpression::ShiftExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

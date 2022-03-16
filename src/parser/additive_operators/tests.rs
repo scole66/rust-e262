@@ -151,3 +151,15 @@ mod additive_expression {
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
+
+mod additive_operators {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("a+b" => true; "expression")]
+    #[test_case("1" => true; "literal")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+}

@@ -182,9 +182,18 @@ fn shift_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod shift_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ShiftExpression::parse(&mut newparser("3"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a >> b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }

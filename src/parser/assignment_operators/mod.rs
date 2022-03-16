@@ -339,6 +339,13 @@ impl AssignmentExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            AssignmentExpression::FallThru(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 // AssignmentOperator : one of

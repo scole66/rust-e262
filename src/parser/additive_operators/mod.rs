@@ -142,6 +142,13 @@ impl AdditiveExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

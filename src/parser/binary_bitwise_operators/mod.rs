@@ -127,6 +127,13 @@ impl BitwiseANDExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -247,6 +254,13 @@ impl BitwiseXORExpression {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
+            _ => true,
         }
     }
 }
@@ -380,6 +394,13 @@ impl BitwiseORExpression {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
+        }
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
+            _ => true,
         }
     }
 }

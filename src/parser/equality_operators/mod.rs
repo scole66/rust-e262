@@ -161,6 +161,13 @@ impl EqualityExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

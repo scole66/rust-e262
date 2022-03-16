@@ -101,10 +101,19 @@ fn logical_and_expression_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod logical_and_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         LogicalANDExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a && b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }
 
@@ -205,10 +214,19 @@ fn logical_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod logical_or_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         LogicalORExpression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a || b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }
 
@@ -451,9 +469,18 @@ fn short_circuit_expression_test_all_private_identifiers_valid(src: &str) -> boo
 }
 mod short_circuit_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ShortCircuitExpression::parse(&mut newparser("0??b"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a ?? b" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
 }

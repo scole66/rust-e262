@@ -200,10 +200,17 @@ impl UnaryExpression {
         }
     }
 
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            UnaryExpression::UpdateExpression(exp) => exp.is_strictly_deletable(),
+            _ => true,
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             UnaryExpression::UpdateExpression(n) => n.early_errors(agent, errs, strict),
-            UnaryExpression::Delete(_n) => {
+            UnaryExpression::Delete(n) => {
                 // Static Semantics: Early Errors
                 //      UnaryExpression : delete UnaryExpression
                 //
@@ -214,15 +221,21 @@ impl UnaryExpression {
                 //      CallExpression : CallExpression . PrivateIdentifier
                 //      OptionalChain : ?. PrivateIdentifier
                 //      OptionalChain : OptionalChain . PrivateIdentifier
-                // * It is a Syntax Error if the derived UnaryExpression is
+                //  * It is a Syntax Error if the derived UnaryExpression is
                 //      PrimaryExpression : CoverParenthesizedExpressionAndArrowParameterList
-                //   and CoverParenthesizedExpressionAndArrowParameterList ultimately derives a phrase that, if used in
-                //   place of UnaryExpression, would produce a Syntax Error according to these rules. This rule is
-                //   recursively applied.
+                //    and CoverParenthesizedExpressionAndArrowParameterList ultimately derives a phrase that, if used in
+                //    place of UnaryExpression, would produce a Syntax Error according to these rules. This rule is
+                //    recursively applied.
                 //
                 // NOTE |   The last rule means that expressions such as delete (((foo))) produce early errors because
                 //      |   of recursive application of the first rule.
-                todo!()
+                if strict && !n.is_strictly_deletable() {
+                    // node.js errors for these cases:
+                    //  * "Private fields can not be deleted"
+                    //  * "Delete of an unqualified identifier in strict mode."
+                    errs.push(create_syntax_error_object(agent, "Item is not deletable"));
+                }
+                n.early_errors(agent, errs, strict);
             }
             UnaryExpression::Void(n) | UnaryExpression::Typeof(n) | UnaryExpression::NoOp(n) | UnaryExpression::Negate(n) | UnaryExpression::Complement(n) | UnaryExpression::Not(n) => {
                 n.early_errors(agent, errs, strict)

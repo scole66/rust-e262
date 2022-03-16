@@ -140,6 +140,13 @@ impl Expression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            Expression::FallThru(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

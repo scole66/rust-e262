@@ -136,6 +136,13 @@ impl ConditionalExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match self {
+            ConditionalExpression::FallThru(node) => node.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

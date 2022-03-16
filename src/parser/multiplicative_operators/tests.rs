@@ -171,9 +171,18 @@ fn multiplicative_expression_test_all_private_identifiers_valid(src: &str) -> bo
 }
 mod multiplicative_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         MultiplicativeExpression::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a * 0" => true; "expression")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }

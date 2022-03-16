@@ -393,6 +393,14 @@ impl PrimaryExpression {
             }
         }
     }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        match &self.kind {
+            PrimaryExpressionKind::IdentifierReference(..) => false,
+            PrimaryExpressionKind::Parenthesized(exp) => exp.is_strictly_deletable(),
+            _ => true,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -2555,6 +2563,11 @@ impl ParenthesizedExpression {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ParenthesizedExpression::Expression(e) = self;
         e.early_errors(agent, errs, strict)
+    }
+
+    pub fn is_strictly_deletable(&self) -> bool {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.is_strictly_deletable()
     }
 }
 

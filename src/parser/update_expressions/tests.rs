@@ -230,14 +230,24 @@ mod update_expression {
     #[test_case("a(b)++", true => panics "not yet implemented"; "post-inc, complex")]
     #[test_case("package--", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "post-dec, simple")]
     #[test_case("a(b)--", true => panics "not yet implemented"; "post-dec, complex")]
-    #[test_case("++package", true => panics "not yet implemented"; "pre-inc, simple")]
+    #[test_case("++package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "pre-inc, simple")]
     #[test_case("++a(b)", true => panics "not yet implemented"; "pre-inc, complex")]
-    #[test_case("--package", true => panics "not yet implemented"; "pre-dec, simple")]
+    #[test_case("--package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "pre-dec, simple")]
     #[test_case("--a(b)", true => panics "not yet implemented"; "pre-dec, complex")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
         UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "identifier ref")]
+    #[test_case("1" => true; "literal")]
+    #[test_case("a++" => true; "postinc")]
+    #[test_case("a--" => true; "postdec")]
+    #[test_case("++a" => true; "preinc")]
+    #[test_case("--a" => true; "predec")]
+    fn is_strictly_deletable(src: &str) -> bool {
+        UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
 }
