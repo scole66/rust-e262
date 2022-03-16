@@ -133,9 +133,14 @@ impl AdditiveExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(agent, errs, strict),
+            AdditiveExpression::Add(l, r) | AdditiveExpression::Subtract(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

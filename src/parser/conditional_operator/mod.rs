@@ -126,9 +126,15 @@ impl ConditionalExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ConditionalExpression::FallThru(node) => node.early_errors(agent, errs, strict),
+            ConditionalExpression::Conditional(a, b, c) => {
+                a.early_errors(agent, errs, strict);
+                b.early_errors(agent, errs, strict);
+                c.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

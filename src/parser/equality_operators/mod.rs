@@ -152,9 +152,14 @@ impl EqualityExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            EqualityExpression::RelationalExpression(n) => n.early_errors(agent, errs, strict),
+            EqualityExpression::Equal(l, r) | EqualityExpression::NotEqual(l, r) | EqualityExpression::StrictEqual(l, r) | EqualityExpression::NotStrictEqual(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

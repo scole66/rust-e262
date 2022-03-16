@@ -118,9 +118,14 @@ impl LogicalANDExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
+            LogicalANDExpression::LogicalAND(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -242,9 +247,14 @@ impl LogicalORExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, errs, strict),
+            LogicalORExpression::LogicalOR(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -337,9 +347,9 @@ impl CoalesceExpression {
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.head.early_errors(agent, errs, strict);
+        self.tail.early_errors(agent, errs, strict);
     }
 }
 
@@ -410,9 +420,11 @@ impl CoalesceExpressionHead {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
+            CoalesceExpressionHead::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -514,9 +526,11 @@ impl ShortCircuitExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(agent, errs, strict),
+            ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

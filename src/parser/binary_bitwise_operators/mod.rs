@@ -32,7 +32,7 @@ impl PrettyPrint for BitwiseANDExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BitwiseANDExpression: {}", first, self)?;
-        match &self {
+        match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.pprint_with_leftpad(writer, &successive, Spot::Final),
             BitwiseANDExpression::BitwiseAND(be, ee) => {
                 be.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -118,9 +118,14 @@ impl BitwiseANDExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseANDExpression::BitwiseAND(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -242,9 +247,14 @@ impl BitwiseXORExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseXORExpression::BitwiseXOR(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
@@ -377,9 +387,14 @@ impl BitwiseORExpression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, errs, strict),
+            BitwiseORExpression::BitwiseOR(l, r) => {
+                l.early_errors(agent, errs, strict);
+                r.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

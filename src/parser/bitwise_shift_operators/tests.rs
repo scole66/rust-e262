@@ -1,7 +1,8 @@
 use super::testhelp::{check, check_err, chk_scan, newparser};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // SHIFT EXPRESSION
@@ -184,10 +185,18 @@ mod shift_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ShiftExpression::parse(&mut newparser("3"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
+    #[test_case("package<<3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left shl right; left bad")]
+    #[test_case("3<<package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left shl right; right bad")]
+    #[test_case("package>>3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left shr right; left bad")]
+    #[test_case("3>>package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left shr right; right bad")]
+    #[test_case("package>>>3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left ushr right; left bad")]
+    #[test_case("3>>>package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left ushr right; right bad")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a" => false; "identifier ref")]
