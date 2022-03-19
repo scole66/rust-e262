@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -97,8 +97,8 @@ mod bitwise_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package&interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "bitwise and")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package&interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -206,8 +206,8 @@ mod bitwise_xor_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package^interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "bitwise xor")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package^interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise xor")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -323,8 +323,8 @@ mod bitwise_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package|interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "bitwise or")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package|interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "bitwise or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

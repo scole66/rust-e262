@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -349,16 +349,16 @@ mod unary_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall-thru")]
-    #[test_case("delete package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "Item is not deletable".to_string()]); "delete")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
+    #[test_case("delete package", true => set(&[PACKAGE_NOT_ALLOWED, "Item is not deletable"]); "delete")]
     #[test_case("delete (((foo)))", true => panics "not yet implemented"; "nested ref")]
     #[test_case("delete a", false => AHashSet::<String>::new(); "non-strict delete")]
-    #[test_case("void package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "void")]
-    #[test_case("typeof package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "typeof_")]
-    #[test_case("+ package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "noop")]
-    #[test_case("- package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "negate")]
-    #[test_case("~ package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "complement")]
-    #[test_case("! package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "not")]
+    #[test_case("void package", true => set(&[PACKAGE_NOT_ALLOWED]); "void")]
+    #[test_case("typeof package", true => set(&[PACKAGE_NOT_ALLOWED]); "typeof_")]
+    #[test_case("+ package", true => set(&[PACKAGE_NOT_ALLOWED]); "noop")]
+    #[test_case("- package", true => set(&[PACKAGE_NOT_ALLOWED]); "negate")]
+    #[test_case("~ package", true => set(&[PACKAGE_NOT_ALLOWED]); "complement")]
+    #[test_case("! package", true => set(&[PACKAGE_NOT_ALLOWED]); "not")]
     #[test_case("await package", true => panics "not yet implemented"; "await_")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
