@@ -344,14 +344,16 @@ mod member_expression {
     use super::*;
     use test_case::test_case;
 
+    const IMPORT_META_ERR: &str = "import.meta allowed only in Module code";
+
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
-    #[test_case("package[0]", true => panics "not yet implemented"; "array syntax (id bad)")]
-    #[test_case("a[package]", true => panics "not yet implemented"; "array syntax (exp bad)")]
+    #[test_case("package[0]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (id bad)")]
+    #[test_case("a[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "array syntax (exp bad)")]
     #[test_case("package.a", true => set(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
     #[test_case("package``", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
-    #[test_case("a`${package}`", true => panics "not yet implemented"; "templ syntax (templ bad)")]
-    #[test_case("super.package", true => AHashSet::<String>::new(); "super property")]
-    #[test_case("import.meta", true => set(&["import.meta allowed only in Module code"]); "meta property")]
+    #[test_case("a`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (templ bad)")]
+    #[test_case("super.package", true => set(&[]); "super property")]
+    #[test_case("import.meta", true => set(&[IMPORT_META_ERR]); "meta property")]
     #[test_case("new package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
     #[test_case("new a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
     #[test_case("package.#a", true => set(&[PACKAGE_NOT_ALLOWED]); "private id")]
@@ -469,8 +471,8 @@ mod super_property {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("super.package", true => AHashSet::<String>::new(); "super.member")]
-    #[test_case("super[package]", true => panics "not yet implemented"; "super[exp]")]
+    #[test_case("super.package", true => set(&[]); "super.member")]
+    #[test_case("super[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "super[exp]")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1503,12 +1505,12 @@ mod call_expression {
     #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "import call")]
     #[test_case("package(0)(1)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
     #[test_case("a(0)(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
-    #[test_case("package(0)[a]", true => panics "not yet implemented"; "call array; id bad")]
-    #[test_case("a(0)[package]", true => panics "not yet implemented"; "call array; exp bad")]
+    #[test_case("package(0)[a]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; id bad")]
+    #[test_case("a(0)[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "call array; exp bad")]
     #[test_case("package(0).id", true => set(&[PACKAGE_NOT_ALLOWED]); "call id")]
     #[test_case("package(0).#id", true => set(&[PACKAGE_NOT_ALLOWED]); "call private")]
-    #[test_case("package(0)`${0}`", true => panics "not yet implemented"; "call templ; id bad")]
-    #[test_case("a(0)`${package}`", true => panics "not yet implemented"; "call templ; templ bad")]
+    #[test_case("package(0)`${0}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; id bad")]
+    #[test_case("a(0)`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "call templ; templ bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2052,15 +2054,17 @@ mod optional_chain {
     use super::*;
     use test_case::test_case;
 
+    const TEMPLATE_NOT_ALLOWED: &str = "Template literal not allowed here";
+
     #[test_case("?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args")]
-    #[test_case("?.[package]", true => panics "not yet implemented"; "expression")]
+    #[test_case("?.[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "expression")]
     #[test_case("?.package", true => AHashSet::<String>::new(); "ident")]
-    #[test_case("?.`${package}`", true => panics "not yet implemented"; "template lit")]
+    #[test_case("?.`${package}`", true => set(&[PACKAGE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "template lit")]
     #[test_case("?.#package", true => AHashSet::<String>::new(); "private")]
     #[test_case("?.(package)(interface)", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
-    #[test_case("?.(package)[interface]", true => panics "not yet implemented"; "chain expression")]
+    #[test_case("?.(package)[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain expression")]
     #[test_case("?.(package).interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
-    #[test_case("?.(package)`${interface}`", true => panics "not yet implemented"; "chain template lit")]
+    #[test_case("?.(package)`${interface}`", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, TEMPLATE_NOT_ALLOWED]); "chain template lit")]
     #[test_case("?.(package).#interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain private")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();

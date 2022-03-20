@@ -349,9 +349,11 @@ mod unary_expression {
     use super::*;
     use test_case::test_case;
 
+    const ITEM_NOT_DELETABLE: &str = "Item is not deletable";
+
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall-thru")]
-    #[test_case("delete package", true => set(&[PACKAGE_NOT_ALLOWED, "Item is not deletable"]); "delete")]
-    #[test_case("delete (((foo)))", true => panics "not yet implemented"; "nested ref")]
+    #[test_case("delete package", true => set(&[PACKAGE_NOT_ALLOWED, ITEM_NOT_DELETABLE]); "delete")]
+    #[test_case("delete (((foo)))", true => set(&[ITEM_NOT_DELETABLE]); "nested ref")]
     #[test_case("delete a", false => AHashSet::<String>::new(); "non-strict delete")]
     #[test_case("void package", true => set(&[PACKAGE_NOT_ALLOWED]); "void")]
     #[test_case("typeof package", true => set(&[PACKAGE_NOT_ALLOWED]); "typeof_")]
