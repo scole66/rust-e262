@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -104,8 +104,8 @@ mod logical_and_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package&&interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "logical and")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package&&interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical and")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -220,8 +220,8 @@ mod logical_or_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package||interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "logical or")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package||interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "logical or")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -307,7 +307,7 @@ mod coalesce_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package??interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "coalesce")]
+    #[test_case("package??interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -390,8 +390,8 @@ mod coalesce_expression_head {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package??interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "MultiplicativeExpression")]
-    #[test_case("package??interface??q", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "AE plus ME; AE bad")]
+    #[test_case("package??interface", true => set(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
+    #[test_case("package??interface??q", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AE plus ME; AE bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -487,8 +487,8 @@ mod short_circuit_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package??interface", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string(), "‘interface’ not allowed as an identifier in strict mode".to_string()]); "coalesce")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package??interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "coalesce")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

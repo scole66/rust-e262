@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -344,17 +344,17 @@ mod member_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "primary expression")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "primary expression")]
     #[test_case("package[0]", true => panics "not yet implemented"; "array syntax (id bad)")]
     #[test_case("a[package]", true => panics "not yet implemented"; "array syntax (exp bad)")]
-    #[test_case("package.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "member syntax (id bad)")]
-    #[test_case("package``", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "templ syntax (id bad)")]
+    #[test_case("package.a", true => set(&[PACKAGE_NOT_ALLOWED]); "member syntax (id bad)")]
+    #[test_case("package``", true => set(&[PACKAGE_NOT_ALLOWED]); "templ syntax (id bad)")]
     #[test_case("a`${package}`", true => panics "not yet implemented"; "templ syntax (templ bad)")]
     #[test_case("super.package", true => AHashSet::<String>::new(); "super property")]
-    #[test_case("import.meta", true => AHashSet::from_iter(["import.meta allowed only in Module code".to_string()]); "meta property")]
-    #[test_case("new package(0)", true => panics "not yet implemented"; "new expr (id bad)")]
-    #[test_case("new a(package)", true => panics "not yet implemented"; "new expr (args bad)")]
-    #[test_case("package.#a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "private id")]
+    #[test_case("import.meta", true => set(&["import.meta allowed only in Module code"]); "meta property")]
+    #[test_case("new package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (id bad)")]
+    #[test_case("new a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "new expr (args bad)")]
+    #[test_case("package.#a", true => set(&[PACKAGE_NOT_ALLOWED]); "private id")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -560,7 +560,7 @@ mod meta_property {
     use test_case::test_case;
 
     #[test_case("new.target", true, ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
-    #[test_case("import.meta", true, ParseGoal::Script => AHashSet::from_iter(["import.meta allowed only in Module code".to_string()]); "import.meta (in script)")]
+    #[test_case("import.meta", true, ParseGoal::Script => set(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
     #[test_case("import.meta", true, ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
     fn early_errors(src: &str, strict: bool, goal: ParseGoal) -> AHashSet<String> {
         let mut agent = test_agent();
@@ -683,8 +683,8 @@ mod arguments {
     use test_case::test_case;
 
     #[test_case("()", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("(package)", true => panics "not yet implemented"; "argument list")]
-    #[test_case("(package,)", true => panics "not yet implemented"; "argument list; comma")]
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list")]
+    #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "argument list; comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -860,12 +860,12 @@ mod argument_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => panics "not yet implemented"; "one expression")]
-    #[test_case("...package", true => panics "not yet implemented"; "spread expression")]
-    #[test_case("package,0", true => panics "not yet implemented"; "list; head bad")]
-    #[test_case("0,package", true => panics "not yet implemented"; "list; tail bad")]
-    #[test_case("package,...a", true => panics "not yet implemented"; "list, rest; head bad")]
-    #[test_case("0,...package", true => panics "not yet implemented"; "list, rest; rest bad")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "one expression")]
+    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread expression")]
+    #[test_case("package,0", true => set(&[PACKAGE_NOT_ALLOWED]); "list; head bad")]
+    #[test_case("0,package", true => set(&[PACKAGE_NOT_ALLOWED]); "list; tail bad")]
+    #[test_case("package,...a", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; head bad")]
+    #[test_case("0,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "list, rest; rest bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -981,8 +981,8 @@ mod new_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp")]
-    #[test_case("new package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "new exp")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "exp")]
+    #[test_case("new package", true => set(&[PACKAGE_NOT_ALLOWED]); "new exp")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1052,8 +1052,8 @@ mod call_member_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp bad")]
-    #[test_case("a(package)", true => panics "not yet implemented"; "args bad")]
+    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "exp bad")]
+    #[test_case("a(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1112,7 +1112,7 @@ mod super_call {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("super(package)", true => panics "not yet implemented"; "normal")]
+    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1176,7 +1176,7 @@ mod import_call {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("import(package)", true => panics "not yet implemented"; "normal")]
+    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1498,15 +1498,15 @@ mod call_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package(0)", true => panics "not yet implemented"; "cover exp")]
-    #[test_case("super(package)", true => panics "not yet implemented"; "super call")]
-    #[test_case("import(package)", true => panics "not yet implemented"; "import call")]
-    #[test_case("package(0)(1)", true => panics "not yet implemented"; "call args; id bad")]
-    #[test_case("a(0)(package)", true => panics "not yet implemented"; "call args; args bad")]
+    #[test_case("package(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "cover exp")]
+    #[test_case("super(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "super call")]
+    #[test_case("import(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "import call")]
+    #[test_case("package(0)(1)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; id bad")]
+    #[test_case("a(0)(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call args; args bad")]
     #[test_case("package(0)[a]", true => panics "not yet implemented"; "call array; id bad")]
     #[test_case("a(0)[package]", true => panics "not yet implemented"; "call array; exp bad")]
-    #[test_case("package(0).id", true => panics "not yet implemented"; "call id")]
-    #[test_case("package(0).#id", true => panics "not yet implemented"; "call private")]
+    #[test_case("package(0).id", true => set(&[PACKAGE_NOT_ALLOWED]); "call id")]
+    #[test_case("package(0).#id", true => set(&[PACKAGE_NOT_ALLOWED]); "call private")]
     #[test_case("package(0)`${0}`", true => panics "not yet implemented"; "call templ; id bad")]
     #[test_case("a(0)`${package}`", true => panics "not yet implemented"; "call templ; templ bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -1664,12 +1664,12 @@ mod optional_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package?.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "exp opt; exp bad")]
-    #[test_case("a?.(package)", true => panics "not yet implemented"; "exp opt; opt bad")]
-    #[test_case("package()?.a", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "call opt; call bad")]
-    #[test_case("a()?.(package)", true => panics "not yet implemented"; "call opt; opt bad")]
-    #[test_case("package?.a?.(0)", true => panics "not yet implemented"; "opt opt; head bad")]
-    #[test_case("a?.b?.(package)", true => panics "not yet implemented"; "opt opt; tail bad")]
+    #[test_case("package?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; exp bad")]
+    #[test_case("a?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp opt; opt bad")]
+    #[test_case("package()?.a", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; call bad")]
+    #[test_case("a()?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "call opt; opt bad")]
+    #[test_case("package?.a?.(0)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; head bad")]
+    #[test_case("a?.b?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "opt opt; tail bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2052,16 +2052,16 @@ mod optional_chain {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("?.(package)", true => panics "not yet implemented"; "args")]
+    #[test_case("?.(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "args")]
     #[test_case("?.[package]", true => panics "not yet implemented"; "expression")]
     #[test_case("?.package", true => AHashSet::<String>::new(); "ident")]
     #[test_case("?.`${package}`", true => panics "not yet implemented"; "template lit")]
     #[test_case("?.#package", true => AHashSet::<String>::new(); "private")]
-    #[test_case("?.(package)?.(interface)", true => panics "not yet implemented"; "chain args")]
-    #[test_case("?.(package)?.[interface]", true => panics "not yet implemented"; "chain expression")]
-    #[test_case("?.(package)?.interface", true => panics "not yet implemented"; "chain ident")]
-    #[test_case("?.(package)?.`${interface}`", true => panics "not yet implemented"; "chain template lit")]
-    #[test_case("?.(package)?.#interface", true => panics "not yet implemented"; "chain private")]
+    #[test_case("?.(package)(interface)", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "chain args")]
+    #[test_case("?.(package)[interface]", true => panics "not yet implemented"; "chain expression")]
+    #[test_case("?.(package).interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain ident")]
+    #[test_case("?.(package)`${interface}`", true => panics "not yet implemented"; "chain template lit")]
+    #[test_case("?.(package).#interface", true => set(&[PACKAGE_NOT_ALLOWED]); "chain private")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2209,9 +2209,9 @@ mod left_hand_side_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "new expression")]
-    #[test_case("package()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "call expression")]
-    #[test_case("package?.()", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "optional expression")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "new expression")]
+    #[test_case("package()", true => set(&[PACKAGE_NOT_ALLOWED]); "call expression")]
+    #[test_case("package?.()", true => set(&[PACKAGE_NOT_ALLOWED]); "optional expression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

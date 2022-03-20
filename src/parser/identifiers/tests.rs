@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_parse_error, chk_scan, newparser};
+use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -190,9 +190,9 @@ mod identifier {
         }
 
         #[test_case("implements", true => Err(String::from("‘implements’ not allowed as an identifier in strict mode")); "implements strict")]
-        #[test_case("interface", true => Err(String::from("‘interface’ not allowed as an identifier in strict mode")); "interface strict")]
+        #[test_case("interface", true => Err(String::from(INTERFACE_NOT_ALLOWED)); "interface strict")]
         #[test_case("let", true => Err(String::from("‘let’ not allowed as an identifier in strict mode")); "let strict")]
-        #[test_case("package", true => Err(String::from("‘package’ not allowed as an identifier in strict mode")); "package strict")]
+        #[test_case("package", true => Err(String::from(PACKAGE_NOT_ALLOWED)); "package strict")]
         #[test_case("private", true => Err(String::from("‘private’ not allowed as an identifier in strict mode")); "private strict")]
         #[test_case("protected", true => Err(String::from("‘protected’ not allowed as an identifier in strict mode")); "protected strict")]
         #[test_case("public", true => Err(String::from("‘public’ not allowed as an identifier in strict mode")); "public strict")]
@@ -458,69 +458,69 @@ mod identifier_reference {
         use super::*;
         use test_case::test_case;
 
-        #[test_case("yield", true, true, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module")]
-        #[test_case("yield", true, false, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict")]
+        #[test_case("yield", true, true, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+        #[test_case("yield", true, true, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+        #[test_case("yield", true, false, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+        #[test_case("yield", true, false, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
         #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
         #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
         #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
         #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module")]
+        #[test_case("await", true, true, true, false => set(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+        #[test_case("await", true, true, false, false => set(&["identifier not allowed in modules: await"]); "await; strict/module")]
         #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
         #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module/yield")]
-        #[test_case("await", false, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module")]
+        #[test_case("await", false, true, true, false => set(&["identifier not allowed in modules: await"]); "await; module/yield")]
+        #[test_case("await", false, true, false, false => set(&["identifier not allowed in modules: await"]); "await; module")]
         #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
         #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+        #[test_case("\\u{79}ield", true, true, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+        #[test_case("\\u{79}ield", true, false, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, false, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield")]
+        #[test_case("\\u{79}ield", true, false, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+        #[test_case("\\u{79}ield", true, false, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+        #[test_case("\\u{79}ield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+        #[test_case("\\u{79}ield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
         #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
         #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield")]
+        #[test_case("\\u{79}ield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+        #[test_case("\\u{79}ield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
         #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
         #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => AHashSet::from_iter(
-            ["identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+        #[test_case("\\u{61}wait", true, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/yield/await")]
+        #[test_case("\\u{61}wait", true, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+        #[test_case("\\u{61}wait", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
         #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/await")]
+        #[test_case("\\u{61}wait", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
         #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+        #[test_case("\\u{61}wait", false, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; yield/await")]
+        #[test_case("\\u{61}wait", false, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+        #[test_case("\\u{61}wait", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
         #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; await")]
+        #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
         #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
@@ -641,14 +641,14 @@ mod binding_identifier {
 
         // This is arguably too many test cases. But with 4 booleans and 6 effective names, that's 2*2*2*2*6 = 96 combinations.
         // Which to cut? Meh. Just do them all.
-        #[test_case("arguments", true, true, true, true => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/module/yield/await")]
-        #[test_case("arguments", true, true, true, false => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/module/yield")]
-        #[test_case("arguments", true, true, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/module/await")]
-        #[test_case("arguments", true, true, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/module")]
-        #[test_case("arguments", true, false, true, true => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/yield/await")]
-        #[test_case("arguments", true, false, true, false => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/yield")]
-        #[test_case("arguments", true, false, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict/await")]
-        #[test_case("arguments", true, false, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: arguments".to_string()]); "arguments; strict")]
+        #[test_case("arguments", true, true, true, true => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield/await")]
+        #[test_case("arguments", true, true, true, false => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/yield")]
+        #[test_case("arguments", true, true, false, true => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module/await")]
+        #[test_case("arguments", true, true, false, false => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/module")]
+        #[test_case("arguments", true, false, true, true => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield/await")]
+        #[test_case("arguments", true, false, true, false => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/yield")]
+        #[test_case("arguments", true, false, false, true => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict/await")]
+        #[test_case("arguments", true, false, false, false => set(&["identifier not allowed in strict mode: arguments"]); "arguments; strict")]
         #[test_case("arguments", false, true, true, true => AHashSet::<String>::new(); "arguments; module/yield/await")]
         #[test_case("arguments", false, true, true, false => AHashSet::<String>::new(); "arguments; module/yield")]
         #[test_case("arguments", false, true, false, true => AHashSet::<String>::new(); "arguments; module/await")]
@@ -657,14 +657,14 @@ mod binding_identifier {
         #[test_case("arguments", false, false, true, false => AHashSet::<String>::new(); "arguments; yield")]
         #[test_case("arguments", false, false, false, true => AHashSet::<String>::new(); "arguments; await")]
         #[test_case("arguments", false, false, false, false => AHashSet::<String>::new(); "arguments; ")]
-        #[test_case("eval", true, true, true, true => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/module/yield/await")]
-        #[test_case("eval", true, true, true, false => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/module/yield")]
-        #[test_case("eval", true, true, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/module/await")]
-        #[test_case("eval", true, true, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/module")]
-        #[test_case("eval", true, false, true, true => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/yield/await")]
-        #[test_case("eval", true, false, true, false => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/yield")]
-        #[test_case("eval", true, false, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict/await")]
-        #[test_case("eval", true, false, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: eval".to_string()]); "eval; strict")]
+        #[test_case("eval", true, true, true, true => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield/await")]
+        #[test_case("eval", true, true, true, false => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/yield")]
+        #[test_case("eval", true, true, false, true => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/module/await")]
+        #[test_case("eval", true, true, false, false => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/module")]
+        #[test_case("eval", true, false, true, true => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield/await")]
+        #[test_case("eval", true, false, true, false => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/yield")]
+        #[test_case("eval", true, false, false, true => set(&["identifier not allowed in strict mode: eval"]); "eval; strict/await")]
+        #[test_case("eval", true, false, false, false => set(&["identifier not allowed in strict mode: eval"]); "eval; strict")]
         #[test_case("eval", false, true, true, true => AHashSet::<String>::new(); "eval; module/yield/await")]
         #[test_case("eval", false, true, true, false => AHashSet::<String>::new(); "eval; module/yield")]
         #[test_case("eval", false, true, false, true => AHashSet::<String>::new(); "eval; module/await")]
@@ -673,101 +673,101 @@ mod binding_identifier {
         #[test_case("eval", false, false, true, false => AHashSet::<String>::new(); "eval; yield")]
         #[test_case("eval", false, false, false, true => AHashSet::<String>::new(); "eval; await")]
         #[test_case("eval", false, false, false, false => AHashSet::<String>::new(); "eval; ")]
-        #[test_case("yield", true, true, true, true => AHashSet::from_iter([
-            "identifier not allowed in strict mode: yield".to_string(), "identifier 'yield' not allowed when yield expressions are valid".to_string()
+        #[test_case("yield", true, true, true, true => set(&[
+            "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/module/yield/await")]
-        #[test_case("yield", true, true, true, false => AHashSet::from_iter([
-            "identifier not allowed in strict mode: yield".to_string(), "identifier 'yield' not allowed when yield expressions are valid".to_string()
+        #[test_case("yield", true, true, true, false => set(&[
+            "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/module/yield")]
-        #[test_case("yield", true, true, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module")]
-        #[test_case("yield", true, false, true, true => AHashSet::from_iter([
-            "identifier not allowed in strict mode: yield".to_string(), "identifier 'yield' not allowed when yield expressions are valid".to_string()
+        #[test_case("yield", true, true, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+        #[test_case("yield", true, true, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+        #[test_case("yield", true, false, true, true => set(&[
+            "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/yield/await")]
-        #[test_case("yield", true, false, true, false => AHashSet::from_iter([
-            "identifier not allowed in strict mode: yield".to_string(), "identifier 'yield' not allowed when yield expressions are valid".to_string()
+        #[test_case("yield", true, false, true, false => set(&[
+            "identifier not allowed in strict mode: yield", "identifier 'yield' not allowed when yield expressions are valid"
         ]); "yield; strict/yield")]
-        #[test_case("yield", true, false, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict")]
-        #[test_case("yield", false, true, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "yield; module/yield/await")]
-        #[test_case("yield", false, true, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "yield; module/yield")]
+        #[test_case("yield", true, false, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+        #[test_case("yield", true, false, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
+        #[test_case("yield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield/await")]
+        #[test_case("yield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; module/yield")]
         #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
         #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
-        #[test_case("yield", false, false, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "yield; yield/await")]
-        #[test_case("yield", false, false, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "yield; yield")]
+        #[test_case("yield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield/await")]
+        #[test_case("yield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "yield; yield")]
         #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
         #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, true => AHashSet::from_iter([
-            "identifier not allowed in modules: await".to_string(), "identifier 'await' not allowed when await expressions are valid".to_string()
+        #[test_case("await", true, true, true, true => set(&[
+            "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; strict/module/yield/await")]
-        #[test_case("await", true, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, true => AHashSet::from_iter([
-            "identifier not allowed in modules: await".to_string(), "identifier 'await' not allowed when await expressions are valid".to_string()
+        #[test_case("await", true, true, true, false => set(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+        #[test_case("await", true, true, false, true => set(&[
+            "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; strict/module/await")]
-        #[test_case("await", true, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module")]
-        #[test_case("await", true, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "await; strict/yield/await")]
+        #[test_case("await", true, true, false, false => set(&["identifier not allowed in modules: await"]); "await; strict/module")]
+        #[test_case("await", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/yield/await")]
         #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
-        #[test_case("await", true, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "await; strict/await")]
+        #[test_case("await", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "await; strict/await")]
         #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, true => AHashSet::from_iter([
-            "identifier not allowed in modules: await".to_string(), "identifier 'await' not allowed when await expressions are valid".to_string()
+        #[test_case("await", false, true, true, true => set(&[
+            "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; module/yield/await")]
-        #[test_case("await", false, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module/yield")]
-        #[test_case("await", false, true, false, true => AHashSet::from_iter([
-            "identifier not allowed in modules: await".to_string(), "identifier 'await' not allowed when await expressions are valid".to_string()
+        #[test_case("await", false, true, true, false => set(&["identifier not allowed in modules: await"]); "await; module/yield")]
+        #[test_case("await", false, true, false, true => set(&[
+            "identifier not allowed in modules: await", "identifier 'await' not allowed when await expressions are valid"
         ]); "await; module/await")]
-        #[test_case("await", false, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module")]
-        #[test_case("await", false, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "await; yield/await")]
+        #[test_case("await", false, true, false, false => set(&["identifier not allowed in modules: await"]); "await; module")]
+        #[test_case("await", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "await; yield/await")]
         #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
-        #[test_case("await", false, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "await; await")]
+        #[test_case("await", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "await; await")]
         #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+        #[test_case("\\u{79}ield", true, true, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+        #[test_case("\\u{79}ield", true, false, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, false, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield")]
+        #[test_case("\\u{79}ield", true, false, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+        #[test_case("\\u{79}ield", true, false, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+        #[test_case("\\u{79}ield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+        #[test_case("\\u{79}ield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
         #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
         #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield")]
+        #[test_case("\\u{79}ield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+        #[test_case("\\u{79}ield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
         #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
         #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => AHashSet::from_iter(
-            ["identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+        #[test_case("\\u{61}wait", true, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/yield/await")]
+        #[test_case("\\u{61}wait", true, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+        #[test_case("\\u{61}wait", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
         #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/await")]
+        #[test_case("\\u{61}wait", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
         #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+        #[test_case("\\u{61}wait", false, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; yield/await")]
+        #[test_case("\\u{61}wait", false, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+        #[test_case("\\u{61}wait", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
         #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; await")]
+        #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
         #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
@@ -929,69 +929,69 @@ mod label_identifier {
         use super::*;
         use test_case::test_case;
 
-        #[test_case("yield", true, true, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/module")]
-        #[test_case("yield", true, false, false, true => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => AHashSet::from_iter(["identifier not allowed in strict mode: yield".to_string()]); "yield; strict")]
+        #[test_case("yield", true, true, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+        #[test_case("yield", true, true, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+        #[test_case("yield", true, false, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+        #[test_case("yield", true, false, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
         #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
         #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
         #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
         #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; strict/module")]
+        #[test_case("await", true, true, true, false => set(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+        #[test_case("await", true, true, false, false => set(&["identifier not allowed in modules: await"]); "await; strict/module")]
         #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
         #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module/yield")]
-        #[test_case("await", false, true, false, false => AHashSet::from_iter(["identifier not allowed in modules: await".to_string()]); "await; module")]
+        #[test_case("await", false, true, true, false => set(&["identifier not allowed in modules: await"]); "await; module/yield")]
+        #[test_case("await", false, true, false, false => set(&["identifier not allowed in modules: await"]); "await; module")]
         #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
         #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, true, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+        #[test_case("\\u{79}ield", true, true, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+        #[test_case("\\u{79}ield", true, false, true, true => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => AHashSet::from_iter([
-            "identifier 'yield' not allowed when yield expressions are valid".to_string(), "‘yield’ not allowed as an identifier in strict mode".to_string()
+        #[test_case("\\u{79}ield", true, false, true, false => set(&[
+            "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => AHashSet::from_iter(["‘yield’ not allowed as an identifier in strict mode".to_string()]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; module/yield")]
+        #[test_case("\\u{79}ield", true, false, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+        #[test_case("\\u{79}ield", true, false, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+        #[test_case("\\u{79}ield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+        #[test_case("\\u{79}ield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
         #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
         #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => AHashSet::from_iter(["identifier 'yield' not allowed when yield expressions are valid".to_string()]); "id-yield; yield")]
+        #[test_case("\\u{79}ield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+        #[test_case("\\u{79}ield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
         #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
         #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => AHashSet::from_iter(
-            ["identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", true, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+        #[test_case("\\u{61}wait", true, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/yield/await")]
+        #[test_case("\\u{61}wait", true, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+        #[test_case("\\u{61}wait", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
         #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; strict/await")]
+        #[test_case("\\u{61}wait", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
         #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => AHashSet::from_iter([
-            "identifier 'await' not allowed when await expressions are valid".to_string(), "‘await’ not allowed as an identifier in modules".to_string()
+        #[test_case("\\u{61}wait", false, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+        #[test_case("\\u{61}wait", false, true, false, true => set(&[
+            "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => AHashSet::from_iter(["‘await’ not allowed as an identifier in modules".to_string()]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; yield/await")]
+        #[test_case("\\u{61}wait", false, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+        #[test_case("\\u{61}wait", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
         #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => AHashSet::from_iter(["identifier 'await' not allowed when await expressions are valid".to_string()]); "id-await; await")]
+        #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
         #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
