@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // RETURN STATEMENT
@@ -93,9 +94,14 @@ fn return_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod return_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ReturnStatement::parse(&mut newparser("return;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("return;", true => set(&[]); "return ;")]
+    #[test_case("return package;", true => set(&[PACKAGE_NOT_ALLOWED]); "return Expression ;")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ReturnStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
