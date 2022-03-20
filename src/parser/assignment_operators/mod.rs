@@ -236,10 +236,12 @@ impl AssignmentExpression {
             if lhs.is_object_or_array_literal() {
                 // Re-parse the LHS as an AssignmentPattern.
                 let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
-                if after_ap != result.2 {
-                    // This _might_ be impossible.
-                    return Err(ParseError::new(PECode::InvalidAssignmentPattern, scanner));
-                }
+                // Note: because the object/array literals require proper nested brackets/braces, and so do the
+                // assignment patterns, we're guaranteed the the text we just parsed as an AssignmentPattern was the
+                // same text that was parsed as a literal. There won't ever be an error where this new parse didn't
+                // consume all the characters. (No need to write a test to cover this won't-ever-happen error
+                // condition.)
+                assert_eq!(after_ap, result.2);
                 return Ok((Rc::new(AssignmentExpression::Destructuring(ap, ae.clone())), result.1));
             }
         }
@@ -475,9 +477,11 @@ impl AssignmentPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            AssignmentPattern::Object(obj) => obj.early_errors(agent, errs, strict),
+            AssignmentPattern::Array(ary) => ary.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -603,9 +607,16 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ObjectAssignmentPattern::Empty => (),
+            ObjectAssignmentPattern::RestOnly(arp) => arp.early_errors(agent, errs, strict),
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.early_errors(agent, errs, strict),
+            ObjectAssignmentPattern::ListRest(apl, Some(apr)) => {
+                apl.early_errors(agent, errs, strict);
+                apr.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -760,9 +771,30 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrayAssignmentPattern::RestOnly(None, None) => (),
+            ArrayAssignmentPattern::RestOnly(None, Some(are)) => are.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::RestOnly(Some(e), None) => e.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::RestOnly(Some(e), Some(are)) => {
+                e.early_errors(agent, errs, strict);
+                are.early_errors(agent, errs, strict);
+            }
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, None, None) => ael.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => {
+                ael.early_errors(agent, errs, strict);
+                are.early_errors(agent, errs, strict);
+            }
+            ArrayAssignmentPattern::ListRest(ael, Some(e), None) => {
+                ael.early_errors(agent, errs, strict);
+                e.early_errors(agent, errs, strict);
+            }
+            ArrayAssignmentPattern::ListRest(ael, Some(e), Some(are)) => {
+                ael.early_errors(agent, errs, strict);
+                e.early_errors(agent, errs, strict);
+                are.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -818,9 +850,15 @@ impl AssignmentRestProperty {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        // AssignmentRestProperty : ... DestructuringAssignmentTarget
+        //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
+        if let DestructuringAssignmentTarget::AssignmentPattern(_) = &*self.0 {
+            // e.g.: ({...{a}}=b)
+            errs.push(create_syntax_error_object(agent, "`...` must be followed by an assignable reference in assignment contexts"));
+        }
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -908,9 +946,14 @@ impl AssignmentPropertyList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            AssignmentPropertyList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentPropertyList::List(list, item) => {
+                list.early_errors(agent, errs, strict);
+                item.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -998,9 +1041,14 @@ impl AssignmentElementList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            AssignmentElementList::Item(item) => item.early_errors(agent, errs, strict),
+            AssignmentElementList::List(list, item) => {
+                list.early_errors(agent, errs, strict);
+                item.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1073,9 +1121,11 @@ impl AssignmentElisionElement {
         self.element.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        if let Some(elisions) = &self.elisions {
+            elisions.early_errors(agent, errs, strict);
+        }
+        self.element.early_errors(agent, errs, strict);
     }
 }
 
@@ -1185,9 +1235,31 @@ impl AssignmentProperty {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        // AssignmentProperty : IdentifierReference Initializeropt
+        //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
+        match self {
+            AssignmentProperty::Ident(idref, izer) => {
+                if idref.assignment_target_type() != ATTKind::Simple {
+                    // node.js reports:
+                    //     "Unexpected eval or arguments in strict mode"
+                    // But that feels like it knows too much about the cause for !Simple. Which might mean that we
+                    // should have a different API for the "simple or not" query. Something like validate_simple_target
+                    // that returns a Result<(), String>, where the error case is a description of why things aren't
+                    // simple.
+                    errs.push(create_syntax_error_object(agent, format!("Identifier {} is an invalid left-hand-side", idref.string_value())));
+                }
+                idref.early_errors(agent, errs, strict);
+                if let Some(i) = izer {
+                    i.early_errors(agent, errs, strict);
+                }
+            }
+            AssignmentProperty::Property(pn, ae) => {
+                pn.early_errors(agent, errs, strict);
+                ae.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1269,9 +1341,11 @@ impl AssignmentElement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.target.early_errors(agent, errs, strict);
+        if let Some(izer) = &self.initializer {
+            izer.early_errors(agent, errs, strict);
+        }
     }
 }
 
@@ -1327,9 +1401,8 @@ impl AssignmentRestElement {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -1407,9 +1480,22 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        // DestructuringAssignmentTarget : LeftHandSideExpression
+        //  * If LeftHandSideExpression is an ObjectLiteral or an ArrayLiteral, the following Early Error rules are applied:
+        //      * LeftHandSideExpression must cover an AssignmentPattern.
+        //  * If LeftHandSideExpression is neither an ObjectLiteral nor an ArrayLiteral, the following Early Error rule is applied:
+        //      * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
+        match self {
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(agent, errs, strict),
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
+                if lhs.assignment_target_type() != ATTKind::Simple {
+                    errs.push(create_syntax_error_object(agent, "Invalid left-hand-side"));
+                }
+                lhs.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -174,13 +174,13 @@ mod multiplicative_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "fall thru")]
-    #[test_case("package*3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left times right; left bad")]
-    #[test_case("3*package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left times right; right bad")]
-    #[test_case("package/3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left div right; left bad")]
-    #[test_case("3/package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left div right; right bad")]
-    #[test_case("package%3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left mod right; left bad")]
-    #[test_case("3%package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "left mod right; right bad")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "fall thru")]
+    #[test_case("package*3", true => set(&[PACKAGE_NOT_ALLOWED]); "left times right; left bad")]
+    #[test_case("3*package", true => set(&[PACKAGE_NOT_ALLOWED]); "left times right; right bad")]
+    #[test_case("package/3", true => set(&[PACKAGE_NOT_ALLOWED]); "left div right; left bad")]
+    #[test_case("3/package", true => set(&[PACKAGE_NOT_ALLOWED]); "left div right; right bad")]
+    #[test_case("package%3", true => set(&[PACKAGE_NOT_ALLOWED]); "left mod right; left bad")]
+    #[test_case("3%package", true => set(&[PACKAGE_NOT_ALLOWED]); "left mod right; right bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

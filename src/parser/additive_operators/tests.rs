@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -139,11 +139,11 @@ mod additive_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "MultiplicativeExpression")]
-    #[test_case("package+3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE plus ME; AE bad")]
-    #[test_case("3+package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE plus ME; ME bad")]
-    #[test_case("package-3", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE minus ME; AE bad")]
-    #[test_case("3-package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "AE minus ME; ME bad")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
+    #[test_case("package+3", true => set(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; AE bad")]
+    #[test_case("3+package", true => set(&[PACKAGE_NOT_ALLOWED]); "AE plus ME; ME bad")]
+    #[test_case("package-3", true => set(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; AE bad")]
+    #[test_case("3-package", true => set(&[PACKAGE_NOT_ALLOWED]); "AE minus ME; ME bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

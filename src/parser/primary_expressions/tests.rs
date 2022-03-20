@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -460,11 +460,11 @@ mod primary_expression {
     use test_case::test_case;
     #[test_case("this", true => AHashSet::<String>::new(); "this")]
     #[test_case("a", true => AHashSet::<String>::new(); "simple identifier")]
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "package/strict")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
     #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
     #[test_case("3", true => AHashSet::<String>::new(); "literal")]
     #[test_case("[]", true => AHashSet::<String>::new(); "ArrayLiteral")]
-    #[test_case("[package]", true => panics "not yet implemented"; "package-in-array-strict")]
+    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
     #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
     #[test_case("function eval(){}", true => panics "not yet implemented"; "FunctionExpression")]
     #[test_case("class package {}", true => panics "not yet implemented"; "ClassExpression")]
@@ -472,7 +472,7 @@ mod primary_expression {
     #[test_case("async function package(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
     #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
     #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
-    #[test_case("/a/xx", true => AHashSet::from_iter(["Unknown regex flag ‘x’ in flags ‘xx’".to_string()]); "RegularExpressionLiteral with errors")]
+    #[test_case("/a/xx", true => set(&["Unknown regex flag ‘x’ in flags ‘xx’"]); "RegularExpressionLiteral with errors")]
     #[test_case("`${package}`", true => panics "not yet implemented"; "TemplateLiteral")]
     #[test_case("(package)", true => panics "not yet implemented"; "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -743,10 +743,14 @@ fn spread_element_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod spread_element {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        SpreadElement::parse(&mut newparser("...package"), Scanner::new(), false, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... AssignmentExpression")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ElementList::parse(&mut strictparser(src, strict), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1050,18 +1054,18 @@ mod element_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => panics "not yet implemented"; "AssignmentExpression: err")]
-    #[test_case(",package", true => panics "not yet implemented"; "Elision AssignmentExpression: err")]
-    #[test_case("...package", true => panics "not yet implemented"; "SpreadElement: err")]
-    #[test_case(",...package", true => panics "not yet implemented"; "Elision SpreadElement: err")]
-    #[test_case("package,b", true => panics "not yet implemented"; "ElementList AssignmentExpression: list err")]
-    #[test_case("a,package", true => panics "not yet implemented"; "ElementList AssignmentExpression: expression err")]
-    #[test_case("package,,b", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: list err")]
-    #[test_case("a,,package", true => panics "not yet implemented"; "ElementList Elision AssignmentExpression: expression err")]
-    #[test_case("package,...b", true => panics "not yet implemented"; "ElementList SpreadElement: list err")]
-    #[test_case("a,...package", true => panics "not yet implemented"; "ElementList SpreadElement: element err")]
-    #[test_case("package,,...b", true => panics "not yet implemented"; "ElementList Elision SpreadElement: list err")]
-    #[test_case("a,,...package", true => panics "not yet implemented"; "ElementList Elision SpreadElement: element err")]
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression: err")]
+    #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentExpression: err")]
+    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "SpreadElement: err")]
+    #[test_case(",...package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision SpreadElement: err")]
+    #[test_case("package,b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: list err")]
+    #[test_case("a,package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList AssignmentExpression: expression err")]
+    #[test_case("package,,b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: list err")]
+    #[test_case("a,,package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision AssignmentExpression: expression err")]
+    #[test_case("package,...b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: list err")]
+    #[test_case("a,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList SpreadElement: element err")]
+    #[test_case("package,,...b", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: list err")]
+    #[test_case("a,,...package", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision SpreadElement: element err")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1243,8 +1247,8 @@ mod array_literal {
     use test_case::test_case;
 
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("[package]", true => panics "not yet implemented"; "ElementList")]
-    #[test_case("[package,,]", true => panics "not yet implemented"; "ElementList Elision")]
+    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList")]
+    #[test_case("[package,,]", true => set(&[PACKAGE_NOT_ALLOWED]); "ElementList Elision")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1306,7 +1310,7 @@ mod initializer {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("=package", true => panics "not yet implemented"; "normal")]
+    #[test_case("=package", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1363,8 +1367,8 @@ mod cover_initialized_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a=package", true => panics "not yet implemented"; "exp errs")]
-    #[test_case("package=3", true => panics "not yet implemented"; "id errs")]
+    #[test_case("a=package", true => set(&[PACKAGE_NOT_ALLOWED]); "exp errs")]
+    #[test_case("package=3", true => set(&[PACKAGE_NOT_ALLOWED]); "id errs")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1429,10 +1433,14 @@ fn computed_property_name_test_all_private_identifiers_valid(src: &str) -> bool 
 }
 mod computed_property_name {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ComputedPropertyName::parse(&mut newparser("[package]"), Scanner::new(), false, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "[ AssignmentExpression ]")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ComputedPropertyName::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1613,8 +1621,8 @@ fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
 mod property_name {
     use super::*;
     use test_case::test_case;
-    #[test_case("package", true => AHashSet::<String>::new(); "LiteralPropertyName")]
-    #[test_case("[a.package]", true => panics "not yet implemented"; "ComputedPropertyName")]
+    #[test_case("package", true => set(&[]); "LiteralPropertyName")]
+    #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1807,11 +1815,13 @@ mod property_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "identifier")]
-    #[test_case("package=b", true => panics "not yet implemented"; "cover init")]
-    #[test_case("package:3", true => panics "not yet implemented"; "property name")]
+    const BAD_DESTRUCTURE: &str = "Illegal destructuring syntax in non-destructuring context";
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
+    #[test_case("package=b", true => set(&[PACKAGE_NOT_ALLOWED, BAD_DESTRUCTURE]); "cover init")]
+    #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "property name")]
     #[test_case("package(){}", true => panics "not yet implemented"; "method def")]
-    #[test_case("...package", true => panics "not yet implemented"; "spread element")]
+    #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread element")]
     #[test_case("a(b=super()){}", true => panics "not yet implemented"; "HasDirectSuper of MethodDefinition")]
     #[test_case("#a(){}", true => panics "not yet implemented"; "unexpected private id in MethodDef")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -1932,9 +1942,9 @@ mod property_definition_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("package:3", true => panics "not yet implemented"; "item")]
-    #[test_case("package:3,b", true => panics "not yet implemented"; "list head")]
-    #[test_case("a,package:3", true => panics "not yet implemented"; "list tail")]
+    #[test_case("[package]:3", true => set(&[PACKAGE_NOT_ALLOWED]); "item")]
+    #[test_case("[package]:3,b", true => set(&[PACKAGE_NOT_ALLOWED]); "list head")]
+    #[test_case("a,[package]:3", true => set(&[PACKAGE_NOT_ALLOWED]); "list tail")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2064,11 +2074,13 @@ mod object_literal {
     use super::*;
     use test_case::test_case;
 
+    const DUP_PROTO: &str = "Duplicate __proto__ fields are not allowed in object literals";
+
     #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
-    #[test_case("{a:package}", true => panics "not yet implemented"; "list")]
-    #[test_case("{a:package,}", true => panics "not yet implemented"; "trailing comma")]
-    #[test_case("{__proto__:a,__proto__:b}", true => panics "not yet implemented"; "duplicate proto")]
-    #[test_case("{__proto__:a,__proto__:b,}", true => panics "not yet implemented"; "duplicate proto; trailing comma")]
+    #[test_case("{a:package}", true => set(&[PACKAGE_NOT_ALLOWED]); "list")]
+    #[test_case("{a:package,}", true => set(&[PACKAGE_NOT_ALLOWED]); "trailing comma")]
+    #[test_case("{__proto__:a,__proto__:b}", true => set(&[DUP_PROTO]); "duplicate proto")]
+    #[test_case("{__proto__:a,__proto__:b,}", true => set(&[DUP_PROTO]); "duplicate proto; trailing comma")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2331,7 +2343,7 @@ mod template_spans {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("}\\u{}`", true, false => AHashSet::from_iter(["Invalid character escape in template literal".to_string()]); "tail; tail bad")]
+    #[test_case("}\\u{}`", true, false => set(&["Invalid character escape in template literal"]); "tail; tail bad")]
     #[test_case("}\\u{}`", true, true => AHashSet::<String>::new(); "tail; tail bad, but tagged")]
     #[test_case("}\\u{}${0}`", true, false => panics "not yet implemented"; "list tail; list bad")]
     #[test_case("}${0}\\u{}`", true, false => panics "not yet implemented"; "list tail; tail bad")]
@@ -2512,7 +2524,7 @@ mod template_literal {
         use test_case::test_case;
 
         #[test_case("``", true, false => AHashSet::<String>::new(); "no-substitution template ok")]
-        #[test_case("`\\u{`", true, false => AHashSet::from_iter(["Invalid escape sequence in template literal".to_string()]); "no-substitution bad escape")]
+        #[test_case("`\\u{`", true, false => set(&["Invalid escape sequence in template literal"]); "no-substitution bad escape")]
         #[test_case("`\\u{`", true, true => AHashSet::<String>::new(); "no-substitution bad escape; tagged")]
         #[test_case("`${package}`", true, false => panics "not yet implemented"; "substitution template")]
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
@@ -2536,7 +2548,7 @@ mod template_literal {
             let mut errs = vec![];
             TemplateLiteral::parse(&mut newparser(&src), Scanner::new(), false, true, false).unwrap().0.early_errors(&mut agent, &mut errs, false, limit - 1);
             let err_set = AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())));
-            assert_eq!(err_set, AHashSet::from_iter(["Template literal too complex".to_string()]));
+            assert_eq!(err_set, set(&["Template literal too complex"]));
         }
     }
 
@@ -2791,7 +2803,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     #[test_case("(package)", true => panics "not yet implemented"; "Expression")]
     #[test_case("(package,)", true => panics "not yet implemented"; "Expression+Comma")]
     #[test_case("()", true => AHashSet::<String>::new(); "Empty")]
-    #[test_case("(...package)", true => AHashSet::from_iter(["‘package’ not allowed as an identifier in strict mode".to_string()]); "rest id")]
+    #[test_case("(...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "rest id")]
     #[test_case("(...{package=a})", true => panics "not yet implemented"; "rest pattern")]
     #[test_case("(package, ...a)", true => panics "not yet implemented"; "exp rest id; exp bad")]
     #[test_case("(a, ...package)", true => panics "not yet implemented"; "exp rest id; id bad")]
