@@ -131,9 +131,14 @@ impl Expression {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            Expression::FallThru(node) => node.early_errors(agent, errs, strict),
+            Expression::Comma(left, right) => {
+                left.early_errors(agent, errs, strict);
+                right.early_errors(agent, errs, strict);
+            }
+        }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {

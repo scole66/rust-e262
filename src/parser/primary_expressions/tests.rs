@@ -458,12 +458,12 @@ fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
 mod primary_expression {
     use super::*;
     use test_case::test_case;
-    #[test_case("this", true => AHashSet::<String>::new(); "this")]
-    #[test_case("a", true => AHashSet::<String>::new(); "simple identifier")]
+    #[test_case("this", true => set(&[]); "this")]
+    #[test_case("a", true => set(&[]); "simple identifier")]
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
-    #[test_case("yield", false => AHashSet::<String>::new(); "yield/non-strict")]
-    #[test_case("3", true => AHashSet::<String>::new(); "literal")]
-    #[test_case("[]", true => AHashSet::<String>::new(); "ArrayLiteral")]
+    #[test_case("yield", false => set(&[]); "yield/non-strict")]
+    #[test_case("3", true => set(&[]); "literal")]
+    #[test_case("[]", true => set(&[]); "ArrayLiteral")]
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
     #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
     #[test_case("function eval(){}", true => panics "not yet implemented"; "FunctionExpression")]
@@ -471,10 +471,10 @@ mod primary_expression {
     #[test_case("function *package(){}", true => panics "not yet implemented"; "GeneratorExpression")]
     #[test_case("async function package(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
     #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
-    #[test_case("/a/", true => AHashSet::<String>::new(); "RegularExpressionLiteral")]
+    #[test_case("/a/", true => set(&[]); "RegularExpressionLiteral")]
     #[test_case("/a/xx", true => set(&["Unknown regex flag ‘x’ in flags ‘xx’"]); "RegularExpressionLiteral with errors")]
-    #[test_case("`${package}`", true => panics "not yet implemented"; "TemplateLiteral")]
-    #[test_case("(package)", true => panics "not yet implemented"; "ParenthesizedExpression")]
+    #[test_case("`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "TemplateLiteral")]
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "ParenthesizedExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2143,10 +2143,12 @@ mod parenthesized_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ParenthesizedExpression::parse(&mut newparser("(package)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ParenthesizedExpression::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("(a)" => false; "parenthesized idref")]
@@ -2249,13 +2251,15 @@ mod template_middle_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("}${package", true, false => panics "not yet implemented"; "mid exp; exp bad")]
-    #[test_case("}\\u{}${0", true, false => panics "not yet implemented"; "mid exp; mid bad")]
-    #[test_case("}\\u{}${0", true, true => panics "not yet implemented"; "mid exp; mid bad, but tagged")]
-    #[test_case("}list${package}${3", true, false => panics "not yet implemented"; "list mid exp; list bad")]
-    #[test_case("}list${1}\\u{}${3", true, false => panics "not yet implemented"; "list mid exp; mid bad")]
-    #[test_case("}list${1}\\u{}${3", true, true => panics "not yet implemented"; "list mid exp; mid bad, but tagged")]
-    #[test_case("}list${1}${package", true, false => panics "not yet implemented"; "list mid exp; exp bad")]
+    const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
+
+    #[test_case("}${package", true, false => set(&[PACKAGE_NOT_ALLOWED]); "mid exp; exp bad")]
+    #[test_case("}\\u{}${0", true, false => set(&[RE_ESCAPE_ONE]); "mid exp; mid bad")]
+    #[test_case("}\\u{}${0", true, true => set(&[]); "mid exp; mid bad, but tagged")]
+    #[test_case("}list${package}${3", true, false => set(&[PACKAGE_NOT_ALLOWED]); "list mid exp; list bad")]
+    #[test_case("}list${1}\\u{}${3", true, false => set(&[RE_ESCAPE_ONE]); "list mid exp; mid bad")]
+    #[test_case("}list${1}\\u{}${3", true, true => set(&[]); "list mid exp; mid bad, but tagged")]
+    #[test_case("}list${1}${package", true, false => set(&[PACKAGE_NOT_ALLOWED]); "list mid exp; exp bad")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2343,11 +2347,13 @@ mod template_spans {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("}\\u{}`", true, false => set(&["Invalid character escape in template literal"]); "tail; tail bad")]
-    #[test_case("}\\u{}`", true, true => AHashSet::<String>::new(); "tail; tail bad, but tagged")]
-    #[test_case("}\\u{}${0}`", true, false => panics "not yet implemented"; "list tail; list bad")]
-    #[test_case("}${0}\\u{}`", true, false => panics "not yet implemented"; "list tail; tail bad")]
-    #[test_case("}${0}\\u{}`", true, true => panics "not yet implemented"; "list tail; tail bad, but tagged")]
+    const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
+
+    #[test_case("}\\u{}`", true, false => set(&[RE_ESCAPE_ONE]); "tail; tail bad")]
+    #[test_case("}\\u{}`", true, true => set(&[]); "tail; tail bad, but tagged")]
+    #[test_case("}\\u{}${0}`", true, false => set(&[RE_ESCAPE_ONE]); "list tail; list bad")]
+    #[test_case("}${0}\\u{}`", true, false => set(&[RE_ESCAPE_ONE]); "list tail; tail bad")]
+    #[test_case("}${0}\\u{}`", true, true => set(&[]); "list tail; tail bad, but tagged")]
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -2424,10 +2430,15 @@ mod substitution_template {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
+    const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
+
+    #[test_case("`\\u{999999999999}${package}\\u{0x987654321987654321}`", true => set(&[PACKAGE_NOT_ALLOWED, RE_ESCAPE_ONE, RE_ESCAPE_TWO]); "TemplateHead Expression TemplateSpans")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        SubstitutionTemplate::parse(&mut strictparser(src, strict), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("`a${0}\\u{66}`", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "raw")]
@@ -2523,10 +2534,12 @@ mod template_literal {
         use super::*;
         use test_case::test_case;
 
-        #[test_case("``", true, false => AHashSet::<String>::new(); "no-substitution template ok")]
-        #[test_case("`\\u{`", true, false => set(&["Invalid escape sequence in template literal"]); "no-substitution bad escape")]
-        #[test_case("`\\u{`", true, true => AHashSet::<String>::new(); "no-substitution bad escape; tagged")]
-        #[test_case("`${package}`", true, false => panics "not yet implemented"; "substitution template")]
+        const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
+
+        #[test_case("``", true, false => set(&[]); "no-substitution template ok")]
+        #[test_case("`\\u{`", true, false => set(&[RE_ESCAPE_TWO]); "no-substitution bad escape")]
+        #[test_case("`\\u{`", true, true => set(&[]); "no-substitution bad escape; tagged")]
+        #[test_case("`${package}`", true, false => set(&[PACKAGE_NOT_ALLOWED]); "substitution template")]
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let mut errs = vec![];
@@ -2535,7 +2548,6 @@ mod template_literal {
         }
 
         #[test]
-        #[should_panic(expected = "not yet implemented")]
         fn complex() {
             let limit = 1000;
             let mut agent = test_agent();
@@ -2800,13 +2812,13 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("(package)", true => panics "not yet implemented"; "Expression")]
-    #[test_case("(package,)", true => panics "not yet implemented"; "Expression+Comma")]
-    #[test_case("()", true => AHashSet::<String>::new(); "Empty")]
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression")]
+    #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
+    #[test_case("()", true => set(&[]); "Empty")]
     #[test_case("(...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "rest id")]
     #[test_case("(...{package=a})", true => panics "not yet implemented"; "rest pattern")]
-    #[test_case("(package, ...a)", true => panics "not yet implemented"; "exp rest id; exp bad")]
-    #[test_case("(a, ...package)", true => panics "not yet implemented"; "exp rest id; id bad")]
+    #[test_case("(package, ...a)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; exp bad")]
+    #[test_case("(a, ...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; id bad")]
     #[test_case("(package, ...{a=b})", true => panics "not yet implemented"; "exp rest pat; exp bad")]
     #[test_case("(a, ...{package=b})", true => panics "not yet implemented"; "exp rest pat; pat bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
