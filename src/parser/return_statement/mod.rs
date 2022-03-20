@@ -82,9 +82,11 @@ impl ReturnStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ReturnStatement::Bare => {}
+            ReturnStatement::Expression(exp) => exp.early_errors(agent, errs, strict),
+        }
     }
 }
 
