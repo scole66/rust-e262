@@ -399,7 +399,6 @@ pub enum PECode {
     ForInOfDefinitionError,
     CaseBlockCloseExpected,
     TryBlockError,
-    InvalidAssignmentPattern,
 }
 
 impl fmt::Display for PECode {
@@ -434,7 +433,6 @@ impl fmt::Display for PECode {
             PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),
             PECode::CaseBlockCloseExpected => f.write_str("‘}’, ‘case’, or ‘default’ expected"),
             PECode::TryBlockError => f.write_str("Catch or Finally block expected"),
-            PECode::InvalidAssignmentPattern => f.write_str("Invalid assignment pattern"),
         }
     }
 }

@@ -743,12 +743,6 @@ impl ArgumentListKind {
         let after_ellipsis = scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)
     }
-
-    pub fn early_errors(&self, _agent: &mut Agent, _strict: bool) -> Vec<Object> {
-        // todo!()
-        println!("{}:{}: Not yet implemented", file!(), line!());
-        Vec::new()
-    }
 }
 
 #[derive(Debug)]
