@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // LEXICAL DECLARATION
@@ -77,10 +78,27 @@ fn lexical_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod lexical_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("let a;" => false; "kwd let")]
+    #[test_case("const a=0;" => true; "kwd const")]
+    fn is_constant_declaration(src: &str) -> bool {
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_constant_declaration()
+    }
+
+    const LET_NOT_LEGAL: &str = "‘let’ is not a valid binding identifier";
+    const DUPLICATE_LEX_A: &str = "Duplicate binding identifiers: ‘a’";
+    const DUPLICATE_LEX_ABC: &str = "Duplicate binding identifiers: ‘a’, ‘b’, ‘c’";
+
+    #[test_case("let let=0;", false => set(&[LET_NOT_LEGAL]); "let let")]
+    #[test_case("let a=1,b=2,c=3,a=6;", true => set(&[DUPLICATE_LEX_A]); "duplicate names")]
+    #[test_case("let a=1,a=2,b=3,b=4,c=5,c=6;", true => set(&[DUPLICATE_LEX_ABC]); "many duplicates")]
+    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "sub-productions")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        LexicalDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -171,7 +189,7 @@ mod binding_list {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BindingList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        BindingList::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, true);
     }
 }
 
@@ -268,7 +286,7 @@ mod lexical_binding {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, false);
     }
 }
 

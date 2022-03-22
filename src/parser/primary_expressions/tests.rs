@@ -2816,11 +2816,11 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     #[test_case("(package,)", true => set(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
     #[test_case("()", true => set(&[]); "Empty")]
     #[test_case("(...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "rest id")]
-    #[test_case("(...{package=a})", true => panics "not yet implemented"; "rest pattern")]
+    #[test_case("(...{package=a})", true => set(&[PACKAGE_NOT_ALLOWED]); "rest pattern")]
     #[test_case("(package, ...a)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; exp bad")]
     #[test_case("(a, ...package)", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest id; id bad")]
-    #[test_case("(package, ...{a=b})", true => panics "not yet implemented"; "exp rest pat; exp bad")]
-    #[test_case("(a, ...{package=b})", true => panics "not yet implemented"; "exp rest pat; pat bad")]
+    #[test_case("(package, ...{a=b})", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; exp bad")]
+    #[test_case("(a, ...{package=b})", true => set(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; pat bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
