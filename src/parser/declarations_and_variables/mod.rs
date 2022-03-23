@@ -8,6 +8,8 @@ use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
+use counter::Counter;
+
 // LexicalDeclaration[In, Yield, Await] :
 //      LetOrConst BindingList[?In, ?Yield, ?Await] ;
 #[derive(Debug)]
@@ -93,9 +95,31 @@ impl LexicalDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn is_constant_declaration(&self) -> bool {
+        let LexicalDeclaration::List(loc, _) = self;
+        loc.is_constant_declaration()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  LexicalDeclaration : LetOrConst BindingList ;
+        //  * It is a Syntax Error if the BoundNames of BindingList contains "let".
+        //  * It is a Syntax Error if the BoundNames of BindingList contains any duplicate entries.
+        let LexicalDeclaration::List(_, bl) = self;
+        let bn = bl.bound_names();
+
+        let let_string = JSString::from("let");
+        let counts = bn.into_iter().collect::<Counter<_>>();
+        if counts[&let_string] > 0 {
+            errs.push(create_syntax_error_object(agent, "‘let’ is not a valid binding identifier"));
+        }
+        let mut dup_ids = counts.into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| String::from(s)).collect::<Vec<_>>();
+        if !dup_ids.is_empty() {
+            dup_ids.sort_unstable();
+            errs.push(create_syntax_error_object(agent, format!("Duplicate binding identifiers: ‘{}’", dup_ids.join("’, ‘"))));
+        }
+
+        bl.early_errors(agent, errs, strict, self.is_constant_declaration());
     }
 }
 
@@ -137,6 +161,10 @@ impl PrettyPrint for LetOrConst {
 impl LetOrConst {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    pub fn is_constant_declaration(&self) -> bool {
+        matches!(self, LetOrConst::Const)
     }
 }
 
@@ -237,9 +265,14 @@ impl BindingList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+        match self {
+            BindingList::Item(node) => node.early_errors(agent, errs, strict, is_constant_declaration),
+            BindingList::List(lst, tail) => {
+                lst.early_errors(agent, errs, strict, is_constant_declaration);
+                tail.early_errors(agent, errs, strict, is_constant_declaration);
+            }
+        }
     }
 }
 
@@ -353,9 +386,26 @@ impl LexicalBinding {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+        // Static Semantics: Early Errors
+        //  LexicalBinding : BindingIdentifier Initializer[opt]
+        //  * It is a Syntax Error if Initializer is not present and IsConstantDeclaration of the LexicalDeclaration containing this LexicalBinding is true.
+        match self {
+            LexicalBinding::Identifier(idref, Some(node)) => {
+                idref.early_errors(agent, errs, strict);
+                node.early_errors(agent, errs, strict);
+            }
+            LexicalBinding::Identifier(idref, None) => {
+                if is_constant_declaration {
+                    errs.push(create_syntax_error_object(agent, "Missing initializer in const declaration"));
+                }
+                idref.early_errors(agent, errs, strict);
+            }
+            LexicalBinding::Pattern(pat, izer) => {
+                pat.early_errors(agent, errs, strict);
+                izer.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -427,9 +477,9 @@ impl VariableStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let VariableStatement::Var(vdl) = self;
+        vdl.early_errors(agent, errs, strict);
     }
 }
 
@@ -541,9 +591,14 @@ impl VariableDeclarationList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            VariableDeclarationList::Item(vd) => vd.early_errors(agent, errs, strict),
+            VariableDeclarationList::List(vdl, vd) => {
+                vdl.early_errors(agent, errs, strict);
+                vd.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -659,9 +714,18 @@ impl VariableDeclaration {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            VariableDeclaration::Identifier(bi, Some(i)) => {
+                bi.early_errors(agent, errs, strict);
+                i.early_errors(agent, errs, strict);
+            }
+            VariableDeclaration::Identifier(bi, None) => bi.early_errors(agent, errs, strict),
+            VariableDeclaration::Pattern(bp, i) => {
+                bp.early_errors(agent, errs, strict);
+                i.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -753,9 +817,11 @@ impl BindingPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingPattern::Object(node) => node.early_errors(agent, errs, strict),
+            BindingPattern::Array(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -903,9 +969,17 @@ impl ObjectBindingPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ObjectBindingPattern::Empty => (),
+            ObjectBindingPattern::RestOnly(node) => node.early_errors(agent, errs, strict),
+            ObjectBindingPattern::ListOnly(node) => node.early_errors(agent, errs, strict),
+            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
+                lst.early_errors(agent, errs, strict);
+                rst.early_errors(agent, errs, strict);
+            }
+            ObjectBindingPattern::ListRest(lst, None) => lst.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -1110,9 +1184,31 @@ impl ArrayBindingPattern {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+                elisions.early_errors(agent, errs, strict);
+                node.early_errors(agent, errs, strict);
+            }
+            ArrayBindingPattern::RestOnly(Some(elisions), None) => elisions.early_errors(agent, errs, strict),
+            ArrayBindingPattern::RestOnly(None, Some(node)) => node.early_errors(agent, errs, strict),
+            ArrayBindingPattern::RestOnly(None, None) => (),
+            ArrayBindingPattern::ListOnly(node) => node.early_errors(agent, errs, strict),
+            ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
+                lst.early_errors(agent, errs, strict);
+                elisions.early_errors(agent, errs, strict);
+                rst.early_errors(agent, errs, strict);
+            }
+            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+                lst.early_errors(agent, errs, strict);
+                rst.early_errors(agent, errs, strict);
+            }
+            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+                lst.early_errors(agent, errs, strict);
+                elisions.early_errors(agent, errs, strict);
+            }
+            ArrayBindingPattern::ListRest(lst, None, None) => lst.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -1182,9 +1278,9 @@ impl BindingRestProperty {
         node.contains(kind)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let BindingRestProperty::Id(node) = self;
+        node.early_errors(agent, errs, strict);
     }
 }
 
@@ -1285,9 +1381,14 @@ impl BindingPropertyList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingPropertyList::Item(node) => node.early_errors(agent, errs, strict),
+            BindingPropertyList::List(lst, item) => {
+                lst.early_errors(agent, errs, strict);
+                item.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1395,9 +1496,14 @@ impl BindingElementList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingElementList::Item(node) => node.early_errors(agent, errs, strict),
+            BindingElementList::List(lst, item) => {
+                lst.early_errors(agent, errs, strict);
+                item.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1481,9 +1587,14 @@ impl BindingElisionElement {
         n.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingElisionElement::Element(None, elem) => elem.early_errors(agent, errs, strict),
+            BindingElisionElement::Element(Some(elision), elem) => {
+                elision.early_errors(agent, errs, strict);
+                elem.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1581,9 +1692,14 @@ impl BindingProperty {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingProperty::Single(node) => node.early_errors(agent, errs, strict),
+            BindingProperty::Property(name, elem) => {
+                name.early_errors(agent, errs, strict);
+                elem.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1713,9 +1829,15 @@ impl BindingElement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingElement::Single(node) => node.early_errors(agent, errs, strict),
+            BindingElement::Pattern(node, None) => node.early_errors(agent, errs, strict),
+            BindingElement::Pattern(node, Some(init)) => {
+                node.early_errors(agent, errs, strict);
+                init.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -1820,9 +1942,14 @@ impl SingleNameBinding {
         initializer.is_none()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            SingleNameBinding::Id(id, Some(init)) => {
+                id.early_errors(agent, errs, strict);
+                init.early_errors(agent, errs, strict);
+            }
+            SingleNameBinding::Id(id, None) => id.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -1918,9 +2045,11 @@ impl BindingRestElement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BindingRestElement::Identifier(node) => node.early_errors(agent, errs, strict),
+            BindingRestElement::Pattern(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
