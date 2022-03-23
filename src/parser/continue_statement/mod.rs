@@ -77,9 +77,19 @@ impl ContinueStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        // Static Semantics: Early Errors
+        // ContinueStatement :
+        //      continue ;
+        //      continue LabelIdentifier ;
+        //  * It is a Syntax Error if this ContinueStatement is not nested, directly or indirectly (but not crossing
+        //    function or static initialization block boundaries), within an IterationStatement.
+        if !within_iteration {
+            errs.push(create_syntax_error_object(agent, "Continue statements must lie within iteration statements."));
+        }
+        if let ContinueStatement::Labelled(label) = self {
+            label.early_errors(agent, errs, strict);
+        }
     }
 }
 
