@@ -1,8 +1,11 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
+
+const CONTINUE_ITER: &str = "Continue statements must lie within iteration statements.";
 
 // CONTINUE STATEMENT
 #[test]
@@ -93,11 +96,14 @@ fn continue_statement_test_contains_undefined_continue_target(src: &str) -> (boo
     let (item, _) = ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
 }
-mod continue_statement {
-    use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, true);
-    }
+
+#[test_case("continue;", true, false => set(&[CONTINUE_ITER]); "continue, beyond iteration")]
+#[test_case("continue;", true, true => set(&[]); "continue, within iteration")]
+#[test_case("continue package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "continue LabelIdentifier ; (within)")]
+#[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "continue LabelIdentifier ; (beyond)")]
+fn early_errors(src: &str, strict: bool, within_iteration: bool) -> AHashSet<String> {
+    let mut agent = test_agent();
+    let mut errs = vec![];
+    ContinueStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_iteration);
+    AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
 }
