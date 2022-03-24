@@ -47,3 +47,4 @@ pub fn set(items: &[&str]) -> AHashSet<String> {
 pub const PACKAGE_NOT_ALLOWED: &str = "‘package’ not allowed as an identifier in strict mode";
 pub const INTERFACE_NOT_ALLOWED: &str = "‘interface’ not allowed as an identifier in strict mode";
 pub const IMPLEMENTS_NOT_ALLOWED: &str = "‘implements’ not allowed as an identifier in strict mode";
+pub const CONTINUE_ITER: &str = "Continue statements must lie within iteration statements.";

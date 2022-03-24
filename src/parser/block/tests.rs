@@ -85,7 +85,7 @@ mod block_statement {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, false);
     }
 }
 
@@ -218,7 +218,7 @@ mod block {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, false);
     }
 }
 

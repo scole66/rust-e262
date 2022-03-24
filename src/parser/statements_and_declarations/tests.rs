@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // STATEMENT
@@ -477,10 +478,26 @@ fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Statement::parse(&mut newparser(";"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+    #[test_case("{package;}", true, false => panics "not yet implemented"; "BlockStatement")]
+    #[test_case("var package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
+    #[test_case(";", true, false => set(&[]); "EmptyStatement")]
+    #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
+    #[test_case("if (package);", true, false => panics "not yet implemented"; "IfStatement")]
+    #[test_case("for(package=0;;);", true, false => panics "not yet implemented"; "BreakableStatement")]
+    #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
+    #[test_case("break package;", true, false => panics "not yet implemented"; "BreakStatement")]
+    #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
+    #[test_case("with (package) {}", true, false => panics "not yet implemented"; "WithStatement")]
+    #[test_case("package: implements;", true, false => panics "not yet implemented"; "LabelledStatement")]
+    #[test_case("throw package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
+    #[test_case("try {} catch (package) {}", true, false => panics "not yet implemented"; "TryStatement")]
+    #[test_case("debugger;", true, false => set(&[]); "DebuggerStatement")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -577,10 +594,16 @@ fn declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Declaration::parse(&mut newparser("let a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "HoistableDeclaration")]
+    #[test_case("class package{}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "ClassDeclaration")]
+    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Declaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -709,10 +732,17 @@ fn hoistable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod hoistable_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        HoistableDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "FunctionDeclaration")]
+    #[test_case("function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "GeneratorDeclaration")]
+    #[test_case("async function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncFunctionDeclaration")]
+    #[test_case("async function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        HoistableDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -820,9 +850,14 @@ fn breakable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod breakable_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        BreakableStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("while(package);", true => panics "not yet implemented"; "IterationStatement")]
+    #[test_case("switch(package){}", true => panics "not yet implemented"; "SwitchStatement")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
