@@ -1,11 +1,9 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 use test_case::test_case;
-
-const CONTINUE_ITER: &str = "Continue statements must lie within iteration statements.";
 
 // CONTINUE STATEMENT
 #[test]

@@ -84,7 +84,7 @@ impl BlockStatement {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool, _within_iteration: bool) {
         todo!()
     }
 }
@@ -212,7 +212,7 @@ impl Block {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool, _within_iteration: bool) {
         todo!()
     }
 }

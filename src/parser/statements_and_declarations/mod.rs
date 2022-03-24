@@ -336,9 +336,23 @@ impl Statement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        match self {
+            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Break(node) => node.early_errors(agent, errs, strict),
+            Statement::Breakable(node) => node.early_errors(agent, errs, strict),
+            Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Debugger(node) => node.early_errors(agent, errs, strict),
+            Statement::Empty(node) => node.early_errors(agent, errs, strict),
+            Statement::Expression(node) => node.early_errors(agent, errs, strict),
+            Statement::If(node) => node.early_errors(agent, errs, strict),
+            Statement::Labelled(node) => node.early_errors(agent, errs, strict),
+            Statement::Return(node) => node.early_errors(agent, errs, strict),
+            Statement::Throw(node) => node.early_errors(agent, errs, strict),
+            Statement::Try(node) => node.early_errors(agent, errs, strict),
+            Statement::Variable(node) => node.early_errors(agent, errs, strict),
+            Statement::With(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -436,9 +450,12 @@ impl Declaration {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
+            Declaration::Class(node) => node.early_errors(agent, errs, strict),
+            Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -548,9 +565,13 @@ impl HoistableDeclaration {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            HoistableDeclaration::Function(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::Generator(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -662,9 +683,11 @@ impl BreakableStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict),
+            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 
