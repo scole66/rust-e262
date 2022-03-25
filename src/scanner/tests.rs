@@ -1613,9 +1613,9 @@ mod char_range {
     fn debug() {
         assert_ne!(format!("{:?}", CharRange { first: 'a', last: 'z' }), "");
     }
-    #[test] 
+    #[test]
     fn clone() {
-        let original = CharRange{first: '0', last: '9'};
+        let original = CharRange { first: '0', last: '9' };
         let cloned = original.clone();
         assert_eq!(original.first, cloned.first);
         assert_eq!(original.last, cloned.last);
