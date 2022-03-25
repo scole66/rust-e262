@@ -123,6 +123,7 @@ fn script_body_test_contains_02() {
     assert_eq!(item.contains(ParseNodeKind::StatementList), true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+
 #[test]
 fn script_body_test_directive_prologue_01() {
     let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
