@@ -48,3 +48,5 @@ pub const PACKAGE_NOT_ALLOWED: &str = "‘package’ not allowed as an identifie
 pub const INTERFACE_NOT_ALLOWED: &str = "‘interface’ not allowed as an identifier in strict mode";
 pub const IMPLEMENTS_NOT_ALLOWED: &str = "‘implements’ not allowed as an identifier in strict mode";
 pub const CONTINUE_ITER: &str = "Continue statements must lie within iteration statements.";
+pub const DUPLICATE_LEXICAL: &str = "Duplicate lexically declared names";
+pub const LEX_DUPED_BY_VAR: &str = "Name defined both lexically and var-style";

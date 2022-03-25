@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // BLOCK STATEMENT
@@ -82,10 +83,14 @@ fn block_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod block_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        BlockStatement::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, false);
+    use test_case::test_case;
+
+    #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "Block")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -215,10 +220,17 @@ fn block_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod block {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Block::parse(&mut newparser("{a;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true, false);
+    use test_case::test_case;
+
+    #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
+    #[test_case("{}", true => set(&[]); "{ } (empty)")]
+    #[test_case("{ let a = 10; const a = 20; }", true => set(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]
+    #[test_case("{ var x; print(x); let x = 27; }", true => set(&[LEX_DUPED_BY_VAR]); "Name declared both lex & var")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -413,10 +425,15 @@ fn statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod statement_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        StatementList::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementListItem")]
+    #[test_case("package;implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "StatementList StatementListItem")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -602,9 +619,14 @@ fn statement_list_item_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod statement_list_item {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        StatementListItem::parse(&mut newparser("0;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Declaration")]
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
