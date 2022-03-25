@@ -479,7 +479,7 @@ fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
 mod statement {
     use super::*;
     use test_case::test_case;
-    #[test_case("{package;}", true, false => panics "not yet implemented"; "BlockStatement")]
+    #[test_case("{package;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BlockStatement")]
     #[test_case("var package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
     #[test_case(";", true, false => set(&[]); "EmptyStatement")]
     #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]

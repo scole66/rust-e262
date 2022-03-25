@@ -166,7 +166,6 @@ impl ScriptBody {
     //  * It is a Syntax Error if AllPrivateIdentifiersValid of StatementList with argument « » is false unless the
     //    source code containing ScriptBody is eval code that is being processed by a direct eval.
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
-        let strict = self.contains_use_strict();
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
                 errs.push(create_syntax_error_object(agent, "`super' not allowed in top-level code"));
@@ -187,7 +186,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        self.statement_list.early_errors(agent, errs, strict, false);
+        self.statement_list.early_errors(agent, errs, self.contains_use_strict(), false);
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
