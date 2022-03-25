@@ -1,8 +1,9 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::scanner::StringDelimiter;
-use crate::tests::unwind_syntax_error_object;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 
 // SCRIPT
 #[test]
@@ -68,63 +69,23 @@ fn script_test_contains_03() {
     assert_eq!(item.contains(ParseNodeKind::ScriptBody), true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn script_test_early_errors_01() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let (item, _) = Script::parse(&mut newparser(""), Scanner::new()).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    assert_eq!(errs, &[] as &[Object]);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_test_early_errors_02() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let (item, _) = Script::parse(&mut newparser("0;"), Scanner::new()).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    assert_eq!(errs, &[] as &[Object]);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_test_early_errors_03() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let (item, _) = Script::parse(&mut newparser("let x; const x=10;"), Scanner::new()).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    assert_eq!(errs.len(), 1);
-    let err = errs.pop().unwrap();
-    let msg = unwind_syntax_error_object(&mut agent, err);
-    assert_eq!(msg, "Duplicate lexically declared names");
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_test_early_errors_04() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let (item, _) = Script::parse(&mut newparser("let x; var x=10;"), Scanner::new()).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    assert_eq!(errs.len(), 1);
-    let err = errs.pop().unwrap();
-    let msg = unwind_syntax_error_object(&mut agent, err);
-    assert_eq!(msg, "Name defined both lexically and var-style");
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_test_early_errors_05() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let (item, _) = Script::parse(&mut newparser("break a;"), Scanner::new()).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    assert_eq!(errs.len(), 1);
-    let err = errs.pop().unwrap();
-    let msg = unwind_syntax_error_object(&mut agent, err);
-    assert_eq!(msg, "undefined break target detected");
+mod script {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("" => set(&[]); "emptyness")]
+    #[test_case("0;" => set(&[]); "Statement")]
+    #[test_case("'use strict'; package;" => set(&[PACKAGE_NOT_ALLOWED]); "strict expression")]
+    #[test_case("package;" => set(&[]); "non-strict")]
+    #[test_case("let x; const x=10;" => set(&[DUPLICATE_LEXICAL]); "lex duplicated")]
+    #[test_case("let x; var x=10;" => set(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
+    #[test_case("break a;" => panics "not yet implemented"; "undefined break target")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 // SCRIPT BODY
@@ -162,78 +123,7 @@ fn script_body_test_contains_02() {
     assert_eq!(item.contains(ParseNodeKind::StatementList), true);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
-fn script_body_ee_check_core(p: &mut Parser, desired: Option<&str>) {
-    let (item, _) = ScriptBody::parse(p, Scanner::new()).unwrap();
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs);
-    match desired {
-        Some(expected_message) => {
-            assert_eq!(errs.len(), 1);
-            let err = errs.pop().unwrap();
-            let msg = unwind_syntax_error_object(&mut agent, err);
-            assert_eq!(msg, expected_message);
-        }
-        None => {
-            assert_eq!(errs, &[] as &[Object])
-        }
-    }
-}
-fn script_body_ee_check(src: &str, desired: Option<&str>) {
-    let mut p = newparser(src);
-    script_body_ee_check_core(&mut p, desired);
-}
-fn script_body_ee_check_direct(src: &str, desired: Option<&str>) {
-    let mut p = newparser(src);
-    p.direct = true;
-    script_body_ee_check_core(&mut p, desired);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_01() {
-    script_body_ee_check("super();", Some("`super' not allowed in top-level code"));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_02() {
-    script_body_ee_check("b=new.target;", Some("`new.target` not allowed in top-level code"));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_03() {
-    script_body_ee_check("break t;", Some("undefined break target detected"));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_04() {
-    script_body_ee_check_direct("super();", None);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_05() {
-    script_body_ee_check_direct("a=new.target;", None);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_06() {
-    script_body_ee_check(";", None);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_07() {
-    script_body_ee_check("t:{t:;}", Some("duplicate labels detected"));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_08() {
-    script_body_ee_check("continue bob;", Some("undefined continue target detected"));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn script_body_test_early_errors_09() {
-    script_body_ee_check("a.#mystery;", Some("invalid private identifier detected"));
-}
+
 #[test]
 fn script_body_test_directive_prologue_01() {
     let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
@@ -266,5 +156,31 @@ mod script_body {
     #[test_case("'a'; 'use\\x20strict'; b();" => false; "prologue with escape")]
     fn contains_use_strict(src: &str) -> bool {
         ScriptBody::parse(&mut newparser(src), Scanner::new()).unwrap().0.contains_use_strict()
+    }
+
+    fn directparser(src: &str, direct: bool) -> Parser {
+        let mut p = newparser(src);
+        p.direct = direct;
+        p
+    }
+
+    const SUPER_DISALLOWED: &str = "`super' not allowed in top-level code";
+    const NEWTARG_DISALLOWED: &str = "`new.target` not allowed in top-level code";
+    const UNDEF_BREAK: &str = "undefined break target detected";
+
+    #[test_case("super();", false => set(&[SUPER_DISALLOWED]); "disallowed super")]
+    #[test_case("super();", true => set(&[]); "allowed super")]
+    #[test_case("new.target;", false => set(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
+    #[test_case("new.target;", true => set(&[]); "allowed new.target")]
+    #[test_case("break a;", false => panics "not yet implemented"; "undefined break")]
+    #[test_case(";", false => set(&[]); "empty stmt")]
+    #[test_case("t:{t:;}", false => panics "not yet implemented"; "duplicate labels")]
+    #[test_case("continue bob;", false => set(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
+    #[test_case("a.#mystery;", false => set(&["invalid private identifier detected"]); "invalid private id")]
+    fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

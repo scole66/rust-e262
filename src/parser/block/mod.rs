@@ -2,6 +2,7 @@ use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use ahash::AHashSet;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -83,9 +84,9 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool, _within_iteration: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        let BlockStatement::Block(node) = self;
+        node.early_errors(agent, errs, strict, within_iteration);
     }
 }
 
@@ -211,9 +212,27 @@ impl Block {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool, _within_iteration: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        if let Block::Statements(Some(sl)) = self {
+            // Static Semantics: Early Errors
+            // Block : { StatementList }
+            //  * It is a Syntax Error if the LexicallyDeclaredNames of StatementList contains any duplicate entries.
+            //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of StatementList also occurs in
+            //    the VarDeclaredNames of StatementList.
+            let ldn = sl.lexically_declared_names();
+            let lexname_count = ldn.len();
+            let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
+            let unique_lexname_count = lex_names_set.len();
+            if lexname_count != unique_lexname_count {
+                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names"));
+            }
+            let vdn = sl.var_declared_names();
+            let var_names_set: AHashSet<JSString> = vdn.into_iter().collect();
+            if !lex_names_set.is_disjoint(&var_names_set) {
+                errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
+            }
+            sl.early_errors(agent, errs, strict, within_iteration);
+        }
     }
 }
 
@@ -410,9 +429,14 @@ impl StatementList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        match self {
+            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration),
+            StatementList::List(lst, item) => {
+                lst.early_errors(agent, errs, strict, within_iteration);
+                item.early_errors(agent, errs, strict, within_iteration);
+            }
+        }
     }
 }
 
@@ -565,9 +589,11 @@ impl StatementListItem {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        match self {
+            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration),
+            StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
+        }
     }
 }
 

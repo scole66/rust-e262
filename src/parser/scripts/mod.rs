@@ -2,7 +2,9 @@ use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use crate::scanner::StringToken;
+use ahash::AHashSet;
 use std::fmt;
+use std::hash::Hash;
 use std::io::Result as IoResult;
 use std::io::Write;
 
@@ -48,8 +50,6 @@ impl PrettyPrint for Script {
     }
 }
 
-use ahash::AHashSet;
-use std::hash::Hash;
 fn has_unique_elements<T>(iter: T) -> bool
 where
     T: IntoIterator,
@@ -186,7 +186,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        self.statement_list.early_errors(agent, errs, self.contains_use_strict());
+        self.statement_list.early_errors(agent, errs, self.contains_use_strict(), false);
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
