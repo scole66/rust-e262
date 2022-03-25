@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // ASYNC FUNCTION DECLARATION
@@ -128,37 +129,35 @@ fn async_function_declaration_test_bound_names_02() {
     let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function () { return 10; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), vec!["*default*"]);
 }
-#[test_case("async function a(arg=item.#valid){}" => true; "Params valid")]
-#[test_case("async function a(arg) {return item.#valid;}" => true; "Body valid")]
-#[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
-#[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
-fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
-#[test_case("async function([a]=b){'use strict';}", false => "Strict functions must also have simple parameter lists"; "strict body; complex params")]
-#[test_case("async function(a=await b()){}", false => panics "not yet implemented"; "await param")] //"Await not allowed in parameter lists"
-#[test_case("async function(a,a){'use strict';}", false => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict body")]
-#[test_case("async function(a,a){}", true => "Duplicate formal parameter identifiers in strict mode definition"; "duplicate; strict context")]
-#[test_case("async function(lex) { const lex=10; return lex; }", false => "Lexical decls in body duplicate parameters"; "lexical duplication")]
-#[test_case("async function(a=super.prop){}", false => "Parameters may not include super properties"; "superprop params")]
-#[test_case("async function(){return super.prop;}", false => "Body may not contain super properties"; "superprop body")]
-#[test_case("async function(a=super()){}", false => "Parameters may not include super calls"; "supercall params")]
-#[test_case("async function(){return super();}", false => "Body may not contain super calls"; "supercall body")]
-fn async_function_declaration_test_early_errors(src: &str, strict: bool) -> String {
-    let mut agent = test_agent();
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    let mut errs = vec![];
-    item.early_errors(&mut agent, &mut errs, strict);
-    assert_eq!(errs.len(), 1);
-    let err = errs.pop().unwrap();
-    unwind_syntax_error_object(&mut agent, err)
-}
+mod async_function_declaration {
+    use super::*;
+    use test_case::test_case;
 
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn async_function_declaration_test_early_errors() {
-    AsyncFunctionDeclaration::parse(&mut newparser("async function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("async function a(arg=item.#valid){}" => true; "Params valid")]
+    #[test_case("async function a(arg) {return item.#valid;}" => true; "Body valid")]
+    #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
+    #[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
+
+    #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
+    #[test_case("async function(a=await b()){}", false => panics "not yet implemented"; "await param")] //"Await not allowed in parameter lists"
+    #[test_case("async function(a,a){'use strict';}", false => set(&["Duplicate formal parameter identifiers in strict mode definition"]); "duplicate; strict body")]
+    #[test_case("async function(a,a){}", true => set(&["Duplicate formal parameter identifiers in strict mode definition"]); "duplicate; strict context")]
+    #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
+    #[test_case("async function(a=super.prop){}", false => set(&["Parameters may not include super properties"]); "superprop params")]
+    #[test_case("async function(){return super.prop;}", false => set(&["Body may not contain super properties"]); "superprop body")]
+    #[test_case("async function(a=super()){}", false => set(&["Parameters may not include super calls"]); "supercall params")]
+    #[test_case("async function(){return super();}", false => set(&["Body may not contain super calls"]); "supercall body")]
+    #[test_case("async function package(interface){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
+    #[test_case("async function(package){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        AsyncFunctionDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 // ASYNC FUNCTION EXPRESSION
