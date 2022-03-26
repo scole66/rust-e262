@@ -70,9 +70,15 @@ impl UniqueFormalParameters {
         self.formals.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  UniqueFormalParameters : FormalParameters
+        //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
+        let bn = self.formals.bound_names();
+        for name in duplicates(&bn) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+        self.formals.early_errors(agent, errs, strict, true);
     }
 }
 
@@ -270,9 +276,30 @@ impl FormalParameters {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
+        // Static Semantics: Early Errors
+        //  FormalParameters : FormalParameterList
+        //    If BoundNames of FormalParameterList contains any duplicate elements, it is a Syntax Error:
+        //      * if IsSimpleParameterList of FormalParameterList is false.
+        //      * if this production is executed in strict mode
+        //
+        // NOTE |   Multiple occurrences of the same BindingIdentifier in a FormalParameterList is only allowed for
+        //          functions which have simple parameter lists and which are not defined in strict mode code.
+        if !dups_already_checked && (strict || !self.is_simple_parameter_list()) {
+            let bn = self.bound_names();
+            for name in duplicates(&bn) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            }
+        }
+        match self {
+            FormalParameters::Empty => (),
+            FormalParameters::Rest(frp) => frp.early_errors(agent, errs, strict),
+            FormalParameters::List(fpl) | FormalParameters::ListComma(fpl) => fpl.early_errors(agent, errs, strict),
+            FormalParameters::ListRest(fpl, frp) => {
+                fpl.early_errors(agent, errs, strict);
+                frp.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -399,9 +426,14 @@ impl FormalParameterList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            FormalParameterList::Item(fp) => fp.early_errors(agent, errs, strict),
+            FormalParameterList::List(fpl, fp) => {
+                fpl.early_errors(agent, errs, strict);
+                fp.early_errors(agent, errs, strict);
+            }
+        }
     }
 }
 
@@ -463,9 +495,8 @@ impl FunctionRestParameter {
         self.element.bound_names()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(agent, errs, strict);
     }
 }
 
@@ -546,9 +577,8 @@ impl FormalParameter {
         self.element.bound_names()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.element.early_errors(agent, errs, strict)
     }
 }
 

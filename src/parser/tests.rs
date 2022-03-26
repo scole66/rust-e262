@@ -2,6 +2,7 @@
 use super::*;
 use ahash::AHasher;
 use std::hash::{Hash, Hasher};
+use test_case::test_case;
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = AHasher::new_with_keys(1234, 5678);
@@ -468,4 +469,14 @@ fn parse_text_04() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
     parse_text(&mut agent, "let x; let x;", ParseGoal::Module);
+}
+
+#[test_case(&["a"] => Vec::<String>::new(); "no dups")]
+#[test_case(&[] => Vec::<String>::new(); "empty list")]
+#[test_case(&["a", "b", "c", "b", "a"] => vec!["b", "a"]; "dup order different")]
+#[test_case(&["a", "b", "c", "a", "b"] => vec!["a", "b"]; "dup order same")]
+#[test_case(&["a", "b", "c", "a", "b", "c", "b", "a"] => vec!["a", "b", "c"]; "many dups")]
+fn duplicates(inputs: &[&str]) -> Vec<String> {
+    let idents = inputs.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+    super::duplicates(&idents).into_iter().map(|s| format!("{}", s)).collect::<Vec<_>>()
 }
