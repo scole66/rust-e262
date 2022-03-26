@@ -12,6 +12,7 @@ use binary_logical_operators::CoalesceExpression;
 use block::{Block, StatementList};
 use class_definitions::ClassTail;
 use comma_operator::Expression;
+use counter::Counter;
 use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
 use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::GeneratorBody;
@@ -658,6 +659,24 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
         }
         _ => todo!(),
     }
+}
+
+pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
+    // Given a vector of strings (probably identifiers), produce a vector of all the duplicates. Each item in the
+    // return value is unique (there are no duplicates there!), and ordered by the location of the _second_ occurence
+    // within the source array.
+    //
+    // Example: duplicates(&["a", "b", "c", "b", "a"]) -> vec!["b", "a"]
+    fn second_spot(needle: &JSString, src: &[JSString]) -> Option<usize> {
+        let mut iter = src.iter().enumerate().filter(|&(_, s)| s == needle);
+        iter.next();
+        iter.next().map(|(n, _)| n)
+    }
+    let mut duplicates = idents.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| (s, second_spot(s, idents).unwrap())).collect::<Vec<_>>();
+
+    duplicates.sort_unstable_by_key(|&(_, n)| n);
+
+    duplicates.into_iter().map(|(s, _)| s).collect::<Vec<_>>()
 }
 
 pub mod additive_operators;
