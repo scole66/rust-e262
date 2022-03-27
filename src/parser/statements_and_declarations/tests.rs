@@ -602,7 +602,7 @@ mod declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "HoistableDeclaration")]
+    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "HoistableDeclaration")]
     #[test_case("class package{}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "ClassDeclaration")]
     #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -740,7 +740,7 @@ mod hoistable_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "FunctionDeclaration")]
+    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionDeclaration")]
     #[test_case("function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "GeneratorDeclaration")]
     #[test_case("async function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncFunctionDeclaration")]
     #[test_case("async function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]

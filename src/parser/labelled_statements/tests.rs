@@ -290,8 +290,8 @@ mod labelled_item {
     const LBL_FUNC_NOT_ALLOWED: &str = "Labelled functions not allowed in strict mode";
 
     #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
-    #[test_case("function package(){}", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED])*/; "FunctionDeclaration (strict)")]
-    #[test_case("function a(){}", false => panics "not yet implemented" /*set(&[])*/; "FunctionDeclaration (non-strict)")]
+    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (strict)")]
+    #[test_case("function a(){}", false => set(&[]); "FunctionDeclaration (non-strict)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

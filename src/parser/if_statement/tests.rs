@@ -185,9 +185,9 @@ mod if_statement {
 
     #[test_case("if (package) interface;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "if (Expression) Statement")]
     #[test_case("if (package) interface; else implements;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "if (Expression) Statement else Statement")]
-    #[test_case("if (a) bob: function f(){}", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled function (no else)")]
-    #[test_case("if (a) alpha; else b: function f(){}", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled function (in else clause)")]
-    #[test_case("if (a) b: function f(){} else c;", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled fucntion (in then clause)")]
+    #[test_case("if (a) bob: function f(){}", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (no else)")]
+    #[test_case("if (a) alpha; else b: function f(){}", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled function (in else clause)")]
+    #[test_case("if (a) b: function f(){} else c;", false => set(&[LABELLED_FUNCTION_NOT_ALLOWED]); "labelled fucntion (in then clause)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

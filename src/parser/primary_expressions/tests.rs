@@ -466,7 +466,7 @@ mod primary_expression {
     #[test_case("[]", true => set(&[]); "ArrayLiteral")]
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
     #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
-    #[test_case("function eval(){}", true => panics "not yet implemented"; "FunctionExpression")]
+    #[test_case("function eval(){}", true => set(&["identifier not allowed in strict mode: eval", "Unexpected eval or arguments in strict mode"]); "FunctionExpression")]
     #[test_case("class package {}", true => panics "not yet implemented"; "ClassExpression")]
     #[test_case("function *package(){}", true => panics "not yet implemented"; "GeneratorExpression")]
     #[test_case("async function package(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]

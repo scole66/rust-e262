@@ -133,7 +133,7 @@ fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool
     //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
     //    UniqueFormalParameters : FormalParameters are applied.
     //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
-    //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+    //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments". [Redundant check]
     //  * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and IsSimpleParameterList
     //    of FormalParameters is false.
     //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
@@ -151,12 +151,6 @@ fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool
         for name in duplicates(&bn) {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
         }
-
-        if let Some(ident) = ident {
-            if ["eval", "arguments"].contains(&String::from(ident.string_value()).as_str()) {
-                errs.push(create_syntax_error_object(agent, "Unexpected eval or arguments in strict mode"));
-            }
-        }
     }
 
     if body.function_body_contains_use_strict() && !params.is_simple_parameter_list() {
@@ -170,11 +164,7 @@ fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool
         }
     }
 
-    if params.contains(ParseNodeKind::SuperProperty)
-        || params.contains(ParseNodeKind::SuperCall)
-        || body.contains(ParseNodeKind::SuperProperty)
-        || body.contains(ParseNodeKind::SuperCall)
-    {
+    if params.contains(ParseNodeKind::SuperProperty) || params.contains(ParseNodeKind::SuperCall) || body.contains(ParseNodeKind::SuperProperty) || body.contains(ParseNodeKind::SuperCall) {
         errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
     }
 
@@ -382,13 +372,13 @@ impl FunctionBody {
             }
         }
         if self.statements.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels"));
+            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
         }
         if self.statements.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target"));
+            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
         }
         if self.statements.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target"));
+            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
         }
 
         self.statements.early_errors(agent, errs, strict);
@@ -465,6 +455,7 @@ impl FunctionStatementList {
             None => vec![],
         }
     }
+
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         match &self.statements {
@@ -481,9 +472,38 @@ impl FunctionStatementList {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: VarDeclaredNames
+        match &self.statements {
+            Some(statement_list) => {
+                // FunctionStatementList : StatementList
+                //  1. Return TopLevelVarDeclaredNames of StatementList.
+                statement_list.top_level_var_declared_names()
+            }
+            None => {
+                // FunctionStatementList : [empty]
+                //  1. Return a new empty List.
+                vec![]
+            }
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        self.statements.as_ref().map_or(false, |sl| sl.contains_duplicate_labels(label_set))
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_break_target(label_set))
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_continue_target(iteration_set, label_set))
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        if let Some(sl) = &self.statements {
+            sl.early_errors(agent, errs, strict, false, false);
+        }
     }
 }
 
