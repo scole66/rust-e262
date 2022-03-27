@@ -336,16 +336,16 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration),
-            Statement::Break(node) => node.early_errors(agent, errs, strict),
+            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
             Statement::Breakable(node) => node.early_errors(agent, errs, strict),
             Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
             Statement::Debugger(_) | Statement::Empty(_) => (),
             Statement::Expression(node) => node.early_errors(agent, errs, strict),
             Statement::If(node) => node.early_errors(agent, errs, strict),
-            Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Return(node) => node.early_errors(agent, errs, strict),
             Statement::Throw(node) => node.early_errors(agent, errs, strict),
             Statement::Try(node) => node.early_errors(agent, errs, strict),

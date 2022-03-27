@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 
 // BREAK STATEMENT
 #[test]
@@ -103,9 +104,17 @@ fn break_statement_test_contains_02() {
 }
 mod break_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const ILLEGAL_BREAK: &str = "break statement must lie within iteration or switch statement";
+
+    #[test_case("break;", true, true => set(&[]); "simple break; ok")]
+    #[test_case("break;", true, false => set(&[ILLEGAL_BREAK]); "break not in a good spot")]
+    #[test_case("break package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "break LabelIdentifier ;")]
+    fn early_errors(src: &str, strict: bool, within_breakable: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        BreakStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_breakable);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
