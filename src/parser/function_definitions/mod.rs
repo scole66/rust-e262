@@ -117,65 +117,72 @@ impl FunctionDeclaration {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        // Static Semantics: Early Errors
-        //  FunctionDeclaration :
-        //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
-        //      function ( FormalParameters ) { FunctionBody }
-
-        //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
-        //    UniqueFormalParameters : FormalParameters are applied.
-        //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
-        //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
-        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and IsSimpleParameterList
-        //    of FormalParameters is false.
-        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
-        //    LexicallyDeclaredNames of FunctionBody.
-        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
-        //  * It is a Syntax Error if FunctionBody Contains SuperProperty is true.
-        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
-        //  * It is a Syntax Error if FunctionBody Contains SuperCall is true.
-
-        let strict_function = strict || self.body.function_body_contains_use_strict();
-
-        let bn = self.params.bound_names();
-
-        if strict_function {
-            for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
-            }
-
-            if let Some(ident) = &self.ident {
-                if ["eval", "arguments"].contains(&String::from(ident.string_value()).as_str()) {
-                    errs.push(create_syntax_error_object(agent, "Unexpected eval or arguments in strict mode"));
-                }
-            }
-        }
-
-        if self.body.function_body_contains_use_strict() && !self.params.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
-        }
-
-        let lexnames = self.body.lexically_declared_names();
-        for lexname in lexnames {
-            if bn.contains(&lexname) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", lexname)));
-            }
-        }
-
-        if self.params.contains(ParseNodeKind::SuperProperty)
-            || self.params.contains(ParseNodeKind::SuperCall)
-            || self.body.contains(ParseNodeKind::SuperProperty)
-            || self.body.contains(ParseNodeKind::SuperCall)
-        {
-            errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
-        }
-
-        if let Some(ident) = &self.ident {
-            ident.early_errors(agent, errs, strict_function);
-        }
-        self.params.early_errors(agent, errs, strict_function, strict_function);
-        self.body.early_errors(agent, errs, strict_function);
+        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
+}
+
+fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ident: Option<&Rc<BindingIdentifier>>, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) {
+    // Static Semantics: Early Errors
+    //  FunctionDeclaration :
+    //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
+    //      function ( FormalParameters ) { FunctionBody }
+    //  FunctionExpression :
+    //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
+    //      function ( FormalParameters ) { FunctionBody }
+    //
+    //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
+    //    UniqueFormalParameters : FormalParameters are applied.
+    //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
+    //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+    //  * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and IsSimpleParameterList
+    //    of FormalParameters is false.
+    //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+    //    LexicallyDeclaredNames of FunctionBody.
+    //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+    //  * It is a Syntax Error if FunctionBody Contains SuperProperty is true.
+    //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+    //  * It is a Syntax Error if FunctionBody Contains SuperCall is true.
+
+    let strict_function = strict || body.function_body_contains_use_strict();
+
+    let bn = params.bound_names();
+
+    if strict_function {
+        for name in duplicates(&bn) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+
+        if let Some(ident) = ident {
+            if ["eval", "arguments"].contains(&String::from(ident.string_value()).as_str()) {
+                errs.push(create_syntax_error_object(agent, "Unexpected eval or arguments in strict mode"));
+            }
+        }
+    }
+
+    if body.function_body_contains_use_strict() && !params.is_simple_parameter_list() {
+        errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+    }
+
+    let lexnames = body.lexically_declared_names();
+    for lexname in lexnames {
+        if bn.contains(&lexname) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", lexname)));
+        }
+    }
+
+    if params.contains(ParseNodeKind::SuperProperty)
+        || params.contains(ParseNodeKind::SuperCall)
+        || body.contains(ParseNodeKind::SuperProperty)
+        || body.contains(ParseNodeKind::SuperCall)
+    {
+        errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
+    }
+
+    if let Some(ident) = ident {
+        ident.early_errors(agent, errs, strict_function);
+    }
+    params.early_errors(agent, errs, strict_function, strict_function);
+    body.early_errors(agent, errs, strict_function);
 }
 
 // FunctionExpression :
@@ -265,9 +272,8 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 }
 
@@ -355,9 +361,37 @@ impl FunctionBody {
         self.statements.lexically_declared_names()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // FunctionBody : FunctionStatementList
+        //  * It is a Syntax Error if the LexicallyDeclaredNames of FunctionStatementList contains any duplicate
+        //    entries.
+        //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of FunctionStatementList also occurs in
+        //    the VarDeclaredNames of FunctionStatementList.
+        //  * It is a Syntax Error if ContainsDuplicateLabels of FunctionStatementList with argument « » is true.
+        //  * It is a Syntax Error if ContainsUndefinedBreakTarget of FunctionStatementList with argument « » is true.
+        //  * It is a Syntax Error if ContainsUndefinedContinueTarget of FunctionStatementList with arguments « » and
+        //    « » is true.
+        let ldn = self.statements.lexically_declared_names();
+        for name in duplicates(&ldn) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+        let vdn = self.statements.var_declared_names();
+        for name in vdn {
+            if ldn.contains(&name) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name)));
+            }
+        }
+        if self.statements.contains_duplicate_labels(&[]) {
+            errs.push(create_syntax_error_object(agent, "duplicate labels"));
+        }
+        if self.statements.contains_undefined_break_target(&[]) {
+            errs.push(create_syntax_error_object(agent, "undefined break target"));
+        }
+        if self.statements.contains_undefined_continue_target(&[], &[]) {
+            errs.push(create_syntax_error_object(agent, "undefined continue target"));
+        }
+
+        self.statements.early_errors(agent, errs, strict);
     }
 }
 
