@@ -116,9 +116,65 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  FunctionDeclaration :
+        //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
+        //      function ( FormalParameters ) { FunctionBody }
+
+        //  * If the source text matched by FormalParameters is strict mode code, the Early Error rules for
+        //    UniqueFormalParameters : FormalParameters are applied.
+        //  * If BindingIdentifier is present and the source text matched by BindingIdentifier is strict mode code, it
+        //    is a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments".
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and IsSimpleParameterList
+        //    of FormalParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of FunctionBody.
+        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        //  * It is a Syntax Error if FunctionBody Contains SuperProperty is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        //  * It is a Syntax Error if FunctionBody Contains SuperCall is true.
+
+        let strict_function = strict || self.body.function_body_contains_use_strict();
+
+        let bn = self.params.bound_names();
+
+        if strict_function {
+            for name in duplicates(&bn) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            }
+
+            if let Some(ident) = &self.ident {
+                if ["eval", "arguments"].contains(&String::from(ident.string_value()).as_str()) {
+                    errs.push(create_syntax_error_object(agent, "Unexpected eval or arguments in strict mode"));
+                }
+            }
+        }
+
+        if self.body.function_body_contains_use_strict() && !self.params.is_simple_parameter_list() {
+            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        }
+
+        let lexnames = self.body.lexically_declared_names();
+        for lexname in lexnames {
+            if bn.contains(&lexname) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", lexname)));
+            }
+        }
+
+        if self.params.contains(ParseNodeKind::SuperProperty)
+            || self.params.contains(ParseNodeKind::SuperCall)
+            || self.body.contains(ParseNodeKind::SuperProperty)
+            || self.body.contains(ParseNodeKind::SuperCall)
+        {
+            errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
+        }
+
+        if let Some(ident) = &self.ident {
+            ident.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
