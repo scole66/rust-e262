@@ -89,7 +89,7 @@ mod block_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -229,7 +229,7 @@ mod block {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -432,7 +432,7 @@ mod statement_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -626,7 +626,7 @@ mod statement_list_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

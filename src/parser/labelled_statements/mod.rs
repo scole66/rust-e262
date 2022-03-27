@@ -108,9 +108,9 @@ impl LabelledStatement {
         self.item.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         self.identifier.early_errors(agent, errs, strict);
-        self.item.early_errors(agent, errs, strict, within_iteration);
+        self.item.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 }
 
@@ -242,7 +242,7 @@ impl LabelledItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text that is strict mode code is matched by this production.
@@ -250,7 +250,7 @@ impl LabelledItem {
             errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in strict mode"));
         }
         match self {
-            LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration),
+            LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration, within_switch),
             LabelledItem::Function(fcn) => fcn.early_errors(agent, errs, strict),
         }
     }

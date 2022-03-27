@@ -1,11 +1,11 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::identifiers::LabelIdentifier;
 use super::scanner::{Keyword, ScanGoal, Scanner};
 use super::*;
+use crate::errors::create_syntax_error_object;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // BreakStatement[Yield, Await] :
 //      break ;
@@ -77,9 +77,20 @@ impl BreakStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
+        // Static Semantics: Early Errors
+        //  BreakStatement : break ;
+        //      * It is a Syntax Error if this BreakStatement is not nested, directly or indirectly (but not crossing
+        //        function or static initialization block boundaries), within an IterationStatement or a
+        //        SwitchStatement.
+        match self {
+            BreakStatement::Bare => {
+                if !within_breakable {
+                    errs.push(create_syntax_error_object(agent, "break statement must lie within iteration or switch statement"));
+                }
+            }
+            BreakStatement::Labelled(lbl) => lbl.early_errors(agent, errs, strict),
+        }
     }
 }
 

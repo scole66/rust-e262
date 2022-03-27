@@ -186,7 +186,7 @@ impl ScriptBody {
         if !self.direct && !self.statement_list.all_private_identifiers_valid(&[]) {
             errs.push(create_syntax_error_object(agent, "invalid private identifier detected"));
         }
-        self.statement_list.early_errors(agent, errs, self.contains_use_strict(), false);
+        self.statement_list.early_errors(agent, errs, self.contains_use_strict(), false, false);
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

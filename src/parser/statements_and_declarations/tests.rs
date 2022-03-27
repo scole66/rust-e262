@@ -486,7 +486,7 @@ mod statement {
     #[test_case("if (package);", true, false => panics "not yet implemented"; "IfStatement")]
     #[test_case("for(package=0;;);", true, false => panics "not yet implemented"; "BreakableStatement")]
     #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
-    #[test_case("break package;", true, false => panics "not yet implemented"; "BreakStatement")]
+    #[test_case("break package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]
     #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
     #[test_case("with (package) {}", true, false => panics "not yet implemented"; "WithStatement")]
     #[test_case("package: implements;", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
@@ -496,7 +496,7 @@ mod statement {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
