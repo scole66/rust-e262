@@ -483,7 +483,7 @@ mod statement {
     #[test_case("var package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
     #[test_case(";", true, false => set(&[]); "EmptyStatement")]
     #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
-    #[test_case("if (package);", true, false => panics "not yet implemented"; "IfStatement")]
+    #[test_case("if (package);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "IfStatement")]
     #[test_case("for(package=0;;);", true, false => panics "not yet implemented"; "BreakableStatement")]
     #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
     #[test_case("break package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]

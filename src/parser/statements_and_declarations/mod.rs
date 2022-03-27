@@ -344,7 +344,7 @@ impl Statement {
             Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
             Statement::Debugger(_) | Statement::Empty(_) => (),
             Statement::Expression(node) => node.early_errors(agent, errs, strict),
-            Statement::If(node) => node.early_errors(agent, errs, strict),
+            Statement::If(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Return(node) => node.early_errors(agent, errs, strict),
             Statement::Throw(node) => node.early_errors(agent, errs, strict),
