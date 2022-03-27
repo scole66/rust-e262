@@ -330,7 +330,7 @@ impl MemberExpression {
                 r.early_errors(agent, errs, strict, 0xffff_ffff);
             }
             MemberExpressionKind::SuperProperty(n) => n.early_errors(agent, errs, strict),
-            MemberExpressionKind::MetaProperty(meta) => meta.early_errors(agent, errs, strict),
+            MemberExpressionKind::MetaProperty(meta) => meta.early_errors(agent, errs),
             MemberExpressionKind::NewArguments(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
@@ -540,7 +540,7 @@ impl MetaProperty {
     }
 
     #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         match &self.kind {
             MetaPropertyKind::NewTarget => {}
             MetaPropertyKind::ImportMeta(goal) => {

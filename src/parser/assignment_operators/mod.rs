@@ -773,25 +773,11 @@ impl ArrayAssignmentPattern {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrayAssignmentPattern::RestOnly(None, None) => (),
-            ArrayAssignmentPattern::RestOnly(None, Some(are)) => are.early_errors(agent, errs, strict),
-            ArrayAssignmentPattern::RestOnly(Some(e), None) => e.early_errors(agent, errs, strict),
-            ArrayAssignmentPattern::RestOnly(Some(e), Some(are)) => {
-                e.early_errors(agent, errs, strict);
-                are.early_errors(agent, errs, strict);
-            }
-            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, None, None) => ael.early_errors(agent, errs, strict),
-            ArrayAssignmentPattern::ListRest(ael, None, Some(are)) => {
+            ArrayAssignmentPattern::RestOnly(_, None) => (),
+            ArrayAssignmentPattern::RestOnly(_, Some(are)) => are.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::ListOnly(ael) | ArrayAssignmentPattern::ListRest(ael, _, None) => ael.early_errors(agent, errs, strict),
+            ArrayAssignmentPattern::ListRest(ael, _, Some(are)) => {
                 ael.early_errors(agent, errs, strict);
-                are.early_errors(agent, errs, strict);
-            }
-            ArrayAssignmentPattern::ListRest(ael, Some(e), None) => {
-                ael.early_errors(agent, errs, strict);
-                e.early_errors(agent, errs, strict);
-            }
-            ArrayAssignmentPattern::ListRest(ael, Some(e), Some(are)) => {
-                ael.early_errors(agent, errs, strict);
-                e.early_errors(agent, errs, strict);
                 are.early_errors(agent, errs, strict);
             }
         }
@@ -1122,9 +1108,6 @@ impl AssignmentElisionElement {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        if let Some(elisions) = &self.elisions {
-            elisions.early_errors(agent, errs, strict);
-        }
         self.element.early_errors(agent, errs, strict);
     }
 }

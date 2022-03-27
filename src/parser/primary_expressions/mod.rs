@@ -373,7 +373,7 @@ impl PrimaryExpression {
         match &self.kind {
             PrimaryExpressionKind::This => {}
             PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::Literal(lit) => lit.early_errors(agent, errs, strict),
+            PrimaryExpressionKind::Literal(lit) => lit.early_errors(),
             PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
@@ -470,9 +470,6 @@ impl Elisions {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
-
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 // SpreadElement[Yield, Await] :
@@ -749,30 +746,18 @@ impl ElementList {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ElementList::AssignmentExpression((a, b)) => {
-                if let Some(elisions) = a {
-                    elisions.early_errors(agent, errs, strict);
-                }
+            ElementList::AssignmentExpression((_, b)) => {
                 b.early_errors(agent, errs, strict);
             }
-            ElementList::SpreadElement((a, b)) => {
-                if let Some(elisions) = a {
-                    elisions.early_errors(agent, errs, strict);
-                }
+            ElementList::SpreadElement((_, b)) => {
                 b.early_errors(agent, errs, strict);
             }
-            ElementList::ElementListAssignmentExpression((a, b, c)) => {
+            ElementList::ElementListAssignmentExpression((a, _, c)) => {
                 a.early_errors(agent, errs, strict);
-                if let Some(elisions) = b {
-                    elisions.early_errors(agent, errs, strict);
-                }
                 c.early_errors(agent, errs, strict);
             }
-            ElementList::ElementListSpreadElement((a, b, c)) => {
+            ElementList::ElementListSpreadElement((a, _, c)) => {
                 a.early_errors(agent, errs, strict);
-                if let Some(elisions) = b {
-                    elisions.early_errors(agent, errs, strict);
-                }
                 c.early_errors(agent, errs, strict);
             }
         }
@@ -916,13 +901,7 @@ impl ArrayLiteral {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty(_) => {}
-            ArrayLiteral::ElementList(node) => node.early_errors(agent, errs, strict),
-            ArrayLiteral::ElementListElision(node, b) => {
-                node.early_errors(agent, errs, strict);
-                if let Some(elisions) = b {
-                    elisions.early_errors(agent, errs, strict);
-                }
-            }
+            ArrayLiteral::ElementList(node) | ArrayLiteral::ElementListElision(node, _) => node.early_errors(agent, errs, strict),
         }
     }
 }
@@ -1207,9 +1186,6 @@ impl LiteralPropertyName {
         false
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
-
     pub fn prop_name(&self) -> JSString {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
@@ -1326,7 +1302,7 @@ impl PropertyName {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            PropertyName::LiteralPropertyName(x) => x.early_errors(agent, errs, strict),
+            PropertyName::LiteralPropertyName(_) => (),
             PropertyName::ComputedPropertyName(x) => x.early_errors(agent, errs, strict),
         }
     }
@@ -1899,8 +1875,7 @@ impl Literal {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
+    pub fn early_errors(&self) {
         // Since we don't implement Legacy Octal syntax (yet), these two errors are never generated. That makes this
         // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
         // assertions that are supposed to fail once we do actually implement legacy octal. That will be my reminder to
