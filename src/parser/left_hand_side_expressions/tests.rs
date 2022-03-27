@@ -561,13 +561,13 @@ mod meta_property {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("new.target", true, ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
-    #[test_case("import.meta", true, ParseGoal::Script => set(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
-    #[test_case("import.meta", true, ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
-    fn early_errors(src: &str, strict: bool, goal: ParseGoal) -> AHashSet<String> {
+    #[test_case("new.target", ParseGoal::Script => AHashSet::<String>::new(); "new.target")]
+    #[test_case("import.meta", ParseGoal::Script => set(&["import.meta allowed only in Module code"]); "import.meta (in script)")]
+    #[test_case("import.meta", ParseGoal::Module => AHashSet::<String>::new(); "import.meta (in module)")]
+    fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MetaProperty::parse(&mut Parser::new(src, strict, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        MetaProperty::parse(&mut Parser::new(src, false, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

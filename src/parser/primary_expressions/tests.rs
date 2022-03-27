@@ -632,15 +632,13 @@ fn literal_test_as_string_literal(src: &str) -> Option<String> {
 mod literal {
     use super::*;
     use test_case::test_case;
-    #[test_case("3", true => AHashSet::<String>::new(); "Numeric")]
-    #[test_case("null", true => AHashSet::<String>::new(); "Null")]
-    #[test_case("true", true => AHashSet::<String>::new(); "Boolean")]
-    #[test_case("'a'", true => AHashSet::<String>::new(); "String")]
-    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        let mut agent = test_agent();
-        let mut errs = vec![];
-        Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
-        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    #[test_case("3" => AHashSet::<String>::new(); "Numeric")]
+    #[test_case("null" => AHashSet::<String>::new(); "Null")]
+    #[test_case("true" => AHashSet::<String>::new(); "Boolean")]
+    #[test_case("'a'" => AHashSet::<String>::new(); "String")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        Literal::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors();
+        AHashSet::<String>::new()
     }
 }
 
@@ -685,15 +683,6 @@ fn elision_test_conciseerrors_1() {
 fn elision_test_contains_01() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
-}
-mod elision {
-    use super::*;
-    #[test]
-    fn early_errors() {
-        let mut errs = vec![];
-        Elisions::parse(&mut newparser(","), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
-        assert!(errs.is_empty());
-    }
 }
 
 // SPREAD ELEMENT
@@ -1520,13 +1509,6 @@ fn literal_property_name_test_contains_01() {
 mod literal_property_name {
     use super::*;
     use test_case::test_case;
-
-    #[test]
-    fn early_errors() {
-        let mut errs = Vec::new();
-        LiteralPropertyName::parse(&mut newparser("package"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut errs, true);
-        assert!(errs.is_empty());
-    }
 
     #[test_case("bob" => JSString::from("bob"); "identifier")]
     #[test_case("'lit'" => JSString::from("lit"); "string literal")]
