@@ -3,7 +3,6 @@ use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
 use super::scanner::Scanner;
-use super::scripts::has_unique_elements;
 use super::unary_operators::UnaryExpression;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
@@ -130,8 +129,8 @@ impl AsyncFunctionDeclaration {
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
-        let body_contains_use_strict = self.body.function_body_contains_use_strict();
-        if body_contains_use_strict && !self.params.is_simple_parameter_list() {
+        let strict_function = strict || self.body.function_body_contains_use_strict();
+        if strict_function && !self.params.is_simple_parameter_list() {
             // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
             // is false
             errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
@@ -140,15 +139,19 @@ impl AsyncFunctionDeclaration {
             // FormalParameters Contains AwaitExpression is true.
             errs.push(create_syntax_error_object(agent, "Await not allowed in parameter lists"));
         }
-        if strict || body_contains_use_strict {
+        let duplicates_checked = if strict_function {
             // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
             //      Static Semantics: Early Errors
             //          UniqueFormalParameters : FormalParameters
             //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
-            if !has_unique_elements(self.params.bound_names()) {
-                errs.push(create_syntax_error_object(agent, "Duplicate formal parameter identifiers in strict mode definition"));
+            let bn = self.params.bound_names();
+            for name in duplicates(&bn) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
             }
-        }
+            true
+        } else {
+            false
+        };
         // It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
         //    LexicallyDeclaredNames of AsyncFunctionBody
         let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
@@ -175,10 +178,10 @@ impl AsyncFunctionDeclaration {
 
         // All the children
         if let Some(binding_identifier) = &self.ident {
-            binding_identifier.early_errors(agent, errs, strict);
+            binding_identifier.early_errors(agent, errs, strict_function);
         }
-        self.params.early_errors(agent, errs, strict);
-        self.body.early_errors(agent, errs, strict);
+        self.params.early_errors(agent, errs, strict_function, duplicates_checked);
+        self.body.early_errors(agent, errs, strict_function);
 
         // And done.
     }
