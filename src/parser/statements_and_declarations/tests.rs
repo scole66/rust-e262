@@ -499,6 +499,12 @@ mod statement {
         Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("bob: function alice(){}" => true; "direct labelled function")]
+    #[test_case("bob;" => false; "not a function")]
+    fn is_labelled_function(src: &str) -> bool {
+        Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
+    }
 }
 
 // DECLARATION
