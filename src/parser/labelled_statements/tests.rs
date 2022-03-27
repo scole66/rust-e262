@@ -129,6 +129,13 @@ mod labelled_statement {
         LabelledStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("bob: function alice(){}" => true; "direct labelled function")]
+    #[test_case("bob: alice: function foo(){}" => true; "indirect labelled function")]
+    #[test_case("bob:;" => false; "not a function")]
+    fn is_labelled_function(src: &str) -> bool {
+        LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
+    }
 }
 
 // LABELLED ITEM
@@ -290,5 +297,12 @@ mod labelled_item {
         let mut errs = vec![];
         LabelledItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("function alice(){}" => true; "direct labelled function")]
+    #[test_case("alice: function foo(){}" => true; "indirect labelled function")]
+    #[test_case("bob;" => false; "not a function")]
+    fn is_labelled_function(src: &str) -> bool {
+        LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
     }
 }

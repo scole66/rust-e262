@@ -353,6 +353,23 @@ impl Statement {
             Statement::With(node) => node.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn is_labelled_function(&self) -> bool {
+        // Static Semantics: IsLabelledFunction ( stmt )
+        //
+        // The abstract operation IsLabelledFunction takes argument stmt and returns a Boolean. It performs the
+        // following steps when called:
+        //
+        //  1. If stmt is not a LabelledStatement, return false.
+        //  2. Let item be the LabelledItem of stmt.
+        //  3. If item is LabelledItem : FunctionDeclaration , return true.
+        //  4. Let subStmt be the Statement of item.
+        //  5. Return IsLabelledFunction(subStmt).
+        match self {
+            Statement::Labelled(node) => node.is_labelled_function(),
+            _ => false,
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
