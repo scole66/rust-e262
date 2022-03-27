@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -489,7 +489,7 @@ mod statement {
     #[test_case("break package;", true, false => panics "not yet implemented"; "BreakStatement")]
     #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
     #[test_case("with (package) {}", true, false => panics "not yet implemented"; "WithStatement")]
-    #[test_case("package: implements;", true, false => panics "not yet implemented"; "LabelledStatement")]
+    #[test_case("package: implements;", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
     #[test_case("throw package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
     #[test_case("try {} catch (package) {}", true, false => panics "not yet implemented"; "TryStatement")]
     #[test_case("debugger;", true, false => set(&[]); "DebuggerStatement")]

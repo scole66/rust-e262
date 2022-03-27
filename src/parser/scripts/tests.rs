@@ -167,6 +167,7 @@ mod script_body {
     const SUPER_DISALLOWED: &str = "`super' not allowed in top-level code";
     const NEWTARG_DISALLOWED: &str = "`new.target` not allowed in top-level code";
     const UNDEF_BREAK: &str = "undefined break target detected";
+    const DUPLICATE_LABELS: &str = "duplicate labels detected";
 
     #[test_case("super();", false => set(&[SUPER_DISALLOWED]); "disallowed super")]
     #[test_case("super();", true => set(&[]); "allowed super")]
@@ -174,7 +175,7 @@ mod script_body {
     #[test_case("new.target;", true => set(&[]); "allowed new.target")]
     #[test_case("break a;", false => panics "not yet implemented"; "undefined break")]
     #[test_case(";", false => set(&[]); "empty stmt")]
-    #[test_case("t:{t:;}", false => panics "not yet implemented"; "duplicate labels")]
+    #[test_case("t:{t:;}", false => set(&[DUPLICATE_LABELS]); "duplicate labels")]
     #[test_case("continue bob;", false => set(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
     #[test_case("a.#mystery;", false => set(&["invalid private identifier detected"]); "invalid private id")]
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {

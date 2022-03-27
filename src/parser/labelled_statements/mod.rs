@@ -108,9 +108,9 @@ impl LabelledStatement {
         self.item.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        self.identifier.early_errors(agent, errs, strict);
+        self.item.early_errors(agent, errs, strict, within_iteration);
     }
 }
 
@@ -242,9 +242,17 @@ impl LabelledItem {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        // Static Semantics: Early Errors
+        //  LabelledItem : FunctionDeclaration
+        //      * It is a Syntax Error if any source text that is strict mode code is matched by this production.
+        if strict && matches!(self, LabelledItem::Function(_)) {
+            errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in strict mode"));
+        }
+        match self {
+            LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration),
+            LabelledItem::Function(fcn) => fcn.early_errors(agent, errs, strict),
+        }
     }
 }
 
