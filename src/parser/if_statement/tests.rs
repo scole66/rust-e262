@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // IF STATEMENT
@@ -178,9 +179,19 @@ fn if_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod if_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        IfStatement::parse(&mut newparser("if(a){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const LABELLED_FUNCTION_NOT_ALLOWED: &str = "Labelled function definition not allowed here";
+
+    #[test_case("if (package) interface;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "if (Expression) Statement")]
+    #[test_case("if (package) interface; else implements;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "if (Expression) Statement else Statement")]
+    #[test_case("if (a) bob: function f(){}", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled function (no else)")]
+    #[test_case("if (a) alpha; else b: function f(){}", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled function (in else clause)")]
+    #[test_case("if (a) b: function f(){} else c;", true => panics "not yet implemented" /*set(&[LABELLED_FUNCTION_NOT_ALLOWED])*/; "labelled fucntion (in then clause)")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        IfStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
