@@ -539,7 +539,6 @@ impl MetaProperty {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         match &self.kind {
             MetaPropertyKind::NewTarget => {}
