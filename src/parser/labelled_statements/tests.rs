@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // LABELLED STATEMENT
@@ -119,10 +120,14 @@ fn labelled_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod labelled_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        LabelledStatement::parse(&mut newparser("a:b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package:implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelIdentifier : LabelledItem")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        LabelledStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -273,9 +278,17 @@ fn labelled_item_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod labelled_item {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        LabelledItem::parse(&mut newparser("b;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const LBL_FUNC_NOT_ALLOWED: &str = "Labelled functions not allowed in strict mode";
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
+    #[test_case("function package(){}", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED])*/; "FunctionDeclaration (strict)")]
+    #[test_case("function a(){}", false => panics "not yet implemented" /*set(&[])*/; "FunctionDeclaration (non-strict)")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        LabelledItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
