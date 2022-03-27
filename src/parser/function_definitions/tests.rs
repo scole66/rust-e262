@@ -1,9 +1,14 @@
 use super::scanner::StringDelimiter;
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
+
+const B_ALREADY_DEFINED: &str = "‘b’ already defined";
+const COMPLEX_PARAMS: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
+const BAD_SUPER: &str = "‘super’ not allowed here";
 
 // FUNCTION DECLARATION
 #[test]
@@ -120,10 +125,25 @@ fn function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod function_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(b){let b=3;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        FunctionDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -222,10 +242,25 @@ fn function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod function_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        FunctionExpression::parse(&mut newparser("function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function (implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function a(b,b){}", true => set(&[B_ALREADY_DEFINED]); "duplicated params (strict)")]
+    #[test_case("function a(b,b){}", false => set(&[]); "duplicated params (non-strict)")]
+    #[test_case("function a(...b){}", true => set(&[]); "complex params in strict mode")]
+    #[test_case("function a(...b){'use strict';}", true => set(&[COMPLEX_PARAMS]); "complex params with use strict (strict mode)")]
+    #[test_case("function a(...b){'use strict';}", false => set(&[COMPLEX_PARAMS]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function a(a,b){let b=3;let c=10;}", true => set(&[B_ALREADY_DEFINED]); "lexname shadowing params")]
+    #[test_case("function a(b=super()){}", false => set(&[BAD_SUPER]); "SuperCall in params")]
+    #[test_case("function a(b=super.c){}", false => set(&[BAD_SUPER]); "SuperProperty in params")]
+    #[test_case("function a(){super();}", false => set(&[BAD_SUPER]); "SuperCall in body")]
+    #[test_case("function a(){super.b;}", false => set(&[BAD_SUPER]); "SuperProperty in body")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        FunctionExpression::parse(&mut strictparser(src, strict), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -292,10 +327,24 @@ fn function_body_test_lexically_declared_names(src: &str) -> Vec<JSString> {
 }
 mod function_body {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const B_ALREADY_LEX: &str = "‘b’ cannot be used in a var statement, as it is also lexically declared";
+    const DUP_LABLES: &str = "duplicate labels detected";
+    const UNDEF_BREAK: &str = "undefined break target detected";
+    const UNDEF_CONTINUE: &str = "undefined continue target detected";
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionStatementList")]
+    #[test_case("let b; let b;", false => set(&[B_ALREADY_DEFINED]); "duplicate lexical bindings")]
+    #[test_case("var b; var c; let b; let a;", false => set(&[B_ALREADY_LEX]); "var/lex name clash")]
+    #[test_case("a:a:a:;", false => set(&[DUP_LABLES]); "duplicate labels")]
+    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
+    #[test_case("while (1) continue a;", false => panics "not yet implemented" /*set(&[UNDEF_CONTINUE])*/; "undefined continue")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        FunctionBody::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -365,9 +414,42 @@ fn function_statement_list_test_lexically_declared_names(src: &str) -> Vec<JSStr
 }
 mod function_statement_list {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        FunctionStatementList::parse(&mut newparser("a;"), Scanner::new(), true, true).0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("var a,b,c;" => vec!["a", "b", "c"]; "one statement")]
+    #[test_case("" => Vec::<String>::new(); "no statements")]
+    #[test_case("var a; var b; var c;" => vec!["a", "b", "c"]; "three statements")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a:a:;" => true; "one statement")]
+    #[test_case("a:;" => false; "one statement (no dups)")]
+    #[test_case("" => false; "no statements")]
+    fn contains_duplicate_labels(src: &str) -> bool {
+        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_duplicate_labels(&[])
+    }
+
+    #[test_case("break a;" => true; "one statement")]
+    #[test_case(";" => false; "one statement (no break)")]
+    #[test_case("" => false; "no statements")]
+    fn contains_undefined_break_target(src: &str) -> bool {
+        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_undefined_break_target(&[])
+    }
+
+    #[test_case("continue x;" => true; "one statement")]
+    #[test_case(";" => false; "one statement (no continue)")]
+    #[test_case("" => false; "no statements")]
+    fn contains_undefined_continue_target(src: &str) -> bool {
+        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_undefined_continue_target(&[], &[])
+    }
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
+    #[test_case("", true => set(&[]); "[empty]")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        FunctionStatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
