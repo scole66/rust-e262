@@ -283,15 +283,16 @@ fn labelled_item_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
+
 mod labelled_item {
     use super::*;
     use test_case::test_case;
 
-    const LBL_FUNC_NOT_ALLOWED: &str = "Labelled functions not allowed in strict mode";
+    const LBL_FUNC_NOT_ALLOWED: &str = "Labelled functions not allowed in modern ECMAScript code";
 
     #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "Statement")]
     #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED, LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (strict)")]
-    #[test_case("function a(){}", false => set(&[]); "FunctionDeclaration (non-strict)")]
+    #[test_case("function a(){}", false => set(&[LBL_FUNC_NOT_ALLOWED]); "FunctionDeclaration (non-strict)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

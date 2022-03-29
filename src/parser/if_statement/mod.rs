@@ -141,22 +141,10 @@ impl IfStatement {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
-        // Static Semantics: Early Errors
-        //  IfStatement : if ( Expression ) Statement else Statement
-        //      * It is a Syntax Error if IsLabelledFunction(the first Statement) is true.
-        //      * It is a Syntax Error if IsLabelledFunction(the second Statement) is true.
-        //  IfStatement : if ( Expression ) Statement
-        //      * It is a Syntax Error if IsLabelledFunction(Statement) is true.
-        //
-        // NOTE |   It is only necessary to apply this rule if the extension specified in B.3.1 is implemented.
-        const NO_LABELLED_FUNCTIONS: &str = "Labelled function definition not allowed here";
         let (e, s1, s2) = match self {
             IfStatement::WithElse(e, s1, s2) => (e, s1, Some(s2)),
             IfStatement::WithoutElse(e, s1) => (e, s1, None),
         };
-        if s1.is_labelled_function() || s2.map_or(false, |s| s.is_labelled_function()) {
-            errs.push(create_syntax_error_object(agent, NO_LABELLED_FUNCTIONS));
-        }
         e.early_errors(agent, errs, strict);
         s1.early_errors(agent, errs, strict, within_iteration, within_switch);
         if let Some(s) = s2 {
