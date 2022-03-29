@@ -350,7 +350,7 @@ impl Statement {
             Statement::Throw(node) => node.early_errors(agent, errs, strict),
             Statement::Try(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Variable(node) => node.early_errors(agent, errs, strict),
-            Statement::With(node) => node.early_errors(agent, errs, strict),
+            Statement::With(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
         }
     }
 
