@@ -87,9 +87,15 @@ impl WithStatement {
         self.expression.all_private_identifiers_valid(names) && self.statement.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        // Static Semantics: Early Errors
+        //  WithStatement : with ( Expression ) Statement
+        //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.
+        if strict {
+            errs.push(create_syntax_error_object(agent, "'with' statements not allowed in strict mode"));
+        }
+        self.expression.early_errors(agent, errs, strict);
+        self.statement.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 }
 
