@@ -181,7 +181,7 @@ mod if_statement {
     use super::*;
     use test_case::test_case;
 
-    const LABELLED_FUNCTION_NOT_ALLOWED: &str = "Labelled function definition not allowed here";
+    const LABELLED_FUNCTION_NOT_ALLOWED: &str = "Labelled functions not allowed in modern ECMAScript code";
 
     #[test_case("if (package) interface;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "if (Expression) Statement")]
     #[test_case("if (package) interface; else implements;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "if (Expression) Statement else Statement")]

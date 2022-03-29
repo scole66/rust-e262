@@ -259,9 +259,9 @@ impl LabelledItem {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
-        //      * It is a Syntax Error if any source text that is strict mode code is matched by this production.
-        if strict && matches!(self, LabelledItem::Function(_)) {
-            errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in strict mode"));
+        //      * It is a Syntax Error if any source text is matched by this production.
+        if matches!(self, LabelledItem::Function(_)) {
+            errs.push(create_syntax_error_object(agent, "Labelled functions not allowed in modern ECMAScript code"));
         }
         match self {
             LabelledItem::Statement(stmt) => stmt.early_errors(agent, errs, strict, within_iteration, within_switch),
