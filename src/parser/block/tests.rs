@@ -222,6 +222,12 @@ mod block {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("{let a, b, c;}" => vec!["a", "b", "c"]; "not-empty")]
+    #[test_case("{}" => Vec::<String>::new(); "empty")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
     #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
     #[test_case("{}", true => set(&[]); "{ } (empty)")]
     #[test_case("{ let a = 10; const a = 20; }", true => set(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]

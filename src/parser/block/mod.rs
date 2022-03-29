@@ -169,6 +169,14 @@ impl Block {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        let Block::Statements(opt_sl) = self;
+        match opt_sl {
+            None => vec![],
+            Some(node) => node.lexically_declared_names(),
+        }
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         let Block::Statements(opt_sl) = self;
         match opt_sl {

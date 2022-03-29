@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // TRY STATEMENT
@@ -159,10 +160,16 @@ fn try_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod try_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        TryStatement::parse(&mut newparser("try{}finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("try{package;}catch(implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch")]
+    #[test_case("try{package;}finally{implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "try Block Finally")]
+    #[test_case("try{package;}catch(implements){}finally{interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "try Block Catch Finally")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        TryStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -270,10 +277,20 @@ fn catch_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod catch {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Catch::parse(&mut newparser("catch{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const A_ALREADY_DEFINED: &str = "‘a’ already defined";
+
+    #[test_case("catch(package){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "catch ( CatchParameter ) Block")]
+    #[test_case("catch{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "catch Block")]
+    #[test_case("catch({a,b,a}){}", true => set(&[A_ALREADY_DEFINED]); "duplicates in parameter")]
+    #[test_case("catch({a,b}){let a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in lexical")]
+    #[test_case("catch({a,b}){var a, c;}", true => set(&[A_ALREADY_DEFINED]); "duplicates in var")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Catch::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -343,10 +360,14 @@ fn finally_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod finally {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Finally::parse(&mut newparser("finally{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("finally{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "finally Block")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Finally::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -418,9 +439,20 @@ fn catch_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod catch_parameter {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CatchParameter::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("a" => vec!["a"]; "BindingIdentifier")]
+    #[test_case("{a,b,c}" => vec!["a", "b", "c"]; "BindingPattern")]
+    fn bound_names(src: &str) -> Vec<String> {
+        CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingPattern")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CatchParameter::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

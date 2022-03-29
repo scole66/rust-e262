@@ -189,9 +189,19 @@ impl TryStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        let (block, catch, finally) = match self {
+            TryStatement::Catch(block, catch) => (block, Some(catch), None),
+            TryStatement::Finally(block, finally) => (block, None, Some(finally)),
+            TryStatement::Full(block, catch, finally) => (block, Some(catch), Some(finally)),
+        };
+        block.early_errors(agent, errs, strict, within_iteration, within_switch);
+        if let Some(catch) = catch {
+            catch.early_errors(agent, errs, strict, within_iteration, within_switch);
+        }
+        if let Some(finally) = finally {
+            finally.early_errors(agent, errs, strict, within_iteration, within_switch);
+        }
     }
 }
 
@@ -289,9 +299,28 @@ impl Catch {
         self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        // Static Semantics: Early Errors
+        //  Catch : catch ( CatchParameter ) Block
+        //  * It is a Syntax Error if BoundNames of CatchParameter contains any duplicate elements.
+        //  * It is a Syntax Error if any element of the BoundNames of CatchParameter also occurs in the LexicallyDeclaredNames of Block.
+        //  * It is a Syntax Error if any element of the BoundNames of CatchParameter also occurs in the VarDeclaredNames of Block.
+
+        if let Some(cp) = &self.parameter {
+            let bn = cp.bound_names();
+            let ldn = self.block.lexically_declared_names();
+            let vdn = self.block.var_declared_names();
+            for name in duplicates(&bn) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            }
+            for name in bn.iter() {
+                if ldn.contains(name) || vdn.contains(name) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+            }
+            cp.early_errors(agent, errs, strict);
+        }
+        self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 }
 
@@ -366,9 +395,8 @@ impl Finally {
         self.block.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+        self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 }
 
@@ -459,9 +487,18 @@ impl CatchParameter {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            CatchParameter::Ident(id) => id.bound_names(),
+            CatchParameter::Pattern(pat) => pat.bound_names(),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            CatchParameter::Ident(id) => id.early_errors(agent, errs, strict),
+            CatchParameter::Pattern(pat) => pat.early_errors(agent, errs, strict),
+        }
     }
 }
 

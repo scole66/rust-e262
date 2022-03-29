@@ -491,7 +491,7 @@ mod statement {
     #[test_case("with (package) {}", true, false => panics "not yet implemented"; "WithStatement")]
     #[test_case("package: implements;", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
     #[test_case("throw package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
-    #[test_case("try {} catch (package) {}", true, false => panics "not yet implemented"; "TryStatement")]
+    #[test_case("try {} catch (package) {}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "TryStatement")]
     #[test_case("debugger;", true, false => set(&[]); "DebuggerStatement")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
