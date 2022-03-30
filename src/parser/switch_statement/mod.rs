@@ -87,9 +87,23 @@ impl SwitchStatement {
         self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        // Static Semantics: Early Errors
+        //  SwitchStatement : switch ( Expression ) CaseBlock
+        //  * It is a Syntax Error if the LexicallyDeclaredNames of CaseBlock contains any duplicate entries.
+        //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of CaseBlock also occurs in the
+        //    VarDeclaredNames of CaseBlock.
+        let ldn = self.case_block.lexically_declared_names();
+        let vdn = self.case_block.var_declared_names();
+        for name in duplicates(&ldn) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+        for name in ldn.iter().filter(|&s| vdn.contains(s)) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+        }
+
+        self.expression.early_errors(agent, errs, strict);
+        self.case_block.early_errors(agent, errs, strict, within_iteration);
     }
 }
 
@@ -221,6 +235,25 @@ impl CaseBlock {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        let (c1, dflt, c2) = match self {
+            CaseBlock::NoDefault(c) => (c.as_ref(), None, None),
+            CaseBlock::HasDefault(pre, def, post) => (pre.as_ref(), Some(def), post.as_ref()),
+        };
+        let mut result = vec![];
+        if let Some(caseclauses) = c1 {
+            result.extend(caseclauses.lexically_declared_names());
+        }
+        if let Some(defaultclause) = dflt {
+            result.extend(defaultclause.lexically_declared_names());
+        }
+        if let Some(caseclauses) = c2 {
+            result.extend(caseclauses.lexically_declared_names());
+        }
+
+        result
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseBlock::NoDefault(None) => false,
@@ -283,9 +316,20 @@ impl CaseBlock {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        let (before, default, after) = match self {
+            CaseBlock::NoDefault(cc) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(cc1, def, cc2) => (cc1.as_ref(), Some(def), cc2.as_ref()),
+        };
+        if let Some(cc) = before {
+            cc.early_errors(agent, errs, strict, within_iteration);
+        }
+        if let Some(def) = default {
+            def.early_errors(agent, errs, strict, within_iteration);
+        }
+        if let Some(cc) = after {
+            cc.early_errors(agent, errs, strict, within_iteration);
+        }
     }
 }
 
@@ -362,6 +406,16 @@ impl CaseClauses {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        let (list, item) = match self {
+            CaseClauses::Item(item) => (None, item),
+            CaseClauses::List(lst, item) => (Some(lst), item),
+        };
+        let mut result = if let Some(list) = list { list.lexically_declared_names() } else { vec![] };
+        result.extend(item.lexically_declared_names());
+        result
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_undefined_break_target(label_set),
@@ -403,9 +457,15 @@ impl CaseClauses {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        let (list, item) = match self {
+            CaseClauses::Item(node) => (None, node),
+            CaseClauses::List(list, node) => (Some(list), node),
+        };
+        if let Some(list) = list {
+            list.early_errors(agent, errs, strict, within_iteration);
+        }
+        item.early_errors(agent, errs, strict, within_iteration);
     }
 }
 
@@ -479,6 +539,14 @@ impl CaseClause {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        if let Some(stmt) = &self.statements {
+            stmt.lexically_declared_names()
+        } else {
+            vec![]
+        }
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match &self.statements {
             None => false,
@@ -518,9 +586,11 @@ impl CaseClause {
             }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        self.expression.early_errors(agent, errs, strict);
+        if let Some(stmt) = &self.statements {
+            stmt.early_errors(agent, errs, strict, within_iteration, true);
+        }
     }
 }
 
@@ -586,6 +656,13 @@ impl DefaultClause {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        match &self.0 {
+            None => vec![],
+            Some(stmt) => stmt.lexically_declared_names(),
+        }
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             DefaultClause(None) => false,
@@ -626,9 +703,10 @@ impl DefaultClause {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+        if let Some(stmt) = &self.0 {
+            stmt.early_errors(agent, errs, strict, within_iteration, true);
+        }
     }
 }
 
