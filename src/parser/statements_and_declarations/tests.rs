@@ -859,11 +859,11 @@ mod breakable_statement {
     use test_case::test_case;
 
     #[test_case("while(package);", true => panics "not yet implemented"; "IterationStatement")]
-    #[test_case("switch(package){}", true => panics "not yet implemented"; "SwitchStatement")]
+    #[test_case("switch(package){}", true => set(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

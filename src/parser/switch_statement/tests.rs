@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 #[test]
@@ -72,10 +73,19 @@ fn switch_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod switch_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        SwitchStatement::parse(&mut newparser("switch(a){default:;}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    const B_DUPLEX: &str = "‘b’ may not be declared both lexically and var-style";
+    const B_ALREADY: &str = "‘b’ already defined";
+
+    #[test_case("switch (package) { default: implements; }", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "switch (Expression) CaseBlock")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: let b=30; case 3: let a=3; }", false, false => set(&[B_ALREADY]); "duplicate lexicals")]
+    #[test_case("switch (a) { case 1: let b=20; case 2: var b=30; case 3: var left; let right; }", false, false => set(&[B_DUPLEX]); "lex/var dups")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        SwitchStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -262,10 +272,29 @@ fn case_block_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod case_block {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CaseBlock::parse(&mut newparser("{}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("{}", true, false => set(&[]); "empty")]
+    #[test_case("{ case package: ;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "cases only")]
+    #[test_case("{ default: package;}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "default only")]
+    #[test_case("{ case package:; default:implements; case interface:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "before+default+after")]
+    #[test_case("{ case package:; default: implements;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "before+default")]
+    #[test_case("{ default:package; case implements:;}", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "default+after")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CaseBlock::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("{ }" => Vec::<String>::new(); "empty")]
+    #[test_case("{ case 1: let a; }" => vec!["a"]; "cases only")]
+    #[test_case("{ default: let a; }" => vec!["a"]; "default only")]
+    #[test_case("{ case 1: let a; default: let b; case 2: let c; }" => vec!["a", "b", "c"]; "before/after/default")]
+    #[test_case("{ case 1: let a; default: let b; }" => vec!["a", "b"]; "before+default")]
+    #[test_case("{ default: let b; case 2: let c; }" => vec!["b", "c"]; "default+after")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 }
 
@@ -362,10 +391,23 @@ fn case_clauses_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod case_clauses {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CaseClauses::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    #[test_case("case implements: package; continue; case interface: break;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list")]
+    #[test_case("case implements: package; continue; case interface: break;", false, true => set(&[]); "not strict; in iter; list")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CaseClauses::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("case 0: let a;" => vec!["a"]; "single")]
+    #[test_case("case 0: let a; case 3: let x, y, z;" => vec!["a", "x", "y", "z"]; "multi")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 }
 
@@ -461,10 +503,22 @@ fn case_clause_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod case_clause {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        CaseClause::parse(&mut newparser("case 0:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("case package:", true, false => set(&[PACKAGE_NOT_ALLOWED]); "empty")]
+    #[test_case("case implements: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED]); "statement")]
+    #[test_case("case implements: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        CaseClause::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
+    #[test_case("case 0: let a;" => vec!["a"]; "some decls")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 }
 
@@ -554,9 +608,21 @@ fn default_clause_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod default_clause {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        DefaultClause::parse(&mut newparser("default:;"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("default:", true, false => set(&[]); "empty")]
+    #[test_case("default: package; continue;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "statement")]
+    #[test_case("default: package; continue;", false, true => set(&[]); "not strict; in iter")]
+    fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        DefaultClause::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("default:" => Vec::<String>::new(); "no statements")]
+    #[test_case("default: let z, w;" => vec!["z", "w"]; "statements with decls")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 }
