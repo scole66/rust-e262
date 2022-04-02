@@ -89,7 +89,7 @@ fn class_declaration_test_contains_04() {
 #[test_case("class { a(){item.#invalid;} }" => false; "Unnamed class invalid")]
 fn class_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_declaration {
     use super::*;
@@ -171,7 +171,7 @@ fn class_expression_test_contains_04() {
 #[test_case("class a { a(){item.#invalid;}}" => false; "invalid")]
 fn class_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_expression {
     use super::*;
@@ -298,7 +298,7 @@ fn class_tail_test_contains_02() {
 #[test_case("extends item.#invalid {}" => false; "No body; heritage invalid")]
 fn class_tail_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassTail::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_tail {
     use super::*;
@@ -350,7 +350,7 @@ fn class_heritage_test_contains_02() {
 #[test_case("extends item.#invalid" => false; "invalid")]
 fn class_heritage_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassHeritage::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_heritage {
     use super::*;
@@ -407,13 +407,13 @@ fn class_body_test_computed_property_contains_02() {
 #[test]
 fn class_body_test_private_bound_identifiers() {
     let (item, _) = ClassBody::parse(&mut newparser("a(){} #b(){} async *#c(){}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("b"), JSString::from("c")]);
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#b"), JSString::from("#c")]);
 }
 #[test_case("#a(){} b(){this.#a(); item.#valid();}" => true; "valid")]
 #[test_case("#a(){} b(){this.#a(); item.#invalid();}" => false; "invalid")]
 fn class_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_body {
     use super::*;
@@ -505,8 +505,8 @@ fn class_element_list_test_computed_property_contains_05() {
     let (item, _) = ClassElementList::parse(&mut newparser("a(){0;} b(){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test_case("#one_item(){}" => vec![JSString::from("one_item")]; "Item")]
-#[test_case("#a; #b; #c;" => vec![JSString::from("a"), JSString::from("b"), JSString::from("c")]; "List")]
+#[test_case("#one_item(){}" => vec![JSString::from("#one_item")]; "Item")]
+#[test_case("#a; #b; #c;" => vec![JSString::from("#a"), JSString::from("#b"), JSString::from("#c")]; "List")]
 fn class_element_list_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
     let (item, _) = ClassElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.private_bound_identifiers()
@@ -519,7 +519,7 @@ fn class_element_list_test_private_bound_identifiers(src: &str) -> Vec<JSString>
 #[test_case("a(){} b(){item.#invalid;}" => false; "Multi second invalid")]
 fn class_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_element_list {
     use super::*;
@@ -753,10 +753,10 @@ fn class_element_test_computed_property_contains_10() {
 }
 #[test_case(";" => Vec::<JSString>::new(); "Empty")]
 #[test_case("static { do_thing(); }" => Vec::<JSString>::new(); "Static Block")]
-#[test_case("#method(){}" => vec![JSString::from("method")]; "Method")]
-#[test_case("static #sm(){}" => vec![JSString::from("sm")]; "Static Method")]
-#[test_case("#field=77;" => vec![JSString::from("field")]; "Field")]
-#[test_case("static #sf=88;" => vec![JSString::from("sf")]; "Static Field")]
+#[test_case("#method(){}" => vec![JSString::from("#method")]; "Method")]
+#[test_case("static #sm(){}" => vec![JSString::from("#sm")]; "Static Method")]
+#[test_case("#field=77;" => vec![JSString::from("#field")]; "Field")]
+#[test_case("static #sf=88;" => vec![JSString::from("#sf")]; "Static Field")]
 fn class_element_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
     let (item, _) = ClassElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.private_bound_identifiers()
@@ -774,7 +774,7 @@ fn class_element_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
 #[test_case("static { item.#invalid; }" => false; "Static body invalid")]
 fn class_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_element {
     use super::*;
@@ -869,7 +869,7 @@ fn field_definition_test_computed_property_contains_03() {
 #[test]
 fn field_definition_test_private_bound_identifiers() {
     let (item, _) = FieldDefinition::parse(&mut newparser("#private"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("private")]);
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#private")]);
 }
 #[test_case("[item.#valid]" => true; "No init valid")]
 #[test_case("[item.#valid]=0" => true; "Name valid")]
@@ -879,7 +879,7 @@ fn field_definition_test_private_bound_identifiers() {
 #[test_case("a=item.#invalid" => false; "Initializer invalid")]
 fn field_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FieldDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod field_definition {
     use super::*;
@@ -962,7 +962,7 @@ fn class_element_name_test_computed_property_contains_03() {
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 #[test_case("public" => Vec::<JSString>::new(); "PropertyName")]
-#[test_case("#private" => vec![JSString::from("private")]; "PrivateIdentifier")]
+#[test_case("#private" => vec![JSString::from("#private")]; "PrivateIdentifier")]
 fn class_element_name_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
     let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.private_bound_identifiers()
@@ -972,7 +972,7 @@ fn class_element_name_test_private_bound_identifiers(src: &str) -> Vec<JSString>
 #[test_case("[item.#invalid]" => false; "Name invalid")]
 fn class_element_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod class_element_name {
     use super::*;
@@ -1028,7 +1028,7 @@ mod class_static_block {
     #[test_case("static { item.#invalid; }" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ClassStaticBlock::parse(&mut newparser(src), Scanner::new()).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
     #[test]
     #[should_panic(expected = "not yet implemented")]
@@ -1063,7 +1063,7 @@ mod class_static_block_body {
     #[test_case("item.#invalid;" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ClassStaticBlockBody::parse(&mut newparser(src), Scanner::new());
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
     #[test]
     #[should_panic(expected = "not yet implemented")]
@@ -1109,7 +1109,7 @@ mod class_static_block_statement_list {
     #[test_case("item.#invalid;" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ClassStaticBlockStatementList::parse(&mut newparser(src), Scanner::new());
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
     #[test]
     #[should_panic(expected = "not yet implemented")]

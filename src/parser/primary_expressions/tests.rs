@@ -436,7 +436,7 @@ fn primary_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("(a.#invalid)" => false; "Grouping invalid")]
 fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
     let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test_case("this" => false; "This")]
@@ -728,7 +728,7 @@ fn spread_element_test_contains_02() {
 #[test_case("...a.#invalid" => false; "invalid")]
 fn spread_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SpreadElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod spread_element {
     use super::*;
@@ -1037,7 +1037,7 @@ fn element_list_test_contains_20() {
 #[test_case("a,,...b.#invalid" => false; "ElementList Elision SpreadElement: element invalid")]
 fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod element_list {
     use super::*;
@@ -1229,7 +1229,7 @@ fn array_literal_test_contains_08() {
 #[test_case("[a.#invalid,,]" => false; "ElementList Elision invalid")]
 fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod array_literal {
     use super::*;
@@ -1293,7 +1293,7 @@ fn initializer_test_contains_02() {
 #[test_case("=a.#invalid" => false; "invalid")]
 fn initializer_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Initializer::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod initializer {
     use super::*;
@@ -1350,7 +1350,7 @@ fn cover_initialized_name_test_contains_02() {
 #[test_case("a=b.#invalid" => false; "invalid")]
 fn cover_initialized_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod cover_initialized_name {
     use super::*;
@@ -1418,7 +1418,7 @@ fn computed_property_name_test_contains_02() {
 #[test_case("[a.#invalid]" => false; "invalid")]
 fn computed_property_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod computed_property_name {
     use super::*;
@@ -1598,7 +1598,7 @@ fn property_name_test_computed_property_contains_03() {
 #[test_case("[a.#invalid]" => false; "computed property name invalid")]
 fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod property_name {
     use super::*;
@@ -1791,7 +1791,7 @@ fn property_definition_test_contains_10() {
 #[test_case("...a.#invalid" => false; "...AssignmentExpression invalid")]
 fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod property_definition {
     use super::*;
@@ -1918,7 +1918,7 @@ fn property_definition_list_test_contains_05() {
 #[test_case("a,b:c.#invalid" => false; "List tail invalid")]
 fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod property_definition_list {
     use super::*;
@@ -2050,7 +2050,7 @@ fn object_literal_test_contains_05() {
 #[test_case("{a:b.#invalid,}" => false; "List comma invalid")]
 fn object_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod object_literal {
     use super::*;
@@ -2119,7 +2119,7 @@ fn parenthesized_expression_test_contains_02() {
 #[test_case("(a.#invalid)" => false; "invalid")]
 fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod parenthesized_expression {
     use super::*;
@@ -2227,7 +2227,7 @@ fn template_middle_list_test_contains_05() {
 #[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
 fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod template_middle_list {
     use super::*;
@@ -2323,7 +2323,7 @@ fn template_spans_test_contains_03() {
 #[test_case("}${a.#invalid}`" => false; "invalid")]
 fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod template_spans {
     use super::*;
@@ -2406,7 +2406,7 @@ fn substitution_template_test_contains_03() {
 #[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
 fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod substitution_template {
     use super::*;
@@ -2506,7 +2506,7 @@ fn template_literal_test_contains_03() {
 #[test_case("`${a.#invalid}`" => false; "sub invalid")]
 fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod template_literal {
     use super::*;

@@ -121,7 +121,7 @@ fn function_declaration_test_contains_01() {
 #[test_case("function a(b){c.#invalid;}" => false; "Body invalid")]
 fn function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod function_declaration {
     use super::*;
@@ -238,7 +238,7 @@ fn function_expression_test_contains_01() {
 #[test_case("function a(b){c.#invalid;}" => false; "Body invalid")]
 fn function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod function_expression {
     use super::*;
@@ -305,7 +305,7 @@ fn function_body_test_contains_02() {
 #[test_case("a.#invalid;" => false; "Statement invalid")]
 fn function_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("'one'; 'two'; 'three'; blue;" => vec![JSString::from("one"), JSString::from("two"), JSString::from("three")]; "normal")]
 fn function_body_test_directive_prologue(src: &str) -> Vec<JSString> {
@@ -397,7 +397,7 @@ fn function_statement_list_test_contains_03() {
 #[test_case("a.#invalid;" => false; "statement invalid")]
 fn function_statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true);
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("" => Vec::<StringToken>::new(); "empty")]
 #[test_case("\"use strict\";" => vec![StringToken { value: JSString::from("use strict"), delimiter: StringDelimiter::Double, raw: None }]; "list")]

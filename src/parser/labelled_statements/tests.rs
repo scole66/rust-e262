@@ -116,7 +116,7 @@ fn labelled_statement_test_lexically_declared_names(src: &str) -> Vec<JSString> 
 #[test_case("a: b.#invalid;" => false; "invalid")]
 fn labelled_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod labelled_statement {
     use super::*;
@@ -281,7 +281,7 @@ fn labelled_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
 #[test_case("function a(){b.#invalid;}" => false; "fcn invalid")]
 fn labelled_item_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 mod labelled_item {

@@ -48,7 +48,7 @@ fn unique_formal_parameters_test_contains_02() {
 #[test_case("a=b.#invalid" => false; "invalid")]
 fn unique_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod unique_formal_parameters {
     use super::*;
@@ -227,7 +227,7 @@ fn formal_parameters_test_contains_10() {
 #[test_case("a,...{b=c.#invalid}" => false; "fpl-frp: frp invalid")]
 fn formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FormalParameters::parse(&mut newparser(src), Scanner::new(), true, true);
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("" => true; "empty")]
 #[test_case("...a" => false; "rest only")]
@@ -344,7 +344,7 @@ fn formal_parameter_list_test_contains_05() {
 #[test_case("a,b=c.#invalid" => false; "list tail invalid")]
 fn formal_parameter_list_test_all_parameters_valid(src: &str) -> bool {
     let (item, _) = FormalParameterList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "item simple")]
 #[test_case("a=0" => false; "item complex")]
@@ -412,7 +412,7 @@ fn function_rest_parameter_test_contains_02() {
 #[test_case("...{a=b.#invalid}" => false; "invalid")]
 fn function_rest_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FunctionRestParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("...a" => vec![JSString::from("a")]; "simple")]
 fn function_rest_parameter_test_bound_names(src: &str) -> Vec<JSString> {
@@ -477,7 +477,7 @@ fn formal_parameter_test_contains_02() {
 #[test_case("a=b.#invalid" => false; "invalid")]
 fn formal_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = FormalParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "simple")]
 #[test_case("[a]" => false; "complex")]

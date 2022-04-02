@@ -90,7 +90,7 @@ fn arrow_function_test_contains_09() {
 #[test_case("x => x.#invalid" => false; "Body invalid")]
 fn arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowFunction::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn arrow_parameters_test_contains_03() {
 #[test_case("(a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
 fn arrow_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -260,7 +260,7 @@ fn concise_body_test_contains_04() {
 #[test_case("{ item.#invalid }" => false; "FunctionBody invalid")]
 fn concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn expression_body_test_contains_02() {
 #[test_case("item.#invalid" => false; "ExpressionBody invalid")]
 fn expression_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ExpressionBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
@@ -373,7 +373,7 @@ fn arrow_formal_parameters_test_contains_02() {
 #[test_case("(a=item.#invalid)" => false; "UniqueFormalParameters invalid")]
 fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]

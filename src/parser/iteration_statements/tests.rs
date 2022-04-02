@@ -222,7 +222,7 @@ fn iteration_statement_test_contains_undefined_continue_target(src: &str) -> (bo
 #[test_case("for (a in b.#invalid) ;" => false; "ForInOf invalid")]
 fn iteration_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod iteration_statement {
     use super::*;
@@ -334,7 +334,7 @@ fn do_while_statement_test_contains_undefined_continue_target(src: &str) -> (boo
 #[test_case("do ; while(a.#invalid);" => false; "cond invalid")]
 fn do_while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod do_while_statement {
     use super::*;
@@ -431,7 +431,7 @@ fn while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, 
 #[test_case("while (1) a.#invalid;" => false; "stmt invalid")]
 fn while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod while_statement {
     use super::*;
@@ -1071,7 +1071,7 @@ fn for_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bo
 #[test_case("for (let i=a;;) a.#invalid;" => false; "let xx stmt invalid")]
 fn for_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod for_statement {
     use super::*;
@@ -1683,7 +1683,7 @@ mod for_in_of_statement {
     #[test_case("for await (let [a=b] of c) x.#invalid;" => false; "awaitlet stmt invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
     #[test]
     fn debug() {
@@ -1888,7 +1888,7 @@ fn for_declaration_test_contains_02() {
 #[test_case("let [a=b.#invalid]" => false; "invalid")]
 fn for_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod for_declaration {
     use super::*;
@@ -1987,7 +1987,7 @@ fn for_binding_test_contains_03() {
 #[test_case("[a=b.#invalid]" => false; "pattern invalid")]
 fn for_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ForBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod for_binding {
     use super::*;

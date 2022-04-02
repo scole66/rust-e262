@@ -175,7 +175,7 @@ fn if_statement_test_contains_undefined_continue_target(src: &str) -> (bool, boo
 #[test_case("if(a){}else{b.#invalid;}" => false; "else falsey invalid")]
 fn if_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod if_statement {
     use super::*;

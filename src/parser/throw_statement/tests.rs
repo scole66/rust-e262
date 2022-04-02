@@ -41,7 +41,7 @@ fn throw_statement_test_contains() {
 #[test_case("throw a.#invalid;" => false; "invalid")]
 fn throw_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ThrowStatement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test_case("throw package;", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]

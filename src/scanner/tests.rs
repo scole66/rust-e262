@@ -1446,7 +1446,7 @@ fn token_display() {
     assert_eq!(format!("{}", Token::TemplateTail(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust"), starting_index: 0, byte_length: 4 })), "rust");
     assert_eq!(format!("{}", Token::RegularExpression(RegularExpressionData { body: String::from("rust"), flags: String::from("ng") })), "/rust/ng");
     assert_eq!(format!("{}", Token::Error(String::from("syntax error"))), "\u{26a0}");
-    assert_eq!(format!("{}", Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None, line: 1, column: 1 })), "#bob");
+    assert_eq!(format!("{}", Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("#bob"), keyword_id: None, line: 1, column: 1 })), "#bob");
 }
 #[test]
 fn token_ne() {
@@ -1581,10 +1581,10 @@ fn private_identifier_01() {
     assert_eq!(scan, Scanner { line: 1, column: 6, start_idx: 5 });
     assert!(matches!(tok, Token::PrivateIdentifier(_)));
     if let Token::PrivateIdentifier(data) = tok {
-        assert_eq!(data.column, 2);
+        assert_eq!(data.column, 1);
         assert_eq!(data.keyword_id, None);
         assert_eq!(data.line, 1);
-        assert_eq!(data.string_value, JSString::from("bobo"));
+        assert_eq!(data.string_value, JSString::from("#bobo"));
     }
 }
 #[test]

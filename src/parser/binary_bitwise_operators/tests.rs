@@ -91,7 +91,7 @@ fn bitwise_and_expression_test_as_string_literal(src: &str) -> Option<JSString> 
 #[test_case("0 & item.#invalid" => false; "Right invalid")]
 fn bitwise_and_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod bitwise_and_expression {
     use super::*;
@@ -200,7 +200,7 @@ fn bitwise_xor_expression_test_as_string_literal(src: &str) -> Option<JSString> 
 #[test_case("0 ^ item.#invalid" => false; "Right invalid")]
 fn bitwise_xor_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod bitwise_xor_expression {
     use super::*;
@@ -317,7 +317,7 @@ fn bitwise_or_expression_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("0 | item.#invalid" => false; "Right invalid")]
 fn bitwise_or_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod bitwise_or_expression {
     use super::*;

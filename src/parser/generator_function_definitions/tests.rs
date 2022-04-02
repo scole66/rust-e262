@@ -80,7 +80,7 @@ fn generator_method_test_computed_property_contains_02() {
 #[test]
 fn generator_method_test_private_bound_identifiers() {
     let (item, _) = GeneratorMethod::parse(&mut newparser("*#PRIVATE(x=0){0;}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("PRIVATE")]);
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#PRIVATE")]);
 }
 #[test_case("*[a.#valid](){}" => true; "name valid")]
 #[test_case("*a(b=c.#valid){}" => true; "params valid")]
@@ -90,7 +90,7 @@ fn generator_method_test_private_bound_identifiers() {
 #[test_case("*a(){b.#invalid;}" => false; "body invalid")]
 fn generator_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod generator_method {
     use super::*;
@@ -223,7 +223,7 @@ fn generator_declaration_test_contains_01() {
 #[test_case("function *a(){b.#invalid;}" => false; "body invalid")]
 fn generator_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod generator_declaration {
     use super::*;
@@ -324,7 +324,7 @@ fn generator_expression_test_contains_01() {
 #[test_case("function *a(){b.#invalid;}" => false; "body invalid")]
 fn generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod generator_expression {
     use super::*;
@@ -376,7 +376,7 @@ fn generator_body_test_contains_02() {
 #[test_case("a.#invalid" => false; "invalid")]
 fn generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = GeneratorBody::parse(&mut newparser(src), Scanner::new());
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod generator_body {
     use super::*;
@@ -508,7 +508,7 @@ fn yield_expression_test_contains_05() {
 #[test_case("yield *a.#invalid" => false; "from invalid")]
 fn yield_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = YieldExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod yield_expression {
     use super::*;

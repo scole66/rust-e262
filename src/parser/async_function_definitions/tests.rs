@@ -134,7 +134,7 @@ fn async_function_declaration_test_bound_names_02() {
 #[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
 fn async_function_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn async_function_expression_test_contains_02() {
 #[test_case("async function x(arg) { arg.#invalid(); }" => false; "Body invalid")]
 fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
@@ -366,7 +366,7 @@ fn async_method_test_computed_property_contains_02() {
 #[test]
 fn async_method_test_private_bound_identifiers() {
     let (item, _) = AsyncMethod::parse(&mut newparser("async #blue() {}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("blue")]);
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#blue")]);
 }
 #[test_case("async [item.#valid](){}" => true; "ElementName valid")]
 #[test_case("async bob(arg=item.#valid){}" => true; "Params valid")]
@@ -376,7 +376,7 @@ fn async_method_test_private_bound_identifiers() {
 #[test_case("async bob(arg){item.#invalid;}" => false; "Body invalid")]
 fn async_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod async_method {
     use super::*;
@@ -454,7 +454,7 @@ fn async_function_body_test_contains_02() {
 #[test_case("item.#invalid;" => false; "FunctionBody invalid")]
 fn async_function_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("0;" => false; "not strict")]
 #[test_case("'use strict';" => true; "strict")]
@@ -514,7 +514,7 @@ fn await_expression_test_contains_02() {
 #[test_case("await item.#invalid" => false; "Expression invalid")]
 fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]

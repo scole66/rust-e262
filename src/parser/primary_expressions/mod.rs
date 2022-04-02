@@ -1164,7 +1164,7 @@ impl PrettyPrint for LiteralPropertyName {
     {
         match self {
             LiteralPropertyName::IdentifierName(id) => pprint_token(writer, id, TokenType::IdentifierName, pad, state),
-            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{}", s), TokenType::String, pad, state),
+            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, s, TokenType::String, pad, state),
             LiteralPropertyName::NumericLiteral(n) => pprint_token(writer, n, TokenType::Numeric, pad, state),
         }
     }

@@ -379,7 +379,7 @@ fn scan_for_identifiername_02() {
 fn scan_for_private_identifier_01() {
     let (id, after) = scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
-    assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 2 });
+    assert_eq!(id, IdentifierData { string_value: JSString::from("#rust"), keyword_id: None, line: 1, column: 1 });
 }
 #[test]
 fn scan_for_private_identifier_02() {

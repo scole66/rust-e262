@@ -87,7 +87,7 @@ fn with_statement_test_contains_undefined_continue_target(src: &str) -> (bool, b
 #[test_case("with (a) {a.#invalid}" => false; "Statement invalid")]
 fn with_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = WithStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod with_statement {
     use super::*;

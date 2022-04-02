@@ -179,7 +179,7 @@ fn shift_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("a >>> item.#invalid" => false; "UnsignedRightShift Right invalid")]
 fn shift_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod shift_expression {
     use super::*;

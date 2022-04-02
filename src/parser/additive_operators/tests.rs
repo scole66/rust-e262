@@ -132,7 +132,7 @@ fn additive_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("item.#valid" => true; "Fallthru: valid")]
 fn additive_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AdditiveExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 mod additive_expression {

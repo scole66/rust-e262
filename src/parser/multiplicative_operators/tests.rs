@@ -168,7 +168,7 @@ fn multiplicative_expression_test_as_string_literal(src: &str) -> Option<String>
 #[test_case("a * item.#invalid" => false; "Right invalid")]
 fn multiplicative_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod multiplicative_expression {
     use super::*;

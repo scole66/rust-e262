@@ -54,14 +54,13 @@ impl fmt::Display for MemberExpression {
             MemberExpressionKind::Expression(me, exp) => {
                 write!(f, "{} [ {} ]", me, exp)
             }
-            MemberExpressionKind::IdentifierName(me, id) => {
+            MemberExpressionKind::IdentifierName(me, id) | MemberExpressionKind::PrivateId(me, id) => {
                 write!(f, "{} . {}", me, id)
             }
             MemberExpressionKind::TemplateLiteral(me, tl) => write!(f, "{} {}", me, tl),
             MemberExpressionKind::SuperProperty(boxed) => write!(f, "{}", boxed),
             MemberExpressionKind::MetaProperty(boxed) => write!(f, "{}", boxed),
             MemberExpressionKind::NewArguments(me, args) => write!(f, "new {} {}", me, args),
-            MemberExpressionKind::PrivateId(me, id) => write!(f, "{} . #{}", me, id),
         }
     }
 }
@@ -122,7 +121,7 @@ impl PrettyPrint for MemberExpression {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::Final)
+                pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
             MemberExpressionKind::TemplateLiteral(me, tl) => {
                 let successive = head(pad, state)?;
@@ -1221,9 +1220,8 @@ impl fmt::Display for CallExpression {
             CallExpressionKind::ImportCall(boxed) => write!(f, "{}", boxed),
             CallExpressionKind::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
             CallExpressionKind::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
-            CallExpressionKind::CallExpressionIdentifierName(ce, int) => write!(f, "{} . {}", ce, int),
+            CallExpressionKind::CallExpressionIdentifierName(ce, id) | CallExpressionKind::CallExpressionPrivateId(ce, id) => write!(f, "{} . {}", ce, id),
             CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
-            CallExpressionKind::CallExpressionPrivateId(ce, id) => write!(f, "{} . #{}", ce, id),
         }
     }
 }
@@ -1291,7 +1289,7 @@ impl PrettyPrint for CallExpression {
             CallExpressionKind::CallExpressionPrivateId(ce, id) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::Final)
+                pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
         }
     }
@@ -1742,14 +1740,12 @@ impl fmt::Display for OptionalChain {
         match self {
             OptionalChain::Args(node) => write!(f, "?. {}", node),
             OptionalChain::Exp(node) => write!(f, "?. [ {} ]", node),
-            OptionalChain::Ident(node) => write!(f, "?. {}", node),
+            OptionalChain::Ident(node) | OptionalChain::PrivateId(node) => write!(f, "?. {}", node),
             OptionalChain::Template(node) => write!(f, "?. {}", node),
-            OptionalChain::PrivateId(node) => write!(f, "?. #{}", node),
             OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
             OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),
-            OptionalChain::PlusIdent(lst, item) => write!(f, "{} . {}", lst, item),
+            OptionalChain::PlusIdent(lst, item) | OptionalChain::PlusPrivateId(lst, item) => write!(f, "{} . {}", lst, item),
             OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
-            OptionalChain::PlusPrivateId(lst, item) => write!(f, "{} . #{}", lst, item),
         }
     }
 }
@@ -1766,7 +1762,7 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Ident(node) => pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final),
             OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::PrivateId(node) => pprint_token(writer, format!("#{}", node), TokenType::PrivateIdentifier, &successive, Spot::Final),
+            OptionalChain::PrivateId(node) => pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final),
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1785,7 +1781,7 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::PlusPrivateId(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, format!("#{}", item), TokenType::PrivateIdentifier, &successive, Spot::Final)
+                pprint_token(writer, item, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
         }
     }
@@ -1817,7 +1813,7 @@ impl PrettyPrint for OptionalChain {
             }
             OptionalChain::PrivateId(node) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, format!("#{}", node), TokenType::PrivateIdentifier, &successive, Spot::Final)
+                pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
             OptionalChain::PlusArgs(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1841,7 +1837,7 @@ impl PrettyPrint for OptionalChain {
             OptionalChain::PlusPrivateId(lst, item) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                pprint_token(writer, format!("#{}", item), TokenType::PrivateIdentifier, &successive, Spot::Final)
+                pprint_token(writer, item, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
         }
     }

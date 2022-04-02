@@ -98,7 +98,7 @@ fn async_generator_method_test_comptued_property_contains_04() {
 #[test]
 fn async_generator_method_test_private_bound_identifiers() {
     let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * #private() { return; }"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("private")]);
+    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#private")]);
 }
 #[test_case("async *[item.#valid](){}" => true; "Name valid")]
 #[test_case("async *a(arg=item.#valid){}" => true; "Params valid")]
@@ -108,7 +108,7 @@ fn async_generator_method_test_private_bound_identifiers() {
 #[test_case("async *a(arg){arg.#invalid;}" => false; "Body invalid")]
 fn async_generator_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncGeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod async_generator_method {
     use super::*;
@@ -260,7 +260,7 @@ fn async_generator_declaration_test_bound_names_02() {
 #[test_case("async function *f(arg){item.#invalid;}" => false; "Body invalid")]
 fn async_generator_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 mod async_generator_declaration {
@@ -379,7 +379,7 @@ fn async_generator_expresion_test_contains_02() {
 #[test_case("async function *f(arg){item.#invalid;}" => false; "Body invalid")]
 fn async_generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncGeneratorExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod async_generator_expression {
     use super::*;
@@ -431,7 +431,7 @@ fn async_generator_body_test_contains_02() {
 #[test_case("item.#invalid;" => false; "StatementList invalid")]
 fn async_generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncGeneratorBody::parse(&mut newparser(src), Scanner::new());
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod async_generator_body {
     use super::*;
