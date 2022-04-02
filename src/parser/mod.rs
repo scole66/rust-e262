@@ -467,6 +467,12 @@ impl ParseError {
 
         location_left.cmp(&location_right)
     }
+    #[cfg(test)]
+    pub fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
+        let expected_loc = loc.into();
+        let spot = self.location.starting_column as i32 - expected_loc.starting_column as i32;
+        (self.code.clone(), spot)
+    }
 }
 
 ////

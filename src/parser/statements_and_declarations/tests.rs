@@ -484,7 +484,7 @@ mod statement {
     #[test_case(";", true, false => set(&[]); "EmptyStatement")]
     #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
     #[test_case("if (package);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "IfStatement")]
-    #[test_case("for(package=0;;);", true, false => panics "not yet implemented"; "BreakableStatement")]
+    #[test_case("for(package=0;;);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakableStatement")]
     #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
     #[test_case("break package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]
     #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
@@ -858,12 +858,12 @@ mod breakable_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("while(package);", true => panics "not yet implemented"; "IterationStatement")]
+    #[test_case("while(package);", true => set(&[PACKAGE_NOT_ALLOWED]); "IterationStatement")]
     #[test_case("switch(package){}", true => set(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
