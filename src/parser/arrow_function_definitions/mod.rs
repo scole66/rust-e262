@@ -73,9 +73,33 @@ impl ArrowFunction {
         self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  ArrowFunction : ArrowParameters => ConciseBody
+        //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
+        //  * It is a Syntax Error if ArrowParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if ConciseBodyContainsUseStrict of ConciseBody is true and IsSimpleParameterList of
+        //    ArrowParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of ArrowParameters also occurs in the
+        //    LexicallyDeclaredNames of ConciseBody.
+        if self.parameters.contains(ParseNodeKind::YieldExpression) {
+            errs.push(create_syntax_error_object(agent, "Illegal yield expression in arrow function parameters"));
+        }
+        if self.parameters.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(agent, "Illegal await expression in arrow function parameters"));
+        }
+        if self.body.concise_body_contains_use_strict() && !self.parameters.is_simple_parameter_list() {
+            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        }
+        let bn = self.parameters.bound_names();
+        let ldn = self.body.lexically_declared_names();
+        for name in bn.iter.filter(|n| ldn.contains(n)) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+
+        let strict_function = strict || self.body.concise_body_contains_use_strict();
+        self.parameters.early_errors(agent, errs, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
@@ -166,9 +190,11 @@ impl ArrowParameters {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
+            ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -240,9 +266,8 @@ impl ArrowFormalParameters {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -336,9 +361,11 @@ impl ConciseBody {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
+            ConciseBody::Function(fb) => fb.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -406,9 +433,8 @@ impl ExpressionBody {
         self.expression.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.expression.early_errors(agent, errs, strict);
     }
 }
 
