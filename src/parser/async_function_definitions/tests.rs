@@ -397,17 +397,14 @@ fn async_method_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod async_method {
     use super::*;
-    mod has_direct_super {
-        use super::*;
-        use test_case::test_case;
+    use test_case::test_case;
 
-        #[test_case("async a(){}" => false; "without")]
-        #[test_case("async a(b=super(0)){}" => true; "params")]
-        #[test_case("async a(){super(-1);}" => true; "body")]
-        fn f(src: &str) -> bool {
-            let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-            item.has_direct_super()
-        }
+    #[test_case("async a(){}" => false; "without")]
+    #[test_case("async a(b=super(0)){}" => true; "params")]
+    #[test_case("async a(){super(-1);}" => true; "body")]
+    fn has_direct_super(src: &str) -> bool {
+        let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.has_direct_super()
     }
 
     #[test]
@@ -415,11 +412,14 @@ mod async_method {
         let (item, _) = AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap();
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
     }
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn async_method_test_early_errors() {
-    AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+
+    #[test_case("async package(interface) { implements; }", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED])*/; "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        AsyncMethod::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 // ASYNC FUNCTION BODY
@@ -484,10 +484,17 @@ fn async_function_body_test_lexically_declared_names(src: &str) -> Vec<JSString>
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
     item.lexically_declared_names()
 }
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn async_function_body_test_early_errors() {
-    AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+mod async_function_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionBody")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        AsyncFunctionBody::parse(&mut strictparser(src, strict), Scanner::new()).0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 // AWAIT EXPRESSION
@@ -533,8 +540,15 @@ fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("valid")])
 }
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn await_expression_test_early_errors() {
-    AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+mod await_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("await package", true => set(&[PACKAGE_NOT_ALLOWED]); "await UnaryExpression")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        AwaitExpression::parse(&mut strictparser(src, strict), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }

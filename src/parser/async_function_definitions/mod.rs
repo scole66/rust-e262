@@ -377,9 +377,21 @@ impl AsyncMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncFunctionBody is true and
+        //    IsSimpleParameterList of UniqueFormalParameters is false.
+        //  * It is a Syntax Error if HasDirectSuper of AsyncMethod is true.
+        //  * It is a Syntax Error if UniqueFormalParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncFunctionBody.
+        todo!();
+
+
+        self.ident.early_errors(agent, errs, strict);
+        self.params.early_errors(agent, errs, strict);
+        self.body.early_errors(agent, errs, strict);
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -465,9 +477,8 @@ impl AsyncFunctionBody {
         self.0.lexically_declared_names()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -532,9 +543,9 @@ impl AwaitExpression {
         boxed.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let AwaitExpression::Await(ue) = self;
+        ue.early_errors(agent, errs, strict);
     }
 }
 
