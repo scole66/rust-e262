@@ -339,7 +339,7 @@ mod function_body {
     #[test_case("var b; var c; let b; let a;", false => set(&[B_ALREADY_LEX]); "var/lex name clash")]
     #[test_case("a:a:a:;", false => set(&[DUP_LABLES]); "duplicate labels")]
     #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
-    #[test_case("while (1) continue a;", false => panics "not yet implemented" /*set(&[UNDEF_CONTINUE])*/; "undefined continue")]
+    #[test_case("while (1) continue a;", false => set(&[UNDEF_CONTINUE]); "undefined continue")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

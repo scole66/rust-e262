@@ -340,7 +340,7 @@ impl Statement {
         match self {
             Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
-            Statement::Breakable(node) => node.early_errors(agent, errs, strict, within_iteration),
+            Statement::Breakable(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
             Statement::Debugger(_) | Statement::Empty(_) => (),
             Statement::Expression(node) => node.early_errors(agent, errs, strict),
@@ -699,9 +699,9 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict),
+            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
             BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),
         }
     }

@@ -51,3 +51,4 @@ pub const CONTINUE_ITER: &str = "Continue statements must lie within iteration s
 pub const DUPLICATE_LEXICAL: &str = "Duplicate lexically declared names";
 pub const LEX_DUPED_BY_VAR: &str = "Name defined both lexically and var-style";
 pub const WITH_NOT_ALLOWED: &str = "'with' statements not allowed in strict mode";
+pub const PRIVATE_NOT_ALLOWED: &str = "‘private’ not allowed as an identifier in strict mode";
