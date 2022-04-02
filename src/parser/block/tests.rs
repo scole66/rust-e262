@@ -79,7 +79,7 @@ fn block_statement_test_contains_undefined_continue_target(src: &str) -> (bool, 
 #[test_case("{item.#invalid;}" => false; "StatementList invalid")]
 fn block_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod block_statement {
     use super::*;
@@ -216,7 +216,7 @@ fn block_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool
 #[test_case("{item.#invalid;}" => false; "StatementList invalid")]
 fn block_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod block {
     use super::*;
@@ -427,7 +427,7 @@ fn statement_list_test_lexically_declared_names(src: &str) -> Vec<JSString> {
 #[test_case("a; item.#invalid;" => false; "Multi second invalid")]
 fn statement_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod statement_list {
     use super::*;
@@ -621,7 +621,7 @@ fn statement_list_item_test_lexically_declared_names(src: &str) -> Vec<JSString>
 #[test_case("const a=item.#invalid;" => false; "Declaration invalid")]
 fn statement_list_item_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod statement_list_item {
     use super::*;

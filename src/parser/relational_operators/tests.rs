@@ -344,7 +344,7 @@ fn relational_expression_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("#other in a.#invalid" => false; "privateid: expr invalid")]
 fn relational_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("other"), JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#other"), JSString::from("#valid")])
 }
 mod relational_expression {
     use super::*;

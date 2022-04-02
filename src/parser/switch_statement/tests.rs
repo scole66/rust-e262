@@ -69,7 +69,7 @@ fn switch_statement_test_contains_undefined_continue_target(src: &str) -> (bool,
 #[test_case("switch (a) {default: b.#invalid;}" => false; "CaseBlock invalid")]
 fn switch_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SwitchStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod switch_statement {
     use super::*;
@@ -268,7 +268,7 @@ fn case_block_test_contains_undefined_continue_target(src: &str) -> (bool, bool)
 #[test_case("{ default:a.#invalid; }" => false; "d invalid")]
 fn case_block_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod case_block {
     use super::*;
@@ -387,7 +387,7 @@ fn case_clauses_test_contains_undefined_continue_target(src: &str) -> (bool, boo
 #[test_case("case 1: ; case 2: a.#invalid;" => false; "multi second invalid")]
 fn case_clauses_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod case_clauses {
     use super::*;
@@ -499,7 +499,7 @@ fn case_clause_test_contains_undefined_continue_target(src: &str) -> (bool, bool
 #[test_case("case a: b.#invalid;" => false; "Statement invalid")]
 fn case_clause_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod case_clause {
     use super::*;
@@ -604,7 +604,7 @@ fn default_clause_test_contains_undefined_continue_target(src: &str) -> (bool, b
 #[test_case("default: a.#invalid;" => false; "statement invalid")]
 fn default_clause_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod default_clause {
     use super::*;

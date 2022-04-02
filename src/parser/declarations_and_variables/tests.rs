@@ -76,7 +76,7 @@ fn lexical_declaration_test_contains_01() {
 #[test_case("let a=item.#invalid;" => false; "invalid")]
 fn lexical_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod lexical_declaration {
     use super::*;
@@ -196,7 +196,7 @@ fn binding_list_test_contains_02() {
 #[test_case("a, b=item.#invalid" => false; "multi second invalid")]
 fn binding_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_list {
     use super::*;
@@ -298,7 +298,7 @@ fn lexical_binding_test_contains_05() {
 #[test_case("[a]=[item.#invalid]" => false; "pattern init invalid")]
 fn lexical_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod lexical_binding {
     use super::*;
@@ -371,7 +371,7 @@ fn variable_statement_test_contains_02() {
 #[test_case("var a=item.#invalid;" => false; "invalid")]
 fn variable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_statement {
     use super::*;
@@ -464,7 +464,7 @@ fn variable_declaration_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "multi last invalid")]
 fn variable_declaration_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_declaration_list {
     use super::*;
@@ -571,7 +571,7 @@ fn variable_declaration_test_contains_06() {
 #[test_case("[a]=[item.#invalid]" => false; "pattern izer invalid")]
 fn variable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_declaration {
     use super::*;
@@ -659,7 +659,7 @@ fn binding_pattern_test_contains_04() {
 #[test_case("[a=item.#invalid]" => false; "ABP invalid")]
 fn binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_pattern {
     use super::*;
@@ -830,7 +830,7 @@ fn object_binding_pattern_test_contains_08() {
 #[test_case("{a=item.#invalid,...b}" => false; "BindingListRest invalid")]
 fn object_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod object_binding_pattern {
     use super::*;
@@ -1118,7 +1118,7 @@ fn array_binding_pattern_test_contains_18() {
 #[test_case("[a,,...[b=item.#invalid]]" => false; "ElementERest rest invalid")]
 fn array_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod array_binding_pattern {
     use super::*;
@@ -1272,7 +1272,7 @@ fn binding_property_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
 fn binding_property_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_property_list {
     use super::*;
@@ -1369,7 +1369,7 @@ fn binding_element_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
 fn binding_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_element_list {
     use super::*;
@@ -1443,7 +1443,7 @@ fn binding_elision_element_test_contains_04() {
 #[test_case(",a=item.#invalid" => false; "Commas invalid")]
 fn binding_elision_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_elision_element {
     use super::*;
@@ -1540,7 +1540,7 @@ fn binding_property_test_contains_05() {
 #[test_case("[item.#invalid]:b" => false; "Name invalid")]
 fn binding_property_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_property {
     use super::*;
@@ -1657,7 +1657,7 @@ fn binding_element_test_contains_07() {
 #[test_case("[a]=[item.#invalid]" => false; "Izer invalid")]
 fn binding_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "Single simple")]
 #[test_case("a=3" => false; "Single complex")]
@@ -1747,7 +1747,7 @@ fn single_name_binding_test_contains_03() {
 #[test_case("a=item.#invalid" => false; "Izer invalid")]
 fn single_name_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "Name only")]
 #[test_case("a=0" => false; "Has Initializer")]
@@ -1838,7 +1838,7 @@ fn binding_rest_element_test_contains_03() {
 #[test_case("...[a=item.#invalid]" => false; "Pattern invalid")]
 fn binding_rest_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_rest_element {
     use super::*;

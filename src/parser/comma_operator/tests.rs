@@ -100,7 +100,7 @@ fn expression_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("a, item.#invalid" => false; "Right invalid")]
 fn expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod expression {
     use super::*;

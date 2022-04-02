@@ -73,6 +73,12 @@ impl From<JSString> for String {
     }
 }
 
+impl From<JSString> for Vec<u16> {
+    fn from(source: JSString) -> Self {
+        source.s.to_vec()
+    }
+}
+
 impl fmt::Display for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         String::from_utf16_lossy(&self.s).fmt(f)

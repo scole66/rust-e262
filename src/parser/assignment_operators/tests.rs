@@ -567,7 +567,7 @@ mod assignment_expression {
     #[test_case("[a=item.#invalid]=[0]" => false; "Destructuring/Left invalid")]
     fn assignment_expression_test_all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
@@ -731,7 +731,7 @@ mod assignment_pattern {
     #[test_case("[a=b.#invalid]" => false; "ArrayAssignmentPattern: invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("{package}", true => set(&[PACKAGE_NOT_ALLOWED]); "ObjectAssignmentPattern")]
@@ -839,7 +839,7 @@ mod object_assignment_pattern {
     #[test_case("{[a]:b,...c.#invalid}" => false; "{ AssignmentPropertyList , AssignmentRestProperty }: invalid Rest")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("{}", true => AHashSet::<String>::new(); "empty")]
@@ -994,7 +994,7 @@ mod array_assignment_pattern {
     #[test_case("[a,,...b.#invalid]" => false; "[ AssignmentElementList , Elision AssignmentRestElement ]: rest invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("[]", true => AHashSet::<String>::new(); "empty")]
@@ -1060,7 +1060,7 @@ mod assignment_rest_property {
     #[test_case("...item.#invalid" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
@@ -1132,7 +1132,7 @@ mod assignment_property_list {
     #[test_case("a,[b.#invalid]:q" => false; "AssignmentPropertyList , AssignmentProperty: AssignmentProperty invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentProperty")]
@@ -1204,7 +1204,7 @@ mod assignment_element_list {
     #[test_case("a,b.#invalid" => false; "AssignmentElementList , AssignmentElisionElement: AssignmentElisionElement invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElisionElement")]
@@ -1273,7 +1273,7 @@ mod assignment_elision_element {
     #[test_case(",a.#invalid" => false; "Elision AssignmentElement: AssignmentElement invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentElement")]
@@ -1356,7 +1356,7 @@ mod assignment_property {
     #[test_case("a:b.#invalid" => false; "PropertyName : AssignmentElement: AssignmentElement invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("eval", true => set(&["Identifier eval is an invalid left-hand-side"]); "IdentifierReference (eval)")]
@@ -1430,7 +1430,7 @@ mod assignment_element {
     #[test_case("a=item.#invalid" => false; "init; init invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "DestructuringAssignmentTarget")]
@@ -1486,7 +1486,7 @@ mod assignment_rest_element {
     #[test_case("...item.#invalid" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... DestructuringAssignmentTarget")]
@@ -1554,7 +1554,7 @@ mod destructuring_assignment_target {
     #[test_case("{[a.#invalid]:b}" => false; "pattern invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]

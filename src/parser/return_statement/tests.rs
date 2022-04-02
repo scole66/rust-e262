@@ -90,7 +90,7 @@ fn return_statement_test_contains_03() {
 #[test_case("return a.#invalid;" => false; "expression invalid")]
 fn return_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ReturnStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod return_statement {
     use super::*;

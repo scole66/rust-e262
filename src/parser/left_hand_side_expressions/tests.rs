@@ -324,7 +324,7 @@ fn member_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("a.#valid.#invalid2" => false; "me invalid private2")]
 fn member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("valid2")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#valid2")])
 }
 
 #[test_case("[]" => true; "array literal")]
@@ -465,7 +465,7 @@ fn super_property_test_contains_03() {
 #[test_case("super[a.#invalid]" => false; "expression invalid")]
 fn super_property_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SuperProperty::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod super_property {
     use super::*;
@@ -678,7 +678,7 @@ fn arguments_test_contains_05() {
 #[test_case("(a=b.#invalid,)" => false; "comma invalid")]
 fn arguments_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Arguments::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod arguments {
     use super::*;
@@ -856,7 +856,7 @@ fn argument_list_test_contains_10() {
 #[test_case("a,...b.#invalid" => false; "dotlist rgt invalid")]
 fn argument_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArgumentList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod argument_list {
     use super::*;
@@ -970,7 +970,7 @@ fn new_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("new a.#invalid" => false; "new invalid")]
 fn new_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test_case("{}" => true; "ObjectLiteral")]
@@ -1048,7 +1048,7 @@ fn call_member_expression_test_contains_03() {
 #[test_case("a(b.#invalid)" => false; "Arguments invalid")]
 fn call_member_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod call_member_expression {
     use super::*;
@@ -1108,7 +1108,7 @@ fn super_call_test_contains_02() {
 #[test_case("super(a.#invalid)" => false; "invalid")]
 fn super_call_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SuperCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod super_call {
     use super::*;
@@ -1172,7 +1172,7 @@ fn import_call_test_contains_02() {
 #[test_case("import(a.#invalid)" => false; "invalid")]
 fn import_call_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ImportCall::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod import_call {
     use super::*;
@@ -1494,7 +1494,7 @@ fn call_expression_test_contains_18() {
 #[test_case("a(b.#valid).#nonsense" => false; "CallExpression . PrivateIdentifier pi invalid")]
 fn call_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CallExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
 }
 mod call_expression {
     use super::*;
@@ -1660,7 +1660,7 @@ fn optional_expression_test_contains_09() {
 #[test_case("a?.(b)?.(c.#invalid)" => false; "OptionalExpression OptionalChain oc invalid")]
 fn optional_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = OptionalExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("other")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#other")])
 }
 mod optional_expression {
     use super::*;
@@ -2048,7 +2048,7 @@ fn optional_chain_test_contains_21() {
 #[test_case("?.[a.#valid].#invalid" => false; "OptionalChain . PrivateIdentifier pi invalid")]
 fn optional_chain_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = OptionalChain::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid"), JSString::from("alsovalid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid"), JSString::from("#alsovalid")])
 }
 mod optional_chain {
     use super::*;
@@ -2199,7 +2199,7 @@ fn left_hand_side_expression_test_as_string_literal(src: &str) -> Option<String>
 #[test_case("a?.[b.#invalid]" => false; "OptionalExpression invalid")]
 fn left_hand_side_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test_case("{}" => true; "ObjectLiteral")]

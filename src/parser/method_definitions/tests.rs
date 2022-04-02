@@ -378,12 +378,12 @@ fn method_definition_test_computed_property_contains_12() {
     let (item, _) = MethodDefinition::parse(&mut newparser("set [0](b){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
 }
-#[test_case("#standard_method(){}" => vec![JSString::from("standard_method")]; "Standard Method")]
-#[test_case("*#generator(){}" => vec![JSString::from("generator")]; "Generator")]
-#[test_case("async #async_method(){}" => vec![JSString::from("async_method")]; "Async Method")]
-#[test_case("async *#async_gen(){}" => vec![JSString::from("async_gen")]; "Async Generator")]
-#[test_case("get #getter(){}" => vec![JSString::from("getter")]; "Getter")]
-#[test_case("set #setter(val){}" => vec![JSString::from("setter")]; "Setter")]
+#[test_case("#standard_method(){}" => vec![JSString::from("#standard_method")]; "Standard Method")]
+#[test_case("*#generator(){}" => vec![JSString::from("#generator")]; "Generator")]
+#[test_case("async #async_method(){}" => vec![JSString::from("#async_method")]; "Async Method")]
+#[test_case("async *#async_gen(){}" => vec![JSString::from("#async_gen")]; "Async Generator")]
+#[test_case("get #getter(){}" => vec![JSString::from("#getter")]; "Getter")]
+#[test_case("set #setter(val){}" => vec![JSString::from("#setter")]; "Setter")]
 fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
     let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
     item.private_bound_identifiers()
@@ -402,7 +402,7 @@ fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> 
 #[test_case("set a(b){c.#invalid;}" => false; "setter invalid")]
 fn method_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 mod method_definition {
@@ -482,7 +482,7 @@ mod property_set_parameter_list {
     #[test_case("a=b.#invalid" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test]

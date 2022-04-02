@@ -474,7 +474,7 @@ fn statement_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("a.#invalid;" => false; "expression invalid")]
 fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod statement {
     use super::*;
@@ -596,7 +596,7 @@ fn declaration_test_contains() {
 #[test_case("let a=b.#invalid;" => false; "LexicalDeclaration invalid")]
 fn declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod declaration {
     use super::*;
@@ -734,7 +734,7 @@ fn hoistable_declaration_test_contains() {
 #[test_case("async function *a(b){b.#invalid;}" => false; "async generator invalid")]
 fn hoistable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod hoistable_declaration {
     use super::*;
@@ -852,7 +852,7 @@ fn breakable_statement_test_contains_undefined_continue_target(src: &str) -> (bo
 #[test_case("switch(a.#invalid){}" => false; "switch statement invalid")]
 fn breakable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod breakable_statement {
     use super::*;

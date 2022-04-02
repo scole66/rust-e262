@@ -149,7 +149,7 @@ fn async_arrow_function_test_contains_10() {
 #[test_case("async (a,b) => a.#invalid - b" => false; "WithParams AsyncConciseBody invalid")]
 fn async_arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncArrowFunction::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn async_concise_body_test_contains_04() {
 #[test_case("{ return item.#invalid; }" => false; "Function invalid")]
 fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn async_arrow_head_test_contains_02() {
 #[test_case("async (a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
 fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncArrowHead::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]

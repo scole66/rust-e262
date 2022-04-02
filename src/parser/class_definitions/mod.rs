@@ -817,7 +817,7 @@ impl fmt::Display for ClassElementName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ClassElementName::PropertyName(n) => n.fmt(f),
-            ClassElementName::PrivateIdentifier(n) => write!(f, "#{}", n),
+            ClassElementName::PrivateIdentifier(n) => n.fmt(f),
         }
     }
 }
@@ -831,7 +831,7 @@ impl PrettyPrint for ClassElementName {
         writeln!(writer, "{}ClassElementName: {}", first, self)?;
         match self {
             ClassElementName::PropertyName(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ClassElementName::PrivateIdentifier(n) => pprint_token(writer, format!("#{}", n), TokenType::PrivateIdentifier, &successive, Spot::Final),
+            ClassElementName::PrivateIdentifier(n) => pprint_token(writer, n, TokenType::PrivateIdentifier, &successive, Spot::Final),
         }
     }
 
@@ -841,7 +841,7 @@ impl PrettyPrint for ClassElementName {
     {
         match self {
             ClassElementName::PropertyName(n) => n.concise_with_leftpad(writer, pad, state),
-            ClassElementName::PrivateIdentifier(id) => pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, pad, state),
+            ClassElementName::PrivateIdentifier(id) => pprint_token(writer, id, TokenType::PrivateIdentifier, pad, state),
         }
     }
 }

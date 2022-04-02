@@ -156,7 +156,7 @@ fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bo
 #[test_case("try{} catch{} finally{a.#invalid;}" => false; "tcf: finally invalid")]
 fn try_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod try_statement {
     use super::*;
@@ -273,7 +273,7 @@ fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
 #[test_case("catch{a.#invalid;}" => false; "cb: block invalid")]
 fn catch_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod catch {
     use super::*;
@@ -356,7 +356,7 @@ fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
 #[test_case("finally {a.#invalid;}" => false; "invalid")]
 fn finally_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod finally {
     use super::*;
@@ -435,7 +435,7 @@ fn catch_parameter_test_contains() {
 #[test_case("[a=b.#invalid]" => false; "pattern invalid")]
 fn catch_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod catch_parameter {
     use super::*;

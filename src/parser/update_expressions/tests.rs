@@ -219,7 +219,7 @@ fn update_expression_test_as_string_literal(src: &str) -> Option<String> {
 #[test_case("--item.#invalid" => false; "PreDec invalid")]
 fn update_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod update_expression {
     use super::*;

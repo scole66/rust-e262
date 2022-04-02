@@ -38,7 +38,7 @@ impl fmt::Display for RelationalExpression {
             RelationalExpression::GreaterEqual(re, se) => write!(f, "{} >= {}", re, se),
             RelationalExpression::InstanceOf(re, se) => write!(f, "{} instanceof {}", re, se),
             RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
-            RelationalExpression::PrivateIn(id, se) => write!(f, "#{} in {}", id, se),
+            RelationalExpression::PrivateIn(id, se) => write!(f, "{} in {}", id, se),
         }
     }
 }
@@ -88,7 +88,7 @@ impl PrettyPrint for RelationalExpression {
             RelationalExpression::PrivateIn(id, se) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}RelationalExpression: {}", first, self)?;
-                pprint_token(writer, format!("#{}", id), TokenType::PrivateIdentifier, &successive, Spot::NotFinal)?;
+                pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "in", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
