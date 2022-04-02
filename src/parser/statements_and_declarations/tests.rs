@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -483,21 +483,27 @@ mod statement {
     #[test_case("var package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "VariableStatement")]
     #[test_case(";", true, false => set(&[]); "EmptyStatement")]
     #[test_case("package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionStatement")]
-    #[test_case("if (package);", true, false => panics "not yet implemented"; "IfStatement")]
-    #[test_case("for(package=0;;);", true, false => panics "not yet implemented"; "BreakableStatement")]
+    #[test_case("if (package);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "IfStatement")]
+    #[test_case("for(package=0;;);", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakableStatement")]
     #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "ContinueStatement")]
-    #[test_case("break package;", true, false => panics "not yet implemented"; "BreakStatement")]
+    #[test_case("break package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "BreakStatement")]
     #[test_case("return package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ReturnStatement")]
-    #[test_case("with (package) {}", true, false => panics "not yet implemented"; "WithStatement")]
-    #[test_case("package: implements;", true, false => panics "not yet implemented"; "LabelledStatement")]
+    #[test_case("with (package) {}", true, false => set(&[WITH_NOT_ALLOWED, PACKAGE_NOT_ALLOWED]); "WithStatement")]
+    #[test_case("package: implements;", true, false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "LabelledStatement")]
     #[test_case("throw package;", true, false => set(&[PACKAGE_NOT_ALLOWED]); "ThrowStatement")]
-    #[test_case("try {} catch (package) {}", true, false => panics "not yet implemented"; "TryStatement")]
+    #[test_case("try {} catch (package) {}", true, false => set(&[PACKAGE_NOT_ALLOWED]); "TryStatement")]
     #[test_case("debugger;", true, false => set(&[]); "DebuggerStatement")]
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("bob: function alice(){}" => true; "direct labelled function")]
+    #[test_case("bob;" => false; "not a function")]
+    fn is_labelled_function(src: &str) -> bool {
+        Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
     }
 }
 
@@ -596,7 +602,7 @@ mod declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "HoistableDeclaration")]
+    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "HoistableDeclaration")]
     #[test_case("class package{}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "ClassDeclaration")]
     #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -734,7 +740,7 @@ mod hoistable_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "FunctionDeclaration")]
+    #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "FunctionDeclaration")]
     #[test_case("function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "GeneratorDeclaration")]
     #[test_case("async function package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncFunctionDeclaration")]
     #[test_case("async function *package(){}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "AsyncGeneratorDeclaration")]
@@ -852,12 +858,12 @@ mod breakable_statement {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("while(package);", true => panics "not yet implemented"; "IterationStatement")]
-    #[test_case("switch(package){}", true => panics "not yet implemented"; "SwitchStatement")]
+    #[test_case("while(package);", true => set(&[PACKAGE_NOT_ALLOWED]); "IterationStatement")]
+    #[test_case("switch(package){}", true => set(&[PACKAGE_NOT_ALLOWED]); "SwitchStatement")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

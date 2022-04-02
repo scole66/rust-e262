@@ -48,9 +48,6 @@ impl DebuggerStatement {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
-
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {}
 }
 
 #[cfg(test)]

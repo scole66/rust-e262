@@ -5,6 +5,8 @@ use crate::scanner::StringDelimiter;
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 
+const UNDEF_BREAK: &str = "undefined break target detected";
+
 // SCRIPT
 #[test]
 fn script_test_01() {
@@ -79,7 +81,7 @@ mod script {
     #[test_case("package;" => set(&[]); "non-strict")]
     #[test_case("let x; const x=10;" => set(&[DUPLICATE_LEXICAL]); "lex duplicated")]
     #[test_case("let x; var x=10;" => set(&[LEX_DUPED_BY_VAR]); "lex duped by var")]
-    #[test_case("break a;" => panics "not yet implemented"; "undefined break target")]
+    #[test_case("break a;" => set(&[UNDEF_BREAK]); "undefined break target")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -166,15 +168,15 @@ mod script_body {
 
     const SUPER_DISALLOWED: &str = "`super' not allowed in top-level code";
     const NEWTARG_DISALLOWED: &str = "`new.target` not allowed in top-level code";
-    const UNDEF_BREAK: &str = "undefined break target detected";
+    const DUPLICATE_LABELS: &str = "duplicate labels detected";
 
     #[test_case("super();", false => set(&[SUPER_DISALLOWED]); "disallowed super")]
     #[test_case("super();", true => set(&[]); "allowed super")]
     #[test_case("new.target;", false => set(&[NEWTARG_DISALLOWED]); "disallowed new.target")]
     #[test_case("new.target;", true => set(&[]); "allowed new.target")]
-    #[test_case("break a;", false => panics "not yet implemented"; "undefined break")]
+    #[test_case("break a;", false => set(&[UNDEF_BREAK]); "undefined break")]
     #[test_case(";", false => set(&[]); "empty stmt")]
-    #[test_case("t:{t:;}", false => panics "not yet implemented"; "duplicate labels")]
+    #[test_case("t:{t:;}", false => set(&[DUPLICATE_LABELS]); "duplicate labels")]
     #[test_case("continue bob;", false => set(&[CONTINUE_ITER, "undefined continue target detected"]); "undefined continue")]
     #[test_case("a.#mystery;", false => set(&["invalid private identifier detected"]); "invalid private id")]
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {

@@ -89,7 +89,7 @@ mod block_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -222,6 +222,12 @@ mod block {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("{let a, b, c;}" => vec!["a", "b", "c"]; "not-empty")]
+    #[test_case("{}" => Vec::<String>::new(); "empty")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
     #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
     #[test_case("{}", true => set(&[]); "{ } (empty)")]
     #[test_case("{ let a = 10; const a = 20; }", true => set(&[DUPLICATE_LEXICAL]); "Duplicate lexically declared names")]
@@ -229,7 +235,7 @@ mod block {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -432,7 +438,7 @@ mod statement_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -626,7 +632,7 @@ mod statement_list_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

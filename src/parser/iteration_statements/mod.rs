@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 
-use super::assignment_operators::AssignmentExpression;
+use super::assignment_operators::{AssignmentExpression, AssignmentPattern};
 use super::comma_operator::Expression;
 use super::declarations_and_variables::{BindingPattern, LetOrConst, LexicalDeclaration, VariableDeclarationList};
 use super::identifiers::BindingIdentifier;
@@ -145,9 +145,13 @@ impl IterationStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        match self {
+            IterationStatement::DoWhile(node) => node.early_errors(agent, errs, strict, within_switch),
+            IterationStatement::While(node) => node.early_errors(agent, errs, strict, within_switch),
+            IterationStatement::For(node) => node.early_errors(agent, errs, strict, within_switch),
+            IterationStatement::ForInOf(node) => node.early_errors(agent, errs, strict, within_switch),
+        }
     }
 }
 
@@ -241,9 +245,10 @@ impl DoWhileStatement {
         s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        let DoWhileStatement::Do(s, e) = self;
+        s.early_errors(agent, errs, strict, true, within_switch);
+        e.early_errors(agent, errs, strict);
     }
 }
 
@@ -333,9 +338,10 @@ impl WhileStatement {
         e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        let WhileStatement::While(e, s) = self;
+        e.early_errors(agent, errs, strict);
+        s.early_errors(agent, errs, strict, true, within_switch);
     }
 }
 
@@ -599,9 +605,39 @@ impl ForStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        // Static Semantics: Early Errors
+        if let ForStatement::ForLex(lex, _, _, stmt) = self {
+            // ForStatement : for ( LexicalDeclaration Expression[opt] ; Expression[opt] ) Statement
+            //  * It is a Syntax Error if any element of the BoundNames of LexicalDeclaration also occurs in the VarDeclaredNames of Statement.
+            let vdn = stmt.var_declared_names();
+            let bn = lex.bound_names();
+            for name in bn.iter().filter(|&n| vdn.contains(n)) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+            }
+        }
+
+        let (vdl, lex, exp1, exp2, exp3, stmt) = match self {
+            ForStatement::For(exp1, exp2, exp3, stmt) => (None, None, exp1.as_ref(), exp2.as_ref(), exp3.as_ref(), stmt),
+            ForStatement::ForVar(vdl, exp2, exp3, stmt) => (Some(vdl), None, None, exp2.as_ref(), exp3.as_ref(), stmt),
+            ForStatement::ForLex(lex, exp2, exp3, stmt) => (None, Some(lex), None, exp2.as_ref(), exp3.as_ref(), stmt),
+        };
+        if let Some(vdl) = vdl {
+            vdl.early_errors(agent, errs, strict);
+        }
+        if let Some(lex) = lex {
+            lex.early_errors(agent, errs, strict);
+        }
+        if let Some(exp1) = exp1 {
+            exp1.early_errors(agent, errs, strict);
+        }
+        if let Some(exp2) = exp2 {
+            exp2.early_errors(agent, errs, strict);
+        }
+        if let Some(exp3) = exp3 {
+            exp3.early_errors(agent, errs, strict);
+        }
+        stmt.early_errors(agent, errs, strict, true, within_switch);
     }
 }
 
@@ -618,12 +654,15 @@ impl ForStatement {
 #[derive(Debug)]
 pub enum ForInOfStatement {
     In(Rc<LeftHandSideExpression>, Rc<Expression>, Rc<Statement>),
+    DestructuringIn(Rc<AssignmentPattern>, Rc<Expression>, Rc<Statement>),
     VarIn(Rc<ForBinding>, Rc<Expression>, Rc<Statement>),
     LexIn(Rc<ForDeclaration>, Rc<Expression>, Rc<Statement>),
     Of(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    DestructuringOf(Rc<AssignmentPattern>, Rc<AssignmentExpression>, Rc<Statement>),
     VarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
     LexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
     AwaitOf(Rc<LeftHandSideExpression>, Rc<AssignmentExpression>, Rc<Statement>),
+    DestructuringAwaitOf(Rc<AssignmentPattern>, Rc<AssignmentExpression>, Rc<Statement>),
     AwaitVarOf(Rc<ForBinding>, Rc<AssignmentExpression>, Rc<Statement>),
     AwaitLexOf(Rc<ForDeclaration>, Rc<AssignmentExpression>, Rc<Statement>),
 }
@@ -632,12 +671,15 @@ impl fmt::Display for ForInOfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ForInOfStatement::In(lhs, e, s) => write!(f, "for ( {} in {} ) {}", lhs, e, s),
+            ForInOfStatement::DestructuringIn(pat, e, s) => write!(f, "for ( {} in {} ) {}", pat, e, s),
             ForInOfStatement::VarIn(v, e, s) => write!(f, "for ( var {} in {} ) {}", v, e, s),
             ForInOfStatement::LexIn(lex, e, s) => write!(f, "for ( {} in {} ) {}", lex, e, s),
             ForInOfStatement::Of(lhs, e, s) => write!(f, "for ( {} of {} ) {}", lhs, e, s),
+            ForInOfStatement::DestructuringOf(pat, e, s) => write!(f, "for ( {} of {} ) {}", pat, e, s),
             ForInOfStatement::VarOf(v, e, s) => write!(f, "for ( var {} of {} ) {}", v, e, s),
             ForInOfStatement::LexOf(lex, e, s) => write!(f, "for ( {} of {} ) {}", lex, e, s),
             ForInOfStatement::AwaitOf(lhs, e, s) => write!(f, "for await ( {} of {} ) {}", lhs, e, s),
+            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => write!(f, "for await ( {} of {} ) {}", pat, e, s),
             ForInOfStatement::AwaitVarOf(v, e, s) => write!(f, "for await ( var {} of {} ) {}", v, e, s),
             ForInOfStatement::AwaitLexOf(lex, e, s) => write!(f, "for await ( {} of {} ) {}", lex, e, s),
         }
@@ -653,12 +695,15 @@ impl PrettyPrint for ForInOfStatement {
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
         match self {
             ForInOfStatement::In(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::DestructuringIn(pat, e, s) => pp_three(w, &suc, pat, e, s),
             ForInOfStatement::VarIn(v, e, s) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::LexIn(lex, e, s) => pp_three(w, &suc, lex, e, s),
             ForInOfStatement::Of(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::DestructuringOf(pat, e, s) => pp_three(w, &suc, pat, e, s),
             ForInOfStatement::VarOf(v, e, s) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::LexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
             ForInOfStatement::AwaitOf(lhs, e, s) => pp_three(w, &suc, lhs, e, s),
+            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => pp_three(w, &suc, pat, e, s),
             ForInOfStatement::AwaitVarOf(v, e, s) => pp_three(w, &suc, v, e, s),
             ForInOfStatement::AwaitLexOf(lex, e, s) => pp_three(w, &suc, lex, e, s),
         }
@@ -668,9 +713,11 @@ impl PrettyPrint for ForInOfStatement {
     where
         T: Write,
     {
-        let await_present =
-            matches!(self, ForInOfStatement::AwaitOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitVarOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitLexOf(_, _, _));
-        let var_present = matches!(self, ForInOfStatement::VarIn(_, _, _)) || matches!(self, ForInOfStatement::VarOf(_, _, _)) || matches!(self, ForInOfStatement::AwaitVarOf(_, _, _));
+        let await_present = matches!(self, ForInOfStatement::AwaitOf(..))
+            || matches!(self, ForInOfStatement::AwaitVarOf(..))
+            || matches!(self, ForInOfStatement::AwaitLexOf(..))
+            || matches!(self, ForInOfStatement::DestructuringAwaitOf(..));
+        let var_present = matches!(self, ForInOfStatement::VarIn(..)) || matches!(self, ForInOfStatement::VarOf(..)) || matches!(self, ForInOfStatement::AwaitVarOf(..));
 
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
@@ -688,20 +735,25 @@ impl PrettyPrint for ForInOfStatement {
 
         match self {
             ForInOfStatement::In(lhs, _, _) | ForInOfStatement::Of(lhs, _, _) | ForInOfStatement::AwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::DestructuringIn(pat, _, _) | ForInOfStatement::DestructuringOf(pat, _, _) | ForInOfStatement::DestructuringAwaitOf(pat, _, _) => {
+                pat.concise_with_leftpad(w, &suc, Spot::NotFinal)
+            }
             ForInOfStatement::VarIn(v, _, _) | ForInOfStatement::VarOf(v, _, _) | ForInOfStatement::AwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
             ForInOfStatement::LexIn(lex, _, _) | ForInOfStatement::LexOf(lex, _, _) | ForInOfStatement::AwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
         }?;
 
         match self {
-            ForInOfStatement::In(_, e, _) | ForInOfStatement::LexIn(_, e, _) | ForInOfStatement::VarIn(_, e, _) => {
+            ForInOfStatement::In(_, e, _) | ForInOfStatement::LexIn(_, e, _) | ForInOfStatement::VarIn(_, e, _) | ForInOfStatement::DestructuringIn(_, e, _) => {
                 pprint_token(w, "in", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 e.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
             ForInOfStatement::VarOf(_, ae, _)
             | ForInOfStatement::Of(_, ae, _)
+            | ForInOfStatement::DestructuringOf(_, ae, _)
             | ForInOfStatement::AwaitVarOf(_, ae, _)
             | ForInOfStatement::LexOf(_, ae, _)
             | ForInOfStatement::AwaitOf(_, ae, _)
+            | ForInOfStatement::DestructuringAwaitOf(_, ae, _)
             | ForInOfStatement::AwaitLexOf(_, ae, _) => {
                 pprint_token(w, "of", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 ae.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
@@ -712,8 +764,11 @@ impl PrettyPrint for ForInOfStatement {
 
         match self {
             ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
             | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
             | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s)
             | ForInOfStatement::VarIn(_, _, s)
             | ForInOfStatement::VarOf(_, _, s)
             | ForInOfStatement::AwaitVarOf(_, _, s)
@@ -814,7 +869,16 @@ impl ForInOfStatement {
                         let (ae, after_ae) = AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                         let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                        if await_seen {
+                        if lhs.is_object_or_array_literal() {
+                            // Re-parse as an assignmentpattern
+                            let (ap, after_ap) = AssignmentPattern::parse(parser, after_open, yield_flag, await_flag)?;
+                            assert_eq!(after_ap, after_lhs);
+                            if await_seen {
+                                Ok((Rc::new(ForInOfStatement::DestructuringAwaitOf(ap, ae, stmt)), after_stmt))
+                            } else {
+                                Ok((Rc::new(ForInOfStatement::DestructuringOf(ap, ae, stmt)), after_stmt))
+                            }
+                        } else if await_seen {
                             Ok((Rc::new(ForInOfStatement::AwaitOf(lhs, ae, stmt)), after_stmt))
                         } else {
                             Ok((Rc::new(ForInOfStatement::Of(lhs, ae, stmt)), after_stmt))
@@ -824,7 +888,14 @@ impl ForInOfStatement {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                        Ok((Rc::new(ForInOfStatement::In(lhs, exp, stmt)), after_stmt))
+                        if lhs.is_object_or_array_literal() {
+                            // Re-parse as an assignmentpattern
+                            let (ap, after_ap) = AssignmentPattern::parse(parser, after_open, yield_flag, await_flag)?;
+                            assert_eq!(after_ap, after_lhs);
+                            Ok((Rc::new(ForInOfStatement::DestructuringIn(ap, exp, stmt)), after_stmt))
+                        } else {
+                            Ok((Rc::new(ForInOfStatement::In(lhs, exp, stmt)), after_stmt))
+                        }
                     }
                 }
             })
@@ -832,12 +903,15 @@ impl ForInOfStatement {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            ForInOfStatement::In(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::LexIn(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::Of(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::LexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::AwaitOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
             ForInOfStatement::VarIn(v, _, s) | ForInOfStatement::VarOf(v, _, s) | ForInOfStatement::AwaitVarOf(v, _, s) => {
                 let mut names = v.bound_names();
                 names.extend(s.var_declared_names());
@@ -849,10 +923,13 @@ impl ForInOfStatement {
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
             | ForInOfStatement::LexIn(_, _, s)
             | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
             | ForInOfStatement::LexOf(_, _, s)
             | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s)
             | ForInOfStatement::AwaitLexOf(_, _, s)
             | ForInOfStatement::VarIn(_, _, s)
             | ForInOfStatement::VarOf(_, _, s)
@@ -863,9 +940,11 @@ impl ForInOfStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ForInOfStatement::In(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::DestructuringIn(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::VarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::LexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::DestructuringOf(lhs, e, s) | ForInOfStatement::DestructuringAwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
         }
@@ -874,10 +953,13 @@ impl ForInOfStatement {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
             | ForInOfStatement::LexIn(_, _, s)
             | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
             | ForInOfStatement::LexOf(_, _, s)
             | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s)
             | ForInOfStatement::AwaitLexOf(_, _, s)
             | ForInOfStatement::VarIn(_, _, s)
             | ForInOfStatement::VarOf(_, _, s)
@@ -888,10 +970,13 @@ impl ForInOfStatement {
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
             | ForInOfStatement::LexIn(_, _, s)
             | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
             | ForInOfStatement::LexOf(_, _, s)
             | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s)
             | ForInOfStatement::AwaitLexOf(_, _, s)
             | ForInOfStatement::VarIn(_, _, s)
             | ForInOfStatement::VarOf(_, _, s)
@@ -908,9 +993,13 @@ impl ForInOfStatement {
         //  2. Return true.
         match self {
             ForInOfStatement::In(lhs, e, s) => lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
+            ForInOfStatement::DestructuringIn(lhs, e, s) => lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
             ForInOfStatement::VarIn(v, e, s) => v.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
             ForInOfStatement::LexIn(lex, e, s) => lex.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
             ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => {
+                lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::DestructuringOf(lhs, e, s) | ForInOfStatement::DestructuringAwaitOf(lhs, e, s) => {
                 lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
             }
             ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => {
@@ -922,9 +1011,73 @@ impl ForInOfStatement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            ForInOfStatement::LexIn(fd, _, stmt) | ForInOfStatement::LexOf(fd, _, stmt) | ForInOfStatement::AwaitLexOf(fd, _, stmt) => {
+                // ForInOfStatement :
+                //  for ( ForDeclaration in Expression ) Statement
+                //  for ( ForDeclaration of AssignmentExpression ) Statement
+                //  for await ( ForDeclaration of AssignmentExpression ) Statement
+                //  * It is a Syntax Error if the BoundNames of ForDeclaration contains "let".
+                //  * It is a Syntax Error if any element of the BoundNames of ForDeclaration also occurs in the VarDeclaredNames of Statement.
+                //  * It is a Syntax Error if the BoundNames of ForDeclaration contains any duplicate entries.
+                let bn = fd.bound_names();
+                let vdn = stmt.var_declared_names();
+                for name in duplicates(&bn) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                for name in bn.iter() {
+                    if name == &JSString::from("let") {
+                        errs.push(create_syntax_error_object(agent, "‘let’ is not a valid binding identifier"));
+                    }
+                    if vdn.contains(name) {
+                        errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+                    }
+                }
+            }
+            ForInOfStatement::In(lhs, _, _) | ForInOfStatement::Of(lhs, _, _) | ForInOfStatement::AwaitOf(lhs, _, _) => {
+                // ForInOfStatement :
+                //  for ( LeftHandSideExpression in Expression ) Statement
+                //  for ( LeftHandSideExpression of AssignmentExpression ) Statement
+                //  for await ( LeftHandSideExpression of AssignmentExpression ) Statement
+                //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
+                if lhs.assignment_target_type() != ATTKind::Simple {
+                    errs.push(create_syntax_error_object(agent, "Invalid assignment target"));
+                }
+            }
+            _ => (),
+        }
+
+        let (lhs, pat, binding, decl, exp, ae, stmt) = match self {
+            ForInOfStatement::In(lhs, exp, s) => (Some(lhs), None, None, None, Some(exp), None, s),
+            ForInOfStatement::DestructuringIn(pat, exp, s) => (None, Some(pat), None, None, Some(exp), None, s),
+            ForInOfStatement::VarIn(fb, exp, s) => (None, None, Some(fb), None, Some(exp), None, s),
+            ForInOfStatement::LexIn(decl, exp, s) => (None, None, None, Some(decl), Some(exp), None, s),
+            ForInOfStatement::Of(lhs, ae, s) | ForInOfStatement::AwaitOf(lhs, ae, s) => (Some(lhs), None, None, None, None, Some(ae), s),
+            ForInOfStatement::DestructuringOf(pat, ae, s) | ForInOfStatement::DestructuringAwaitOf(pat, ae, s) => (None, Some(pat), None, None, None, Some(ae), s),
+            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => (None, None, Some(fb), None, None, Some(ae), s),
+            ForInOfStatement::LexOf(decl, ae, s) | ForInOfStatement::AwaitLexOf(decl, ae, s) => (None, None, None, Some(decl), None, Some(ae), s),
+        };
+        if let Some(lhs) = lhs {
+            lhs.early_errors(agent, errs, strict);
+        }
+        if let Some(pat) = pat {
+            pat.early_errors(agent, errs, strict);
+        }
+        if let Some(binding) = binding {
+            binding.early_errors(agent, errs, strict);
+        }
+        if let Some(decl) = decl {
+            decl.early_errors(agent, errs, strict);
+        }
+        if let Some(exp) = exp {
+            exp.early_errors(agent, errs, strict);
+        }
+        if let Some(ae) = ae {
+            ae.early_errors(agent, errs, strict);
+        }
+        stmt.early_errors(agent, errs, strict, true, within_switch);
     }
 }
 
@@ -1038,9 +1191,14 @@ impl ForDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn bound_names(&self) -> Vec<JSString> {
+        let ForDeclaration::Binding(_, fb) = self;
+        fb.bound_names()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        let ForDeclaration::Binding(_, fb) = self;
+        fb.early_errors(agent, errs, strict);
     }
 }
 
@@ -1138,9 +1296,11 @@ impl ForBinding {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ForBinding::Identifier(id) => id.early_errors(agent, errs, strict),
+            ForBinding::Pattern(pat) => pat.early_errors(agent, errs, strict),
+        }
     }
 }
 

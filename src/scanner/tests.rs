@@ -267,13 +267,13 @@ fn identifier_start_06() {
 #[test]
 fn identifier_name_01() {
     let (tok, scanner) = identifier_name(&Scanner::new(), "A\\u{0}ll").unwrap();
-    assert_eq!(tok, Token::Error(String::from("1:2: Invalid Identifier Continuation Character '\\u{0}'")));
+    assert_eq!(tok, Token::Error(String::from("1:2: Invalid Identifier Continuation Character '\\0'")));
     assert_eq!(scanner, Scanner { line: 1, column: 2, start_idx: 1 });
 }
 #[test]
 fn identifier_name_02() {
     let (tok, scanner) = identifier_name(&Scanner::new(), "\\u{0}ll").unwrap();
-    assert_eq!(tok, Token::Error(String::from("1:1: Invalid Identifier Start Character '\\u{0}'")));
+    assert_eq!(tok, Token::Error(String::from("1:1: Invalid Identifier Start Character '\\0'")));
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
 }
 #[test]

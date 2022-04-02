@@ -1,8 +1,11 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, strictparser, sv, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
+
+const A_LEXVARCLASH: &str = "‘a’ may not be declared both lexically and var-style";
 
 // ITERATION STATEMENT
 #[test]
@@ -223,10 +226,17 @@ fn iteration_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod iteration_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        IterationStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("do package; while(implements);", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "DoWhileStatement")]
+    #[test_case("while (package) implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "WhileStatement")]
+    #[test_case("for(;;)package;", true => set(&[PACKAGE_NOT_ALLOWED]); "ForStatement")]
+    #[test_case("for(let package in b);", true => set(&[PACKAGE_NOT_ALLOWED]); "ForInOfStatement")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        IterationStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -328,10 +338,14 @@ fn do_while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod do_while_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        DoWhileStatement::parse(&mut newparser("do{}while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("do package; while(implements);", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "do Statement while ( Expression ) ;")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        DoWhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -421,10 +435,14 @@ fn while_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod while_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        WhileStatement::parse(&mut newparser("while(1);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("while(package)implements;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "while ( Expression ) Statement")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        WhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1057,250 +1075,34 @@ fn for_statement_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod for_statement {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ForStatement::parse(&mut newparser("for(;;){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("for (package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ; Expression3 ) Statement")]
+    #[test_case("for (; implements; interface) private;", true => set(&[ IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ; Expression3 ) Statement")]
+    #[test_case("for (package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;; Expression3 ) Statement")]
+    #[test_case("for (package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ; Expression2 ;) Statement")]
+    #[test_case("for (; ; interface) private;", true => set(&[ INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (;; Expression3 ) Statement")]
+    #[test_case("for (package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( Expression1 ;;) Statement")]
+    #[test_case("for (; implements; ) private;", true => set(&[ IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for (; Expression2 ;) Statement")]
+    #[test_case("for (; ; ) private;", true => set(&[ PRIVATE_NOT_ALLOWED]); "for (;;) Statement")]
+    #[test_case("for (var package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ; Expression2 ) Statement")]
+    #[test_case("for (var package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ; Expression2 ) Statement")]
+    #[test_case("for (var package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ; Expression1 ;  ) Statement")]
+    #[test_case("for (var package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( VariableDeclarationList ;  ;  ) Statement")]
+    #[test_case("for (let package; implements; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ; Expression2 ) Statement")]
+    #[test_case("for (let package; ; interface) private;", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ; Expression2 ) Statement")]
+    #[test_case("for (let package; implements; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ; Expression1 ;  ) Statement")]
+    #[test_case("for (let package; ; ) private;", true => set(&[PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED]); "for ( LexicalDeclaration ;  ;  ) Statement")]
+    #[test_case("for (let a;;) { var a; }", false => set(&[A_LEXVARCLASH]); "lex/var clash")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ForStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
 // FOR IN-OF STATEMENT
-#[test]
-fn for_in_of_statement_test_01() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(x in y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 12);
-    pretty_check(&*node, "ForInOfStatement: for ( x in y ) ;", vec!["LeftHandSideExpression: x", "Expression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( x in y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_02() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(var x in y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 16);
-    pretty_check(&*node, "ForInOfStatement: for ( var x in y ) ;", vec!["ForBinding: x", "Expression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( var x in y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_03() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(let x in y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 16);
-    pretty_check(&*node, "ForInOfStatement: for ( let x in y ) ;", vec!["ForDeclaration: let x", "Expression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( let x in y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "ForDeclaration: let x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_04() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 12);
-    pretty_check(&*node, "ForInOfStatement: for ( x of y ) ;", vec!["LeftHandSideExpression: x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( x of y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_05() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(var x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 16);
-    pretty_check(&*node, "ForInOfStatement: for ( var x of y ) ;", vec!["ForBinding: x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( var x of y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_06() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for(let x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 16);
-    pretty_check(&*node, "ForInOfStatement: for ( let x of y ) ;", vec!["ForDeclaration: let x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for ( let x of y ) ;",
-        vec!["Keyword: for", "Punctuator: (", "ForDeclaration: let x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_07() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for await(x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 18);
-    pretty_check(&*node, "ForInOfStatement: for await ( x of y ) ;", vec!["LeftHandSideExpression: x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for await ( x of y ) ;",
-        vec!["Keyword: for", "Keyword: await", "Punctuator: (", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_08() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for await(var x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 22);
-    pretty_check(&*node, "ForInOfStatement: for await ( var x of y ) ;", vec!["ForBinding: x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for await ( var x of y ) ;",
-        vec!["Keyword: for", "Keyword: await", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_09() {
-    let (node, scanner) = check(ForInOfStatement::parse(&mut newparser("for await(let x of y);"), Scanner::new(), true, true, true));
-    chk_scan(&scanner, 22);
-    pretty_check(&*node, "ForInOfStatement: for await ( let x of y ) ;", vec!["ForDeclaration: let x", "AssignmentExpression: y", "Statement: ;"]);
-    concise_check(
-        &*node,
-        "ForInOfStatement: for await ( let x of y ) ;",
-        vec!["Keyword: for", "Keyword: await", "Punctuator: (", "ForDeclaration: let x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"],
-    );
-    format!("{:?}", node);
-}
-#[test]
-fn for_in_of_statement_test_err_01() {
-    check_err(ForInOfStatement::parse(&mut newparser(""), Scanner::new(), true, true, true), "‘for’ expected", 1, 1);
-}
-#[test]
-fn for_in_of_statement_test_err_02() {
-    check_err(ForInOfStatement::parse(&mut newparser("for"), Scanner::new(), true, true, true), "‘(’ expected", 1, 4);
-}
-#[test]
-fn for_in_of_statement_test_err_03() {
-    check_err(ForInOfStatement::parse(&mut newparser("for("), Scanner::new(), true, true, true), "‘let’, ‘var’, or a LeftHandSideExpression expected", 1, 5);
-}
-#[test]
-fn for_in_of_statement_test_err_04() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var"), Scanner::new(), true, true, true), "ForBinding expected", 1, 8);
-}
-#[test]
-fn for_in_of_statement_test_err_05() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 10);
-}
-#[test]
-fn for_in_of_statement_test_err_06() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a of"), Scanner::new(), true, true, true), "AssignmentExpression expected", 1, 13);
-}
-#[test]
-fn for_in_of_statement_test_err_07() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a of b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 15);
-}
-#[test]
-fn for_in_of_statement_test_err_08() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a of b)"), Scanner::new(), true, true, true), "Statement expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_09() {
-    check_err(ForInOfStatement::parse(&mut newparser("for await(var a in"), Scanner::new(), true, true, true), "‘of’ expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_10() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a in b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 15);
-}
-#[test]
-fn for_in_of_statement_test_err_11() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a in b)"), Scanner::new(), true, true, true), "Statement expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_12() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let"), Scanner::new(), true, true, true), "ForBinding expected", 1, 8);
-}
-#[test]
-fn for_in_of_statement_test_err_13() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 10);
-}
-#[test]
-fn for_in_of_statement_test_err_14() {
-    check_err(ForInOfStatement::parse(&mut newparser("for await(let a"), Scanner::new(), true, true, true), "‘of’ expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_15() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a of"), Scanner::new(), true, true, true), "AssignmentExpression expected", 1, 13);
-}
-#[test]
-fn for_in_of_statement_test_err_16() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a of b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 15);
-}
-#[test]
-fn for_in_of_statement_test_err_17() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a of b)"), Scanner::new(), true, true, true), "Statement expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_18() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a in"), Scanner::new(), true, true, true), "Expression expected", 1, 13);
-}
-#[test]
-fn for_in_of_statement_test_err_19() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a in b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 15);
-}
-#[test]
-fn for_in_of_statement_test_err_20() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let a in b)"), Scanner::new(), true, true, true), "Statement expected", 1, 16);
-}
-#[test]
-fn for_in_of_statement_test_err_21() {
-    check_err(ForInOfStatement::parse(&mut newparser("for await(let"), Scanner::new(), true, true, true), "ForBinding expected", 1, 14);
-}
-#[test]
-fn for_in_of_statement_test_err_22() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(let["), Scanner::new(), true, true, true), "BindingElement expected", 1, 9);
-}
-#[test]
-fn for_in_of_statement_test_err_23() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a"), Scanner::new(), true, true, true), "one of [‘of’, ‘in’] expected", 1, 6);
-}
-#[test]
-fn for_in_of_statement_test_err_24() {
-    check_err(ForInOfStatement::parse(&mut newparser("for await(a"), Scanner::new(), true, true, true), "‘of’ expected", 1, 12);
-}
-#[test]
-fn for_in_of_statement_test_err_25() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a of"), Scanner::new(), true, true, true), "AssignmentExpression expected", 1, 9);
-}
-#[test]
-fn for_in_of_statement_test_err_26() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a of b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 11);
-}
-#[test]
-fn for_in_of_statement_test_err_27() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a of b)"), Scanner::new(), true, true, true), "Statement expected", 1, 12);
-}
-#[test]
-fn for_in_of_statement_test_err_28() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a in"), Scanner::new(), true, true, true), "Expression expected", 1, 9);
-}
-#[test]
-fn for_in_of_statement_test_err_29() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a in b"), Scanner::new(), true, true, true), "‘)’ expected", 1, 11);
-}
-#[test]
-fn for_in_of_statement_test_err_30() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(a in b)"), Scanner::new(), true, true, true), "Statement expected", 1, 12);
-}
-#[test]
-fn for_in_of_statement_test_err_31() {
-    check_err(ForInOfStatement::parse(&mut newparser("for await(a in b);"), Scanner::new(), false, false, false), "‘(’ expected", 1, 4);
-}
-#[test]
-fn for_in_of_statement_test_err_32() {
-    check_err(ForInOfStatement::parse(&mut newparser("for(var a in"), Scanner::new(), true, true, true), "Expression expected", 1, 13);
-}
 #[test]
 fn for_in_of_statement_test_prettyerrors_01() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for(a in b);"), Scanner::new(), true, true, true).unwrap();
@@ -1344,6 +1146,21 @@ fn for_in_of_statement_test_prettyerrors_08() {
 #[test]
 fn for_in_of_statement_test_prettyerrors_09() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn for_in_of_statement_test_prettyerrors_10() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn for_in_of_statement_test_prettyerrors_11() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    pretty_error_validate(&*item);
+}
+#[test]
+fn for_in_of_statement_test_prettyerrors_12() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -1392,6 +1209,21 @@ fn for_in_of_statement_test_conciseerrors_09() {
     concise_error_validate(&*item);
 }
 #[test]
+fn for_in_of_statement_test_conciseerrors_10() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn for_in_of_statement_test_conciseerrors_11() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
+fn for_in_of_statement_test_conciseerrors_12() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    concise_error_validate(&*item);
+}
+#[test]
 fn for_in_of_statement_test_var_declared_names_01() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for(a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
@@ -1435,6 +1267,21 @@ fn for_in_of_statement_test_var_declared_names_08() {
 fn for_in_of_statement_test_var_declared_names_09() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["a", "c"]);
+}
+#[test]
+fn for_in_of_statement_test_var_declared_names_10() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.var_declared_names(), &["c"]);
+}
+#[test]
+fn for_in_of_statement_test_var_declared_names_11() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.var_declared_names(), &["c"]);
+}
+#[test]
+fn for_in_of_statement_test_var_declared_names_12() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_01() {
@@ -1490,6 +1337,25 @@ fn for_in_of_statement_test_contains_undefined_break_target_09() {
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
+#[test]
+fn for_in_of_statement_test_contains_undefined_break_target_10() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
+    assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
+}
+#[test]
+fn for_in_of_statement_test_contains_undefined_break_target_11() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
+    assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
+}
+#[test]
+fn for_in_of_statement_test_contains_undefined_break_target_12() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
+    assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
+}
+
 #[test]
 fn for_in_of_statement_test_contains_01() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for (a[0] in b);"), Scanner::new(), true, true, true).unwrap();
@@ -1670,6 +1536,37 @@ fn for_in_of_statement_test_contains_36() {
     let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn for_in_of_statement_test_contains_37() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn for_in_of_statement_test_contains_38() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn for_in_of_statement_test_contains_39() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b)0;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn for_in_of_statement_test_contains_40() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+#[test]
+fn for_in_of_statement_test_contains_41() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), true);
+}
+#[test]
+fn for_in_of_statement_test_contains_42() {
+    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    assert_eq!(item.contains(ParseNodeKind::Literal), false);
+}
+
 fn for_in_of_cdl_check(src: &str) {
     let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
@@ -1678,92 +1575,257 @@ fn for_in_of_cdl_check(src: &str) {
 #[test]
 fn for_in_of_statement_test_contains_duplicate_labels() {
     for_in_of_cdl_check("for(a in b){t:;}");
+    for_in_of_cdl_check("for({a} in b){t:;}");
     for_in_of_cdl_check("for(var a in b){t:;}");
     for_in_of_cdl_check("for(let a in b){t:;}");
     for_in_of_cdl_check("for(a of b){t:;}");
+    for_in_of_cdl_check("for({a} of b){t:;}");
     for_in_of_cdl_check("for(var a of b){t:;}");
     for_in_of_cdl_check("for(let a of b){t:;}");
     for_in_of_cdl_check("for await(a of b){t:;}");
+    for_in_of_cdl_check("for await({a} of b){t:;}");
     for_in_of_cdl_check("for await(var a of b){t:;}");
     for_in_of_cdl_check("for await(let a of b){t:;}");
 }
-#[test_case("for (a in b) continue x;" => (false, true); "for (a in b) continue x;")]
-#[test_case("for (var a in b) continue x;" => (false, true); "for (var a in b) continue x;")]
-#[test_case("for (let a in b) continue x;" => (false, true); "for (let a in b) continue x;")]
-#[test_case("for (a of b) continue x;" => (false, true); "for (a of b) continue x;")]
-#[test_case("for (var a of b) continue x;" => (false, true); "for (var a of b) continue x;")]
-#[test_case("for (let a of b) continue x;" => (false, true); "for (let a of b) continue x;")]
-#[test_case("for await (a of b) continue x;" => (false, true); "for await (a of b) continue x;")]
-#[test_case("for await (var a of b) continue x;" => (false, true); "for await (var a of b) continue x;")]
-#[test_case("for await (let a of b) continue x;" => (false, true); "for await (let a of b) continue x;")]
-fn for_in_of_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
-    let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
-}
-#[test_case("for ([a=x.#valid] in c) stmt;" => true; "in init valid")]
-#[test_case("for ([a=b] in x.#valid) stmt;" => true; "in target valid")]
-#[test_case("for ([a=b] in c) x.#valid;" => true; "in stmt valid")]
-#[test_case("for ([a=x.#valid] of c) stmt;" => true; "of init valid")]
-#[test_case("for ([a=b] of x.#valid) stmt;" => true; "of target valid")]
-#[test_case("for ([a=b] of c) x.#valid;" => true; "of stmt valid")]
-#[test_case("for await ([a=x.#valid] of c) stmt;" => true; "await init valid")]
-#[test_case("for await ([a=b] of x.#valid) stmt;" => true; "await target valid")]
-#[test_case("for await ([a=b] of c) x.#valid;" => true; "await stmt valid")]
-#[test_case("for (var [a=x.#valid] in c) stmt;" => true; "varin init valid")]
-#[test_case("for (var [a=b] in x.#valid) stmt;" => true; "varin target valid")]
-#[test_case("for (var [a=b] in c) x.#valid;" => true; "varin stmt valid")]
-#[test_case("for (var [a=x.#valid] of c) stmt;" => true; "varof init valid")]
-#[test_case("for (var [a=b] of x.#valid) stmt;" => true; "varof target valid")]
-#[test_case("for (var [a=b] of c) x.#valid;" => true; "varof stmt valid")]
-#[test_case("for await (var [a=x.#valid] of c) stmt;" => true; "awaitvar init valid")]
-#[test_case("for await (var [a=b] of x.#valid) stmt;" => true; "awaitvar target valid")]
-#[test_case("for await (var [a=b] of c) x.#valid;" => true; "awaitvar stmt valid")]
-#[test_case("for (let [a=x.#valid] in c) stmt;" => true; "letin init valid")]
-#[test_case("for (let [a=b] in x.#valid) stmt;" => true; "letin target valid")]
-#[test_case("for (let [a=b] in c) x.#valid;" => true; "letin stmt valid")]
-#[test_case("for (let [a=x.#valid] of c) stmt;" => true; "letof init valid")]
-#[test_case("for (let [a=b] of x.#valid) stmt;" => true; "letof target valid")]
-#[test_case("for (let [a=b] of c) x.#valid;" => true; "letof stmt valid")]
-#[test_case("for await (let [a=x.#valid] of c) stmt;" => true; "awaitlet init valid")]
-#[test_case("for await (let [a=b] of x.#valid) stmt;" => true; "awaitlet target valid")]
-#[test_case("for await (let [a=b] of c) x.#valid;" => true; "awaitlet stmt valid")]
-#[test_case("for ([a=x.#invalid] in c) stmt;" => false; "in init invalid")]
-#[test_case("for ([a=b] in x.#invalid) stmt;" => false; "in target invalid")]
-#[test_case("for ([a=b] in c) x.#invalid;" => false; "in stmt invalid")]
-#[test_case("for ([a=x.#invalid] of c) stmt;" => false; "of init invalid")]
-#[test_case("for ([a=b] of x.#invalid) stmt;" => false; "of target invalid")]
-#[test_case("for ([a=b] of c) x.#invalid;" => false; "of stmt invalid")]
-#[test_case("for await ([a=x.#invalid] of c) stmt;" => false; "await init invalid")]
-#[test_case("for await ([a=b] of x.#invalid) stmt;" => false; "await target invalid")]
-#[test_case("for await ([a=b] of c) x.#invalid;" => false; "await stmt invalid")]
-#[test_case("for (var [a=x.#invalid] in c) stmt;" => false; "varin init invalid")]
-#[test_case("for (var [a=b] in x.#invalid) stmt;" => false; "varin target invalid")]
-#[test_case("for (var [a=b] in c) x.#invalid;" => false; "varin stmt invalid")]
-#[test_case("for (var [a=x.#invalid] of c) stmt;" => false; "varof init invalid")]
-#[test_case("for (var [a=b] of x.#invalid) stmt;" => false; "varof target invalid")]
-#[test_case("for (var [a=b] of c) x.#invalid;" => false; "varof stmt invalid")]
-#[test_case("for await (var [a=x.#invalid] of c) stmt;" => false; "awaitvar init invalid")]
-#[test_case("for await (var [a=b] of x.#invalid) stmt;" => false; "awaitvar target invalid")]
-#[test_case("for await (var [a=b] of c) x.#invalid;" => false; "awaitvar stmt invalid")]
-#[test_case("for (let [a=x.#invalid] in c) stmt;" => false; "letin init invalid")]
-#[test_case("for (let [a=b] in x.#invalid) stmt;" => false; "letin target invalid")]
-#[test_case("for (let [a=b] in c) x.#invalid;" => false; "letin stmt invalid")]
-#[test_case("for (let [a=x.#invalid] of c) stmt;" => false; "letof init invalid")]
-#[test_case("for (let [a=b] of x.#invalid) stmt;" => false; "letof target invalid")]
-#[test_case("for (let [a=b] of c) x.#invalid;" => false; "letof stmt invalid")]
-#[test_case("for await (let [a=x.#invalid] of c) stmt;" => false; "awaitlet init invalid")]
-#[test_case("for await (let [a=b] of x.#invalid) stmt;" => false; "awaitlet target invalid")]
-#[test_case("for await (let [a=b] of c) x.#invalid;" => false; "awaitlet stmt invalid")]
-fn for_in_of_statement_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
+#[allow(clippy::type_complexity)]
 mod for_in_of_statement {
     use super::*;
+    use test_case::test_case;
+
+    #[test_case("for (a in b) continue x;" => (false, true); "for (a in b) continue x;")]
+    #[test_case("for ({a} in b) continue x;" => (false, true); "for ({a} in b) continue x; (dstr)")]
+    #[test_case("for (var a in b) continue x;" => (false, true); "for (var a in b) continue x;")]
+    #[test_case("for (let a in b) continue x;" => (false, true); "for (let a in b) continue x;")]
+    #[test_case("for (a of b) continue x;" => (false, true); "for (a of b) continue x;")]
+    #[test_case("for ({a} of b) continue x;" => (false, true); "for ({a} of b) continue x; (dstr)")]
+    #[test_case("for (var a of b) continue x;" => (false, true); "for (var a of b) continue x;")]
+    #[test_case("for (let a of b) continue x;" => (false, true); "for (let a of b) continue x;")]
+    #[test_case("for await (a of b) continue x;" => (false, true); "for await (a of b) continue x;")]
+    #[test_case("for await ({a} of b) continue x;" => (false, true); "for await ({a} of b) continue x; (dstr)")]
+    #[test_case("for await (var a of b) continue x;" => (false, true); "for await (var a of b) continue x;")]
+    #[test_case("for await (let a of b) continue x;" => (false, true); "for await (let a of b) continue x;")]
+    fn contains_undefined_continue_target(src: &str) -> (bool, bool) {
+        let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+        (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    }
+    #[test_case("for ([a=x.#valid] in c) stmt;" => true; "dstr in init valid")]
+    #[test_case("for ([a=b] in x.#valid) stmt;" => true; "dstr in target valid")]
+    #[test_case("for ([a=b] in c) x.#valid;" => true; "dstr in stmt valid")]
+    #[test_case("for (x.#valid in c) stmt;" => true; "in init valid")]
+    #[test_case("for (a in x.#valid) stmt;" => true; "in target valid")]
+    #[test_case("for (a in c) x.#valid;" => true; "in stmt valid")]
+    #[test_case("for ([a=x.#valid] of c) stmt;" => true; "dstr of init valid")]
+    #[test_case("for ([a=b] of x.#valid) stmt;" => true; "dstr of target valid")]
+    #[test_case("for ([a=b] of c) x.#valid;" => true; "dstr of stmt valid")]
+    #[test_case("for (x.#valid of c) stmt;" => true; "of init valid")]
+    #[test_case("for (a of x.#valid) stmt;" => true; "of target valid")]
+    #[test_case("for (a of c) x.#valid;" => true; "of stmt valid")]
+    #[test_case("for await (x.#valid of c) stmt;" => true; "await init valid")]
+    #[test_case("for await (a of x.#valid) stmt;" => true; "await target valid")]
+    #[test_case("for await (a of c) x.#valid;" => true; "await stmt valid")]
+    #[test_case("for await ([a=x.#valid] of c) stmt;" => true; "dstr await init valid")]
+    #[test_case("for await ([a=b] of x.#valid) stmt;" => true; "dstr await target valid")]
+    #[test_case("for await ([a=b] of c) x.#valid;" => true; "dstr await stmt valid")]
+    #[test_case("for (var [a=x.#valid] in c) stmt;" => true; "varin init valid")]
+    #[test_case("for (var [a=b] in x.#valid) stmt;" => true; "varin target valid")]
+    #[test_case("for (var [a=b] in c) x.#valid;" => true; "varin stmt valid")]
+    #[test_case("for (var [a=x.#valid] of c) stmt;" => true; "varof init valid")]
+    #[test_case("for (var [a=b] of x.#valid) stmt;" => true; "varof target valid")]
+    #[test_case("for (var [a=b] of c) x.#valid;" => true; "varof stmt valid")]
+    #[test_case("for await (var [a=x.#valid] of c) stmt;" => true; "awaitvar init valid")]
+    #[test_case("for await (var [a=b] of x.#valid) stmt;" => true; "awaitvar target valid")]
+    #[test_case("for await (var [a=b] of c) x.#valid;" => true; "awaitvar stmt valid")]
+    #[test_case("for (let [a=x.#valid] in c) stmt;" => true; "letin init valid")]
+    #[test_case("for (let [a=b] in x.#valid) stmt;" => true; "letin target valid")]
+    #[test_case("for (let [a=b] in c) x.#valid;" => true; "letin stmt valid")]
+    #[test_case("for (let [a=x.#valid] of c) stmt;" => true; "letof init valid")]
+    #[test_case("for (let [a=b] of x.#valid) stmt;" => true; "letof target valid")]
+    #[test_case("for (let [a=b] of c) x.#valid;" => true; "letof stmt valid")]
+    #[test_case("for await (let [a=x.#valid] of c) stmt;" => true; "awaitlet init valid")]
+    #[test_case("for await (let [a=b] of x.#valid) stmt;" => true; "awaitlet target valid")]
+    #[test_case("for await (let [a=b] of c) x.#valid;" => true; "awaitlet stmt valid")]
+    #[test_case("for ([a=x.#invalid] in c) stmt;" => false; "dstr in init invalid")]
+    #[test_case("for ([a=b] in x.#invalid) stmt;" => false; "dstr in target invalid")]
+    #[test_case("for ([a=b] in c) x.#invalid;" => false; "dstr in stmt invalid")]
+    #[test_case("for (x.#invalid in c) stmt;" => false; "in init invalid")]
+    #[test_case("for (a in x.#invalid) stmt;" => false; "in target invalid")]
+    #[test_case("for (a in c) x.#invalid;" => false; "in stmt invalid")]
+    #[test_case("for ([a=x.#invalid] of c) stmt;" => false; "dstr of init invalid")]
+    #[test_case("for ([a=b] of x.#invalid) stmt;" => false; "dstr of target invalid")]
+    #[test_case("for ([a=b] of c) x.#invalid;" => false; "dstr of stmt invalid")]
+    #[test_case("for (x.#invalid of c) stmt;" => false; "of init invalid")]
+    #[test_case("for (a of x.#invalid) stmt;" => false; "of target invalid")]
+    #[test_case("for (a of c) x.#invalid;" => false; "of stmt invalid")]
+    #[test_case("for await ([a=x.#invalid] of c) stmt;" => false; "dstr await init invalid")]
+    #[test_case("for await ([a=b] of x.#invalid) stmt;" => false; "dstr await target invalid")]
+    #[test_case("for await ([a=b] of c) x.#invalid;" => false; "dstr await stmt invalid")]
+    #[test_case("for await (x.#invalid of c) stmt;" => false; "await init invalid")]
+    #[test_case("for await (a of x.#invalid) stmt;" => false; "await target invalid")]
+    #[test_case("for await (a of c) x.#invalid;" => false; "await stmt invalid")]
+    #[test_case("for (var [a=x.#invalid] in c) stmt;" => false; "varin init invalid")]
+    #[test_case("for (var [a=b] in x.#invalid) stmt;" => false; "varin target invalid")]
+    #[test_case("for (var [a=b] in c) x.#invalid;" => false; "varin stmt invalid")]
+    #[test_case("for (var [a=x.#invalid] of c) stmt;" => false; "varof init invalid")]
+    #[test_case("for (var [a=b] of x.#invalid) stmt;" => false; "varof target invalid")]
+    #[test_case("for (var [a=b] of c) x.#invalid;" => false; "varof stmt invalid")]
+    #[test_case("for await (var [a=x.#invalid] of c) stmt;" => false; "awaitvar init invalid")]
+    #[test_case("for await (var [a=b] of x.#invalid) stmt;" => false; "awaitvar target invalid")]
+    #[test_case("for await (var [a=b] of c) x.#invalid;" => false; "awaitvar stmt invalid")]
+    #[test_case("for (let [a=x.#invalid] in c) stmt;" => false; "letin init invalid")]
+    #[test_case("for (let [a=b] in x.#invalid) stmt;" => false; "letin target invalid")]
+    #[test_case("for (let [a=b] in c) x.#invalid;" => false; "letin stmt invalid")]
+    #[test_case("for (let [a=x.#invalid] of c) stmt;" => false; "letof init invalid")]
+    #[test_case("for (let [a=b] of x.#invalid) stmt;" => false; "letof target invalid")]
+    #[test_case("for (let [a=b] of c) x.#invalid;" => false; "letof stmt invalid")]
+    #[test_case("for await (let [a=x.#invalid] of c) stmt;" => false; "awaitlet init invalid")]
+    #[test_case("for await (let [a=b] of x.#invalid) stmt;" => false; "awaitlet target invalid")]
+    #[test_case("for await (let [a=b] of c) x.#invalid;" => false; "awaitlet stmt invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("valid")])
+    }
     #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ForInOfStatement::parse(&mut newparser("for(x in y);"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    fn debug() {
+        assert_ne!(format!("{:?}", ForInOfStatement::parse(&mut newparser("for (x in y);"), Scanner::new(), true, true, true).unwrap().0), "");
+    }
+
+    #[test_case("for(x in y);", true => Ok((
+        expected_scan(12),
+        sv(&["ForInOfStatement: for ( x in y ) ;", "LeftHandSideExpression: x", "Expression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( x in y ) ;", "Keyword: for", "Punctuator: (", "IdentifierName: x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "lhs in")]
+    #[test_case("for ({a} in b);", true => Ok((
+        expected_scan(15),
+        sv(&["ForInOfStatement: for ( { a } in b ) ;", "AssignmentPattern: { a }", "Expression: b", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( { a } in b ) ;", "Keyword: for", "Punctuator: (", "ObjectAssignmentPattern: { a }", "Keyword: in", "IdentifierName: b", "Punctuator: )", "Punctuator: ;"])
+    )); "Destructuring in")]
+    #[test_case("for(var x in y);", true => Ok((
+        expected_scan(16),
+        sv(&["ForInOfStatement: for ( var x in y ) ;", "ForBinding: x", "Expression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( var x in y ) ;", "Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "var in")]
+    #[test_case("for(let x in y);", true => Ok((
+        expected_scan(16),
+        sv(&["ForInOfStatement: for ( let x in y ) ;", "ForDeclaration: let x", "Expression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( let x in y ) ;", "Keyword: for", "Punctuator: (", "ForDeclaration: let x", "Keyword: in", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "let in")]
+    #[test_case("for(x of y);", true => Ok((
+        expected_scan(12),
+        sv(&["ForInOfStatement: for ( x of y ) ;", "LeftHandSideExpression: x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( x of y ) ;", "Keyword: for", "Punctuator: (", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "lhs of")]
+    #[test_case("for ({a} of b);", true => Ok((
+        expected_scan(15),
+        sv(&["ForInOfStatement: for ( { a } of b ) ;", "AssignmentPattern: { a }", "AssignmentExpression: b", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( { a } of b ) ;", "Keyword: for", "Punctuator: (", "ObjectAssignmentPattern: { a }", "Keyword: of", "IdentifierName: b", "Punctuator: )", "Punctuator: ;"])
+    )); "Destructuring of")]
+    #[test_case("for(var x of y);", true => Ok((
+        expected_scan(16),
+        sv(&["ForInOfStatement: for ( var x of y ) ;", "ForBinding: x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( var x of y ) ;", "Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "var of")]
+    #[test_case("for(let x of y);", true => Ok((
+        expected_scan(16),
+        sv(&["ForInOfStatement: for ( let x of y ) ;", "ForDeclaration: let x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for ( let x of y ) ;", "Keyword: for", "Punctuator: (", "ForDeclaration: let x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "let of")]
+    #[test_case("for await(x of y);", true => Ok((
+        expected_scan(18),
+        sv(&["ForInOfStatement: for await ( x of y ) ;", "LeftHandSideExpression: x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for await ( x of y ) ;", "Keyword: for", "Keyword: await", "Punctuator: (", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "lhs await of")]
+    #[test_case("for await({a} of b);", true => Ok((
+        expected_scan(20),
+        sv(&["ForInOfStatement: for await ( { a } of b ) ;", "AssignmentPattern: { a }", "AssignmentExpression: b", "Statement: ;"]),
+        sv(&["ForInOfStatement: for await ( { a } of b ) ;", "Keyword: for", "Keyword: await", "Punctuator: (", "ObjectAssignmentPattern: { a }", "Keyword: of", "IdentifierName: b", "Punctuator: )", "Punctuator: ;"])
+    )); "Destructuring await of")]
+    #[test_case("for await(var x of y);", true => Ok((
+        expected_scan(22),
+        sv(&["ForInOfStatement: for await ( var x of y ) ;", "ForBinding: x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for await ( var x of y ) ;", "Keyword: for", "Keyword: await", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "var await of")]
+    #[test_case("for await(let x of y);", true => Ok((
+        expected_scan(22),
+        sv(&["ForInOfStatement: for await ( let x of y ) ;", "ForDeclaration: let x", "AssignmentExpression: y", "Statement: ;"]),
+        sv(&["ForInOfStatement: for await ( let x of y ) ;", "Keyword: for", "Keyword: await", "Punctuator: (", "ForDeclaration: let x", "Keyword: of", "IdentifierName: y", "Punctuator: )", "Punctuator: ;"])
+    )); "let await of")]
+    #[test_case("", true => Err((PECode::KeywordExpected(Keyword::For), 0)); "empty")]
+    #[test_case("for", true => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), 0)); "_for")]
+    #[test_case("for(", true => Err((PECode::ForInOfDefinitionError, 0)); "for(")]
+    #[test_case("for(var", true => Err((PECode::ParseNodeExpected(ParseNodeKind::ForBinding), 0)); "for(var")]
+    #[test_case("for(var a", true => Err((PECode::OneOfKeywordExpected(vec![Keyword::Of, Keyword::In]), 0)); "for(var a")]
+    #[test_case("for(var a of", true => Err((PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 0)); "for(var a of")]
+    #[test_case("for(var a of b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(var a of b")]
+    #[test_case("for(var a of b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(var a of b)")]
+    #[test_case("for await(var a in", true => Err((PECode::KeywordExpected(Keyword::Of), -3)); "for await(var a in")]
+    #[test_case("for(var a in b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(var a in b")]
+    #[test_case("for(var a in b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(var a in b)")]
+    #[test_case("for(let", true => Err((PECode::ParseNodeExpected(ParseNodeKind::ForBinding), 0)); "for(let")]
+    #[test_case("for(let a", true => Err((PECode::OneOfKeywordExpected(vec![Keyword::Of, Keyword::In]), 0)); "for(let a")]
+    #[test_case("for await(let a", true => Err((PECode::KeywordExpected(Keyword::Of), 0)); "for await(let a")]
+    #[test_case("for(let a of", true => Err((PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 0)); "for(let a of")]
+    #[test_case("for(let a of b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(let a of b")]
+    #[test_case("for(let a of b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(let a of b)")]
+    #[test_case("for(let a in", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Expression), 0)); "for(let a in")]
+    #[test_case("for(let a in b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(let a in b")]
+    #[test_case("for(let a in b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(let a in b)")]
+    #[test_case("for await(let", true => Err((PECode::ParseNodeExpected(ParseNodeKind::ForBinding), 0)); "for await(let")]
+    #[test_case("for(let[", true => Err((PECode::ParseNodeExpected(ParseNodeKind::BindingElement), 0)); "for(let[")]
+    #[test_case("for(a", true => Err((PECode::OneOfKeywordExpected(vec![Keyword::Of, Keyword::In]), 0)); "for(a")]
+    #[test_case("for await(a", true => Err((PECode::KeywordExpected(Keyword::Of), 0)); "for await(a")]
+    #[test_case("for(a of", true => Err((PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 0)); "for(a of")]
+    #[test_case("for(a of b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(a of b")]
+    #[test_case("for(a of b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(a of b)")]
+    #[test_case("for(a in", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Expression), 0)); "for(a in")]
+    #[test_case("for(a in b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(a in b")]
+    #[test_case("for(a in b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(a in b)")]
+    #[test_case("for await(a in b);", true => Err((PECode::KeywordExpected(Keyword::Of), -7)); "for await(a in b);")]
+    #[test_case("for(var a in", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Expression), 0)); "for(var a in")]
+    #[test_case("for({a(){}} in b);", true => Err((PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), -12)); "bad in destructure")]
+    #[test_case("for({a(){}} of b);", true => Err((PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), -12)); "bad of destructure")]
+    #[test_case("for await(", false => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), -7)); "not await mode")]
+    fn parse(src: &str, await_flag: bool) -> Result<(Scanner, Vec<String>, Vec<String>), (PECode, i32)> {
+        let after_idx = src.len() as u32 + 1;
+        let (node, scanner) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, await_flag, true).map_err(|pe| pe.unpack(after_idx))?;
+        let pretty_elements = pretty_data(&*node);
+        let concise_elements = concise_data(&*node);
+        Ok((scanner, pretty_elements, concise_elements))
+    }
+
+    const BAD_LET: &str = "‘let’ is not a valid binding identifier";
+    const A_DUPLICATED: &str = "‘a’ already defined";
+    const INVALID: &str = "Invalid assignment target";
+
+    #[test_case("for (let let in a);", false => set(&[BAD_LET]); "bad let; in form")]
+    #[test_case("for (let let of a);", false => set(&[BAD_LET]); "bad let; of form")]
+    #[test_case("for await (let let of a);", false => set(&[BAD_LET]); "bad let; await form")]
+    #[test_case("for (let a in b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; in form")]
+    #[test_case("for (let a of b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; of form")]
+    #[test_case("for await (let a of b) { var a, x; }", false => set(&[A_LEXVARCLASH]); "var shadow; await form")]
+    #[test_case("for (let [a, a, a, a] in b);", false => set(&[A_DUPLICATED]); "duplicate decls - in")]
+    #[test_case("for (let [a, a, a, a] of b);", false => set(&[A_DUPLICATED]); "duplicate decls - of")]
+    #[test_case("for await (let [a, a, a, a] of b);", false => set(&[A_DUPLICATED]); "duplicate decls - await")]
+    #[test_case("for ((3+4) in a);", false => set(&[INVALID]); "invalid lhs - in")]
+    #[test_case("for ((3+4) of a);", false => set(&[INVALID]); "invalid lhs - of")]
+    #[test_case("for await ((3+4) of a);", false => set(&[INVALID]); "invalid lhs - await")]
+    #[test_case("for (package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression in Expression ) Statement")]
+    #[test_case("for ({package} in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern in Expression ) Statement")]
+    #[test_case("for (var package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding in Expression ) Statement")]
+    #[test_case("for (let package in implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration in Expression ) Statement")]
+    #[test_case("for (package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
+    #[test_case("for ({package} of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( AssignmentPattern of AssignmentExpresion ) Statement")]
+    #[test_case("for (var package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( var ForBinding of AssignmentExpresion ) Statement")]
+    #[test_case("for (let package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for ( ForDeclaration of AssignmentExpresion ) Statement")]
+    #[test_case("for await (package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( LeftHandSideExpression of AssignmentExpresion ) Statement")]
+    #[test_case("for await ({package} of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( AssignmentPattern of AssignmentExpresion ) Statement")]
+    #[test_case("for await (var package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( var ForBinding of AssignmentExpresion ) Statement")]
+    #[test_case("for await (let package of implements) interface;", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "for await ( ForDeclaration of AssignmentExpresion ) Statement")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ForInOfStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1830,10 +1892,19 @@ fn for_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod for_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ForDeclaration::parse(&mut newparser("let a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("let a" => vec!["a"]; "LetOrConst ForBinding")]
+    fn bound_names(src: &str) -> Vec<String> {
+        ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("let package", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ForDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -1920,9 +1991,14 @@ fn for_binding_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod for_binding {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ForBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
+    #[test_case("[a, package]", true => set(&[PACKAGE_NOT_ALLOWED]); "pattern")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ForBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

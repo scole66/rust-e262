@@ -336,22 +336,38 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration),
-            Statement::Break(node) => node.early_errors(agent, errs, strict),
-            Statement::Breakable(node) => node.early_errors(agent, errs, strict),
+            Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
+            Statement::Breakable(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Continue(node) => node.early_errors(agent, errs, strict, within_iteration),
-            Statement::Debugger(node) => node.early_errors(agent, errs, strict),
-            Statement::Empty(node) => node.early_errors(agent, errs, strict),
+            Statement::Debugger(_) | Statement::Empty(_) => (),
             Statement::Expression(node) => node.early_errors(agent, errs, strict),
-            Statement::If(node) => node.early_errors(agent, errs, strict),
-            Statement::Labelled(node) => node.early_errors(agent, errs, strict),
+            Statement::If(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            Statement::Labelled(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Return(node) => node.early_errors(agent, errs, strict),
             Statement::Throw(node) => node.early_errors(agent, errs, strict),
-            Statement::Try(node) => node.early_errors(agent, errs, strict),
+            Statement::Try(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Variable(node) => node.early_errors(agent, errs, strict),
-            Statement::With(node) => node.early_errors(agent, errs, strict),
+            Statement::With(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+        }
+    }
+
+    pub fn is_labelled_function(&self) -> bool {
+        // Static Semantics: IsLabelledFunction ( stmt )
+        //
+        // The abstract operation IsLabelledFunction takes argument stmt and returns a Boolean. It performs the
+        // following steps when called:
+        //
+        //  1. If stmt is not a LabelledStatement, return false.
+        //  2. Let item be the LabelledItem of stmt.
+        //  3. If item is LabelledItem : FunctionDeclaration , return true.
+        //  4. Let subStmt be the Statement of item.
+        //  5. Return IsLabelledFunction(subStmt).
+        match self {
+            Statement::Labelled(node) => node.is_labelled_function(),
+            _ => false,
         }
     }
 }
@@ -683,10 +699,10 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict),
-            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict),
+            BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
+            BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),
         }
     }
 }

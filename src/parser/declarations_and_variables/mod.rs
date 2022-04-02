@@ -1186,28 +1186,14 @@ impl ArrayBindingPattern {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
-                elisions.early_errors(agent, errs, strict);
-                node.early_errors(agent, errs, strict);
-            }
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => elisions.early_errors(agent, errs, strict),
-            ArrayBindingPattern::RestOnly(None, Some(node)) => node.early_errors(agent, errs, strict),
-            ArrayBindingPattern::RestOnly(None, None) => (),
+            ArrayBindingPattern::RestOnly(_, Some(node)) => node.early_errors(agent, errs, strict),
+            ArrayBindingPattern::RestOnly(_, None) => (),
             ArrayBindingPattern::ListOnly(node) => node.early_errors(agent, errs, strict),
-            ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
-                lst.early_errors(agent, errs, strict);
-                elisions.early_errors(agent, errs, strict);
-                rst.early_errors(agent, errs, strict);
-            }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+            ArrayBindingPattern::ListRest(lst, _, Some(rst)) => {
                 lst.early_errors(agent, errs, strict);
                 rst.early_errors(agent, errs, strict);
             }
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
-                lst.early_errors(agent, errs, strict);
-                elisions.early_errors(agent, errs, strict);
-            }
-            ArrayBindingPattern::ListRest(lst, None, None) => lst.early_errors(agent, errs, strict),
+            ArrayBindingPattern::ListRest(lst, _, None) => lst.early_errors(agent, errs, strict),
         }
     }
 }
@@ -1588,13 +1574,8 @@ impl BindingElisionElement {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match self {
-            BindingElisionElement::Element(None, elem) => elem.early_errors(agent, errs, strict),
-            BindingElisionElement::Element(Some(elision), elem) => {
-                elision.early_errors(agent, errs, strict);
-                elem.early_errors(agent, errs, strict);
-            }
-        }
+        let BindingElisionElement::Element(_, elem) = self;
+        elem.early_errors(agent, errs, strict);
     }
 }
 

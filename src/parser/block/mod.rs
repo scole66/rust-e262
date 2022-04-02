@@ -84,9 +84,9 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let BlockStatement::Block(node) = self;
-        node.early_errors(agent, errs, strict, within_iteration);
+        node.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 }
 
@@ -169,6 +169,14 @@ impl Block {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        let Block::Statements(opt_sl) = self;
+        match opt_sl {
+            None => vec![],
+            Some(node) => node.lexically_declared_names(),
+        }
+    }
+
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         let Block::Statements(opt_sl) = self;
         match opt_sl {
@@ -212,7 +220,7 @@ impl Block {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         if let Block::Statements(Some(sl)) = self {
             // Static Semantics: Early Errors
             // Block : { StatementList }
@@ -231,7 +239,7 @@ impl Block {
             if !lex_names_set.is_disjoint(&var_names_set) {
                 errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
             }
-            sl.early_errors(agent, errs, strict, within_iteration);
+            sl.early_errors(agent, errs, strict, within_iteration, within_switch);
         }
     }
 }
@@ -429,12 +437,12 @@ impl StatementList {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration),
+            StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             StatementList::List(lst, item) => {
-                lst.early_errors(agent, errs, strict, within_iteration);
-                item.early_errors(agent, errs, strict, within_iteration);
+                lst.early_errors(agent, errs, strict, within_iteration, within_switch);
+                item.early_errors(agent, errs, strict, within_iteration, within_switch);
             }
         }
     }
@@ -589,9 +597,9 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         match self {
-            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration),
+            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
         }
     }
