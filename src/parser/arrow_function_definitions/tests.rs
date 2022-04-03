@@ -195,6 +195,13 @@ mod arrow_parameters {
     fn bound_names(src: &str) -> Vec<String> {
         ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("x" => true; "simple id")]
+    #[test_case("(x)" => true; "simple formals")]
+    #[test_case("({x})" => false; "complex formals")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_simple_parameter_list()
+    }
 }
 
 // CONCISE BODY
@@ -412,5 +419,11 @@ mod arrow_formal_parameters {
     #[test_case("(a,b)" => vec!["a", "b"]; "( UniqueFormalParameters )")]
     fn bound_names(src: &str) -> Vec<String> {
         ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("(a)" => true; "simple")]
+    #[test_case("({a})" => false; "complex")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_simple_parameter_list()
     }
 }

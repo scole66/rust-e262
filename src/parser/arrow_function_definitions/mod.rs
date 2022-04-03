@@ -173,6 +173,20 @@ impl ArrowParameters {
         }
     }
 
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
+        //  ArrowParameters : BindingIdentifier
+        //      1. Return true.
+        //  ArrowParameters : CoverParenthesizedExpressionAndArrowParameterList
+        //      1. Let formals be the ArrowFormalParameters that is covered by CoverParenthesizedExpressionAndArrowParameterList.
+        //      2. Return IsSimpleParameterList of formals.
+        match self {
+            ArrowParameters::Identifier(_) => true,
+            ArrowParameters::Formals(formals) => formals.is_simple_parameter_list(),
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -249,6 +263,14 @@ impl ArrowFormalParameters {
 
     pub fn bound_names(&self) -> Vec<JSString> {
         self.0.bound_names()
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
+        //  ArrowFormalParameters : ( UniqueFormalParameters )
+        //      1. Return IsSimpleParameterList of UniqueFormalParameters.
+        self.0.is_simple_parameter_list()
     }
 
     #[allow(clippy::ptr_arg)]
