@@ -63,6 +63,11 @@ mod unique_formal_parameters {
         UniqueFormalParameters::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
+    fn bound_names(src: &str) -> Vec<String> {
+        UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // FORMAL PARAMETERS

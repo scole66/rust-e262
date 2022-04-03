@@ -190,6 +190,13 @@ impl ArrowParameters {
         }
     }
 
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            ArrowParameters::Identifier(id) => id.bound_names(),
+            ArrowParameters::Formals(afp) => afp.bound_names(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
@@ -264,6 +271,10 @@ impl ArrowFormalParameters {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.0.bound_names()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
