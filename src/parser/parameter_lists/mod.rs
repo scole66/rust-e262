@@ -84,6 +84,14 @@ impl UniqueFormalParameters {
     pub fn bound_names(&self) -> Vec<JSString> {
         self.formals.bound_names()
     }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
+        //  UniqueFormalParameters : FormalParameters
+        //      1. Return IsSimpleParameterList of FormalParameters.
+        self.formals.is_simple_parameter_list()
+    }
 }
 
 // FormalParameters[Yield, Await] :

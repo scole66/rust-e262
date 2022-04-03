@@ -68,6 +68,12 @@ mod unique_formal_parameters {
     fn bound_names(src: &str) -> Vec<String> {
         UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("a" => true; "simple")]
+    #[test_case("{a}" => false; "pattern")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).0.is_simple_parameter_list()
+    }
 }
 
 // FORMAL PARAMETERS
