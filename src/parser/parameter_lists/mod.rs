@@ -80,6 +80,10 @@ impl UniqueFormalParameters {
         }
         self.formals.early_errors(agent, errs, strict, true);
     }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.formals.bound_names()
+    }
 }
 
 // FormalParameters[Yield, Await] :
