@@ -369,6 +369,19 @@ impl ConciseBody {
         }
     }
 
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
+        //  ConciseBody : ExpressionBody
+        //      1. Return a new empty List.
+        //  ConciseBody : { FunctionBody }
+        //      1. Return LexicallyDeclaredNames of FunctionBody.
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function(fb) => fb.lexically_declared_names(),
+        }
+    }
+
     pub fn concise_body_contains_use_strict(&self) -> bool {
         // Static Semantics: ConciseBodyContainsUseStrict
         // The syntax-directed operation ConciseBodyContainsUseStrict takes no arguments and returns a Boolean. It is
