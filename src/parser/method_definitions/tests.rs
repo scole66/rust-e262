@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // METHOD DEFINITION
@@ -428,10 +429,25 @@ mod method_definition {
         item.has_direct_super()
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("package(implements){interface;}", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED])*/; "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
+    #[test_case("*package(){}", true => panics "not yet implemented"; "GeneratorMethod")]
+    #[test_case("async package(){}", true => panics "not yet implemented"; "AsyncMethod")]
+    #[test_case("async *package(){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
+    #[test_case("get package(){implements;}", true => panics "not yet implemented"; "get ClassElementName () { FunctionBody }")]
+    #[test_case("set package(implements){interface;}", true => panics "not yet implemented"; "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
+    #[test_case("package(implements){'use strict'; interface;}", false => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED])*/; "contains strict; ordinary")]
+    #[test_case("get package(){'use strict'; implements;}", false => panics "not yet implemented"; "contains strict; getter")]
+    #[test_case("set package(implements){'use strict'; interface;}", false => panics "not yet implemented"; "contains strict; setter")]
+    #[test_case("a([b]){'use strict';}", false => panics "not yet implemented"; "ordinary; bad use-strict")]
+    #[test_case("set a([b]){'use strict';}", false => panics "not yet implemented"; "setter; bad use-strict")]
+    #[test_case("a(b){let b;}", false => panics "not yet implemented"; "ordinary; duped lexical")]
+    #[test_case("set a(b){let b;}", false => panics "not yet implemented"; "setter; duped lexical")]
+    #[test_case("set a([b, b]){}", false => panics "not yet implemented"; "setter; duped params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        MethodDefinition::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
@@ -485,9 +501,22 @@ mod property_set_parameter_list {
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertySetParameterList::parse(&mut strictparser(src, strict), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => vec!["a"]; "FormalParameter")]
+    fn bound_names(src: &str) -> Vec<String> {
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a" => true; "simple")]
+    #[test_case("[a]" => false; "complex")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.is_simple_parameter_list()
     }
 }

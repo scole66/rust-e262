@@ -259,9 +259,60 @@ impl MethodDefinition {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            MethodDefinition::NamedFunction(cen, ufp, fb) => {
+                //  MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //      * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and
+                //        IsSimpleParameterList of UniqueFormalParameters is false.
+                //      * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in
+                //        the LexicallyDeclaredNames of FunctionBody.
+                if fb.function_body_contains_use_strict() && !ufp.is_simple_parameter_list() {
+                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                }
+                let ldn = fb.lexically_declared_names();
+                for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                ufp.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Setter(cen, pspl, fb) => {
+                //  MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+                //      * It is a Syntax Error if BoundNames of PropertySetParameterList contains any duplicate
+                //        elements.
+                //      * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and
+                //        IsSimpleParameterList of PropertySetParameterList is false.
+                //      * It is a Syntax Error if any element of the BoundNames of PropertySetParameterList also occurs
+                //        in the LexicallyDeclaredNames of FunctionBody.
+                let bn = pspl.bound_names();
+                for name in duplicates(&bn) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
+                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                }
+                let ldn = fb.lexically_declared_names();
+                for name in bn.into_iter().filter(|n| ldn.contains(n)) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                pspl.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Getter(cen, fb) => {
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Generator(g) => g.early_errors(agent, errs, strict),
+            MethodDefinition::Async(a) => a.early_errors(agent, errs, strict),
+            MethodDefinition::AsyncGenerator(ag) => ag.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -333,9 +384,16 @@ impl PropertySetParameterList {
         self.node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.node.bound_names()
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        self.node.is_simple_parameter_list()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.node.early_errors(agent, errs, strict);
     }
 }
 
