@@ -298,6 +298,12 @@ mod concise_body {
     fn concise_body_contains_use_strict(src: &str) -> bool {
         ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.concise_body_contains_use_strict()
     }
+
+    #[test_case("expression" => Vec::<String>::new(); "ExpressionBody")]
+    #[test_case("{ let a; }" => vec!["a"]; "{ FunctionBody }")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // EXPRESSION BODY
