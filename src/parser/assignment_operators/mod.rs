@@ -1474,7 +1474,7 @@ impl DestructuringAssignmentTarget {
             DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(agent, errs, strict),
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
                 if lhs.assignment_target_type() != ATTKind::Simple {
-                    errs.push(create_syntax_error_object(agent, "Invalid left-hand-side"));
+                    errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
                 }
                 lhs.early_errors(agent, errs, strict);
             }

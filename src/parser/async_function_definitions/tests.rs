@@ -510,6 +510,11 @@ fn await_expression_test_contains_02() {
     let (item, _) = AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn await_expression_test_contains_03() {
+    let item = AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0;
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), true);
+}
 #[test_case("await item.#valid" => true; "Expression valid")]
 #[test_case("await item.#invalid" => false; "Expression invalid")]
 fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {

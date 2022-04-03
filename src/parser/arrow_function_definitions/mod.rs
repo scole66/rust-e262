@@ -93,7 +93,7 @@ impl ArrowFunction {
         }
         let bn = self.parameters.bound_names();
         let ldn = self.body.lexically_declared_names();
-        for name in bn.iter.filter(|n| ldn.contains(n)) {
+        for name in bn.into_iter().filter(|n| ldn.contains(n)) {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
         }
 

@@ -501,6 +501,11 @@ fn yield_expression_test_contains_05() {
     let (item, _) = YieldExpression::parse(&mut newparser("yield;"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn yield_expression_test_contains_06() {
+    let item = YieldExpression::parse(&mut newparser("yield 3"), Scanner::new(), true, true).unwrap().0;
+    assert_eq!(item.contains(ParseNodeKind::YieldExpression), true);
+}
 #[test_case("yield" => true; "Yield only")]
 #[test_case("yield a.#valid" => true; "expression valid")]
 #[test_case("yield *a.#valid" => true; "from valid")]
