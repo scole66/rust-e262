@@ -446,8 +446,10 @@ impl AwaitExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let AwaitExpression::Await(boxed) = self;
-        boxed.contains(kind)
+        kind == ParseNodeKind::AwaitExpression || {
+            let AwaitExpression::Await(boxed) = self;
+            boxed.contains(kind)
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {

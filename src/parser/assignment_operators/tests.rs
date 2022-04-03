@@ -4,6 +4,8 @@ use crate::prettyprint::testhelp::{concise_data, concise_error_validate, pretty_
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 
+const INVALID_LHS: &str = "Invalid left-hand side in assignment";
+
 mod assignment_expression {
     use super::*;
     use test_case::test_case;
@@ -572,7 +574,7 @@ mod assignment_expression {
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
     #[test_case("yield package", true => panics "not yet implemented"; "YieldExpression")]
-    #[test_case("package=>interface", true => panics "not yet implemented"; "ArrowFunction")]
+    #[test_case("package=>interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
     #[test_case("async package=>interface", true => panics "not yet implemented"; "AsyncArrowFunction")]
     #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
     #[test_case("package*=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
@@ -591,22 +593,22 @@ mod assignment_expression {
     #[test_case("package||=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
     #[test_case("package??=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
     #[test_case("[package]=[interface]", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AssignmentPattern = AssignmentExpression")]
-    #[test_case("(a=>a)=b", true => panics "not yet implemented"; "LHS must be simple (assignment)")]
-    #[test_case("(a=>a)*=b", true => panics "not yet implemented"; "LHS must be simple (multiplication)")]
-    #[test_case("(a=>a)/=b", true => panics "not yet implemented"; "LHS must be simple (division)")]
-    #[test_case("(a=>a)%=b", true => panics "not yet implemented"; "LHS must be simple (modulo)")]
-    #[test_case("(a=>a)+=b", true => panics "not yet implemented"; "LHS must be simple (add)")]
-    #[test_case("(a=>a)-=b", true => panics "not yet implemented"; "LHS must be simple (subtract)")]
-    #[test_case("(a=>a)<<=b", true => panics "not yet implemented"; "LHS must be simple (lsh)")]
-    #[test_case("(a=>a)>>=b", true => panics "not yet implemented"; "LHS must be simple (rsh)")]
-    #[test_case("(a=>a)>>>=b", true => panics "not yet implemented"; "LHS must be simple (ursh)")]
-    #[test_case("(a=>a)&=b", true => panics "not yet implemented"; "LHS must be simple (bitwise and)")]
-    #[test_case("(a=>a)^=b", true => panics "not yet implemented"; "LHS must be simple (xor)")]
-    #[test_case("(a=>a)|=b", true => panics "not yet implemented"; "LHS must be simple (bitwise or)")]
-    #[test_case("(a=>a)**=b", true => panics "not yet implemented"; "LHS must be simple (exponentiation)")]
-    #[test_case("(a=>a)&&=b", true => panics "not yet implemented"; "LHS must be simple (logical and)")]
-    #[test_case("(a=>a)||=b", true => panics "not yet implemented"; "LHS must be simple (logical or)")]
-    #[test_case("(a=>a)??=b", true => panics "not yet implemented"; "LHS must be simple (coalesce)")]
+    #[test_case("(a=>a)=b", true => set(&[INVALID_LHS]); "LHS must be simple (assignment)")]
+    #[test_case("(a=>a)*=b", true => set(&[INVALID_LHS]); "LHS must be simple (multiplication)")]
+    #[test_case("(a=>a)/=b", true => set(&[INVALID_LHS]); "LHS must be simple (division)")]
+    #[test_case("(a=>a)%=b", true => set(&[INVALID_LHS]); "LHS must be simple (modulo)")]
+    #[test_case("(a=>a)+=b", true => set(&[INVALID_LHS]); "LHS must be simple (add)")]
+    #[test_case("(a=>a)-=b", true => set(&[INVALID_LHS]); "LHS must be simple (subtract)")]
+    #[test_case("(a=>a)<<=b", true => set(&[INVALID_LHS]); "LHS must be simple (lsh)")]
+    #[test_case("(a=>a)>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (rsh)")]
+    #[test_case("(a=>a)>>>=b", true => set(&[INVALID_LHS]); "LHS must be simple (ursh)")]
+    #[test_case("(a=>a)&=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise and)")]
+    #[test_case("(a=>a)^=b", true => set(&[INVALID_LHS]); "LHS must be simple (xor)")]
+    #[test_case("(a=>a)|=b", true => set(&[INVALID_LHS]); "LHS must be simple (bitwise or)")]
+    #[test_case("(a=>a)**=b", true => set(&[INVALID_LHS]); "LHS must be simple (exponentiation)")]
+    #[test_case("(a=>a)&&=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical and)")]
+    #[test_case("(a=>a)||=b", true => set(&[INVALID_LHS]); "LHS must be simple (logical or)")]
+    #[test_case("(a=>a)??=b", true => set(&[INVALID_LHS]); "LHS must be simple (coalesce)")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1559,7 +1561,7 @@ mod destructuring_assignment_target {
 
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentPattern")]
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "lhs")]
-    #[test_case("(a=>a)", true => panics "not yet implemented"; "not simple")]
+    #[test_case("(a=>a)", true => set(&[INVALID_LHS]); "not simple")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

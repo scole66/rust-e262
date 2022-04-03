@@ -114,6 +114,7 @@ pub enum ParseNodeKind {
     VariableDeclaration,
     VariableStatement,
     WithStatement,
+    YieldExpression,
 }
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -185,6 +186,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::VariableDeclaration => "VariableDeclaration",
             ParseNodeKind::VariableStatement => "VariableStatement",
             ParseNodeKind::WithStatement => "WithStatement",
+            ParseNodeKind::YieldExpression => "YieldExpression",
         })
     }
 }
