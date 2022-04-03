@@ -186,6 +186,17 @@ fn arrow_parameters_test_early_errors() {
     ArrowParameters::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
+mod arrow_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("x" => vec!["x"]; "BindingIdentifier")]
+    #[test_case("(left, right)" => vec!["left", "right"]; "ArrowFormalParameters")]
+    fn bound_names(src: &str) -> Vec<String> {
+        ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+}
+
 // CONCISE BODY
 #[test]
 fn concise_body_test_01() {
@@ -380,4 +391,14 @@ fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool
 fn arrow_formal_parameters_test_early_errors() {
     let mut agent = test_agent();
     ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+}
+
+mod arrow_formal_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("(a,b)" => vec!["a", "b"]; "( UniqueFormalParameters )")]
+    fn bound_names(src: &str) -> Vec<String> {
+        ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
 }

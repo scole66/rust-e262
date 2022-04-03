@@ -166,6 +166,13 @@ impl ArrowParameters {
         }
     }
 
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            ArrowParameters::Identifier(id) => id.bound_names(),
+            ArrowParameters::Formals(afp) => afp.bound_names(),
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -238,6 +245,10 @@ impl ArrowFormalParameters {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.0.bound_names()
     }
 
     #[allow(clippy::ptr_arg)]
