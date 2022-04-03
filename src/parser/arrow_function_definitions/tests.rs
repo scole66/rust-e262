@@ -281,6 +281,18 @@ fn concise_body_test_early_errors() {
     ConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
 }
 
+mod concise_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("3" => false; "ExpressionBody")]
+    #[test_case("{ 'use strict'; }" => true; "{ FunctionBody }")]
+    #[test_case("{ 3; 'use strict'; }" => false; "FunctionBody without")]
+    fn concise_body_contains_use_strict(src: &str) -> bool {
+        ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.concise_body_contains_use_strict()
+    }
+}
+
 // EXPRESSION BODY
 #[test]
 fn expression_body_test_01() {
