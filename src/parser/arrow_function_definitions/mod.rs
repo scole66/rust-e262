@@ -372,6 +372,21 @@ impl ConciseBody {
         }
     }
 
+    pub fn concise_body_contains_use_strict(&self) -> bool {
+        // Static Semantics: ConciseBodyContainsUseStrict
+        // The syntax-directed operation ConciseBodyContainsUseStrict takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        //
+        //  ConciseBody : ExpressionBody
+        //      1. Return false.
+        //  ConciseBody : { FunctionBody }
+        //      1. Return FunctionBodyContainsUseStrict of FunctionBody.
+        match self {
+            ConciseBody::Expression(_) => false,
+            ConciseBody::Function(fb) => fb.function_body_contains_use_strict(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
