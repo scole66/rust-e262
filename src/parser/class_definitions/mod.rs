@@ -542,6 +542,30 @@ impl ClassElementList {
         }
     }
 
+    pub fn constructor_method(&self) -> Option<Rc<ClassElement>> {
+        // Static Semantics: ConstructorMethod
+        // The syntax-directed operation ConstructorMethod takes no arguments and returns a ClassElement Parse Node or empty.
+        //
+        //  ClassElementList : ClassElement
+        //      1. If ClassElementKind of ClassElement is ConstructorMethod, return ClassElement.
+        //      2. Return empty.
+        //  ClassElementList : ClassElementList ClassElement
+        //      1. Let head be ConstructorMethod of ClassElementList.
+        //      2. If head is not empty, return head.
+        //      3. If ClassElementKind of ClassElement is ConstructorMethod, return ClassElement.
+        //      4. Return empty.
+        fn from_item(item: &Rc<ClassElement>) -> Option<Rc<ClassElement>> {
+            match item.class_element_kind() {
+                Some(CEKind::ConstructorMethod) => Some(Rc::clone(item)),
+                _ => None,
+            }
+        }
+        match self {
+            ClassElementList::Item(element) => from_item(element),
+            ClassElementList::List(lst, element) => lst.constructor_method().or_else(|| from_item(element)),
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -711,6 +735,32 @@ impl ClassElement {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn class_element_kind(&self) -> Option<CEKind> {
+        // Static Semantics: ClassElementKind
+        // The syntax-directed operation ClassElementKind takes no arguments and returns ConstructorMethod, NonConstructorMethod, or empty.
+        //  ClassElement : MethodDefinition
+        //      1. If PropName of MethodDefinition is "constructor", return ConstructorMethod.
+        //      2. Return NonConstructorMethod.
+        //  ClassElement : static MethodDefinition
+        //  ClassElement : FieldDefinition ;
+        //  ClassElement : static FieldDefinition ;
+        //  ClassElement : ClassStaticBlock
+        //      1. Return NonConstructorMethod.
+        //  ClassElement : ;
+        //      1. Return empty.
+        match self {
+            ClassElement::Standard(md) if md.prop_name() == Some("constructor".into()) => Some(CEKind::ConstructorMethod),
+            ClassElement::Standard(_) | ClassElement::Field(_) | ClassElement::Static(_) | ClassElement::StaticField(_) | ClassElement::StaticBlock(_) => Some(CEKind::NonConstructorMethod),
+            ClassElement::Empty => None,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum CEKind {
+    ConstructorMethod,
+    NonConstructorMethod,
 }
 
 // FieldDefinition[Yield, Await] :
@@ -1022,9 +1072,42 @@ impl ClassStaticBlockBody {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  ClassStaticBlockBody : ClassStaticBlockStatementList
+        //  * It is a Syntax Error if the LexicallyDeclaredNames of ClassStaticBlockStatementList contains any duplicate
+        //    entries.
+        //  * It is a Syntax Error if any element of the LexicallyDeclaredNames of ClassStaticBlockStatementList also
+        //    occurs in the VarDeclaredNames of ClassStaticBlockStatementList.
+        //  * It is a Syntax Error if ContainsDuplicateLabels of ClassStaticBlockStatementList with argument « » is
+        //    true.
+        //  * It is a Syntax Error if ContainsUndefinedBreakTarget of ClassStaticBlockStatementList with argument « » is
+        //    true.
+        //  * It is a Syntax Error if ContainsUndefinedContinueTarget of ClassStaticBlockStatementList with arguments «
+        //    » and « » is true.
+        //  * It is a Syntax Error if ContainsArguments of ClassStaticBlockStatementList is true.
+        //  * It is a Syntax Error if ClassStaticBlockStatementList Contains SuperCall is true.
+        //  * It is a Syntax Error if ClassStaticBlockStatementList Contains await is true.
+        let ldn = self.0.lexically_declared_names();
+        for name in duplicates(&ldn) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+        let vdn = self.0.var_declared_names();
+        for name in ldn.iter().filter(|n| vdn.contains(n)) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+        if self.0.contains_duplicate_labels(&[]) {
+            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+        }
+        if self.0.contains_undefined_break_target(&[]) {
+            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
+        }
+        if self.0.contains_undefined_continue_target(&[], &[]) {
+            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+        }
+        if self.0.contains_arguments() {
+            errs.push(create_syntax_error_object(agent, "soemthing"))
+        }
     }
 }
 
@@ -1075,9 +1158,57 @@ impl ClassStaticBlockStatementList {
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        if let Some(sl) = self.0.as_ref() {
+            sl.early_errors(agent, errs, strict, false, false);
+        }
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
+        //  ClassStaticBlockStatementList : [empty]
+        //      1. Return a new empty List.
+        //  ClassStaticBlockStatementList : StatementList
+        //      1. Return the TopLevelLexicallyDeclaredNames of StatementList.
+        match self.0.as_ref() {
+            Some(sl) => sl.top_level_lexically_declared_names(),
+            None => vec![],
+        }
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: VarDeclaredNames
+        // The syntax-directed operation VarDeclaredNames takes no arguments and returns a List of Strings.
+        //  ClassStaticBlockStatementList : [empty]
+        //      1. Return a new empty List.
+        //  ClassStaticBlockStatementList : StatementList
+        //      1. Return the TopLevelVarDeclaredNames of StatementList.
+        match self.0.as_ref() {
+            Some(sl) => sl.top_level_var_declared_names(),
+            None => vec![],
+        }
+    }
+
+    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+        match self.0.as_ref() {
+            Some(sl) => sl.contains_duplicate_labels(label_set),
+            None => false
+        }
+    }
+
+    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+        match self.0.as_ref() {
+            Some(sl) => sl.contains_undefined_break_target(label_set),
+            None => false
+        }
+    }
+
+    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+        match self.0.as_ref() {
+            Some(sl) => sl.contains_undefined_continue_target(iteration_set, label_set),
+            None => false
+        }
     }
 }
 
