@@ -88,6 +88,17 @@ impl BlockStatement {
         let BlockStatement::Block(node) = self;
         node.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let BlockStatement::Block(block) = self;
+        block.contains_arguments()
+    }
 }
 
 // Block[Yield, Await, Return] :
@@ -218,6 +229,17 @@ impl Block {
         } else {
             true
         }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let Block::Statements(sl) = self;
+        sl.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
@@ -446,6 +468,19 @@ impl StatementList {
             }
         }
     }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            StatementList::Item(sli) => sli.contains_arguments(),
+            StatementList::List(sl, sli) => sl.contains_arguments() || sli.contains_arguments(),
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -601,6 +636,19 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            StatementListItem::Statement(stmt) => stmt.contains_arguments(),
+            StatementListItem::Declaration(decl) => decl.contains_arguments(),
         }
     }
 }

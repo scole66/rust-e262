@@ -345,6 +345,18 @@ impl IdentifierReference {
             }
         }
     }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  IdentifierReference : Identifier
+        //      1. If the StringValue of Identifier is "arguments", return true.
+        //      2. Return false.
+        //  IdentifierReference : yield
+        //  IdentifierReference : await
+        //      1. Return false.
+        matches!(&self.kind, IdentifierReferenceKind::Identifier(id) if id.string_value() == JSString::from("arguments"))
+    }
 }
 
 // BindingIdentifier[Yield, Await] :

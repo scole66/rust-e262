@@ -477,6 +477,17 @@ impl VariableStatement {
         node.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let VariableStatement::Var(vdl) = self;
+        vdl.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let VariableStatement::Var(vdl) = self;
         vdl.early_errors(agent, errs, strict);
@@ -588,6 +599,19 @@ impl VariableDeclarationList {
         match self {
             VariableDeclarationList::Item(node) => node.all_private_identifiers_valid(names),
             VariableDeclarationList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            VariableDeclarationList::Item(vd) => vd.contains_arguments(),
+            VariableDeclarationList::List(vdl, vd) => vdl.contains_arguments() || vd.contains_arguments(),
         }
     }
 
@@ -714,6 +738,20 @@ impl VariableDeclaration {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            VariableDeclaration::Identifier(_, None) => false,
+            VariableDeclaration::Identifier(_, Some(izer)) => izer.contains_arguments(),
+            VariableDeclaration::Pattern(bp, izer) => bp.contains_arguments() || izer.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             VariableDeclaration::Identifier(bi, Some(i)) => {
@@ -814,6 +852,19 @@ impl BindingPattern {
         match self {
             BindingPattern::Object(node) => node.all_private_identifiers_valid(names),
             BindingPattern::Array(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingPattern::Object(obp) => obp.contains_arguments(),
+            BindingPattern::Array(abp) => abp.contains_arguments(),
         }
     }
 
@@ -966,6 +1017,19 @@ impl ObjectBindingPattern {
         match self {
             ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => true,
             ObjectBindingPattern::ListOnly(node) | ObjectBindingPattern::ListRest(node, _) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => false,
+            ObjectBindingPattern::ListOnly(bpl) | ObjectBindingPattern::ListRest(bpl, _) => bpl.contains_arguments(),
         }
     }
 
@@ -1184,6 +1248,20 @@ impl ArrayBindingPattern {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ArrayBindingPattern::RestOnly(_, obre) => obre.as_ref().map_or(false, |bre| bre.contains_arguments()),
+            ArrayBindingPattern::ListOnly(bel) => bel.contains_arguments(),
+            ArrayBindingPattern::ListRest(bel, _, obre) => bel.contains_arguments() || obre.as_ref().map_or(false, |bre| bre.contains_arguments()),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayBindingPattern::RestOnly(_, Some(node)) => node.early_errors(agent, errs, strict),
@@ -1367,6 +1445,19 @@ impl BindingPropertyList {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingPropertyList::Item(bp) => bp.contains_arguments(),
+            BindingPropertyList::List(bpl, bp) => bpl.contains_arguments() || bp.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingPropertyList::Item(node) => node.early_errors(agent, errs, strict),
@@ -1482,6 +1573,19 @@ impl BindingElementList {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingElementList::Item(bee) => bee.contains_arguments(),
+            BindingElementList::List(bel, bee) => bel.contains_arguments() || bee.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingElementList::Item(node) => node.early_errors(agent, errs, strict),
@@ -1571,6 +1675,17 @@ impl BindingElisionElement {
         //  2. Return true.
         let BindingElisionElement::Element(_, n) = self;
         n.all_private_identifiers_valid(names)
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let BindingElisionElement::Element(_, be) = self;
+        be.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1670,6 +1785,19 @@ impl BindingProperty {
         match self {
             BindingProperty::Single(node) => node.all_private_identifiers_valid(names),
             BindingProperty::Property(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingProperty::Single(snb) => snb.contains_arguments(),
+            BindingProperty::Property(pn, be) => pn.contains_arguments() || be.contains_arguments(),
         }
     }
 
@@ -1793,6 +1921,19 @@ impl BindingElement {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingElement::Single(snb) => snb.contains_arguments(),
+            BindingElement::Pattern(bp, oizer) => bp.contains_arguments() || oizer.as_ref().map_or(false, |izer| izer.contains_arguments()),
+        }
+    }
+
     pub fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         match self {
@@ -1913,6 +2054,17 @@ impl SingleNameBinding {
         opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let SingleNameBinding::Id(_, oizer) = self;
+        oizer.as_ref().map_or(false, |izer| izer.contains_arguments())
+    }
+
     pub fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // SingleNameBinding : BindingIdentifier
@@ -2023,6 +2175,19 @@ impl BindingRestElement {
         match self {
             BindingRestElement::Identifier(_) => true,
             BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingRestElement::Identifier(_) => false,
+            BindingRestElement::Pattern(bp) => bp.contains_arguments(),
         }
     }
 

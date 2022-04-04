@@ -370,6 +370,30 @@ impl Statement {
             _ => false,
         }
     }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            Statement::Block(bs) => bs.contains_arguments(),
+            Statement::Variable(vs) => vs.contains_arguments(),
+            Statement::Empty(_) | Statement::Debugger(_) => false,
+            Statement::Expression(exp) => exp.contains_arguments(),
+            Statement::If(is) => is.contains_arguments(),
+            Statement::Breakable(bs) => bs.contains_arguments(),
+            Statement::Continue(cs) => cs.contains_arguments(),
+            Statement::Break(bs) => bs.contains_arguments(),
+            Statement::Return(rs) => rs.contains_arguments(),
+            Statement::With(ws) => ws.contains_arguments(),
+            Statement::Labelled(ls) => ls.contains_arguments(),
+            Statement::Throw(ts) => ts.contains_arguments(),
+            Statement::Try(ts) => ts.contains_arguments(),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -471,6 +495,20 @@ impl Declaration {
             Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
             Declaration::Class(node) => node.early_errors(agent, errs, strict),
             Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            Declaration::Hoistable(hd) => false,
+            Declaration::Class(cd) => cd.contains_arguments(),
+            Declaration::Lexical(ld) => ld.contains_arguments(),
         }
     }
 }

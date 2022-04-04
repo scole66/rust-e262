@@ -977,6 +977,17 @@ impl Initializer {
         node.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let Initializer::AssignmentExpression(node) = self;
         node.early_errors(agent, errs, strict);
@@ -1116,6 +1127,17 @@ impl ComputedPropertyName {
         //  2. Return true.
         let ComputedPropertyName::AssignmentExpression(n) = self;
         n.all_private_identifiers_valid(names)
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ComputedPropertyName::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1297,6 +1319,19 @@ impl PropertyName {
         match self {
             PropertyName::LiteralPropertyName(_) => true,
             PropertyName::ComputedPropertyName(n) => n.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyName::LiteralPropertyName(_) => false,
+            PropertyName::ComputedPropertyName(cpn) => cpn.contains_arguments(),
         }
     }
 

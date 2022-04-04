@@ -303,6 +303,27 @@ impl AssignmentExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            AssignmentExpression::FallThru(ce) => ce.contains_arguments(),
+            AssignmentExpression::Yield(ye) => ye.contains_arguments(),
+            AssignmentExpression::Arrow(af) => af.contains_arguments(),
+            AssignmentExpression::AsyncArrow(aaf) => aaf.contains_arguments(),
+            AssignmentExpression::Assignment(lhse, ae)
+            | AssignmentExpression::OpAssignment(lhse, _, ae)
+            | AssignmentExpression::LandAssignment(lhse, ae)
+            | AssignmentExpression::LorAssignment(lhse, ae)
+            | AssignmentExpression::CoalAssignment(lhse, ae) => lhse.contains_arguments() || ae.contains_arguments(),
+            AssignmentExpression::Destructuring(ap, ae) => ap.contains_arguments() || ae.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentExpression :
@@ -477,6 +498,19 @@ impl AssignmentPattern {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            AssignmentPattern::Object(oap) => oap.contains_arguments(),
+            AssignmentPattern::Array(aap) => aap.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentPattern::Object(obj) => obj.early_errors(agent, errs, strict),
@@ -604,6 +638,21 @@ impl ObjectAssignmentPattern {
             ObjectAssignmentPattern::RestOnly(arp) => arp.all_private_identifiers_valid(names),
             ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.all_private_identifiers_valid(names),
             ObjectAssignmentPattern::ListRest(apl, Some(apr)) => apl.all_private_identifiers_valid(names) && apr.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ObjectAssignmentPattern::Empty => false,
+            ObjectAssignmentPattern::RestOnly(arp) => arp.contains_arguments(),
+            ObjectAssignmentPattern::ListOnly(apl) | ObjectAssignmentPattern::ListRest(apl, None) => apl.contains_arguments(),
+            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => apl.contains_arguments() || arp.contains_arguments(),
         }
     }
 
