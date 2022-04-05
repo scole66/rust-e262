@@ -406,58 +406,61 @@ fn primary_expression_test_contains_19() {
     let (item, _) = PrimaryExpression::parse(&mut newparser("2048"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
-#[test_case("\"string\"" => Some(String::from("string")); "String Token")]
-#[test_case("string" => None; "Identifier Reference")]
-fn primary_expression_test_as_string_literal(src: &str) -> Option<String> {
-    let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.as_string_literal().map(|st| String::from(st.value))
-}
-#[test_case("this" => true; "this")]
-#[test_case("a" => true; "identifier reference")]
-#[test_case("10" => true; "literal")]
-#[test_case("/bob/" => true; "regular expression")]
-#[test_case("[a.#valid]" => true; "ArrayLiteral valid")]
-#[test_case("{a=b.#valid}" => true; "ObjectLiteral valid")]
-#[test_case("function (){a.#valid;}" => true; "FunctionExpression valid")]
-#[test_case("class {a=b.#valid;}" => true; "ClassExpression valid")]
-#[test_case("function *(){a.#valid;}" => true; "GeneratorExpression valid")]
-#[test_case("async function (){a.#valid;}" => true; "AsyncFunctionExpression valid")]
-#[test_case("async function *(){a.#valid;}" => true; "AsyncGeneratorExpression valid")]
-#[test_case("`${a.#valid}`" => true; "TemplateLiteral valid")]
-#[test_case("(a.#valid)" => true; "Grouping valid")]
-#[test_case("[a.#invalid]" => false; "ArrayLiteral invalid")]
-#[test_case("{a=b.#invalid}" => false; "ObjectLiteral invalid")]
-#[test_case("function (){a.#invalid;}" => false; "FunctionExpression invalid")]
-#[test_case("class {a=b.#invalid;}" => false; "ClassExpression invalid")]
-#[test_case("function *(){a.#invalid;}" => false; "GeneratorExpression invalid")]
-#[test_case("async function (){a.#invalid;}" => false; "AsyncFunctionExpression invalid")]
-#[test_case("async function *(){a.#invalid;}" => false; "AsyncGeneratorExpression invalid")]
-#[test_case("`${a.#invalid}`" => false; "TemplateLiteral invalid")]
-#[test_case("(a.#invalid)" => false; "Grouping invalid")]
-fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
-    let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
-
-#[test_case("this" => false; "This")]
-#[test_case("a" => false; "IdentifierReference")]
-#[test_case("3" => false; "Literal")]
-#[test_case("[]" => true; "ArrayLiteral")]
-#[test_case("{}" => true; "ObjectLiteral")]
-#[test_case("function (){}" => false; "FunctionExpression")]
-#[test_case("class {}" => false; "ClassExpression")]
-#[test_case("function *(){}" => false; "GeneratorExpression")]
-#[test_case("async function (){}" => false; "AsyncFunctionExpression")]
-#[test_case("async function *(){}" => false; "AsyncGeneratorExpression")]
-#[test_case("/a/" => false; "RegularExpressionLiteral")]
-#[test_case("``" => false; "TemplateLiteral")]
-#[test_case("(a)" => false; "ParenthesizedExpression")]
-fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
-    PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
-}
 mod primary_expression {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("\"string\"" => Some(String::from("string")); "String Token")]
+    #[test_case("string" => None; "Identifier Reference")]
+    fn as_string_literal(src: &str) -> Option<String> {
+        let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.as_string_literal().map(|st| String::from(st.value))
+    }
+
+    #[test_case("this" => true; "this")]
+    #[test_case("a" => true; "identifier reference")]
+    #[test_case("10" => true; "literal")]
+    #[test_case("/bob/" => true; "regular expression")]
+    #[test_case("[a.#valid]" => true; "ArrayLiteral valid")]
+    #[test_case("{a=b.#valid}" => true; "ObjectLiteral valid")]
+    #[test_case("function (){a.#valid;}" => true; "FunctionExpression valid")]
+    #[test_case("class {a=b.#valid;}" => true; "ClassExpression valid")]
+    #[test_case("function *(){a.#valid;}" => true; "GeneratorExpression valid")]
+    #[test_case("async function (){a.#valid;}" => true; "AsyncFunctionExpression valid")]
+    #[test_case("async function *(){a.#valid;}" => true; "AsyncGeneratorExpression valid")]
+    #[test_case("`${a.#valid}`" => true; "TemplateLiteral valid")]
+    #[test_case("(a.#valid)" => true; "Grouping valid")]
+    #[test_case("[a.#invalid]" => false; "ArrayLiteral invalid")]
+    #[test_case("{a=b.#invalid}" => false; "ObjectLiteral invalid")]
+    #[test_case("function (){a.#invalid;}" => false; "FunctionExpression invalid")]
+    #[test_case("class {a=b.#invalid;}" => false; "ClassExpression invalid")]
+    #[test_case("function *(){a.#invalid;}" => false; "GeneratorExpression invalid")]
+    #[test_case("async function (){a.#invalid;}" => false; "AsyncFunctionExpression invalid")]
+    #[test_case("async function *(){a.#invalid;}" => false; "AsyncGeneratorExpression invalid")]
+    #[test_case("`${a.#invalid}`" => false; "TemplateLiteral invalid")]
+    #[test_case("(a.#invalid)" => false; "Grouping invalid")]
+    fn all_parameters_valid(src: &str) -> bool {
+        let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
+
+    #[test_case("this" => false; "This")]
+    #[test_case("a" => false; "IdentifierReference")]
+    #[test_case("3" => false; "Literal")]
+    #[test_case("[]" => true; "ArrayLiteral")]
+    #[test_case("{}" => true; "ObjectLiteral")]
+    #[test_case("function (){}" => false; "FunctionExpression")]
+    #[test_case("class {}" => false; "ClassExpression")]
+    #[test_case("function *(){}" => false; "GeneratorExpression")]
+    #[test_case("async function (){}" => false; "AsyncFunctionExpression")]
+    #[test_case("async function *(){}" => false; "AsyncGeneratorExpression")]
+    #[test_case("/a/" => false; "RegularExpressionLiteral")]
+    #[test_case("``" => false; "TemplateLiteral")]
+    #[test_case("(a)" => false; "ParenthesizedExpression")]
+    fn is_object_or_array_literal(src: &str) -> bool {
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+    }
+
     #[test_case("this", true => set(&[]); "this")]
     #[test_case("a", true => set(&[]); "simple identifier")]
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
@@ -498,6 +501,30 @@ mod primary_expression {
     #[test_case("(1)" => true; "parenthesized literal")]
     fn is_strictly_deletable(src: &str) -> bool {
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("1" => false; "Literal")]
+    #[test_case("function arguments(arguments) { return arguments; }" => false; "Func Exp")]
+    #[test_case("function *arguments(arguments) { return arguments; }" => false; "Gen Exp")]
+    #[test_case("async function arguments(arguments) { return arguments; }" => false; "Async Func Exp")]
+    #[test_case("async function *arguments(arguments) { return arguments; }" => false; "Async Gen Exp")]
+    #[test_case("/a/" => false; "Regexp")]
+    #[test_case("`${arguments}`" => true; "Template (yes)")]
+    #[test_case("class bob {value=arguments;}" => true; "Class Exp (yes)")]
+    #[test_case("arguments" => true; "IdRef (yes)")]
+    #[test_case("[arguments]" => true; "ArrayLit (yes)")]
+    #[test_case("{a:arguments}" => true; "ObjectLit (yes)")]
+    #[test_case("(arguments)" => true; "Parenthesis (yes)")]
+    #[test_case("`${xyzzy}`" => false; "Template (no)")]
+    #[test_case("class bob {value=xyzzy;}" => false; "Class Exp (no)")]
+    #[test_case("xyzzy" => false; "IdRef (no)")]
+    #[test_case("[xyzzy]" => false; "ArrayLit (no)")]
+    #[test_case("{a:xyzzy}" => false; "ObjectLit (no)")]
+    #[test_case("(xyzzy)" => false; "Parenthesis (no)")]
+
+    fn contains_arguments(src: &str) -> bool {
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
