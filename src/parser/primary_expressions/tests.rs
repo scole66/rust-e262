@@ -1676,16 +1676,19 @@ fn property_name_test_computed_property_contains_03() {
     let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::This), false);
 }
-#[test_case("a" => true; "literal property name")]
-#[test_case("[a.#valid]" => true; "computed property name valid")]
-#[test_case("[a.#invalid]" => false; "computed property name invalid")]
-fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod property_name {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("a" => true; "literal property name")]
+    #[test_case("[a.#valid]" => true; "computed property name valid")]
+    #[test_case("[a.#invalid]" => false; "computed property name invalid")]
+    fn private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
+
     #[test_case("package", true => set(&[]); "LiteralPropertyName")]
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -1700,6 +1703,13 @@ mod property_name {
     fn prop_name(src: &str) -> Option<JSString> {
         let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.prop_name()
+    }
+
+    #[test_case("arguments" => false; "LPN")]
+    #[test_case("[arguments]" => true; "CPN (yes)")]
+    #[test_case("[xyzyz]" => false; "CPN (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1915,6 +1925,20 @@ mod property_definition {
     fn special_proto_count(src: &str) -> u64 {
         let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.special_proto_count()
+    }
+
+    #[test_case("arguments" => true; "IdRef (yes)")]
+    #[test_case("arguments=0" => panics "internal error: entered unreachable code"; "CoverInitializedName")]
+    #[test_case("[arguments]:bob" => true; "Name : AE (left)")]
+    #[test_case("bob:arguments" => true; "Name : AE (right)")]
+    #[test_case("[arguments](){}" => true; "MethodDef (yes)")]
+    #[test_case("...arguments" => true; "spread (yes)")]
+    #[test_case("xyzzy" => false; "IdRef (no)")]
+    #[test_case("[xyzzy]:bob" => false; "Name : AE (no)")]
+    #[test_case("[xyzzy](){}" => false; "MethodDef (no)")]
+    #[test_case("...xyzzy" => false; "spread (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
