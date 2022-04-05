@@ -275,7 +275,7 @@ impl LabelledItem {
         //  2. Return false.
         match self {
             LabelledItem::Statement(stmt) => stmt.contains_arguments(),
-            LabelledItem::Function(fd) => false,
+            LabelledItem::Function(_) => false,
         }
     }
 

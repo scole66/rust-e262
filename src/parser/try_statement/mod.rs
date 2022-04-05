@@ -199,7 +199,7 @@ impl TryStatement {
         match self {
             TryStatement::Catch(b, c) => b.contains_arguments() || c.contains_arguments(),
             TryStatement::Finally(b, f) => b.contains_arguments() || f.contains_arguments(),
-            TryStatement::Full(b, c, f) => b.contains_arguments() || c.contains_arguments || f.contains_arguments(),
+            TryStatement::Full(b, c, f) => b.contains_arguments() || c.contains_arguments() || f.contains_arguments(),
         }
     }
 

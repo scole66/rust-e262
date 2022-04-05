@@ -504,7 +504,7 @@ impl Declaration {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            Declaration::Hoistable(hd) => false,
+            Declaration::Hoistable(_) => false,
             Declaration::Class(cd) => cd.contains_arguments(),
             Declaration::Lexical(ld) => ld.contains_arguments(),
         }
