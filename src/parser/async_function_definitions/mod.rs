@@ -297,6 +297,13 @@ impl AsyncMethod {
         self.ident.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. Return ContainsArguments of ClassElementName.
+        self.ident.contains_arguments()
+    }
+
     pub fn has_direct_super(&self) -> bool {
         // Static Semantics: HasDirectSuper
         //      The syntax-directed operation HasDirectSuper takes no arguments.
@@ -380,6 +387,16 @@ impl AsyncFunctionBody {
         self.0.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
+    }
+
     pub fn function_body_contains_use_strict(&self) -> bool {
         // Static Semantics: FunctionBodyContainsUseStrict
         // AsyncFunctionBody : FunctionBody
@@ -461,6 +478,17 @@ impl AwaitExpression {
         //  2. Return true.
         let AwaitExpression::Await(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let AwaitExpression::Await(ue) = self;
+        ue.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]

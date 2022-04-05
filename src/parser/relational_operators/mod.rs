@@ -214,6 +214,25 @@ impl RelationalExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            RelationalExpression::ShiftExpression(se) => se.contains_arguments(),
+            RelationalExpression::Less(re, se)
+            | RelationalExpression::Greater(re, se)
+            | RelationalExpression::LessEqual(re, se)
+            | RelationalExpression::GreaterEqual(re, se)
+            | RelationalExpression::InstanceOf(re, se)
+            | RelationalExpression::In(re, se) => re.contains_arguments() || se.contains_arguments(),
+            RelationalExpression::PrivateIn(_, se) => se.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             RelationalExpression::ShiftExpression(n) => n.early_errors(agent, errs, strict),

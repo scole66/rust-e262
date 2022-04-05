@@ -95,6 +95,17 @@ impl LexicalDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let LexicalDeclaration::List(_, bl) = self;
+        bl.contains_arguments()
+    }
+
     pub fn is_constant_declaration(&self) -> bool {
         let LexicalDeclaration::List(loc, _) = self;
         loc.is_constant_declaration()
@@ -265,6 +276,19 @@ impl BindingList {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BindingList::Item(lb) => lb.contains_arguments(),
+            BindingList::List(bl, lb) => bl.contains_arguments() || lb.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
         match self {
             BindingList::Item(node) => node.early_errors(agent, errs, strict, is_constant_declaration),
@@ -383,6 +407,20 @@ impl LexicalBinding {
             LexicalBinding::Identifier(_, Some(node)) => node.all_private_identifiers_valid(names),
             LexicalBinding::Identifier(_, None) => true,
             LexicalBinding::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            LexicalBinding::Identifier(_, Some(izer)) => izer.contains_arguments(),
+            LexicalBinding::Identifier(_, None) => false,
+            LexicalBinding::Pattern(bp, izer) => bp.contains_arguments() || izer.contains_arguments(),
         }
     }
 

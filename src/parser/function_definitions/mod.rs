@@ -331,6 +331,16 @@ impl FunctionBody {
         self.statements.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.statements.contains_arguments()
+    }
+
     pub fn directive_prologue(&self) -> Vec<StringToken> {
         self.statements.initial_string_tokens()
     }
@@ -447,6 +457,16 @@ impl FunctionStatementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {

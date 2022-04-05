@@ -126,6 +126,19 @@ impl ConditionalExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ConditionalExpression::FallThru(sce) => sce.contains_arguments(),
+            ConditionalExpression::Conditional(sce, ae1, ae2) => sce.contains_arguments() || ae1.contains_arguments() || ae2.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ConditionalExpression::FallThru(node) => node.early_errors(agent, errs, strict),

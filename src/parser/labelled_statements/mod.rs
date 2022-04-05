@@ -108,6 +108,16 @@ impl LabelledStatement {
         self.item.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.item.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         self.identifier.early_errors(agent, errs, strict);
         self.item.early_errors(agent, errs, strict, within_iteration, within_switch);
@@ -253,6 +263,19 @@ impl LabelledItem {
         match self {
             LabelledItem::Statement(node) => node.all_private_identifiers_valid(names),
             LabelledItem::Function(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            LabelledItem::Statement(stmt) => stmt.contains_arguments(),
+            LabelledItem::Function(fd) => false,
         }
     }
 

@@ -189,6 +189,20 @@ impl TryStatement {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TryStatement::Catch(b, c) => b.contains_arguments() || c.contains_arguments(),
+            TryStatement::Finally(b, f) => b.contains_arguments() || f.contains_arguments(),
+            TryStatement::Full(b, c, f) => b.contains_arguments() || c.contains_arguments || f.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let (block, catch, finally) = match self {
             TryStatement::Catch(block, catch) => (block, Some(catch), None),
@@ -299,6 +313,16 @@ impl Catch {
         self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.parameter.as_ref().map_or(false, |cp| cp.contains_arguments()) || self.block.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         //  Catch : catch ( CatchParameter ) Block
@@ -395,6 +419,16 @@ impl Finally {
         self.block.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.block.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
@@ -484,6 +518,19 @@ impl CatchParameter {
         match self {
             CatchParameter::Ident(_) => true,
             CatchParameter::Pattern(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            CatchParameter::Ident(_) => false,
+            CatchParameter::Pattern(bp) => bp.contains_arguments(),
         }
     }
 

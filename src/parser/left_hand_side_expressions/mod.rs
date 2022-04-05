@@ -303,6 +303,24 @@ impl MemberExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(pe) => pe.contains_arguments(),
+            MemberExpressionKind::Expression(me, e) => me.contains_arguments() || e.contains_arguments(),
+            MemberExpressionKind::IdentifierName(me, _) | MemberExpressionKind::PrivateId(me, _) => me.contains_arguments(),
+            MemberExpressionKind::TemplateLiteral(me, tl) => me.contains_arguments() || tl.contains_arguments(),
+            MemberExpressionKind::SuperProperty(sp) => sp.contains_arguments(),
+            MemberExpressionKind::MetaProperty(_) => false,
+            MemberExpressionKind::NewArguments(me, a) => me.contains_arguments() || a.contains_arguments(),
+        }
+    }
+
     pub fn is_object_or_array_literal(&self) -> bool {
         match &self.kind {
             MemberExpressionKind::PrimaryExpression(n) => n.is_object_or_array_literal(),
@@ -443,6 +461,19 @@ impl SuperProperty {
         match &self.kind {
             SuperPropertyKind::Expression(n) => n.all_private_identifiers_valid(names),
             SuperPropertyKind::IdentifierName(_) => true,
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            SuperPropertyKind::Expression(e) => e.contains_arguments(),
+            SuperPropertyKind::IdentifierName(_) => false,
         }
     }
 
@@ -664,6 +695,19 @@ impl Arguments {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            ArgumentsKind::Empty => false,
+            ArgumentsKind::ArgumentList(al) | ArgumentsKind::ArgumentListComma(al) => al.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match &self.kind {
@@ -858,6 +902,19 @@ impl ArgumentList {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            ArgumentListKind::FallThru(ae) | ArgumentListKind::Dots(ae) => ae.contains_arguments(),
+            ArgumentListKind::ArgumentList(al, ae) | ArgumentListKind::ArgumentListDots(al, ae) => al.contains_arguments() || ae.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match &self.kind {
@@ -980,6 +1037,19 @@ impl NewExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            NewExpressionKind::MemberExpression(me) => me.contains_arguments(),
+            NewExpressionKind::NewExpression(ne) => ne.contains_arguments(),
+        }
+    }
+
     pub fn is_object_or_array_literal(&self) -> bool {
         match &self.kind {
             NewExpressionKind::MemberExpression(boxed) => boxed.is_object_or_array_literal(),
@@ -1058,6 +1128,16 @@ impl CallMemberExpression {
         self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.member_expression.contains_arguments() || self.arguments.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.member_expression.early_errors(agent, errs, strict);
         self.arguments.early_errors(agent, errs, strict);
@@ -1116,6 +1196,16 @@ impl SuperCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.arguments.all_private_identifiers_valid(names)
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.arguments.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1179,6 +1269,16 @@ impl ImportCall {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.assignment_expression.all_private_identifiers_valid(names)
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.assignment_expression.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1406,6 +1506,24 @@ impl CallExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(cme) => cme.contains_arguments(),
+            CallExpressionKind::SuperCall(sc) => sc.contains_arguments(),
+            CallExpressionKind::ImportCall(ic) => ic.contains_arguments(),
+            CallExpressionKind::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
+            CallExpressionKind::CallExpressionExpression(ce, e) => ce.contains_arguments() || e.contains_arguments(),
+            CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains_arguments(),
+            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match &self.kind {
             CallExpressionKind::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
@@ -1547,6 +1665,20 @@ impl LeftHandSideExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            LeftHandSideExpression::New(ne) => ne.contains_arguments(),
+            LeftHandSideExpression::Call(ce) => ce.contains_arguments(),
+            LeftHandSideExpression::Optional(oe) => oe.contains_arguments(),
+        }
+    }
+
     pub fn is_object_or_array_literal(&self) -> bool {
         match self {
             LeftHandSideExpression::New(boxed) => boxed.is_object_or_array_literal(),
@@ -1683,6 +1815,20 @@ impl OptionalExpression {
             OptionalExpression::Member(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             OptionalExpression::Call(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
             OptionalExpression::Opt(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            OptionalExpression::Member(me, oc) => me.contains_arguments() || oc.contains_arguments(),
+            OptionalExpression::Call(ce, oc) => ce.contains_arguments() || oc.contains_arguments(),
+            OptionalExpression::Opt(oe, oc) => oe.contains_arguments() || oc.contains_arguments(),
         }
     }
 
@@ -1950,6 +2096,25 @@ impl OptionalChain {
             //      a. Return AllPrivateIdentifiersValid of OptionalChain with argument names.
             //  2. Return false.
             OptionalChain::PlusPrivateId(lst, pid) => names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            OptionalChain::Args(a) => a.contains_arguments(),
+            OptionalChain::Exp(e) => e.contains_arguments(),
+            OptionalChain::Ident(_) | OptionalChain::PrivateId(_) => false,
+            OptionalChain::Template(tl) => tl.contains_arguments(),
+            OptionalChain::PlusArgs(oc, a) => oc.contains_arguments() || a.contains_arguments(),
+            OptionalChain::PlusExp(oc, e) => oc.contains_arguments() || e.contains_arguments(),
+            OptionalChain::PlusIdent(oc, _) | OptionalChain::PlusPrivateId(oc, _) => oc.contains_arguments(),
+            OptionalChain::PlusTemplate(oc, tl) => oc.contains_arguments() || tl.contains_arguments(),
         }
     }
 

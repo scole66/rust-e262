@@ -94,6 +94,17 @@ impl ExpressionStatement {
         node.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ExpressionStatement::Expression(e) = self;
+        e.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ExpressionStatement::Expression(node) = self;
         node.early_errors(agent, errs, strict);

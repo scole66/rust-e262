@@ -200,6 +200,26 @@ impl UnaryExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            UnaryExpression::UpdateExpression(ue) => ue.contains_arguments(),
+            UnaryExpression::Delete(ue)
+            | UnaryExpression::Void(ue)
+            | UnaryExpression::Typeof(ue)
+            | UnaryExpression::NoOp(ue)
+            | UnaryExpression::Negate(ue)
+            | UnaryExpression::Complement(ue)
+            | UnaryExpression::Not(ue) => ue.contains_arguments(),
+            UnaryExpression::Await(ae) => ae.contains_arguments(),
+        }
+    }
+
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             UnaryExpression::UpdateExpression(exp) => exp.is_strictly_deletable(),

@@ -118,6 +118,19 @@ impl LogicalANDExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            LogicalANDExpression::BitwiseORExpression(boe) => boe.contains_arguments(),
+            LogicalANDExpression::LogicalAND(lae, boe) => lae.contains_arguments() || boe.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(agent, errs, strict),
@@ -247,6 +260,19 @@ impl LogicalORExpression {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            LogicalORExpression::LogicalANDExpression(lae) => lae.contains_arguments(),
+            LogicalORExpression::LogicalOR(lor, lae) => lor.contains_arguments() || lae.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.early_errors(agent, errs, strict),
@@ -347,6 +373,16 @@ impl CoalesceExpression {
         self.head.all_private_identifiers_valid(names) && self.tail.all_private_identifiers_valid(names)
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.head.contains_arguments() || self.tail.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         self.head.early_errors(agent, errs, strict);
         self.tail.early_errors(agent, errs, strict);
@@ -417,6 +453,19 @@ impl CoalesceExpressionHead {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(ce) => ce.contains_arguments(),
+            CoalesceExpressionHead::BitwiseORExpression(boe) => boe.contains_arguments(),
         }
     }
 
@@ -523,6 +572,19 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.all_private_identifiers_valid(names),
             ShortCircuitExpression::CoalesceExpression(n) => n.all_private_identifiers_valid(names),
+        }
+    }
+
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ShortCircuitExpression::LogicalORExpression(loe) => loe.contains_arguments(),
+            ShortCircuitExpression::CoalesceExpression(ce) => ce.contains_arguments(),
         }
     }
 

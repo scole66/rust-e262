@@ -140,6 +140,19 @@ impl IfStatement {
         }
     }
 
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            IfStatement::WithElse(e, s1, s2) => e.contains_arguments() || s1.contains_arguments() || s2.contains_arguments(),
+            IfStatement::WithoutElse(e, stmt) => e.contains_arguments() || stmt.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         let (e, s1, s2) = match self {
             IfStatement::WithElse(e, s1, s2) => (e, s1, Some(s2)),
