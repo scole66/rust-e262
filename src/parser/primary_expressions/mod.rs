@@ -1563,7 +1563,7 @@ impl PropertyDefinition {
         //  2. Return false.
         match self {
             PropertyDefinition::IdentifierReference(ir) => ir.contains_arguments(),
-            PropertyDefinition::CoverInitializedName(_) => unreachable!(),
+            PropertyDefinition::CoverInitializedName(_) => false, // This triggers a syntax error elsewhere; so ignore it now
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains_arguments() || ae.contains_arguments(),
             PropertyDefinition::MethodDefinition(md) => md.contains_arguments(),
             PropertyDefinition::AssignmentExpression(ae) => ae.contains_arguments(),

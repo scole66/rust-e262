@@ -355,7 +355,7 @@ impl IdentifierReference {
         //  IdentifierReference : yield
         //  IdentifierReference : await
         //      1. Return false.
-        matches!(&self.kind, IdentifierReferenceKind::Identifier(id) if id.string_value() == JSString::from("arguments"))
+        matches!(&self.kind, IdentifierReferenceKind::Identifier(id) if id.string_value() == "arguments")
     }
 }
 

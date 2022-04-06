@@ -1928,7 +1928,7 @@ mod property_definition {
     }
 
     #[test_case("arguments" => true; "IdRef (yes)")]
-    #[test_case("arguments=0" => panics "internal error: entered unreachable code"; "CoverInitializedName")]
+    #[test_case("arguments=0" => false; "CoverInitializedName")]
     #[test_case("[arguments]:bob" => true; "Name : AE (left)")]
     #[test_case("bob:arguments" => true; "Name : AE (right)")]
     #[test_case("[arguments](){}" => true; "MethodDef (yes)")]
@@ -2244,15 +2244,17 @@ fn parenthesized_expression_test_contains_02() {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser("(1)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("(a.#valid)" => true; "valid")]
-#[test_case("(a.#invalid)" => false; "invalid")]
-fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod parenthesized_expression {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("(a.#valid)" => true; "valid")]
+    #[test_case("(a.#invalid)" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -2266,6 +2268,12 @@ mod parenthesized_expression {
     #[test_case("(1)" => true; "parenthesized literal")]
     fn is_strictly_deletable(src: &str) -> bool {
         ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("(arguments)" => true; "yes")]
+    #[test_case("(xyzzy)" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -2348,19 +2356,20 @@ fn template_middle_list_test_contains_05() {
     let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${a"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("}${a.#valid" => true; "Item valid")]
-#[test_case("}${a.#valid}${b" => true; "List head valid")]
-#[test_case("}${a}${b.#valid" => true; "List tail valid")]
-#[test_case("}${a.#invalid" => false; "Item invalid")]
-#[test_case("}${a.#invalid}${b" => false; "List head invalid")]
-#[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
-fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
 mod template_middle_list {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("}${a.#valid" => true; "Item valid")]
+    #[test_case("}${a.#valid}${b" => true; "List head valid")]
+    #[test_case("}${a}${b.#valid" => true; "List tail valid")]
+    #[test_case("}${a.#invalid" => false; "Item invalid")]
+    #[test_case("}${a.#invalid}${b" => false; "List head invalid")]
+    #[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let item = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap().0;
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
@@ -2383,8 +2392,17 @@ mod template_middle_list {
     #[test_case("}a${9}\\u{66}${0", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "list-raw")]
     #[test_case("}a${9}\\u{66}${0", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "list-cooked")]
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
-        let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        let item = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0;
         item.template_strings(raw)
+    }
+
+    #[test_case("}${arguments" => true; "TM Expression (yes)")]
+    #[test_case("}${xyzzy" => false; "TM Expression (no)")]
+    #[test_case("}${arguments}${bob" => true; "TML TM Exp (left)")]
+    #[test_case("}${bob}${arguments" => true; "TML TM Exp (right)")]
+    #[test_case("}${bob}${xyzzy" => false; "TML TM Exp (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2447,16 +2465,18 @@ fn template_spans_test_contains_03() {
     let (item, _) = TemplateSpans::parse(&mut newparser("} ${ a }`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("}`" => true; "TemplateTail")]
-#[test_case("}${a.#valid}`" => true; "valid")]
-#[test_case("}${a.#invalid}`" => false; "invalid")]
-fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod template_spans {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("}`" => true; "TemplateTail")]
+    #[test_case("}${a.#valid}`" => true; "valid")]
+    #[test_case("}${a.#invalid}`" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
@@ -2479,6 +2499,13 @@ mod template_spans {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("}`" => false; "Tail")]
+    #[test_case("}${arguments}`" => true; "Middle Tail (yes)")]
+    #[test_case("}${xyzzy}`" => false; "Middle Tail (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2529,17 +2556,19 @@ fn substitution_template_test_contains_03() {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("`${a.#valid}${b}`" => true; "expr valid")]
-#[test_case("`${a}${b.#valid}`" => true; "spans valid")]
-#[test_case("`${a.#invalid}${b}`" => false; "expr invalid")]
-#[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
-fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod substitution_template {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("`${a.#valid}${b}`" => true; "expr valid")]
+    #[test_case("`${a}${b.#valid}`" => true; "spans valid")]
+    #[test_case("`${a.#invalid}${b}`" => false; "expr invalid")]
+    #[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
     const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
@@ -2557,6 +2586,13 @@ mod substitution_template {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("`${arguments}`" => true; "Head - Expression - Spans (left)")]
+    #[test_case("`${bob}${arguments}`" => true; "Head - Expression - Spans (right)")]
+    #[test_case("`${xyzzy}`" => false; "Head - Expression - Spans (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2630,16 +2666,18 @@ fn template_literal_test_contains_03() {
     let (item, _) = TemplateLiteral::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("`a`" => true; "no substitution")]
-#[test_case("`${a.#valid}`" => true; "sub valid")]
-#[test_case("`${a.#invalid}`" => false; "sub invalid")]
-fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod template_literal {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("`a`" => true; "no substitution")]
+    #[test_case("`${a.#valid}`" => true; "sub valid")]
+    #[test_case("`${a.#invalid}`" => false; "sub invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     mod early_errors {
         use super::*;
@@ -2682,6 +2720,13 @@ mod template_literal {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("``" => false; "NoSub")]
+    #[test_case("`${arguments}`" => true; "Sub (yes)")]
+    #[test_case("`${xyzzy}`" => false; "Sub (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
