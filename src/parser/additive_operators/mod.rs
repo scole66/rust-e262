@@ -134,7 +134,7 @@ impl AdditiveExpression {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// IdentifierReference named `"arguments"`.
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.

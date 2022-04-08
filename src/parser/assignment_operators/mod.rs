@@ -303,6 +303,8 @@ impl AssignmentExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -498,6 +500,8 @@ impl AssignmentPattern {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -641,6 +645,8 @@ impl ObjectAssignmentPattern {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -820,6 +826,8 @@ impl ArrayAssignmentPattern {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -900,6 +908,8 @@ impl AssignmentRestProperty {
         self.0.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1006,6 +1016,8 @@ impl AssignmentPropertyList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1114,6 +1126,8 @@ impl AssignmentElementList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1207,6 +1221,8 @@ impl AssignmentElisionElement {
         self.element.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1328,6 +1344,8 @@ impl AssignmentProperty {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1448,6 +1466,8 @@ impl AssignmentElement {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1518,6 +1538,8 @@ impl AssignmentRestElement {
         self.0.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1607,6 +1629,8 @@ impl DestructuringAssignmentTarget {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// `IdentifierReference` with string value `"arguments"`.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
