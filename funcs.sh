@@ -46,7 +46,7 @@ function s() {
     --show-expansions \
     -Xdemangler=rustfilt \
     --region-coverage-lt=100 \
-  | less -R
+  | less -RF
   cd $here
 }
 
@@ -65,7 +65,7 @@ function report() {
         extra_args=("${extra_args[@]}" -Xdemangler=rustfilt)
         ;;
       --pager)
-        pager=(less -R)
+        pager=(less -RF)
         ;;
       *)
         extra_args=("${extra_args[@]}" "$1")
