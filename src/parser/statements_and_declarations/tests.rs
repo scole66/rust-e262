@@ -505,6 +505,34 @@ mod statement {
     fn is_labelled_function(src: &str) -> bool {
         Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
     }
+
+    #[test_case("debugger;" => false; "Debugger stmt")]
+    #[test_case("continue;" => false; "Continued stmt")]
+    #[test_case("break;" => false; "Break stmt")]
+    #[test_case(";" => false; "Empty")]
+    #[test_case("{arguments;}" => true; "Block (yes)")]
+    #[test_case("var bob=arguments;" => true; "Var (yes)")]
+    #[test_case("arguments;" => true; "Exp (yes)")]
+    #[test_case("if (arguments) ;" => true; "If (yes)")]
+    #[test_case("for (arguments;;);" => true; "Breakable (yes)")]
+    #[test_case("return arguments;" => true; "Return (yes)")]
+    #[test_case("with (arguments) {}" => true; "With (yes)")]
+    #[test_case("a:arguments;" => true; "Labelled (yes)")]
+    #[test_case("throw arguments;" => true; "Throw (yes)")]
+    #[test_case("try {arguments;} finally{}" => true; "Try (yes)")]
+    #[test_case("{xyzzy;}" => false; "Block (no)")]
+    #[test_case("var bob=xyzzy;" => false; "Var (no)")]
+    #[test_case("xyzzy;" => false; "Exp (no)")]
+    #[test_case("if (xyzzy) ;" => false; "If (no)")]
+    #[test_case("for (xyzzy;;);" => false; "Breakable (no)")]
+    #[test_case("return xyzzy;" => false; "Return (no)")]
+    #[test_case("with (xyzzy) {}" => false; "With (no)")]
+    #[test_case("a:xyzzy;" => false; "Labelled (no)")]
+    #[test_case("throw xyzzy;" => false; "Throw (no)")]
+    #[test_case("try {xyzzy;} finally{}" => false; "Try (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // DECLARATION
@@ -610,6 +638,15 @@ mod declaration {
         let mut errs = vec![];
         Declaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("function a(){}" => false; "Hoistable")]
+    #[test_case("class foo { [arguments] = 12; }" => true; "Class (yes)")]
+    #[test_case("let a=arguments;" => true; "Lexical (yes)")]
+    #[test_case("class foo { [xyzzy] = 12; }" => false; "Class (no)")]
+    #[test_case("let a=xyzzy;" => false; "Lexical (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -865,5 +902,13 @@ mod breakable_statement {
         let mut errs = vec![];
         BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("for(;;)arguments;" => true; "Iteration (yes)")]
+    #[test_case("switch (a) { case 1: arguments; }" => true; "Switch (yes)")]
+    #[test_case("for(;;);" => false; "Iteration (no)")]
+    #[test_case("switch (a) {}" => false; "Switch (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
