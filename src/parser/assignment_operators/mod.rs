@@ -304,7 +304,9 @@ impl AssignmentExpression {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -501,7 +503,9 @@ impl AssignmentPattern {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -523,11 +527,18 @@ impl AssignmentPattern {
     }
 }
 
-// ObjectAssignmentPattern[Yield, Await] :
-//      { }
-//      { AssignmentRestProperty[?Yield, ?Await] }
-//      { AssignmentPropertyList[?Yield, ?Await] }
-//      { AssignmentPropertyList[?Yield, ?Await] , AssignmentRestProperty[?Yield, ?Await]opt }
+/// A parse node for _[ObjectAssignmentPattern][1]_
+///
+/// It encapsulates this production:
+/// ```plain
+/// ObjectAssignmentPattern[Yield, Await] :
+///      { }
+///      { AssignmentRestProperty[?Yield, ?Await] }
+///      { AssignmentPropertyList[?Yield, ?Await] }
+///      { AssignmentPropertyList[?Yield, ?Await] , AssignmentRestProperty[?Yield, ?Await]opt }
+/// ```
+///
+/// [1]: https://tc39.es/ecma262/#prod-ObjectAssignmentPattern
 #[derive(Debug)]
 pub enum ObjectAssignmentPattern {
     Empty,
@@ -646,7 +657,9 @@ impl ObjectAssignmentPattern {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -827,7 +840,9 @@ impl ArrayAssignmentPattern {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -909,7 +924,9 @@ impl AssignmentRestProperty {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1017,7 +1034,9 @@ impl AssignmentPropertyList {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1127,7 +1146,9 @@ impl AssignmentElementList {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1222,7 +1243,9 @@ impl AssignmentElisionElement {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1345,7 +1368,9 @@ impl AssignmentProperty {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1467,7 +1492,9 @@ impl AssignmentElement {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1539,7 +1566,9 @@ impl AssignmentRestElement {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1630,7 +1659,9 @@ impl DestructuringAssignmentTarget {
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
-    /// `IdentifierReference` with string value `"arguments"`.
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.

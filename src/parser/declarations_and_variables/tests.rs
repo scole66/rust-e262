@@ -1378,6 +1378,15 @@ mod binding_property_list {
         BindingPropertyList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // BINDING ELEMENT LIST
@@ -1475,6 +1484,15 @@ mod binding_element_list {
         BindingElementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // BINDING ELISION ELEMENT
@@ -1548,6 +1566,14 @@ mod binding_elision_element {
         let mut errs = vec![];
         BindingElisionElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case(",a=arguments" => true; "Elision Item (yes)")]
+    #[test_case(",a" => false; "Elision Item (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1645,6 +1671,15 @@ mod binding_property {
         let mut errs = vec![];
         BindingProperty::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Single (yes)")]
+    #[test_case("a" => false; "Single (no)")]
+    #[test_case("[arguments]:a" => true; "N:E (left)")]
+    #[test_case("a:b=arguments" => true; "N:E (right)")]
+    #[test_case("a:b" => false; "N:E (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1771,6 +1806,17 @@ mod binding_element {
         let mut errs = vec![];
         BindingElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Single (yes)")]
+    #[test_case("a" => false; "Single (no)")]
+    #[test_case("{a=arguments}" => true; "BP (yes)")]
+    #[test_case("{a}" => false; "BP (no)")]
+    #[test_case("{a=arguments}=b" => true; "BP Izer (left)")]
+    #[test_case("{a}=arguments" => true; "BP Izer (right)")]
+    #[test_case("{a}=b" => false; "BP Izer (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
