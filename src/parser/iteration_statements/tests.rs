@@ -1,4 +1,6 @@
-use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, strictparser, sv, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, expected_scan, newparser, set, strictparser, sv, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -250,7 +252,6 @@ mod iteration_statement {
     fn contains_arguments(src: &str) -> bool {
         IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
-
 }
 
 // DO WHILE STATEMENT
@@ -367,7 +368,6 @@ mod do_while_statement {
     fn contains_arguments(src: &str) -> bool {
         DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
-
 }
 
 // WHILE STATEMENT
@@ -472,7 +472,6 @@ mod while_statement {
     fn contains_arguments(src: &str) -> bool {
         WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
-
 }
 
 // FOR STATEMENT
@@ -1921,7 +1920,6 @@ mod for_in_of_statement {
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
-
     #[test_case("for(arguments in a);" => true; "lhs-in (left)")]
     #[test_case("for(a in arguments);" => true; "lhs-in (middle)")]
     #[test_case("for(a in b)arguments;" => true; "lhs-in (right)")]
@@ -2042,21 +2040,21 @@ mod for_declaration {
 
     #[test_case("let a" => vec!["a"]; "LetOrConst ForBinding")]
     fn bound_names(src: &str) -> Vec<String> {
-        ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).for_declaration().bound_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 
     #[test_case("let package", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).strict(strict).for_declaration().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("let {a=arguments}" => true; "yes")]
     #[test_case("let a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
-        ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+        Maker::new(src).for_declaration().contains_arguments()
     }
 }
 
@@ -2150,7 +2148,7 @@ mod for_binding {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).strict(strict).for_binding().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2158,6 +2156,6 @@ mod for_binding {
     #[test_case("{a=arguments}" => true; "pat (yes)")]
     #[test_case("{a}" => false; "pat (no)")]
     fn contains_arguments(src: &str) -> bool {
-        ForBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+        Maker::new(src).for_binding().contains_arguments()
     }
 }
