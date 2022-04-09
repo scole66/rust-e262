@@ -1905,6 +1905,13 @@ mod single_name_binding {
         SingleNameBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("a" => false; "Id")]
+    #[test_case("a=arguments" => true; "izer (yes)")]
+    #[test_case("a=b" => false; "izer (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // BINDING REST ELEMENT
@@ -1989,5 +1996,12 @@ mod binding_rest_element {
         let mut errs = vec![];
         BindingRestElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("...a" => false; "id")]
+    #[test_case("...{a=arguments}" => true; "pattern (yes)")]
+    #[test_case("...{a}" => false; "pattern (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }

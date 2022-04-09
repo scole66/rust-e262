@@ -97,4 +97,11 @@ mod expression_statement {
         ExpressionStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("a;" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
 }

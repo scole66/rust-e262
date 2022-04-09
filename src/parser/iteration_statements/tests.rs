@@ -238,6 +238,19 @@ mod iteration_statement {
         IterationStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("do arguments; while(0);" => true; "dowhile (yes)")]
+    #[test_case("do ; while(0);" => false; "dowhile (no)")]
+    #[test_case("while (0) arguments;" => true; "while (yes)")]
+    #[test_case("while (0);" => false; "while (no)")]
+    #[test_case("for(;;)arguments;" => true; "for (yes)")]
+    #[test_case("for(;;);" => false; "for (no)")]
+    #[test_case("for(x in b)arguments;" => true; "for-in-of (yes)")]
+    #[test_case("for(x in b);" => false; "for-in-of (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
 }
 
 // DO WHILE STATEMENT
@@ -347,6 +360,14 @@ mod do_while_statement {
         DoWhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("do arguments;while(0);" => true; "binary (left)")]
+    #[test_case("do;while(arguments);" => true; "binary (right)")]
+    #[test_case("do;while(0);" => false; "binary (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
 }
 
 // WHILE STATEMENT
@@ -444,6 +465,14 @@ mod while_statement {
         WhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("while(arguments);" => true; "left")]
+    #[test_case("while(1)arguments;" => true; "right")]
+    #[test_case("while(1);" => false; "none")]
+    fn contains_arguments(src: &str) -> bool {
+        WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
 }
 
 // FOR STATEMENT
@@ -1099,6 +1128,70 @@ mod for_statement {
         let mut errs = vec![];
         ForStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("for(;;)arguments;" => true; "000-for (yes)")]
+    #[test_case("for(;;);" => false; "000-for (no)")]
+    #[test_case("for(;;arguments);" => true; "001-for (left)")]
+    #[test_case("for(;;0)arguments;" => true; "001-for (right)")]
+    #[test_case("for(;;0);" => false; "001-for (none)")]
+    #[test_case("for(;arguments;);" => true; "010-for (left)")]
+    #[test_case("for(;0;)arguments;" => true; "010-for (right)")]
+    #[test_case("for(;0;);" => false; "010-for (none)")]
+    #[test_case("for(arguments;;);" => true; "100-for (left)")]
+    #[test_case("for(0;;)arguments;" => true; "100-for (right)")]
+    #[test_case("for(0;;);" => false; "100-for (none)")]
+    #[test_case("for(;arguments;0);" => true; "011-for (left)")]
+    #[test_case("for(;0;arguments);" => true; "011-for (middle)")]
+    #[test_case("for(;0;0)arguments;" => true; "011-for (right)")]
+    #[test_case("for(;0;0);" => false; "011-for (none)")]
+    #[test_case("for(arguments;0;);" => true; "110-for (left)")]
+    #[test_case("for(0;arguments;);" => true; "110-for (middle)")]
+    #[test_case("for(0;0;)arguments;" => true; "110-for (right)")]
+    #[test_case("for(0;0;);" => false; "110-for (none)")]
+    #[test_case("for(arguments;;0);" => true; "101-for (left)")]
+    #[test_case("for(0;;arguments);" => true; "101-for (middle)")]
+    #[test_case("for(0;;0)arguments;" => true; "101-for (right)")]
+    #[test_case("for(0;;0);" => false; "101-for (none)")]
+    #[test_case("for(arguments;0;0);" => true; "111-for (first)")]
+    #[test_case("for(0;arguments;0);" => true; "111-for (second)")]
+    #[test_case("for(0;0;arguments);" => true; "111-for (third)")]
+    #[test_case("for(0;0;0)arguments;" => true; "111-for (fourth)")]
+    #[test_case("for(0;0;0);" => false; "111-for (none)")]
+    #[test_case("for(var a=arguments;;);" => true; "00-var (left)")]
+    #[test_case("for(var a;;)arguments;" => true; "00-var (right)")]
+    #[test_case("for(var a;;);" => false; "00-var (none)")]
+    #[test_case("for(var a=arguments;;0);" => true; "01-var (left)")]
+    #[test_case("for(var a;;arguments);" => true; "01-var (middle)")]
+    #[test_case("for(var a;;0)arguments;" => true; "01-var (right)")]
+    #[test_case("for(var a;;0);" => false; "01-var (none)")]
+    #[test_case("for(var a=arguments;0;);" => true; "10-var (left)")]
+    #[test_case("for(var a;arguments;);" => true; "10-var (middle)")]
+    #[test_case("for(var a;0;)arguments;" => true; "10-var (right)")]
+    #[test_case("for(var a;0;);" => false; "10-var (none)")]
+    #[test_case("for(var a=arguments;0;0);" => true; "11-var (first)")]
+    #[test_case("for(var a;arguments;0);" => true; "11-var (second)")]
+    #[test_case("for(var a;0;arguments);" => true; "11-var (third)")]
+    #[test_case("for(var a;0;0)arguments;" => true; "11-var (fourth)")]
+    #[test_case("for(var a;0;0);" => false; "11-var (none)")]
+    #[test_case("for(let a=arguments;;);" => true; "00-let (left)")]
+    #[test_case("for(let a;;)arguments;" => true; "00-let (right)")]
+    #[test_case("for(let a;;);" => false; "00-let (none)")]
+    #[test_case("for(let a=arguments;;0);" => true; "01-let (left)")]
+    #[test_case("for(let a;;arguments);" => true; "01-let (middle)")]
+    #[test_case("for(let a;;0)arguments;" => true; "01-let (right)")]
+    #[test_case("for(let a;;0);" => false; "01-let (none)")]
+    #[test_case("for(let a=arguments;0;);" => true; "10-let (left)")]
+    #[test_case("for(let a;arguments;);" => true; "10-let (middle)")]
+    #[test_case("for(let a;0;)arguments;" => true; "10-let (right)")]
+    #[test_case("for(let a;0;);" => false; "10-let (none)")]
+    #[test_case("for(let a=arguments;0;0);" => true; "11-let (first)")]
+    #[test_case("for(let a;arguments;0);" => true; "11-let (second)")]
+    #[test_case("for(let a;0;arguments);" => true; "11-let (third)")]
+    #[test_case("for(let a;0;0)arguments;" => true; "11-let (fourth)")]
+    #[test_case("for(let a;0;0);" => false; "11-let (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1827,6 +1920,59 @@ mod for_in_of_statement {
         ForInOfStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+
+    #[test_case("for(arguments in a);" => true; "lhs-in (left)")]
+    #[test_case("for(a in arguments);" => true; "lhs-in (middle)")]
+    #[test_case("for(a in b)arguments;" => true; "lhs-in (right)")]
+    #[test_case("for(a in b);" => false; "lhs-in (none)")]
+    #[test_case("for({a=arguments} in b);" => true; "dstr-in (left)")]
+    #[test_case("for({a} in arguments);" => true; "dstr-in (middle)")]
+    #[test_case("for({a} in b)arguments;" => true; "dstr-in (right)")]
+    #[test_case("for({a} in b);" => false; "dstr-in (none)")]
+    #[test_case("for(var {a=arguments} in b);" => true; "var-in (left)")]
+    #[test_case("for(var a in arguments);" => true; "var-in (middle)")]
+    #[test_case("for(var a in b)arguments;" => true; "var-in (right)")]
+    #[test_case("for(var a in b);" => false; "var-in (none)")]
+    #[test_case("for(let {a=arguments} in b);" => true; "let-in (left)")]
+    #[test_case("for(let a in arguments);" => true; "let-in (middle)")]
+    #[test_case("for(let a in b)arguments;" => true; "let-in (right)")]
+    #[test_case("for(let a in b);" => false; "let-in (none)")]
+    #[test_case("for(arguments of a);" => true; "lhs-of (left)")]
+    #[test_case("for(a of arguments);" => true; "lhs-of (middle)")]
+    #[test_case("for(a of b)arguments;" => true; "lhs-of (right)")]
+    #[test_case("for(a of b);" => false; "lhs-of (none)")]
+    #[test_case("for({a=arguments} of b);" => true; "dstr-of (left)")]
+    #[test_case("for({a} of arguments);" => true; "dstr-of (middle)")]
+    #[test_case("for({a} of b)arguments;" => true; "dstr-of (right)")]
+    #[test_case("for({a} of b);" => false; "dstr-of (none)")]
+    #[test_case("for(var {a=arguments} of b);" => true; "var-of (left)")]
+    #[test_case("for(var a of arguments);" => true; "var-of (middle)")]
+    #[test_case("for(var a of b)arguments;" => true; "var-of (right)")]
+    #[test_case("for(var a of b);" => false; "var-of (none)")]
+    #[test_case("for(let {a=arguments} of b);" => true; "let-of (left)")]
+    #[test_case("for(let a of arguments);" => true; "let-of (middle)")]
+    #[test_case("for(let a of b)arguments;" => true; "let-of (right)")]
+    #[test_case("for(let a of b);" => false; "let-of (none)")]
+    #[test_case("for await(arguments of a);" => true; "lhs-await-of (left)")]
+    #[test_case("for await(a of arguments);" => true; "lhs-await-of (middle)")]
+    #[test_case("for await(a of b)arguments;" => true; "lhs-await-of (right)")]
+    #[test_case("for await(a of b);" => false; "lhs-await-of (none)")]
+    #[test_case("for await({a=arguments} of b);" => true; "dstr-await-of (left)")]
+    #[test_case("for await({a} of arguments);" => true; "dstr-await-of (middle)")]
+    #[test_case("for await({a} of b)arguments;" => true; "dstr-await-of (right)")]
+    #[test_case("for await({a} of b);" => false; "dstr-await-of (none)")]
+    #[test_case("for await(var {a=arguments} of b);" => true; "var-await-of (left)")]
+    #[test_case("for await(var a of arguments);" => true; "var-await-of (middle)")]
+    #[test_case("for await(var a of b)arguments;" => true; "var-await-of (right)")]
+    #[test_case("for await(var a of b);" => false; "var-await-of (none)")]
+    #[test_case("for await(let {a=arguments} of b);" => true; "let-await-of (left)")]
+    #[test_case("for await(let a of arguments);" => true; "let-await-of (middle)")]
+    #[test_case("for await(let a of b)arguments;" => true; "let-await-of (right)")]
+    #[test_case("for await(let a of b);" => false; "let-await-of (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // FOR DECLARATION
@@ -1905,6 +2051,12 @@ mod for_declaration {
         let mut errs = vec![];
         ForDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("let {a=arguments}" => true; "yes")]
+    #[test_case("let a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        ForDeclaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -2000,5 +2152,12 @@ mod for_binding {
         let mut errs = vec![];
         ForBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("{a=arguments}" => true; "pat (yes)")]
+    #[test_case("{a}" => false; "pat (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ForBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }

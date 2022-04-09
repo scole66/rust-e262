@@ -194,4 +194,16 @@ mod if_statement {
         IfStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("if(arguments);else;" => true; "trinary (left)")]
+    #[test_case("if(1)arguments;else;" => true; "trinary (middle)")]
+    #[test_case("if(1);else arguments;" => true; "trinary (right)")]
+    #[test_case("if(1);else;" => false; "trinary (none)")]
+    #[test_case("if(arguments);" => true; "binary (left)")]
+    #[test_case("if(1)arguments;" => true; "binary (right)")]
+    #[test_case("if(1);" => false; "binary (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
 }
