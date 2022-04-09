@@ -103,5 +103,4 @@ mod expression_statement {
     fn contains_arguments(src: &str) -> bool {
         ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
-
 }

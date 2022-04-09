@@ -1,5 +1,11 @@
 use super::*;
 use iteration_statements::{ForBinding, ForDeclaration};
+use labelled_statements::{LabelledItem, LabelledStatement};
+use return_statement::ReturnStatement;
+use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
+use throw_statement::ThrowStatement;
+use try_statement::{Catch, CatchParameter, Finally, TryStatement};
+use with_statement::WithStatement;
 
 use ahash::AHashSet;
 use std::fmt;
@@ -77,6 +83,7 @@ pub fn set(items: &[&str]) -> AHashSet<String> {
 /// Return       | `true`
 /// Tagged       | `false`
 /// In           | `true`
+/// Default      | `true`
 pub struct Maker<'a> {
     source: &'a str,
     strict: bool,
@@ -85,10 +92,11 @@ pub struct Maker<'a> {
     return_flag: bool,
     tagged_flag: bool,
     in_flag: bool,
+    default_flag: bool,
 }
 impl<'a> Default for Maker<'a> {
     fn default() -> Self {
-        Maker { source: "", strict: false, yield_flag: true, await_flag: true, return_flag: true, tagged_flag: false, in_flag: true }
+        Maker { source: "", strict: false, yield_flag: true, await_flag: true, return_flag: true, tagged_flag: false, in_flag: true, default_flag: true }
     }
 }
 
@@ -137,6 +145,40 @@ impl<'a> Maker<'a> {
     pub fn tagged_ok(self, tagged_flag: bool) -> Self {
         Self { tagged_flag, ..self }
     }
+    /// Set the `default_flag` in the maker object.
+    ///
+    /// `true` means that nameless functions are allowed.
+    pub fn default_ok(self, default_flag: bool) -> Self {
+        Self { default_flag, ..self }
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CaseBlock`] parse node.
+    pub fn case_block(self) -> Rc<CaseBlock> {
+        CaseBlock::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CaseClause`] parse node.
+    pub fn case_clause(self) -> Rc<CaseClause> {
+        CaseClause::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CaseClauses`] parse node.
+    pub fn case_clauses(self) -> Rc<CaseClauses> {
+        CaseClauses::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`Catch`] parse node.
+    pub fn catch(self) -> Rc<Catch> {
+        Catch::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`CatchParameter`] parse node.
+    pub fn catch_parameter(self) -> Rc<CatchParameter> {
+        CatchParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`DefaultClause`] parse node.
+    pub fn default_clause(self) -> Rc<DefaultClause> {
+        DefaultClause::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`Finally`] parse node.
+    pub fn finally(self) -> Rc<Finally> {
+        Finally::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ForBinding`] parse node.
     pub fn for_binding(self) -> Rc<ForBinding> {
         ForBinding::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -144,6 +186,34 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ForDeclaration`] parse node.
     pub fn for_declaration(self) -> Rc<ForDeclaration> {
         ForDeclaration::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
+    pub fn labelled_item(self) -> Rc<LabelledItem> {
+        LabelledItem::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LabelledStatement`] parse node.
+    pub fn labelled_statement(self) -> Rc<LabelledStatement> {
+        LabelledStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ReturnStatement`] parse node.
+    pub fn return_statement(self) -> Rc<ReturnStatement> {
+        ReturnStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`SwitchStatement`] parse node.
+    pub fn switch_statement(self) -> Rc<SwitchStatement> {
+        SwitchStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ThrowStatement`] parse node.
+    pub fn throw_statement(self) -> Rc<ThrowStatement> {
+        ThrowStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`TryStatement`] parse node.
+    pub fn try_statement(self) -> Rc<TryStatement> {
+        TryStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`WithStatement`] parse node.
+    pub fn with_statement(self) -> Rc<WithStatement> {
+        WithStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
 }
 

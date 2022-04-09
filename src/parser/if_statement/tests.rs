@@ -205,5 +205,4 @@ mod if_statement {
     fn contains_arguments(src: &str) -> bool {
         IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
-
 }

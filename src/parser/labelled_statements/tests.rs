@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -126,7 +126,7 @@ mod labelled_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LabelledStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).strict(strict).labelled_statement().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -134,7 +134,13 @@ mod labelled_statement {
     #[test_case("bob: alice: function foo(){}" => true; "indirect labelled function")]
     #[test_case("bob:;" => false; "not a function")]
     fn is_labelled_function(src: &str) -> bool {
-        LabelledStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
+        Maker::new(src).labelled_statement().is_labelled_function()
+    }
+
+    #[test_case("a:arguments;" => true; "yes")]
+    #[test_case("a:b;" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).labelled_statement().contains_arguments()
     }
 }
 
@@ -296,7 +302,7 @@ mod labelled_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LabelledItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).strict(strict).labelled_item().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -304,6 +310,13 @@ mod labelled_item {
     #[test_case("alice: function foo(){}" => true; "indirect labelled function")]
     #[test_case("bob;" => false; "not a function")]
     fn is_labelled_function(src: &str) -> bool {
-        LabelledItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
+        Maker::new(src).labelled_item().is_labelled_function()
+    }
+
+    #[test_case("arguments;" => true; "Statement (yes)")]
+    #[test_case(";" => false; "Statement (no)")]
+    #[test_case("function a(){}" => false; "func")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).labelled_item().contains_arguments()
     }
 }
