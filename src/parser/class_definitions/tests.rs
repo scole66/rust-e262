@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::test_agent;
@@ -93,10 +93,20 @@ fn class_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_declaration {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("class a { [arguments]; }" => true; "named (yes)")]
+    #[test_case("class a {}" => false; "named (no)")]
+    #[test_case("class { [arguments]; }" => true; "unnamed (yes)")]
+    #[test_case("class {}" => false; "unnamed(no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_declaration().contains_arguments()
     }
 }
 
@@ -175,10 +185,20 @@ fn class_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("class a { [arguments]; }" => true; "named (yes)")]
+    #[test_case("class a {}" => false; "named (no)")]
+    #[test_case("class { [arguments]; }" => true; "unnamed (yes)")]
+    #[test_case("class {}" => false; "unnamed(no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_expression().contains_arguments()
     }
 }
 
@@ -302,10 +322,24 @@ fn class_tail_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_tail {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassTail::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("extends arguments {}" => true; "heritage only (yes)")]
+    #[test_case("extends a {}" => false; "heritage only (no)")]
+    #[test_case("{ [arguments]; }" => true; "body only (yes)")]
+    #[test_case("{ a; }" => false; "body only (no)")]
+    #[test_case("extends arguments { a; }" => true; "both (left)")]
+    #[test_case("extends a { [arguments]; }" => true; "both (right)")]
+    #[test_case("extends a { a; }" => false; "both (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_tail().contains_arguments()
     }
 }
 
@@ -354,10 +388,18 @@ fn class_heritage_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_heritage {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("extends arguments" => true; "yes")]
+    #[test_case("extends a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_heritage().contains_arguments()
     }
 }
 
@@ -417,10 +459,18 @@ fn class_body_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_body {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassBody::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("[arguments];" => true; "yes")]
+    #[test_case(";" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_body().contains_arguments()
     }
 }
 
@@ -523,10 +573,21 @@ fn class_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_element_list {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("[arguments];" => true; "item (yes)")]
+    #[test_case("a;" => false; "item (no)")]
+    #[test_case("[arguments]; a;" => true; "List (left)")]
+    #[test_case("a; [arguments];" => true; "List (right)")]
+    #[test_case("a; b;" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_element_list().contains_arguments()
     }
 }
 
@@ -778,10 +839,27 @@ fn class_element_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod class_element {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("[arguments](){}" => true; "Method (yes)")]
+    #[test_case("a(){}" => false; "Method (no)")]
+    #[test_case("static [arguments](){}" => true; "Static Method (yes)")]
+    #[test_case("static a(){}" => false; "Static Method (no)")]
+    #[test_case("[arguments];" => true; "Field (yes)")]
+    #[test_case("a;" => false; "Field (no)")]
+    #[test_case("static [arguments];" => true; "Static Field (yes)")]
+    #[test_case("static a;" => false; "Static Field (no)")]
+    #[test_case("static { arguments; }" => true; "Static Block (yes)")]
+    #[test_case("static {}" => false; "Static Block (no)")]
+    #[test_case(";" => false; "semi")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_element().contains_arguments()
     }
 }
 
@@ -883,10 +961,21 @@ fn field_definition_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod field_definition {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("[arguments]" => true; "name (yes)")]
+    #[test_case("a" => false; "name (no)")]
+    #[test_case("[arguments]=a" => true; "initialized (left)")]
+    #[test_case("a=arguments" => true; "initialized (right)")]
+    #[test_case("a=b" => false; "initialized (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).field_definition().contains_arguments()
     }
 }
 
@@ -989,6 +1078,13 @@ mod class_element_name {
         let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.prop_name()
     }
+
+    #[test_case("[arguments]" => true; "name (yes)")]
+    #[test_case("a" => false; "name (no)")]
+    #[test_case("#a" => false; "pid")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_element_name().contains_arguments()
+    }
 }
 
 mod class_static_block {
@@ -1035,6 +1131,12 @@ mod class_static_block {
     fn early_errors() {
         ClassStaticBlock::parse(&mut newparser("static { a; }"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
     }
+
+    #[test_case("static { arguments; }" => true; "yes")]
+    #[test_case("static {}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_static_block().contains_arguments()
+    }
 }
 
 mod class_static_block_body {
@@ -1069,6 +1171,12 @@ mod class_static_block_body {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassStaticBlockBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_static_block_body().contains_arguments()
     }
 }
 
@@ -1115,5 +1223,12 @@ mod class_static_block_statement_list {
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
         ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("" => false; "empty")]
+    #[test_case("arguments;" => true; "stmt (yes)")]
+    #[test_case("a;" => false; "stmt (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).class_static_block_statement_list().contains_arguments()
     }
 }

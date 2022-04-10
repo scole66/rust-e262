@@ -1,6 +1,10 @@
 use super::*;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
 use async_generator_function_definitions::AsyncGeneratorMethod;
+use class_definitions::{
+    ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage, ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList,
+    ClassTail, FieldDefinition,
+};
 use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorMethod, YieldExpression};
 use iteration_statements::{ForBinding, ForDeclaration};
@@ -193,6 +197,50 @@ impl<'a> Maker<'a> {
     pub fn catch_parameter(self) -> Rc<CatchParameter> {
         CatchParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ClassBody`] parse node.
+    pub fn class_body(self) -> Rc<ClassBody> {
+        ClassBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassDeclaration`] parse node.
+    pub fn class_declaration(self) -> Rc<ClassDeclaration> {
+        ClassDeclaration::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassElement`] parse node.
+    pub fn class_element(self) -> Rc<ClassElement> {
+        ClassElement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassElementList`] parse node.
+    pub fn class_element_list(self) -> Rc<ClassElementList> {
+        ClassElementList::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassElementName`] parse node.
+    pub fn class_element_name(self) -> Rc<ClassElementName> {
+        ClassElementName::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassExpression`] parse node.
+    pub fn class_expression(self) -> Rc<ClassExpression> {
+        ClassExpression::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassHeritage`] parse node.
+    pub fn class_heritage(self) -> Rc<ClassHeritage> {
+        ClassHeritage::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassStaticBlock`] parse node.
+    pub fn class_static_block(self) -> Rc<ClassStaticBlock> {
+        ClassStaticBlock::parse(&mut strictparser(self.source, self.strict), Scanner::new()).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassStaticBlockBody`] parse node.
+    pub fn class_static_block_body(self) -> Rc<ClassStaticBlockBody> {
+        ClassStaticBlockBody::parse(&mut strictparser(self.source, self.strict), Scanner::new()).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassStaticBlockStatementList`] parse node.
+    pub fn class_static_block_statement_list(self) -> Rc<ClassStaticBlockStatementList> {
+        ClassStaticBlockStatementList::parse(&mut strictparser(self.source, self.strict), Scanner::new()).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ClassTail`] parse node.
+    pub fn class_tail(self) -> Rc<ClassTail> {
+        ClassTail::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ConciseBody`] parse node.
     pub fn concise_body(self) -> Rc<ConciseBody> {
         ConciseBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag).unwrap().0
@@ -204,6 +252,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ExpressionBody`] parse node.
     pub fn expression_body(self) -> Rc<ExpressionBody> {
         ExpressionBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FieldDefinition`] parse node.
+    pub fn field_definition(self) -> Rc<FieldDefinition> {
+        FieldDefinition::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`Finally`] parse node.
     pub fn finally(self) -> Rc<Finally> {
