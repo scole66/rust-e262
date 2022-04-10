@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -18,7 +18,6 @@ mod exponentiation_expression {
         concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -29,7 +28,6 @@ mod exponentiation_expression {
         concise_check(&*se, "ExponentiationExpression: a ** b", vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -44,7 +42,6 @@ mod exponentiation_expression {
         concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn prettyerrors_1() {
@@ -132,5 +129,12 @@ mod exponentiation_expression {
     #[test_case("xyzzy ** bob" => false; "a ** b (no)")]
     fn contains_arguments(src: &str) -> bool {
         ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a**b", false => ATTKind::Invalid; "expression")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).exponentiation_expression().assignment_target_type(strict)
     }
 }

@@ -77,15 +77,6 @@ impl IsFunctionDefinition for AdditiveExpression {
     }
 }
 
-impl AssignmentTargetType for AdditiveExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
-            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(),
-        }
-    }
-}
-
 impl AdditiveExpression {
     // AdditiveExpression's only direct parent is ShiftExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -164,6 +155,16 @@ impl AdditiveExpression {
         match self {
             AdditiveExpression::MultiplicativeExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
+            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(strict),
         }
     }
 }

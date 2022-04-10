@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -18,7 +18,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: 78", vec!["LeftHandSideExpression: 78"]);
         concise_check(&*ue, "Numeric: 78", vec![]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn lhs_2() {
@@ -29,7 +28,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", vec!["LeftHandSideExpression: ( x => x * 2 )"]);
         concise_check(&*ue, "ParenthesizedExpression: ( x => x * 2 )", vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"]);
         assert!(ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn lhs_3() {
@@ -40,7 +38,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: x", vec!["LeftHandSideExpression: x"]);
         concise_check(&*ue, "IdentifierName: x", vec![]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn preinc() {
@@ -51,7 +48,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn predec() {
@@ -62,7 +58,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn postinc() {
@@ -73,7 +68,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn postdec() {
@@ -84,7 +78,6 @@ mod update_expression {
         pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn newline() {
@@ -263,5 +256,15 @@ mod update_expression {
     #[test_case("--xyzzy" => false; "PreDec (no)")]
     fn contains_arguments(src: &str) -> bool {
         UpdateExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a++", false => ATTKind::Invalid; "postinc")]
+    #[test_case("a--", false => ATTKind::Invalid; "postdec")]
+    #[test_case("--a", false => ATTKind::Invalid; "predec")]
+    #[test_case("++a", false => ATTKind::Invalid; "preinc")]
+    #[test_case("eval", false => ATTKind::Simple; "eval; non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).update_expression().assignment_target_type(strict)
     }
 }

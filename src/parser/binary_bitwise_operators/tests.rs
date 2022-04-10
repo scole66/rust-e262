@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -18,7 +18,6 @@ mod bitwise_and_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -29,7 +28,6 @@ mod bitwise_and_expression {
         concise_check(&*pn, "BitwiseANDExpression: a & b", vec!["IdentifierName: a", "Punctuator: &", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -40,7 +38,6 @@ mod bitwise_and_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_04() {
@@ -122,6 +119,13 @@ mod bitwise_and_expression {
     fn contains_arguments(src: &str) -> bool {
         BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a&b", false => ATTKind::Invalid; "bitwise and")]
+    #[test_case("eval", false => ATTKind::Simple; "eval non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).bitwise_and_expression().assignment_target_type(strict)
+    }
 }
 
 #[test]
@@ -133,7 +137,6 @@ fn bitwise_xor_expression_test_01() {
     concise_check(&*pn, "IdentifierName: a", vec![]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn bitwise_xor_expression_test_02() {
@@ -144,7 +147,6 @@ fn bitwise_xor_expression_test_02() {
     concise_check(&*pn, "BitwiseXORExpression: a ^ b", vec!["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn bitwise_xor_expression_test_03() {
@@ -155,7 +157,6 @@ fn bitwise_xor_expression_test_03() {
     concise_check(&*pn, "IdentifierName: a", vec![]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn bitwise_xor_expression_test_04() {
@@ -240,6 +241,13 @@ mod bitwise_xor_expression {
     fn contains_arguments(src: &str) -> bool {
         BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a^b", false => ATTKind::Invalid; "bitwise xor")]
+    #[test_case("eval", false => ATTKind::Simple; "eval non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).bitwise_xor_expression().assignment_target_type(strict)
+    }
 }
 
 #[test]
@@ -251,7 +259,6 @@ fn bitwise_or_expression_test_01() {
     concise_check(&*pn, "IdentifierName: a", vec![]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn bitwise_or_expression_test_02() {
@@ -262,7 +269,6 @@ fn bitwise_or_expression_test_02() {
     concise_check(&*pn, "BitwiseORExpression: a | b", vec!["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn bitwise_or_expression_test_03() {
@@ -273,7 +279,6 @@ fn bitwise_or_expression_test_03() {
     concise_check(&*pn, "IdentifierName: a", vec![]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn bitwise_or_expression_test_cache_01() {
@@ -365,5 +370,12 @@ mod bitwise_or_expression {
     #[test_case("xyzzy | bob" => false; "a | b (no)")]
     fn contains_arguments(src: &str) -> bool {
         BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a|b", false => ATTKind::Invalid; "bitwise or")]
+    #[test_case("eval", false => ATTKind::Simple; "eval non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).bitwise_or_expression().assignment_target_type(strict)
     }
 }

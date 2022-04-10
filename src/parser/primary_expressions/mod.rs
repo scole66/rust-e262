@@ -147,18 +147,6 @@ impl IsIdentifierReference for PrimaryExpression {
     }
 }
 
-impl AssignmentTargetType for PrimaryExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        use PrimaryExpressionKind::*;
-        match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_)
-            | AsyncGenerator(_) => ATTKind::Invalid,
-            IdentifierReference(id) => id.assignment_target_type(),
-            Parenthesized(expr) => expr.assignment_target_type(),
-        }
-    }
-}
-
 pub trait ToPrimaryExpressionKind {
     fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind;
     fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
@@ -427,6 +415,19 @@ impl PrimaryExpression {
             PrimaryExpressionKind::IdentifierReference(..) => false,
             PrimaryExpressionKind::Parenthesized(exp) => exp.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        use PrimaryExpressionKind::*;
+        match &self.kind {
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_)
+            | AsyncGenerator(_) => ATTKind::Invalid,
+            IdentifierReference(id) => id.assignment_target_type(strict),
+            Parenthesized(expr) => expr.assignment_target_type(strict),
         }
     }
 }
@@ -2749,13 +2750,6 @@ impl IsFunctionDefinition for ParenthesizedExpression {
     }
 }
 
-impl AssignmentTargetType for ParenthesizedExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.assignment_target_type()
-    }
-}
-
 impl ParenthesizedExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
@@ -2803,6 +2797,14 @@ impl ParenthesizedExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         let ParenthesizedExpression::Expression(e) = self;
         e.is_strictly_deletable()
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.assignment_target_type(strict)
     }
 }
 

@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -337,7 +337,6 @@ fn identifier_reference_test_simple_success() {
     assert!(!idref.strict);
     assert!(matches!(idref.kind, IdentifierReferenceKind::Identifier(..)));
     assert_eq!(idref.string_value(), "identifier");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
     concise_check(&*idref, "IdentifierName: identifier", vec![]);
@@ -348,7 +347,6 @@ fn identifier_reference_test_yield() {
     assert!(!idref.strict);
     assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
     assert_eq!(idref.string_value(), "yield");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: yield", vec![]);
     concise_check(&*idref, "Keyword: yield", vec![]);
@@ -364,7 +362,6 @@ fn identifier_reference_test_await() {
     assert!(!idref.strict);
     assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
     assert_eq!(idref.string_value(), "await");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: await", vec![]);
     concise_check(&*idref, "Keyword: await", vec![]);
@@ -383,36 +380,6 @@ fn identifier_reference_test_kwd() {
 fn identifier_reference_test_punct() {
     let idref = IdentifierReference::parse(&mut newparser("*"), Scanner::new(), true, true);
     check_parse_error(idref, "not an identifier");
-}
-#[test]
-fn identifier_reference_test_att_strict() {
-    let idref = idref_create("abcd", true);
-    assert_eq!(idref.string_value(), "abcd");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
-}
-#[test]
-fn identifier_reference_test_eval_strict() {
-    let idref = idref_create("eval", true);
-    assert_eq!(idref.string_value(), "eval");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
-}
-#[test]
-fn identifier_reference_test_eval_loose() {
-    let idref = idref_create("eval", false);
-    assert_eq!(idref.string_value(), "eval");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
-}
-#[test]
-fn identifier_reference_test_arguments_strict() {
-    let idref = idref_create("arguments", true);
-    assert_eq!(idref.string_value(), "arguments");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
-}
-#[test]
-fn identifier_reference_test_arguments_loose() {
-    let idref = idref_create("arguments", false);
-    assert_eq!(idref.string_value(), "arguments");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn identifier_reference_prettycheck_1() {
@@ -536,6 +503,20 @@ mod identifier_reference {
     #[test_case("\\u0061rguments" => true; "escaped/yes")]
     fn contains_arguments(src: &str) -> bool {
         IdentifierReference::parse(&mut newparser(src), Scanner::new(), false, false).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a", false => ATTKind::Simple; "plain; not strict")]
+    #[test_case("arguments", false => ATTKind::Simple; "arguments; not strict")]
+    #[test_case("eval", false => ATTKind::Simple; "eval; not strict")]
+    #[test_case("yield", false => ATTKind::Simple; "yield; not strict")]
+    #[test_case("await", false => ATTKind::Simple; "await; not strict")]
+    #[test_case("a", true => ATTKind::Simple; "plain; strict")]
+    #[test_case("arguments", true => ATTKind::Invalid; "arguments; strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
+    #[test_case("yield", true => ATTKind::Simple; "yield; strict")]
+    #[test_case("await", true => ATTKind::Simple; "await; strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).yield_ok(false).await_ok(false).identifier_reference().assignment_target_type(strict)
     }
 }
 

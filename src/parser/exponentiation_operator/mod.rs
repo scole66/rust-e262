@@ -68,15 +68,6 @@ impl IsFunctionDefinition for ExponentiationExpression {
     }
 }
 
-impl AssignmentTargetType for ExponentiationExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
-            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(),
-        }
-    }
-}
-
 impl ExponentiationExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
@@ -150,6 +141,16 @@ impl ExponentiationExpression {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
+            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
         }
     }
 }

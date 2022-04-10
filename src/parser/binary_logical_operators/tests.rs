@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -19,7 +19,6 @@ mod logical_and_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -30,7 +29,6 @@ mod logical_and_expression {
         concise_check(&*pn, "LogicalANDExpression: a && b", vec!["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -41,7 +39,6 @@ mod logical_and_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn prettyerrors_1() {
@@ -129,6 +126,13 @@ mod logical_and_expression {
     fn contains_arguments(src: &str) -> bool {
         LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a&&b", false => ATTKind::Invalid; "land")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).logical_and_expression().assignment_target_type(strict)
+    }
 }
 
 // LOGICAL OR EXPRESSION
@@ -145,7 +149,6 @@ mod logical_or_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -156,7 +159,6 @@ mod logical_or_expression {
         concise_check(&*pn, "LogicalORExpression: a || b", vec!["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -167,7 +169,6 @@ mod logical_or_expression {
         concise_check(&*pn, "IdentifierName: a", vec![]);
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
-        assert_eq!(pn.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn prettyerrors_1() {
@@ -253,6 +254,13 @@ mod logical_or_expression {
     #[test_case("xyzzy || bob" => false; "a or b (no)")]
     fn contains_arguments(src: &str) -> bool {
         LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a||b", false => ATTKind::Invalid; "lor")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).logical_or_expression().assignment_target_type(strict)
     }
 }
 
@@ -447,7 +455,6 @@ fn short_circuit_expression_test_01() {
     concise_check(&*pn, "CoalesceExpression: a ?? b", vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn short_circuit_expression_test_02() {
@@ -458,7 +465,6 @@ fn short_circuit_expression_test_02() {
     concise_check(&*pn, "Numeric: 6", vec![]);
     format!("{:?}", pn);
     assert_eq!(pn.is_function_definition(), false);
-    assert_eq!(pn.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn short_circuit_expression_test_03() {
@@ -544,5 +550,12 @@ mod short_circuit_expression {
     #[test_case("xyzzy??bob" => false; "Coal (no)")]
     fn contains_arguments(src: &str) -> bool {
         ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a??b", false => ATTKind::Invalid; "coalesce")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).short_circuit_expression().assignment_target_type(strict)
     }
 }

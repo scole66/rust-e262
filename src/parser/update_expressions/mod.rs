@@ -84,15 +84,6 @@ impl IsFunctionDefinition for UpdateExpression {
     }
 }
 
-impl AssignmentTargetType for UpdateExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(),
-            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
-        }
-    }
-}
-
 impl UpdateExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UpdateExpression), scanner))
@@ -203,7 +194,7 @@ impl UpdateExpression {
                 //      LeftHandSideExpression ++
                 //      LeftHandSideExpression --
                 // * It is an early Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
-                if n.assignment_target_type() != ATTKind::Simple {
+                if n.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid target for update"));
                 }
                 n.early_errors(agent, errs, strict);
@@ -213,7 +204,7 @@ impl UpdateExpression {
                 //      ++ UnaryExpression
                 //      -- UnaryExpression
                 // * It is an early Syntax Error if AssignmentTargetType of UnaryExpression is not simple.
-                if n.assignment_target_type() != ATTKind::Simple {
+                if n.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid target for update"));
                 }
                 n.early_errors(agent, errs, strict);
@@ -225,6 +216,16 @@ impl UpdateExpression {
         match self {
             UpdateExpression::LeftHandSideExpression(x) => x.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(strict),
+            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
         }
     }
 }

@@ -66,15 +66,6 @@ impl IsFunctionDefinition for LogicalANDExpression {
     }
 }
 
-impl AssignmentTargetType for LogicalANDExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self {
-            LogicalANDExpression::LogicalAND(_, _) => ATTKind::Invalid,
-            LogicalANDExpression::BitwiseORExpression(node) => node.assignment_target_type(),
-        }
-    }
-}
-
 impl LogicalANDExpression {
     // No need to cache. Only one parent.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -151,6 +142,16 @@ impl LogicalANDExpression {
             _ => true,
         }
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self {
+            LogicalANDExpression::LogicalAND(_, _) => ATTKind::Invalid,
+            LogicalANDExpression::BitwiseORExpression(node) => node.assignment_target_type(strict),
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -208,15 +209,6 @@ impl IsFunctionDefinition for LogicalORExpression {
         match &self {
             LogicalORExpression::LogicalOR(_, _) => false,
             LogicalORExpression::LogicalANDExpression(node) => node.is_function_definition(),
-        }
-    }
-}
-
-impl AssignmentTargetType for LogicalORExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self {
-            LogicalORExpression::LogicalOR(_, _) => ATTKind::Invalid,
-            LogicalORExpression::LogicalANDExpression(node) => node.assignment_target_type(),
         }
     }
 }
@@ -297,13 +289,23 @@ impl LogicalORExpression {
             _ => true,
         }
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self {
+            LogicalORExpression::LogicalOR(_, _) => ATTKind::Invalid,
+            LogicalORExpression::LogicalANDExpression(node) => node.assignment_target_type(strict),
+        }
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
 //      CoalesceExpressionHead[?In, ?Yield, ?Await] ?? BitwiseORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
 pub struct CoalesceExpression {
-    head: Rc<CoalesceExpressionHead>,
+    pub head: Rc<CoalesceExpressionHead>,
     tail: Rc<BitwiseORExpression>,
 }
 
@@ -543,15 +545,6 @@ impl IsFunctionDefinition for ShortCircuitExpression {
     }
 }
 
-impl AssignmentTargetType for ShortCircuitExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self {
-            ShortCircuitExpression::CoalesceExpression(_) => ATTKind::Invalid,
-            ShortCircuitExpression::LogicalORExpression(node) => node.assignment_target_type(),
-        }
-    }
-}
-
 impl ShortCircuitExpression {
     // No need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -619,6 +612,16 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::LogicalORExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self {
+            ShortCircuitExpression::CoalesceExpression(_) => ATTKind::Invalid,
+            ShortCircuitExpression::LogicalORExpression(node) => node.assignment_target_type(strict),
         }
     }
 }

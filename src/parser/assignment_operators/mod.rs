@@ -148,23 +148,6 @@ impl IsFunctionDefinition for AssignmentExpression {
     }
 }
 
-impl AssignmentTargetType for AssignmentExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            AssignmentExpression::Yield(_)
-            | AssignmentExpression::Arrow(_)
-            | AssignmentExpression::AsyncArrow(_)
-            | AssignmentExpression::Assignment(_, _)
-            | AssignmentExpression::OpAssignment(_, _, _)
-            | AssignmentExpression::LandAssignment(_, _)
-            | AssignmentExpression::LorAssignment(_, _)
-            | AssignmentExpression::CoalAssignment(_, _)
-            | AssignmentExpression::Destructuring(..) => ATTKind::Invalid,
-            AssignmentExpression::FallThru(node) => node.assignment_target_type(),
-        }
-    }
-}
-
 impl AssignmentExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let result = Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), scanner))
@@ -354,7 +337,7 @@ impl AssignmentExpression {
                 //      LeftHandSideExpression ??= AssignmentExpression
                 //
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
-                if left.assignment_target_type() != ATTKind::Simple {
+                if left.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
                 }
                 left.early_errors(agent, errs, strict);
@@ -371,6 +354,24 @@ impl AssignmentExpression {
         match self {
             AssignmentExpression::FallThru(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Arrow(_)
+            | AssignmentExpression::AsyncArrow(_)
+            | AssignmentExpression::Assignment(_, _)
+            | AssignmentExpression::OpAssignment(_, _, _)
+            | AssignmentExpression::LandAssignment(_, _)
+            | AssignmentExpression::LorAssignment(_, _)
+            | AssignmentExpression::CoalAssignment(_, _)
+            | AssignmentExpression::Destructuring(..) => ATTKind::Invalid,
+            AssignmentExpression::FallThru(node) => node.assignment_target_type(strict),
         }
     }
 }
@@ -1391,7 +1392,7 @@ impl AssignmentProperty {
         //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
         match self {
             AssignmentProperty::Ident(idref, izer) => {
-                if idref.assignment_target_type() != ATTKind::Simple {
+                if idref.assignment_target_type(strict) != ATTKind::Simple {
                     // node.js reports:
                     //     "Unexpected eval or arguments in strict mode"
                     // But that feels like it knows too much about the cause for !Simple. Which might mean that we
@@ -1685,7 +1686,7 @@ impl DestructuringAssignmentTarget {
         match self {
             DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.early_errors(agent, errs, strict),
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => {
-                if lhs.assignment_target_type() != ATTKind::Simple {
+                if lhs.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid left-hand side in assignment"));
                 }
                 lhs.early_errors(agent, errs, strict);

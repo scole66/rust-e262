@@ -153,20 +153,6 @@ impl IsFunctionDefinition for MemberExpression {
     }
 }
 
-impl AssignmentTargetType for MemberExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => boxed.assignment_target_type(),
-            MemberExpressionKind::Expression(..) => ATTKind::Simple,
-            MemberExpressionKind::IdentifierName(..) | MemberExpressionKind::PrivateId(..) => ATTKind::Simple,
-            MemberExpressionKind::TemplateLiteral(..) => ATTKind::Invalid,
-            MemberExpressionKind::SuperProperty(..) => ATTKind::Simple,
-            MemberExpressionKind::MetaProperty(boxed) => boxed.assignment_target_type(),
-            MemberExpressionKind::NewArguments(..) => ATTKind::Invalid,
-        }
-    }
-}
-
 pub trait ToMemberExpressionKind {
     fn to_member_expression_kind(node: Rc<Self>) -> MemberExpressionKind;
 }
@@ -372,6 +358,21 @@ impl MemberExpression {
             MemberExpressionKind::PrivateId(..) => false,
         }
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(boxed) => boxed.assignment_target_type(strict),
+            MemberExpressionKind::Expression(..) => ATTKind::Simple,
+            MemberExpressionKind::IdentifierName(..) | MemberExpressionKind::PrivateId(..) => ATTKind::Simple,
+            MemberExpressionKind::TemplateLiteral(..) => ATTKind::Invalid,
+            MemberExpressionKind::SuperProperty(..) => ATTKind::Simple,
+            MemberExpressionKind::MetaProperty(..) => ATTKind::Invalid,
+            MemberExpressionKind::NewArguments(..) => ATTKind::Invalid,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -546,12 +547,6 @@ impl PrettyPrint for MetaProperty {
                 pprint_token(writer, "meta", TokenType::Keyword, &successive, Spot::Final)
             }
         }
-    }
-}
-
-impl AssignmentTargetType for MetaProperty {
-    fn assignment_target_type(&self) -> ATTKind {
-        ATTKind::Invalid
     }
 }
 
@@ -1003,15 +998,6 @@ impl IsFunctionDefinition for NewExpression {
     }
 }
 
-impl AssignmentTargetType for NewExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.assignment_target_type(),
-            NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
-        }
-    }
-}
-
 impl NewExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::NewOrMEExpected, scanner))
@@ -1088,6 +1074,16 @@ impl NewExpression {
         match &self.kind {
             NewExpressionKind::NewExpression(_) => true,
             NewExpressionKind::MemberExpression(node) => node.is_strictly_deletable(),
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(boxed) => boxed.assignment_target_type(strict),
+            NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
         }
     }
 }
@@ -1427,19 +1423,6 @@ impl PrettyPrint for CallExpression {
     }
 }
 
-impl AssignmentTargetType for CallExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(_)
-            | CallExpressionKind::SuperCall(_)
-            | CallExpressionKind::ImportCall(_)
-            | CallExpressionKind::CallExpressionArguments(..)
-            | CallExpressionKind::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
-            CallExpressionKind::CallExpressionExpression(..) | CallExpressionKind::CallExpressionIdentifierName(..) | CallExpressionKind::CallExpressionPrivateId(..) => ATTKind::Simple,
-        }
-    }
-}
-
 impl CallExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::CallExpression), scanner))
@@ -1585,6 +1568,20 @@ impl CallExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         !matches!(&self.kind, CallExpressionKind::CallExpressionPrivateId(..))
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self) -> ATTKind {
+        match &self.kind {
+            CallExpressionKind::CallMemberExpression(_)
+            | CallExpressionKind::SuperCall(_)
+            | CallExpressionKind::ImportCall(_)
+            | CallExpressionKind::CallExpressionArguments(..)
+            | CallExpressionKind::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
+            CallExpressionKind::CallExpressionExpression(..) | CallExpressionKind::CallExpressionIdentifierName(..) | CallExpressionKind::CallExpressionPrivateId(..) => ATTKind::Simple,
+        }
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -1638,16 +1635,6 @@ impl IsFunctionDefinition for LeftHandSideExpression {
         match self {
             LeftHandSideExpression::New(boxed) => boxed.is_function_definition(),
             LeftHandSideExpression::Optional(_) | LeftHandSideExpression::Call(_) => false,
-        }
-    }
-}
-
-impl AssignmentTargetType for LeftHandSideExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            LeftHandSideExpression::New(boxed) => boxed.assignment_target_type(),
-            LeftHandSideExpression::Call(boxed) => boxed.assignment_target_type(),
-            LeftHandSideExpression::Optional(_) => ATTKind::Invalid,
         }
     }
 }
@@ -1739,6 +1726,17 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::New(node) => node.is_strictly_deletable(),
             LeftHandSideExpression::Call(node) => node.is_strictly_deletable(),
             LeftHandSideExpression::Optional(node) => node.is_strictly_deletable(),
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            LeftHandSideExpression::New(boxed) => boxed.assignment_target_type(strict),
+            LeftHandSideExpression::Call(boxed) => boxed.assignment_target_type(),
+            LeftHandSideExpression::Optional(_) => ATTKind::Invalid,
         }
     }
 }

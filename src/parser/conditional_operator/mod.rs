@@ -72,15 +72,6 @@ impl IsFunctionDefinition for ConditionalExpression {
     }
 }
 
-impl AssignmentTargetType for ConditionalExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self {
-            ConditionalExpression::Conditional(_, _, _) => ATTKind::Invalid,
-            ConditionalExpression::FallThru(node) => node.assignment_target_type(),
-        }
-    }
-}
-
 impl ConditionalExpression {
     // no need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -158,6 +149,16 @@ impl ConditionalExpression {
         match self {
             ConditionalExpression::FallThru(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self {
+            ConditionalExpression::Conditional(_, _, _) => ATTKind::Invalid,
+            ConditionalExpression::FallThru(node) => node.assignment_target_type(strict),
         }
     }
 }

@@ -1135,7 +1135,7 @@ impl ForInOfStatement {
                 //  for ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  for await ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
-                if lhs.assignment_target_type() != ATTKind::Simple {
+                if lhs.assignment_target_type(strict) != ATTKind::Simple {
                     errs.push(create_syntax_error_object(agent, "Invalid assignment target"));
                 }
             }

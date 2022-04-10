@@ -527,9 +527,6 @@ pub enum ATTKind {
     Invalid,
     Simple,
 }
-pub trait AssignmentTargetType {
-    fn assignment_target_type(&self) -> ATTKind;
-}
 
 pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);

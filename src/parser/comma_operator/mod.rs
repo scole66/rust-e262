@@ -66,15 +66,6 @@ impl IsFunctionDefinition for Expression {
     }
 }
 
-impl AssignmentTargetType for Expression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match &self {
-            Expression::FallThru(node) => node.assignment_target_type(),
-            Expression::Comma(_, _) => ATTKind::Invalid,
-        }
-    }
-}
-
 impl Expression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Expression), scanner)).otherwise(|| {
@@ -162,6 +153,16 @@ impl Expression {
         match self {
             Expression::FallThru(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match &self {
+            Expression::FallThru(node) => node.assignment_target_type(strict),
+            Expression::Comma(_, _) => ATTKind::Invalid,
         }
     }
 }
