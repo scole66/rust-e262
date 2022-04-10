@@ -1,5 +1,6 @@
 use super::*;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
+use async_generator_function_definitions::AsyncGeneratorMethod;
 use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorMethod, YieldExpression};
 use iteration_statements::{ForBinding, ForDeclaration};
@@ -167,6 +168,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ArrowParameters`] parse node.
     pub fn arrow_parameters(self) -> Rc<ArrowParameters> {
         ArrowParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
+    pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
+        AsyncGeneratorMethod::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`CaseBlock`] parse node.
     pub fn case_block(self) -> Rc<CaseBlock> {
