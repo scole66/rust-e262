@@ -205,4 +205,19 @@ mod shift_expression {
     fn is_strictly_deletable(src: &str) -> bool {
         ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
     }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments >> bob" => true; "a shr b (left)")]
+    #[test_case("bob >> arguments" => true; "a shr b (right)")]
+    #[test_case("arguments << bob" => true; "a shl b (left)")]
+    #[test_case("bob << arguments" => true; "a shl b (right)")]
+    #[test_case("arguments >>> bob" => true; "a ushr b (left)")]
+    #[test_case("bob >>> arguments" => true; "a ushr b (right)")]
+    #[test_case("xyzzy" => false; "Exp (no)")]
+    #[test_case("xyzzy >> bob" => false; "a shr b (no)")]
+    #[test_case("xyzzy << bob" => false; "a shl b (no)")]
+    #[test_case("xyzzy >>> bob" => false; "a ushr b (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
 }

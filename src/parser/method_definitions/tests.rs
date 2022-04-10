@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -425,8 +425,7 @@ mod method_definition {
     #[test_case("async a(){}" => false; "async method without")]
     #[test_case("async a(){super(0);}" => true; "async method with")]
     fn has_direct_super(src: &str) -> bool {
-        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.has_direct_super()
+        Maker::new(src).method_definition().has_direct_super()
     }
 
     #[test_case("package(implements){interface;}", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED])*/; "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
@@ -446,7 +445,7 @@ mod method_definition {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MethodDefinition::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).strict(strict).method_definition().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -457,8 +456,23 @@ mod method_definition {
     #[test_case("async a(){}" => Some(JSString::from("a")); "async fun")]
     #[test_case("async *a(){}" => Some(JSString::from("a")); "async gen")]
     fn prop_name(src: &str) -> Option<JSString> {
-        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.prop_name()
+        Maker::new(src).method_definition().prop_name()
+    }
+
+    #[test_case("[arguments](){}" => true; "normal method (yes)")]
+    #[test_case("a(){}" => false; "normal method (no)")]
+    #[test_case("*[arguments](){}" => true; "generator (yes)")]
+    #[test_case("*a(){}" => false; "generator (no)")]
+    #[test_case("async [arguments](){}" => true; "async method (yes)")]
+    #[test_case("async a(){}" => false; "async method (no)")]
+    #[test_case("async *[arguments](){}" => true; "async gen (yes)")]
+    #[test_case("async *a(){}" => false; "async gen (no)")]
+    #[test_case("get [arguments](){}" => true; "getter (yes)")]
+    #[test_case("get a(){}" => false; "getter (no)")]
+    #[test_case("set [arguments](a){}" => true; "setter (yes)")]
+    #[test_case("set a(b){}" => false; "setter (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).method_definition().contains_arguments()
     }
 }
 

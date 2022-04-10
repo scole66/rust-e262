@@ -105,6 +105,22 @@ impl ClassDeclaration {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ClassDeclaration::Named(_, ct) | ClassDeclaration::Unnamed(ct) => ct.contains_arguments(),
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -185,6 +201,20 @@ impl ClassExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.tail.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.tail.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]
@@ -299,6 +329,20 @@ impl ClassTail {
         self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.heritage.as_ref().map_or(false, |ch| ch.contains_arguments()) || self.body.as_ref().map_or(false, |cb| cb.contains_arguments())
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -356,6 +400,20 @@ impl ClassHeritage {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]
@@ -424,6 +482,20 @@ impl ClassBody {
         new_names.extend_from_slice(names);
         new_names.extend(self.private_bound_identifiers());
         self.0.all_private_identifiers_valid(&new_names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]
@@ -539,6 +611,23 @@ impl ClassElementList {
         match self {
             ClassElementList::Item(node) => node.all_private_identifiers_valid(names),
             ClassElementList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ClassElementList::Item(ce) => ce.contains_arguments(),
+            ClassElementList::List(cel, ce) => cel.contains_arguments() || ce.contains_arguments(),
         }
     }
 
@@ -707,6 +796,25 @@ impl ClassElement {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ClassElement::Standard(md) | ClassElement::Static(md) => md.contains_arguments(),
+            ClassElement::Field(fd) | ClassElement::StaticField(fd) => fd.contains_arguments(),
+            ClassElement::StaticBlock(sb) => sb.contains_arguments(),
+            ClassElement::Empty => false,
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -796,6 +904,20 @@ impl FieldDefinition {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.name.contains_arguments() || self.init.as_ref().map_or(false, |izer| izer.contains_arguments())
     }
 
     #[allow(clippy::ptr_arg)]
@@ -895,6 +1017,23 @@ impl ClassElementName {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ClassElementName::PropertyName(pn) => pn.contains_arguments(),
+            ClassElementName::PrivateIdentifier(_) => false,
+        }
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -971,6 +1110,20 @@ impl ClassStaticBlock {
         self.0.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
+    }
+
     #[allow(clippy::ptr_arg)]
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
@@ -1020,6 +1173,20 @@ impl ClassStaticBlockBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]
@@ -1073,6 +1240,20 @@ impl ClassStaticBlockStatementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
     #[allow(clippy::ptr_arg)]

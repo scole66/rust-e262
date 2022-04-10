@@ -130,4 +130,14 @@ mod conditional_expression {
     fn is_strictly_deletable(src: &str) -> bool {
         ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments ? bob : alice" => true; "trinary (left)")]
+    #[test_case("bob ? arguments : alice" => true; "trinary (middle)")]
+    #[test_case("bob ? alice : arguments" => true; "trinary (right)")]
+    #[test_case("xyzzy" => false; "Exp (no)")]
+    #[test_case("xyzzy ? bob : alice" => false; "trinary (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }

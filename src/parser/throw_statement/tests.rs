@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -39,15 +39,20 @@ fn throw_statement_test_contains() {
 }
 #[test_case("throw a.#valid;" => true; "valid")]
 #[test_case("throw a.#invalid;" => false; "invalid")]
-fn throw_statement_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ThrowStatement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
+fn all_private_identifiers_valid(src: &str) -> bool {
+    Maker::new(src).throw_statement().all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test_case("throw package;", true => set(&[PACKAGE_NOT_ALLOWED]); "normal")]
 fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
     let mut agent = test_agent();
     let mut errs = vec![];
-    ThrowStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+    Maker::new(src).strict(strict).throw_statement().early_errors(&mut agent, &mut errs, strict);
     AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+}
+
+#[test_case("throw arguments;" => true; "yes")]
+#[test_case("throw a;" => false; "no")]
+fn contains_arguments(src: &str) -> bool {
+    Maker::new(src).throw_statement().contains_arguments()
 }

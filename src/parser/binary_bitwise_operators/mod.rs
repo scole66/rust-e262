@@ -118,6 +118,23 @@ impl BitwiseANDExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.contains_arguments(),
+            BitwiseANDExpression::BitwiseAND(bae, ee) => bae.contains_arguments() || ee.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, errs, strict),
@@ -244,6 +261,23 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseXORExpression::BitwiseXOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(bae) => bae.contains_arguments(),
+            BitwiseXORExpression::BitwiseXOR(bxe, bae) => bxe.contains_arguments() || bae.contains_arguments(),
         }
     }
 
@@ -384,6 +418,23 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.all_private_identifiers_valid(names),
             BitwiseORExpression::BitwiseOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.contains_arguments(),
+            BitwiseORExpression::BitwiseOR(boe, bxe) => boe.contains_arguments() || bxe.contains_arguments(),
         }
     }
 

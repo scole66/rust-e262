@@ -145,6 +145,25 @@ impl IterationStatement {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            IterationStatement::DoWhile(dws) => dws.contains_arguments(),
+            IterationStatement::While(ws) => ws.contains_arguments(),
+            IterationStatement::For(fs) => fs.contains_arguments(),
+            IterationStatement::ForInOf(fios) => fios.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         match self {
             IterationStatement::DoWhile(node) => node.early_errors(agent, errs, strict, within_switch),
@@ -245,6 +264,21 @@ impl DoWhileStatement {
         s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let DoWhileStatement::Do(stmt, e) = self;
+        stmt.contains_arguments() || e.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         let DoWhileStatement::Do(s, e) = self;
         s.early_errors(agent, errs, strict, true, within_switch);
@@ -336,6 +370,21 @@ impl WhileStatement {
         //  2. Return true.
         let WhileStatement::While(e, s) = self;
         e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let WhileStatement::While(e, s) = self;
+        e.contains_arguments() || s.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
@@ -602,6 +651,27 @@ impl ForStatement {
                     && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
                     && s.all_private_identifiers_valid(names)
             }
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let oe_check = |e: &Rc<Expression>| e.contains_arguments();
+        match self {
+            ForStatement::For(oe1, oe2, oe3, s) => {
+                oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || oe3.as_ref().map_or(false, oe_check) || s.contains_arguments()
+            }
+            ForStatement::ForVar(v, oe1, oe2, s) => v.contains_arguments() || oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || s.contains_arguments(),
+            ForStatement::ForLex(ld, oe1, oe2, s) => ld.contains_arguments() || oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || s.contains_arguments(),
         }
     }
 
@@ -1011,6 +1081,29 @@ impl ForInOfStatement {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ForInOfStatement::In(lhse, e, s) => lhse.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::DestructuringIn(ap, e, s) => ap.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::VarIn(fb, e, s) => fb.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::LexIn(fd, e, s) => fd.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::Of(lhse, ae, s) | ForInOfStatement::AwaitOf(lhse, ae, s) => lhse.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::DestructuringOf(ap, ae, s) | ForInOfStatement::DestructuringAwaitOf(ap, ae, s) => ap.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => fb.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::LexOf(fd, ae, s) | ForInOfStatement::AwaitLexOf(fd, ae, s) => fd.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         match self {
@@ -1191,6 +1284,21 @@ impl ForDeclaration {
         node.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ForDeclaration::Binding(_, fb) = self;
+        fb.contains_arguments()
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         let ForDeclaration::Binding(_, fb) = self;
         fb.bound_names()
@@ -1293,6 +1401,23 @@ impl ForBinding {
         match self {
             ForBinding::Identifier(_) => true,
             ForBinding::Pattern(node) => node.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ForBinding::Identifier(_) => false,
+            ForBinding::Pattern(bp) => bp.contains_arguments(),
         }
     }
 

@@ -365,6 +365,34 @@ impl PrimaryExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match &self.kind {
+            PrimaryExpressionKind::This
+            | PrimaryExpressionKind::Literal(_)
+            | PrimaryExpressionKind::Function(_)
+            | PrimaryExpressionKind::Generator(_)
+            | PrimaryExpressionKind::AsyncFunction(_)
+            | PrimaryExpressionKind::AsyncGenerator(_)
+            | PrimaryExpressionKind::RegularExpression(..) => false,
+            PrimaryExpressionKind::IdentifierReference(ir) => ir.contains_arguments(),
+            PrimaryExpressionKind::ArrayLiteral(al) => al.contains_arguments(),
+            PrimaryExpressionKind::ObjectLiteral(ol) => ol.contains_arguments(),
+            PrimaryExpressionKind::Parenthesized(pe) => pe.contains_arguments(),
+            PrimaryExpressionKind::Class(ce) => ce.contains_arguments(),
+            PrimaryExpressionKind::TemplateLiteral(tl) => tl.contains_arguments(),
+        }
+    }
+
     pub fn is_object_or_array_literal(&self) -> bool {
         matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
     }
@@ -529,6 +557,21 @@ impl SpreadElement {
         //  2. Return true.
         let SpreadElement::AssignmentExpression(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let SpreadElement::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -744,6 +787,25 @@ impl ElementList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ElementList::AssignmentExpression((_, ae)) => ae.contains_arguments(),
+            ElementList::SpreadElement((_, se)) => se.contains_arguments(),
+            ElementList::ElementListAssignmentExpression((el, _, ae)) => el.contains_arguments() || ae.contains_arguments(),
+            ElementList::ElementListSpreadElement((el, _, se)) => el.contains_arguments() || se.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ElementList::AssignmentExpression((_, b)) => {
@@ -898,6 +960,23 @@ impl ArrayLiteral {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ArrayLiteral::Empty(_) => false,
+            ArrayLiteral::ElementList(el) | ArrayLiteral::ElementListElision(el, _) => el.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty(_) => {}
@@ -975,6 +1054,21 @@ impl Initializer {
         //  2. Return true.
         let Initializer::AssignmentExpression(node) = self;
         node.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1116,6 +1210,21 @@ impl ComputedPropertyName {
         //  2. Return true.
         let ComputedPropertyName::AssignmentExpression(n) = self;
         n.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ComputedPropertyName::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1300,6 +1409,23 @@ impl PropertyName {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyName::LiteralPropertyName(_) => false,
+            PropertyName::ComputedPropertyName(cpn) => cpn.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             PropertyName::LiteralPropertyName(_) => (),
@@ -1453,6 +1579,26 @@ impl PropertyDefinition {
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names),
             PropertyDefinition::MethodDefinition(md) => md.all_private_identifiers_valid(names),
             PropertyDefinition::AssignmentExpression(ae) => ae.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyDefinition::IdentifierReference(ir) => ir.contains_arguments(),
+            PropertyDefinition::CoverInitializedName(_) => false, // This triggers a syntax error elsewhere; so ignore it now
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains_arguments() || ae.contains_arguments(),
+            PropertyDefinition::MethodDefinition(md) => md.contains_arguments(),
+            PropertyDefinition::AssignmentExpression(ae) => ae.contains_arguments(),
         }
     }
 
@@ -1620,6 +1766,23 @@ impl PropertyDefinitionList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.contains_arguments(),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains_arguments() || pd.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
@@ -1733,6 +1896,23 @@ impl ObjectLiteral {
             ObjectLiteral::Empty => true,
             ObjectLiteral::Normal(pdl) => pdl.all_private_identifiers_valid(names),
             ObjectLiteral::TrailingComma(pdl) => pdl.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ObjectLiteral::Empty => false,
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.contains_arguments(),
         }
     }
 
@@ -2001,6 +2181,23 @@ impl TemplateLiteral {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(..) => false,
+            TemplateLiteral::SubstitutionTemplate(st) => st.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
@@ -2114,6 +2311,20 @@ impl SubstitutionTemplate {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.expression.contains_arguments() || self.template_spans.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -2241,6 +2452,23 @@ impl TemplateSpans {
         match self {
             TemplateSpans::Tail(..) => true,
             TemplateSpans::List(tml, _, _) => tml.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateSpans::Tail(..) => false,
+            TemplateSpans::List(tml, ..) => tml.contains_arguments(),
         }
     }
 
@@ -2402,6 +2630,23 @@ impl TemplateMiddleList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateMiddleList::ListHead(_, e, _) => e.contains_arguments(),
+            TemplateMiddleList::ListMid(tml, _, e, _) => tml.contains_arguments() || e.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateMiddleList :
@@ -2533,6 +2778,21 @@ impl ParenthesizedExpression {
         //  2. Return true.
         let ParenthesizedExpression::Expression(e) = self;
         e.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ParenthesizedExpression::Expression(e) = self;
+        e.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {

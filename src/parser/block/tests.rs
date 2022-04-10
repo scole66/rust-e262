@@ -92,6 +92,12 @@ mod block_statement {
         BlockStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("{arguments;}" => true; "yes")]
+    #[test_case("{;}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // BLOCK
@@ -237,6 +243,13 @@ mod block {
         let mut errs = vec![];
         Block::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("{arguments;}" => true; "yes")]
+    #[test_case("{;}" => false; "no")]
+    #[test_case("{}" => false; "empty")]
+    fn contains_arguments(src: &str) -> bool {
+        Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -441,6 +454,14 @@ mod statement_list {
         StatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+    #[test_case("arguments;" => true; "Item (yes)")]
+    #[test_case("no;" => false; "Item (no)")]
+    #[test_case("arguments; bob;" => true; "List (left)")]
+    #[test_case("bob; arguments;" => true; "List (right)")]
+    #[test_case("left; right;" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // STATEMENT LIST ITEM
@@ -634,5 +655,13 @@ mod statement_list_item {
         let mut errs = vec![];
         StatementListItem::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments;" => true; "Stmt (yes)")]
+    #[test_case(";" => false; "Stmt (no)")]
+    #[test_case("let a=arguments;" => true; "Decl (yes)")]
+    #[test_case("let b;" => false; "Decl (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }

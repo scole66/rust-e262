@@ -232,6 +232,26 @@ impl MethodDefinition {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  MethodDefinition :
+        //      ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+        //      get ClassElementName ( ) { FunctionBody }
+        //      set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+        //  1. Return ContainsArguments of ClassElementName.
+        match self {
+            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.contains_arguments(),
+            MethodDefinition::Generator(gm) => gm.contains_arguments(),
+            MethodDefinition::Async(am) => am.contains_arguments(),
+            MethodDefinition::AsyncGenerator(agm) => agm.contains_arguments(),
+        }
+    }
+
     pub fn has_direct_super(&self) -> bool {
         // Static Semantics: HasDirectSuper
         // The syntax-directed operation HasDirectSuper takes no arguments.

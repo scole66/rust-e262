@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::test_agent;
@@ -132,6 +132,12 @@ mod async_generator_method {
     fn prop_name() {
         let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap();
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
+
+    #[test_case("async *[arguments](){}" => true; "yes")]
+    #[test_case("async *a(){}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_generator_method().contains_arguments()
     }
 }
 

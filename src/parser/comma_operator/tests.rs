@@ -121,4 +121,13 @@ mod expression {
     fn is_strictly_deletable(src: &str) -> bool {
         Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
     }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments, bob" => true; "Comma (left)")]
+    #[test_case("bob, arguments" => true; "Comma (right)")]
+    #[test_case("no" => false; "Exp (no)")]
+    #[test_case("no, bob" => false; "Comma (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
 }
