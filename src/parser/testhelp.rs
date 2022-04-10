@@ -1,6 +1,7 @@
 use super::*;
 use iteration_statements::{ForBinding, ForDeclaration};
 use labelled_statements::{LabelledItem, LabelledStatement};
+use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
 use return_statement::ReturnStatement;
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use throw_statement::ThrowStatement;
@@ -187,6 +188,22 @@ impl<'a> Maker<'a> {
     pub fn for_declaration(self) -> Rc<ForDeclaration> {
         ForDeclaration::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`FormalParameter`] parse node.
+    pub fn formal_parameter(self) -> Rc<FormalParameter> {
+        FormalParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FormalParameterList`] parse node.
+    pub fn formal_parameter_list(self) -> Rc<FormalParameterList> {
+        FormalParameterList::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FormalParameters`] parse node.
+    pub fn formal_parameters(self) -> Rc<FormalParameters> {
+        FormalParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionRestParameter`] parse node.
+    pub fn function_rest_parameter(self) -> Rc<FunctionRestParameter> {
+        FunctionRestParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
     pub fn labelled_item(self) -> Rc<LabelledItem> {
         LabelledItem::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
@@ -210,6 +227,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`TryStatement`] parse node.
     pub fn try_statement(self) -> Rc<TryStatement> {
         TryStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`UniqueFormalParameters`] parse node.
+    pub fn unique_formal_parameters(self) -> Rc<UniqueFormalParameters> {
+        UniqueFormalParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
     }
     /// Use the configs in the [`Maker`] object to make a [`WithStatement`] parse node.
     pub fn with_statement(self) -> Rc<WithStatement> {
