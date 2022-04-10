@@ -87,6 +87,10 @@ impl SwitchStatement {
         self.expression.all_private_identifiers_valid(names) && self.case_block.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -326,6 +330,10 @@ impl CaseBlock {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -482,6 +490,10 @@ impl CaseClauses {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -624,6 +636,10 @@ impl CaseClause {
             }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -751,6 +767,10 @@ impl DefaultClause {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
