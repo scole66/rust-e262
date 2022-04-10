@@ -1,5 +1,6 @@
 use super::*;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
+use async_arrow_function_definitions::{AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody};
 use async_function_definitions::{AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression};
 use async_generator_function_definitions::AsyncGeneratorMethod;
 use class_definitions::{
@@ -173,6 +174,22 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ArrowParameters`] parse node.
     pub fn arrow_parameters(self) -> Rc<ArrowParameters> {
         ArrowParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncArrowBindingIdentifier`] parse node.
+    pub fn async_arrow_binding_identifier(self) -> Rc<AsyncArrowBindingIdentifier> {
+        AsyncArrowBindingIdentifier::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncArrowFunction`] parse node.
+    pub fn async_arrow_function(self) -> Rc<AsyncArrowFunction> {
+        AsyncArrowFunction::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncArrowHead`] parse node.
+    pub fn async_arrow_head(self) -> Rc<AsyncArrowHead> {
+        AsyncArrowHead::parse(&mut strictparser(self.source, self.strict), Scanner::new()).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncConciseBody`] parse node.
+    pub fn async_concise_body(self) -> Rc<AsyncConciseBody> {
+        AsyncConciseBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncFunctionBody`] parse node.
     pub fn async_function_body(self) -> Rc<AsyncFunctionBody> {
