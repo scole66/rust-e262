@@ -7,6 +7,7 @@ use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, Switch
 use throw_statement::ThrowStatement;
 use try_statement::{Catch, CatchParameter, Finally, TryStatement};
 use with_statement::WithStatement;
+use function_definitions::{FunctionBody, FunctionStatementList};
 
 use ahash::AHashSet;
 use std::fmt;
@@ -200,9 +201,17 @@ impl<'a> Maker<'a> {
     pub fn formal_parameters(self) -> Rc<FormalParameters> {
         FormalParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
     }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionBody`] parse node.
+    pub fn function_body(self) -> Rc<FunctionBody> {
+        FunctionBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
+    }
     /// Use the configs in the [`Maker`] object to make a [`FunctionRestParameter`] parse node.
     pub fn function_rest_parameter(self) -> Rc<FunctionRestParameter> {
         FunctionRestParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionStatementList`] parse node.
+    pub fn function_statement_list(self) -> Rc<FunctionStatementList> {
+        FunctionStatementList::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
     }
     /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
     pub fn labelled_item(self) -> Rc<LabelledItem> {
