@@ -1,9 +1,10 @@
 use super::*;
-use method_definitions::MethodDefinition;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
 use function_definitions::{FunctionBody, FunctionStatementList};
+use generator_function_definitions::{GeneratorMethod, YieldExpression};
 use iteration_statements::{ForBinding, ForDeclaration};
 use labelled_statements::{LabelledItem, LabelledStatement};
+use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
 use return_statement::ReturnStatement;
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
@@ -235,6 +236,10 @@ impl<'a> Maker<'a> {
     pub fn function_statement_list(self) -> Rc<FunctionStatementList> {
         FunctionStatementList::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).0
     }
+    /// Use the configs in the [`Maker`] object to make a [`GeneratorMethod`] parse node.
+    pub fn generator_method(self) -> Rc<GeneratorMethod> {
+        GeneratorMethod::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`LabelledItem`] parse node.
     pub fn labelled_item(self) -> Rc<LabelledItem> {
         LabelledItem::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
@@ -270,6 +275,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`WithStatement`] parse node.
     pub fn with_statement(self) -> Rc<WithStatement> {
         WithStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`YieldExpression`] parse node.
+    pub fn yield_expression(self) -> Rc<YieldExpression> {
+        YieldExpression::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag, self.await_flag).unwrap().0
     }
 }
 

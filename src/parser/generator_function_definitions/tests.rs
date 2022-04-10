@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::test_agent;
@@ -100,20 +100,25 @@ mod generator_method {
     #[test_case("*a(b=super(0)){}" => true; "params")]
     #[test_case("*a(){super(1);}" => true; "body")]
     fn has_direct_super(src: &str) -> bool {
-        let (item, _) = GeneratorMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.has_direct_super()
+        Maker::new(src).generator_method().has_direct_super()
     }
 
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        Maker::new("*a(){}").generator_method().early_errors(&mut test_agent(), &mut vec![], true);
     }
 
     #[test]
     fn prop_name() {
-        let (item, _) = GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), true, true).unwrap();
+        let item = Maker::new("*a(){}").generator_method();
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
+
+    #[test_case("*[arguments](){}" => true; "yes")]
+    #[test_case("*a(){}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).generator_method().contains_arguments()
     }
 }
 
@@ -517,9 +522,20 @@ fn yield_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod yield_expression {
     use super::*;
+    use test_case::test_case;
+
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        YieldExpression::parse(&mut newparser("yield a;"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        Maker::new("yield a").yield_expression().early_errors(&mut test_agent(), &mut vec![], true);
+    }
+
+    #[test_case("yield" => false; "bare")]
+    #[test_case("yield arguments" => true; "yield x (yes)")]
+    #[test_case("yield a" => false; "yield x (no)")]
+    #[test_case("yield *arguments" => true; "yield from (yes)")]
+    #[test_case("yield *a" => false; "yield from (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).yield_expression().contains_arguments()
     }
 }

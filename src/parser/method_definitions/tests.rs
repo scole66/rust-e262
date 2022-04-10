@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED, Maker};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -471,7 +471,7 @@ mod method_definition {
     #[test_case("get a(){}" => false; "getter (no)")]
     #[test_case("set [arguments](a){}" => true; "setter (yes)")]
     #[test_case("set a(b){}" => false; "setter (no)")]
-    fn contains_arguments(src :&str) -> bool {
+    fn contains_arguments(src: &str) -> bool {
         Maker::new(src).method_definition().contains_arguments()
     }
 }
