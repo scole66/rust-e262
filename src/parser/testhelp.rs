@@ -1,5 +1,6 @@
 use super::*;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
+use async_function_definitions::{AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression};
 use async_generator_function_definitions::AsyncGeneratorMethod;
 use class_definitions::{
     ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage, ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList,
@@ -173,9 +174,29 @@ impl<'a> Maker<'a> {
     pub fn arrow_parameters(self) -> Rc<ArrowParameters> {
         ArrowParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncFunctionBody`] parse node.
+    pub fn async_function_body(self) -> Rc<AsyncFunctionBody> {
+        AsyncFunctionBody::parse(&mut strictparser(self.source, self.strict), Scanner::new()).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncFunctionDeclaration`] parse node.
+    pub fn async_function_declaration(self) -> Rc<AsyncFunctionDeclaration> {
+        AsyncFunctionDeclaration::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncFunctionExpression`] parse node.
+    pub fn async_function_expression(self) -> Rc<AsyncFunctionExpression> {
+        AsyncFunctionExpression::parse(&mut strictparser(self.source, self.strict), Scanner::new()).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
+    pub fn async_method(self) -> Rc<AsyncMethod> {
+        AsyncMethod::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
     pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
         AsyncGeneratorMethod::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AwaitExpression`] parse node.
+    pub fn await_expression(self) -> Rc<AwaitExpression> {
+        AwaitExpression::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`CaseBlock`] parse node.
     pub fn case_block(self) -> Rc<CaseBlock> {

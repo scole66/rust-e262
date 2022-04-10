@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::test_agent;
@@ -380,6 +380,8 @@ fn async_method_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod async_method {
     use super::*;
+    use test_case::test_case;
+
     mod has_direct_super {
         use super::*;
         use test_case::test_case;
@@ -397,6 +399,12 @@ mod async_method {
     fn prop_name() {
         let (item, _) = AsyncMethod::parse(&mut newparser("async a(){}"), Scanner::new(), true, true).unwrap();
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
+    }
+
+    #[test_case("async [arguments](){}" => true; "yes")]
+    #[test_case("async a(){}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_method().contains_arguments()
     }
 }
 #[test]
@@ -473,6 +481,17 @@ fn async_function_body_test_early_errors() {
     AsyncFunctionBody::parse(&mut newparser("yield 8;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
+mod async_function_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_function_body().contains_arguments()
+    }
+}
+
 // AWAIT EXPRESSION
 #[test]
 fn await_expression_test_01() {
@@ -525,4 +544,15 @@ fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 #[should_panic(expected = "not yet implemented")]
 fn await_expression_test_early_errors() {
     AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+}
+
+mod await_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("await arguments" => true; "yes")]
+    #[test_case("await a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).await_expression().contains_arguments()
+    }
 }
