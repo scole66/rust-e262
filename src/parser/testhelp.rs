@@ -1,4 +1,5 @@
 use super::*;
+use method_definitions::MethodDefinition;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
 use function_definitions::{FunctionBody, FunctionStatementList};
 use iteration_statements::{ForBinding, ForDeclaration};
@@ -241,6 +242,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`LabelledStatement`] parse node.
     pub fn labelled_statement(self) -> Rc<LabelledStatement> {
         LabelledStatement::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`MethodDefinition`] parse node.
+    pub fn method_definition(self) -> Rc<MethodDefinition> {
+        MethodDefinition::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`ReturnStatement`] parse node.
     pub fn return_statement(self) -> Rc<ReturnStatement> {
