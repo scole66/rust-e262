@@ -1,4 +1,6 @@
 use super::*;
+use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
+use function_definitions::{FunctionBody, FunctionStatementList};
 use iteration_statements::{ForBinding, ForDeclaration};
 use labelled_statements::{LabelledItem, LabelledStatement};
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
@@ -7,7 +9,6 @@ use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, Switch
 use throw_statement::ThrowStatement;
 use try_statement::{Catch, CatchParameter, Finally, TryStatement};
 use with_statement::WithStatement;
-use function_definitions::{FunctionBody, FunctionStatementList};
 
 use ahash::AHashSet;
 use std::fmt;
@@ -153,6 +154,18 @@ impl<'a> Maker<'a> {
     pub fn default_ok(self, default_flag: bool) -> Self {
         Self { default_flag, ..self }
     }
+    /// Use the configs in the [`Maker`] object to make a [`ArrowFormalParameters`] parse node.
+    pub fn arrow_formal_parameters(self) -> Rc<ArrowFormalParameters> {
+        ArrowFormalParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ArrowFunction`] parse node.
+    pub fn arrow_function(self) -> Rc<ArrowFunction> {
+        ArrowFunction::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ArrowParameters`] parse node.
+    pub fn arrow_parameters(self) -> Rc<ArrowParameters> {
+        ArrowParameters::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`CaseBlock`] parse node.
     pub fn case_block(self) -> Rc<CaseBlock> {
         CaseBlock::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
@@ -173,9 +186,17 @@ impl<'a> Maker<'a> {
     pub fn catch_parameter(self) -> Rc<CatchParameter> {
         CatchParameter::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ConciseBody`] parse node.
+    pub fn concise_body(self) -> Rc<ConciseBody> {
+        ConciseBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`DefaultClause`] parse node.
     pub fn default_clause(self) -> Rc<DefaultClause> {
         DefaultClause::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ExpressionBody`] parse node.
+    pub fn expression_body(self) -> Rc<ExpressionBody> {
+        ExpressionBody::parse(&mut strictparser(self.source, self.strict), Scanner::new(), self.in_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`Finally`] parse node.
     pub fn finally(self) -> Rc<Finally> {
