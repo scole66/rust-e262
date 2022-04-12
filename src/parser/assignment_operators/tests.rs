@@ -1,4 +1,4 @@
-use super::testhelp::{check, expected_scan, newparser, set, strictparser, sv, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, expected_scan, newparser, set, strictparser, sv, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_data, concise_error_validate, pretty_data, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -155,30 +155,32 @@ mod assignment_expression {
         AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_function_definition()
     }
 
-    #[test_case("a" => ATTKind::Simple; "Fall-thru (identifier)")]
-    #[test_case("function (){}" => ATTKind::Invalid; "Fall-thru (function exp)")]
-    #[test_case("yield a" => ATTKind::Invalid; "YieldExpression")]
-    #[test_case("a=>a" => ATTKind::Invalid; "ArrowFunction")]
-    #[test_case("async a=>a" => ATTKind::Invalid; "AsyncArrowFunction")]
-    #[test_case("a=b" => ATTKind::Invalid; "LeftHandSideExpression = AssignmentExpression (assignment)")]
-    #[test_case("a*=b" => ATTKind::Invalid; "LeftHandSideExpression *= AssignmentExpression (multiply)")]
-    #[test_case("a/=b" => ATTKind::Invalid; "LeftHandSideExpression /= AssignmentExpression (divide)")]
-    #[test_case("a%=b" => ATTKind::Invalid; "LeftHandSideExpression %= AssignmentExpression (modulo)")]
-    #[test_case("a+=b" => ATTKind::Invalid; "LeftHandSideExpression += AssignmentExpression (add)")]
-    #[test_case("a-=b" => ATTKind::Invalid; "LeftHandSideExpression -= AssignmentExpression (subtract)")]
-    #[test_case("a<<=b" => ATTKind::Invalid; "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
-    #[test_case("a>>=b" => ATTKind::Invalid; "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
-    #[test_case("a>>>=b" => ATTKind::Invalid; "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
-    #[test_case("a&=b" => ATTKind::Invalid; "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
-    #[test_case("a^=b" => ATTKind::Invalid; "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
-    #[test_case("a|=b" => ATTKind::Invalid; "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
-    #[test_case("a**=b" => ATTKind::Invalid; "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
-    #[test_case("a&&=b" => ATTKind::Invalid; "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
-    #[test_case("a||=b" => ATTKind::Invalid; "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
-    #[test_case("a??=b" => ATTKind::Invalid; "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
-    #[test_case("[a]=[1]" => ATTKind::Invalid; "AssignmentPattern = AssignmentExpression")]
-    fn assignment_target_type(src: &str) -> ATTKind {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.assignment_target_type()
+    #[test_case("a", true => ATTKind::Simple; "Fall-thru (identifier)")]
+    #[test_case("function (){}", true => ATTKind::Invalid; "Fall-thru (function exp)")]
+    #[test_case("yield a", true => ATTKind::Invalid; "YieldExpression")]
+    #[test_case("a=>a", true => ATTKind::Invalid; "ArrowFunction")]
+    #[test_case("async a=>a", true => ATTKind::Invalid; "AsyncArrowFunction")]
+    #[test_case("a=b", true => ATTKind::Invalid; "LeftHandSideExpression = AssignmentExpression (assignment)")]
+    #[test_case("a*=b", true => ATTKind::Invalid; "LeftHandSideExpression *= AssignmentExpression (multiply)")]
+    #[test_case("a/=b", true => ATTKind::Invalid; "LeftHandSideExpression /= AssignmentExpression (divide)")]
+    #[test_case("a%=b", true => ATTKind::Invalid; "LeftHandSideExpression %= AssignmentExpression (modulo)")]
+    #[test_case("a+=b", true => ATTKind::Invalid; "LeftHandSideExpression += AssignmentExpression (add)")]
+    #[test_case("a-=b", true => ATTKind::Invalid; "LeftHandSideExpression -= AssignmentExpression (subtract)")]
+    #[test_case("a<<=b", true => ATTKind::Invalid; "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
+    #[test_case("a>>=b", true => ATTKind::Invalid; "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
+    #[test_case("a>>>=b", true => ATTKind::Invalid; "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
+    #[test_case("a&=b", true => ATTKind::Invalid; "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
+    #[test_case("a^=b", true => ATTKind::Invalid; "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
+    #[test_case("a|=b", true => ATTKind::Invalid; "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
+    #[test_case("a**=b", true => ATTKind::Invalid; "LeftHandSideExpression **= AssignmentExpression (exponentiation)")]
+    #[test_case("a&&=b", true => ATTKind::Invalid; "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
+    #[test_case("a||=b", true => ATTKind::Invalid; "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
+    #[test_case("a??=b", true => ATTKind::Invalid; "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
+    #[test_case("[a]=[1]", true => ATTKind::Invalid; "AssignmentPattern = AssignmentExpression")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("eval", false => ATTKind::Simple; "non-strict eval")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).assignment_expression().assignment_target_type(strict)
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -47,7 +47,6 @@ fn primary_expression_test_idref() {
     assert!(matches!(boxed_pe.kind, PrimaryExpressionKind::IdentifierReference(_)));
     assert_eq!(boxed_pe.is_function_definition(), false);
     assert_eq!(boxed_pe.is_identifier_reference(), true);
-    assert_eq!(boxed_pe.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn primary_expression_test_literal() {
@@ -56,7 +55,6 @@ fn primary_expression_test_literal() {
     assert!(matches!(node.kind, PrimaryExpressionKind::Literal(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_this() {
@@ -65,7 +63,6 @@ fn primary_expression_test_this() {
     assert!(matches!(node.kind, PrimaryExpressionKind::This));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_arraylit() {
@@ -74,7 +71,6 @@ fn primary_expression_test_arraylit() {
     assert!(matches!(node.kind, PrimaryExpressionKind::ArrayLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_objlit() {
@@ -83,7 +79,6 @@ fn primary_expression_test_objlit() {
     assert!(matches!(node.kind, PrimaryExpressionKind::ObjectLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_group() {
@@ -92,7 +87,6 @@ fn primary_expression_test_group() {
     assert!(matches!(node.kind, PrimaryExpressionKind::Parenthesized(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn primary_expression_test_func() {
@@ -101,7 +95,6 @@ fn primary_expression_test_func() {
     assert!(matches!(node.kind, PrimaryExpressionKind::Function(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
     concise_check(&*node, "FunctionExpression: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
 }
@@ -112,7 +105,6 @@ fn primary_expression_test_generator() {
     assert!(matches!(node.kind, PrimaryExpressionKind::Generator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -127,7 +119,6 @@ fn primary_expression_test_async_generator() {
     assert!(matches!(node.kind, PrimaryExpressionKind::AsyncGenerator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -153,7 +144,6 @@ fn primary_expression_test_async_function() {
     assert!(matches!(node.kind, PrimaryExpressionKind::AsyncFunction(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -168,7 +158,6 @@ fn primary_expression_test_regexp() {
     assert!(matches!(node.kind, PrimaryExpressionKind::RegularExpression(..)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_class_expression() {
@@ -177,7 +166,6 @@ fn primary_expression_test_class_expression() {
     assert!(matches!(node.kind, PrimaryExpressionKind::Class(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
 }
@@ -525,6 +513,27 @@ mod primary_expression {
 
     fn contains_arguments(src: &str) -> bool {
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("this", false => ATTKind::Invalid; "this")]
+    #[test_case("1", false => ATTKind::Invalid; "literal")]
+    #[test_case("[a]", false => ATTKind::Invalid; "array literal")]
+    #[test_case("{a}", false => ATTKind::Invalid; "object literal")]
+    #[test_case("function (){}", false => ATTKind::Invalid; "function expression")]
+    #[test_case("class a{}", false => ATTKind::Invalid; "class expression")]
+    #[test_case("function *(){}", false => ATTKind::Invalid; "generator expression")]
+    #[test_case("async function (){}", false => ATTKind::Invalid; "async function expression")]
+    #[test_case("async function *(){}", false => ATTKind::Invalid; "async generator expression")]
+    #[test_case("/a/", false => ATTKind::Invalid; "Regular Expression")]
+    #[test_case("``", false => ATTKind::Invalid; "Template Literal")]
+    #[test_case("(a)", false => ATTKind::Simple; "Parenthesized Expression (simple)")]
+    #[test_case("(this)", false => ATTKind::Invalid; "Parenthesized Expression (invalid)")]
+    #[test_case("a", false => ATTKind::Simple; "idref")]
+    #[test_case("eval", false => ATTKind::Simple; "eval (not-strict)")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval (strict)")]
+    #[test_case("(eval)", true => ATTKind::Invalid; "eval (parens) (strict)")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).primary_expression().assignment_target_type(strict)
     }
 }
 
@@ -2210,7 +2219,6 @@ fn parenthesized_expression_test_01() {
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     format!("{:?}", pe);
     assert_eq!(pe.is_function_definition(), false);
-    assert_eq!(pe.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn parenthesized_expression_test_02() {
@@ -2274,6 +2282,14 @@ mod parenthesized_expression {
     #[test_case("(xyzzy)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("(this)", false => ATTKind::Invalid; "invalid")]
+    #[test_case("(a)", false => ATTKind::Simple; "valid")]
+    #[test_case("(eval)", false => ATTKind::Simple; "not-strict eval")]
+    #[test_case("(eval)", true => ATTKind::Invalid; "strict eval")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).parenthesized_expression().assignment_target_type(strict)
     }
 }
 

@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -18,7 +18,6 @@ mod additive_expression {
         concise_check(&*ae, "IdentifierName: a", vec![]);
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
-        assert_eq!(ae.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -29,7 +28,6 @@ mod additive_expression {
         concise_check(&*ae, "AdditiveExpression: a + b", vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
-        assert_eq!(ae.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -40,7 +38,6 @@ mod additive_expression {
         concise_check(&*ae, "AdditiveExpression: a - b", vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
-        assert_eq!(ae.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_04() {
@@ -51,7 +48,6 @@ mod additive_expression {
         concise_check(&*ae, "IdentifierName: a", vec![]);
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
-        assert_eq!(ae.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_05() {
@@ -167,5 +163,13 @@ mod additive_expression {
     #[test_case("xyzzy - bob" => false; "Subtract (no)")]
     fn contains_arguments(src: &str) -> bool {
         AdditiveExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a+b", true => ATTKind::Invalid; "add")]
+    #[test_case("a-b", true => ATTKind::Invalid; "sub")]
+    #[test_case("eval", false => ATTKind::Simple; "eval, non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval, strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).additive_expression().assignment_target_type(strict)
     }
 }

@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -18,7 +18,6 @@ mod relational_expression {
         concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -29,7 +28,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a < b", vec!["IdentifierName: a", "Punctuator: <", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -40,7 +38,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a > b", vec!["IdentifierName: a", "Punctuator: >", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_04() {
@@ -51,7 +48,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a <= b", vec!["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_05() {
@@ -62,7 +58,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a >= b", vec!["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_06() {
@@ -73,7 +68,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a instanceof b", vec!["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_07() {
@@ -84,7 +78,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: a in b", vec!["IdentifierName: a", "Keyword: in", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_08() {
@@ -95,7 +88,6 @@ mod relational_expression {
         concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_09() {
@@ -106,7 +98,6 @@ mod relational_expression {
         concise_check(&*se, "IdentifierName: a", vec![]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_10() {
@@ -121,7 +112,6 @@ mod relational_expression {
         concise_check(&*se, "RelationalExpression: #a in b", vec!["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"]);
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
-        assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_12() {
@@ -402,5 +392,18 @@ mod relational_expression {
     #[test_case("#bob in xyzzy" => false; "private in (no)")]
     fn contains_arguments(src: &str) -> bool {
         RelationalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a<b", false => ATTKind::Invalid; "lt")]
+    #[test_case("a<=b", false => ATTKind::Invalid; "le")]
+    #[test_case("a>b", false => ATTKind::Invalid; "gt")]
+    #[test_case("a>=b", false => ATTKind::Invalid; "ge")]
+    #[test_case("a in b", false => ATTKind::Invalid; "a in b")]
+    #[test_case("a instanceof b", false => ATTKind::Invalid; "instanceof")]
+    #[test_case("#a in b", false => ATTKind::Invalid; "privateid")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).relational_expression().assignment_target_type(strict)
     }
 }

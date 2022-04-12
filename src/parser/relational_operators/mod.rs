@@ -105,15 +105,6 @@ impl IsFunctionDefinition for RelationalExpression {
     }
 }
 
-impl AssignmentTargetType for RelationalExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            RelationalExpression::ShiftExpression(se) => se.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl RelationalExpression {
     fn is_relational_token(tok: &Token, in_flag: bool) -> bool {
         tok.matches_punct(Punctuator::Lt)
@@ -257,6 +248,16 @@ impl RelationalExpression {
         match self {
             RelationalExpression::ShiftExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            RelationalExpression::ShiftExpression(se) => se.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }

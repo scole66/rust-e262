@@ -107,22 +107,6 @@ impl IsFunctionDefinition for UnaryExpression {
     }
 }
 
-impl AssignmentTargetType for UnaryExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(),
-            UnaryExpression::Delete(_)
-            | UnaryExpression::Void(_)
-            | UnaryExpression::Typeof(_)
-            | UnaryExpression::NoOp(_)
-            | UnaryExpression::Negate(_)
-            | UnaryExpression::Complement(_)
-            | UnaryExpression::Not(_)
-            | UnaryExpression::Await(_) => ATTKind::Invalid,
-        }
-    }
-}
-
 impl UnaryExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
@@ -265,6 +249,23 @@ impl UnaryExpression {
                 n.early_errors(agent, errs, strict)
             }
             UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(strict),
+            UnaryExpression::Delete(_)
+            | UnaryExpression::Void(_)
+            | UnaryExpression::Typeof(_)
+            | UnaryExpression::NoOp(_)
+            | UnaryExpression::Negate(_)
+            | UnaryExpression::Complement(_)
+            | UnaryExpression::Not(_)
+            | UnaryExpression::Await(_) => ATTKind::Invalid,
         }
     }
 }

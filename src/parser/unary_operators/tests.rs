@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -17,7 +17,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: 900", vec!["UpdateExpression: 900"]);
         concise_check(&*ue, "Numeric: 900", vec![]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -28,7 +27,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", vec!["Keyword: delete", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -39,7 +37,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", vec!["Keyword: void", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -50,7 +47,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", vec!["Keyword: typeof", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -61,7 +57,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", vec!["Punctuator: +", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -72,7 +67,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", vec!["Punctuator: -", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -83,7 +77,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", vec!["Punctuator: ~", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -94,7 +87,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", vec!["Punctuator: !", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -105,7 +97,6 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: await bob", vec!["AwaitExpression: await bob"]);
         concise_check(&*ue, "AwaitExpression: await bob", vec!["Keyword: await", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        assert_eq!(ue.assignment_target_type(), ATTKind::Invalid);
         format!("{:?}", ue);
     }
     #[test]
@@ -403,5 +394,19 @@ mod unary_expression {
     #[test_case("await xyzzy" => false; "await (no)")]
     fn contains_arguments(src: &str) -> bool {
         UnaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("delete a", false => ATTKind::Invalid; "delete")]
+    #[test_case("void a", false => ATTKind::Invalid; "void")]
+    #[test_case("typeof a", false => ATTKind::Invalid; "typeof kwd")]
+    #[test_case("+a", false => ATTKind::Invalid; "to-number")]
+    #[test_case("-a", false => ATTKind::Invalid; "negate")]
+    #[test_case("~a", false => ATTKind::Invalid; "complement")]
+    #[test_case("!a", false => ATTKind::Invalid; "not")]
+    #[test_case("await a", false => ATTKind::Invalid; "await kwd")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).unary_expression().assignment_target_type(strict)
     }
 }

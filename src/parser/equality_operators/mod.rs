@@ -81,15 +81,6 @@ impl IsFunctionDefinition for EqualityExpression {
     }
 }
 
-impl AssignmentTargetType for EqualityExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            EqualityExpression::RelationalExpression(re) => re.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl EqualityExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
@@ -185,6 +176,16 @@ impl EqualityExpression {
         match self {
             EqualityExpression::RelationalExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            EqualityExpression::RelationalExpression(re) => re.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }

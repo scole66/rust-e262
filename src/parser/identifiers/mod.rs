@@ -210,28 +210,6 @@ impl StringValue for IdentifierReference {
     }
 }
 
-impl AssignmentTargetType for IdentifierReference {
-    fn assignment_target_type(&self) -> ATTKind {
-        use ATTKind::*;
-        use IdentifierReferenceKind::*;
-        match &self.kind {
-            Identifier(id) => {
-                if self.strict {
-                    let sv = id.string_value();
-                    if sv == "eval" || sv == "arguments" {
-                        Invalid
-                    } else {
-                        Simple
-                    }
-                } else {
-                    Simple
-                }
-            }
-            Await | Yield => Simple,
-        }
-    }
-}
-
 impl PrettyPrint for IdentifierReference {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -360,6 +338,29 @@ impl IdentifierReference {
         //  IdentifierReference : await
         //      1. Return false.
         matches!(&self.kind, IdentifierReferenceKind::Identifier(id) if id.string_value() == "arguments")
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        use ATTKind::*;
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => {
+                if strict {
+                    let sv = id.string_value();
+                    if sv == "eval" || sv == "arguments" {
+                        Invalid
+                    } else {
+                        Simple
+                    }
+                } else {
+                    Simple
+                }
+            }
+            Await | Yield => Simple,
+        }
     }
 }
 

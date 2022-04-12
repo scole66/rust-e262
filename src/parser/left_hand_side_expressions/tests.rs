@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -16,7 +16,6 @@ fn member_expression_test_primary_expression() {
     pretty_check(&*me, "MemberExpression: a", vec!["PrimaryExpression: a"]);
     concise_check(&*me, "IdentifierName: a", vec![]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn member_expression_test_meta_property() {
@@ -28,7 +27,6 @@ fn member_expression_test_meta_property() {
     pretty_check(&*me, "MemberExpression: new . target", vec!["MetaProperty: new . target"]);
     concise_check(&*me, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn member_expression_test_super_property() {
@@ -40,7 +38,6 @@ fn member_expression_test_super_property() {
     pretty_check(&*me, "MemberExpression: super . ior", vec!["SuperProperty: super . ior"]);
     concise_check(&*me, "SuperProperty: super . ior", vec!["Keyword: super", "Punctuator: .", "IdentifierName: ior"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn member_expression_test_new_me_args() {
@@ -52,7 +49,6 @@ fn member_expression_test_new_me_args() {
     pretty_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"]);
     concise_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn member_expression_test_me_expression() {
@@ -64,7 +60,6 @@ fn member_expression_test_me_expression() {
     pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
     concise_check(&*me, "MemberExpression: bill [ a ]", vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn member_expression_test_me_ident() {
@@ -76,7 +71,6 @@ fn member_expression_test_me_ident() {
     pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
     concise_check(&*me, "MemberExpression: alice . name", vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn member_expression_test_me_private() {
@@ -88,7 +82,6 @@ fn member_expression_test_me_private() {
     pretty_check(&*me, "MemberExpression: alice . #name", vec!["MemberExpression: alice"]);
     concise_check(&*me, "MemberExpression: alice . #name", vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn member_expression_test_me_template() {
@@ -100,7 +93,6 @@ fn member_expression_test_me_template() {
     pretty_check(&*me, "MemberExpression: alice `${ a }`", vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"]);
     concise_check(&*me, "MemberExpression: alice `${ a }`", vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"]);
     assert_eq!(me.is_function_definition(), false);
-    assert_eq!(me.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn member_expression_test_errs_01() {
@@ -399,6 +391,19 @@ mod member_expression {
     #[test_case("xyzzy.#pid" => false; "privateid (no)")]
     fn contains_arguments(src: &str) -> bool {
         MemberExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "primary (simple)")]
+    #[test_case("eval", true => ATTKind::Invalid; "primary (invalid)")]
+    #[test_case("a[b]", false => ATTKind::Simple; "brackets")]
+    #[test_case("a.b", false => ATTKind::Simple; "property id")]
+    #[test_case("a`${b}`", false => ATTKind::Invalid; "template")]
+    #[test_case("super.a", false => ATTKind::Simple; "super prop")]
+    #[test_case("new.target", false => ATTKind::Invalid; "meta")]
+    #[test_case("new a(b)", false => ATTKind::Invalid; "new me")]
+    #[test_case("a.#b", false => ATTKind::Simple; "private id")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).member_expression().assignment_target_type(strict)
     }
 }
 
@@ -949,7 +954,6 @@ mod new_expression {
         pretty_check(&*ne, "NewExpression: true", vec!["MemberExpression: true"]);
         concise_check(&*ne, "Keyword: true", vec![]);
         assert_eq!(ne.is_function_definition(), false);
-        assert_eq!(ne.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn new() {
@@ -960,7 +964,6 @@ mod new_expression {
         pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", vec!["Keyword: new", "IdentifierName: bob"]);
         assert_eq!(ne.is_function_definition(), false);
-        assert_eq!(ne.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn new_me() {
@@ -971,7 +974,6 @@ mod new_expression {
         pretty_check(&*ne, "NewExpression: new bob ( )", vec!["MemberExpression: new bob ( )"]);
         concise_check(&*ne, "MemberExpression: new bob ( )", vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"]);
         assert_eq!(ne.is_function_definition(), false);
-        assert_eq!(ne.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn nomatch() {
@@ -1064,6 +1066,13 @@ mod new_expression {
     #[test_case("new xyzzy" => false; "new Exp (no)")]
     fn contains_arguments(src: &str) -> bool {
         NewExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("new a", false => ATTKind::Invalid; "new expr")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).new_expression().assignment_target_type(strict)
     }
 }
 
@@ -1289,7 +1298,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: a ( )", vec!["CallMemberExpression: a ( )"]);
         concise_check(&*ce, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn super_x() {
@@ -1299,7 +1307,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: super ( )", vec!["SuperCall: super ( )"]);
         concise_check(&*ce, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn import() {
@@ -1309,7 +1316,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
         concise_check(&*ce, "ImportCall: import ( pop )", vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn ce_args() {
@@ -1319,7 +1325,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
         concise_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn ce_args2() {
@@ -1336,7 +1341,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallExpression: blue ( pop )", "Expression: snap"]);
         concise_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn ce_ident() {
@@ -1346,7 +1350,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
         concise_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn ce_pid() {
@@ -1356,7 +1359,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallExpression: blue ( pop )"]);
         concise_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn ce_template() {
@@ -1366,7 +1368,6 @@ mod call_expression {
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"]);
         concise_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"]);
-        assert_eq!(ce.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn nomatch() {
@@ -1641,6 +1642,18 @@ mod call_expression {
     #[test_case("xyzzy().#pid" => false; "Call . Private (no)")]
     fn contains_arguments(src: &str) -> bool {
         CallExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a()" => ATTKind::Invalid; "CallMemberExpression")]
+    #[test_case("super()" => ATTKind::Invalid; "SuperCall")]
+    #[test_case("import(a)" => ATTKind::Invalid; "ImportCall")]
+    #[test_case("a()()" => ATTKind::Invalid; "CallExpression Arguments")]
+    #[test_case("a()[0]" => ATTKind::Simple; "CallExpression [ Expression ]")]
+    #[test_case("a().a" => ATTKind::Simple; "CallExpression . IdentifierName")]
+    #[test_case("a()`${b}`" => ATTKind::Invalid; "CallExpression TemplateLiteral")]
+    #[test_case("a().#a" => ATTKind::Simple; "CallExpression . PrivateIdentifier")]
+    fn assignment_target_type(src: &str) -> ATTKind {
+        Maker::new(src).call_expression().assignment_target_type()
     }
 }
 
@@ -2253,7 +2266,6 @@ mod left_hand_side_expression {
         pretty_check(&*lhs, "LeftHandSideExpression: a", vec!["NewExpression: a"]);
         concise_check(&*lhs, "IdentifierName: a", vec![]);
         assert_eq!(lhs.is_function_definition(), false);
-        assert_eq!(lhs.assignment_target_type(), ATTKind::Simple);
     }
     #[test]
     fn parse_02() {
@@ -2263,7 +2275,6 @@ mod left_hand_side_expression {
         pretty_check(&*lhs, "LeftHandSideExpression: a ( )", vec!["CallExpression: a ( )"]);
         concise_check(&*lhs, "CallMemberExpression: a ( )", vec!["IdentifierName: a", "Arguments: ( )"]);
         assert_eq!(lhs.is_function_definition(), false);
-        assert_eq!(lhs.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn parse_03() {
@@ -2273,7 +2284,6 @@ mod left_hand_side_expression {
         pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", vec!["OptionalExpression: a ( ) ?. b"]);
         concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
         assert_eq!(lhs.is_function_definition(), false);
-        assert_eq!(lhs.assignment_target_type(), ATTKind::Invalid);
     }
     #[test]
     fn prettyerrors_1() {
@@ -2388,5 +2398,14 @@ mod left_hand_side_expression {
     #[test_case("xyzzy?.b" => false; "optional (no)")]
     fn contains_arguments(src: &str) -> bool {
         LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a()", false => ATTKind::Invalid; "invalid call expression")]
+    #[test_case("a().a", false => ATTKind::Simple; "valid call expression")]
+    #[test_case("a?.b", false => ATTKind::Invalid; "optional expression")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).left_hand_side_expression().assignment_target_type(strict)
     }
 }

@@ -66,15 +66,6 @@ impl IsFunctionDefinition for BitwiseANDExpression {
     }
 }
 
-impl AssignmentTargetType for BitwiseANDExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl BitwiseANDExpression {
     // No caching needed. Only one parent.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -151,6 +142,16 @@ impl BitwiseANDExpression {
             _ => true,
         }
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(strict),
+            BitwiseANDExpression::BitwiseAND(..) => ATTKind::Invalid,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -208,15 +209,6 @@ impl IsFunctionDefinition for BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.is_function_definition(),
             _ => false,
-        }
-    }
-}
-
-impl AssignmentTargetType for BitwiseXORExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(),
-            _ => ATTKind::Invalid,
         }
     }
 }
@@ -297,6 +289,16 @@ impl BitwiseXORExpression {
             _ => true,
         }
     }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(strict),
+            BitwiseXORExpression::BitwiseXOR(..) => ATTKind::Invalid,
+        }
+    }
 }
 
 // BitwiseORExpression[In, Yield, Await] :
@@ -354,15 +356,6 @@ impl IsFunctionDefinition for BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.is_function_definition(),
             _ => false,
-        }
-    }
-}
-
-impl AssignmentTargetType for BitwiseORExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(),
-            _ => ATTKind::Invalid,
         }
     }
 }
@@ -452,6 +445,16 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }

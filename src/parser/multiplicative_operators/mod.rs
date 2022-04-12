@@ -86,15 +86,6 @@ impl IsFunctionDefinition for MultiplicativeExpression {
     }
 }
 
-impl AssignmentTargetType for MultiplicativeExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => ATTKind::Invalid,
-            MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(),
-        }
-    }
-}
-
 impl PrettyPrint for MultiplicativeExpression {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -202,6 +193,16 @@ impl MultiplicativeExpression {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => ATTKind::Invalid,
+            MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(strict),
         }
     }
 }
