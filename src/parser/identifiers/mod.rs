@@ -15,13 +15,6 @@ pub struct Identifier {
     name: IdentifierData,
 }
 
-impl StringValue for Identifier {
-    fn string_value(&self) -> JSString {
-        let identifier_name = &self.name;
-        identifier_name.string_value.clone()
-    }
-}
-
 impl PrettyPrint for Identifier {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -176,6 +169,11 @@ impl Identifier {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str()));
         }
     }
+
+    pub fn string_value(&self) -> JSString {
+        let identifier_name = &self.name;
+        identifier_name.string_value.clone()
+    }
 }
 
 // IdentifierReference[Yield, Await]:
@@ -196,17 +194,6 @@ pub struct IdentifierReference {
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
-}
-
-impl StringValue for IdentifierReference {
-    fn string_value(&self) -> JSString {
-        use IdentifierReferenceKind::*;
-        match &self.kind {
-            Identifier(id) => id.string_value(),
-            Yield => JSString::from("yield"),
-            Await => JSString::from("await"),
-        }
-    }
 }
 
 impl PrettyPrint for IdentifierReference {
@@ -361,6 +348,15 @@ impl IdentifierReference {
             Await | Yield => Simple,
         }
     }
+
+    pub fn string_value(&self) -> JSString {
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
+        }
+    }
 }
 
 // BindingIdentifier[Yield, Await] :
@@ -380,17 +376,6 @@ pub struct BindingIdentifier {
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
-}
-
-impl StringValue for BindingIdentifier {
-    fn string_value(&self) -> JSString {
-        use BindingIdentifierKind::*;
-        match &self.kind {
-            Identifier(id) => id.string_value(),
-            Yield => JSString::from("yield"),
-            Await => JSString::from("await"),
-        }
-    }
 }
 
 impl fmt::Display for BindingIdentifier {
@@ -521,6 +506,15 @@ impl BindingIdentifier {
                     errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
                 }
             }
+        }
+    }
+
+    pub fn string_value(&self) -> JSString {
+        use BindingIdentifierKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
         }
     }
 }
