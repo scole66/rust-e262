@@ -1,6 +1,4 @@
-use super::testhelp::{
-    check, check_err, chk_scan, expected_scan, newparser, set, strictparser, sv, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED,
-};
+use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, sv, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -237,7 +235,7 @@ mod iteration_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        IterationStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -358,7 +356,7 @@ mod do_while_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        DoWhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -462,7 +460,7 @@ mod while_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        WhileStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1125,7 +1123,7 @@ mod for_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1916,7 +1914,7 @@ mod for_in_of_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForInOfStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2047,7 +2045,7 @@ mod for_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).for_declaration().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).for_declaration().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2148,7 +2146,7 @@ mod for_binding {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).for_binding().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).for_binding().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

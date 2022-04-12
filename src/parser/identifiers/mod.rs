@@ -193,7 +193,6 @@ enum IdentifierReferenceKind {
 #[derive(Debug)]
 pub struct IdentifierReference {
     kind: IdentifierReferenceKind,
-    strict: bool,
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
@@ -252,7 +251,7 @@ impl IdentifierReference {
         let in_module = parser.goal == ParseGoal::Module;
         match production {
             Ok((ident, scanner)) => {
-                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await };
+                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), in_module, yield_flag: arg_yield, await_flag: arg_await };
                 let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
@@ -260,10 +259,10 @@ impl IdentifierReference {
                 let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
                     Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
                     }
                     Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
                     }
                     _ => Err(pe),
                 }

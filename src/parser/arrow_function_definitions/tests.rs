@@ -112,7 +112,7 @@ mod arrow_function {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).arrow_function().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).arrow_function().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -225,7 +225,7 @@ mod arrow_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).arrow_parameters().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).arrow_parameters().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -336,7 +336,7 @@ mod concise_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).concise_body().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).concise_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -404,7 +404,7 @@ mod expression_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).expression_body().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).expression_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -486,7 +486,7 @@ mod arrow_formal_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).arrow_formal_parameters().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).arrow_formal_parameters().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

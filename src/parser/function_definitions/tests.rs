@@ -1,5 +1,5 @@
 use super::scanner::StringDelimiter;
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -142,7 +142,7 @@ mod function_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -259,7 +259,7 @@ mod function_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionExpression::parse(&mut strictparser(src, strict), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -343,7 +343,7 @@ mod function_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).function_body().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).function_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -455,7 +455,7 @@ mod function_statement_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).function_statement_list().early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).function_statement_list().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

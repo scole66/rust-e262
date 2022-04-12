@@ -288,7 +288,7 @@ fn identifier_test_nothing() {
 }
 #[test]
 fn identifier_test_successful_bob() {
-    let result = check(Identifier::parse(&mut Parser::new("bob", true, false, ParseGoal::Script), Scanner::new()));
+    let result = check(Identifier::parse(&mut Parser::new("bob", false, ParseGoal::Script), Scanner::new()));
     let (identifier, scanner) = result;
     chk_scan(&scanner, 3);
     let data = &identifier.name;
@@ -300,7 +300,7 @@ fn identifier_test_successful_bob() {
 #[test]
 fn identifier_test_successful_japanese() {
     let text = "手がける黒田征太郎さんです";
-    let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, false, ParseGoal::Script), Scanner::new()));
+    let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
     assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
     let data = &identifier.name;
     assert!(data.string_value == "手がける黒田征太郎さんです");
@@ -319,12 +319,12 @@ fn identifier_test_cache_01() {
 
 #[test]
 fn identifier_reference_test_debug() {
-    assert_ne!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: false, in_module: false, yield_flag: false, await_flag: false }), "");
+    assert_ne!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module: false, yield_flag: false, await_flag: false }), "");
 }
-fn idref_create(text: &str, strict: bool) -> Rc<IdentifierReference> {
+fn idref_create(text: &str) -> Rc<IdentifierReference> {
     let yield_syntax = false;
     let await_syntax = false;
-    let result = IdentifierReference::parse(&mut Parser::new(text, strict, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = IdentifierReference::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
     assert!(result.is_ok());
     let (idref, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -333,8 +333,7 @@ fn idref_create(text: &str, strict: bool) -> Rc<IdentifierReference> {
 
 #[test]
 fn identifier_reference_test_simple_success() {
-    let idref = idref_create("identifier", false);
-    assert!(!idref.strict);
+    let idref = idref_create("identifier");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Identifier(..)));
     assert_eq!(idref.string_value(), "identifier");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
@@ -343,8 +342,7 @@ fn identifier_reference_test_simple_success() {
 }
 #[test]
 fn identifier_reference_test_yield() {
-    let idref = idref_create("yield", false);
-    assert!(!idref.strict);
+    let idref = idref_create("yield");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
     assert_eq!(idref.string_value(), "yield");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
@@ -358,8 +356,7 @@ fn identifier_reference_test_yield_02() {
 }
 #[test]
 fn identifier_reference_test_await() {
-    let idref = idref_create("await", false);
-    assert!(!idref.strict);
+    let idref = idref_create("await");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
     assert_eq!(idref.string_value(), "await");
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
@@ -490,7 +487,7 @@ mod identifier_reference {
     fn early_errors(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-        let (item, _) = IdentifierReference::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+        let (item, _) = IdentifierReference::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
         let mut errs = vec![];
         item.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
@@ -523,8 +520,7 @@ mod identifier_reference {
 fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
     let yield_syntax = y;
     let await_syntax = a;
-    let strict = false;
-    let result = BindingIdentifier::parse(&mut Parser::new(text, strict, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = BindingIdentifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
     assert!(result.is_ok());
     let (bid, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -759,7 +755,7 @@ mod binding_identifier {
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
@@ -983,7 +979,7 @@ mod label_identifier {
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
