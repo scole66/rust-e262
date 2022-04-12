@@ -245,16 +245,31 @@ impl AssignmentExpression {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            AssignmentExpression::FallThru(node) => node.contains(kind),
-            AssignmentExpression::Yield(node) => node.contains(kind),
-            AssignmentExpression::Arrow(node) => node.contains(kind),
-            AssignmentExpression::AsyncArrow(node) => node.contains(kind),
-            AssignmentExpression::Assignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::OpAssignment(left, op, right) => left.contains(kind) || op.contains(kind) || right.contains(kind),
-            AssignmentExpression::LandAssignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::LorAssignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::CoalAssignment(left, right) => left.contains(kind) || right.contains(kind),
-            AssignmentExpression::Destructuring(pat, exp) => pat.contains(kind) || exp.contains(kind),
+            AssignmentExpression::FallThru(node) => kind == ParseNodeKind::ConditionalExpression || node.contains(kind),
+            AssignmentExpression::Yield(node) => kind == ParseNodeKind::YieldExpression || node.contains(kind),
+            AssignmentExpression::Arrow(node) => kind == ParseNodeKind::ArrowFunction || node.contains(kind),
+            AssignmentExpression::AsyncArrow(node) => kind == ParseNodeKind::AsyncArrowFunction || node.contains(kind),
+            AssignmentExpression::Assignment(left, right) => {
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+            }
+            AssignmentExpression::OpAssignment(left, op, right) => {
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentOperator, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || op.contains(kind)
+                    || right.contains(kind)
+            }
+            AssignmentExpression::LandAssignment(left, right) => {
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+            }
+            AssignmentExpression::LorAssignment(left, right) => {
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+            }
+            AssignmentExpression::CoalAssignment(left, right) => {
+                [ParseNodeKind::LeftHandSideExpression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind)
+            }
+            AssignmentExpression::Destructuring(pat, exp) => {
+                [ParseNodeKind::AssignmentPattern, ParseNodeKind::AssignmentExpression].contains(&kind) || pat.contains(kind) || exp.contains(kind)
+            }
         }
     }
 

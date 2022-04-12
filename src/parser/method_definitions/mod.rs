@@ -352,6 +352,15 @@ impl MethodDefinition {
             MethodDefinition::AsyncGenerator(node) => node.prop_name(),
         }
     }
+
+    /// Determine whether this node is an ordinary method, or a special one.
+    ///
+    /// "Special" methods are asychronous functions, generators, or propert setters or getters.
+    ///
+    /// See [SpecialMethod](https://tc39.es/ecma262/#sec-static-semantics-specialmethod) in ECMA-262.
+    pub fn special_method(&self) -> bool {
+        !matches!(self, MethodDefinition::NamedFunction(..))
+    }
 }
 
 // PropertySetParameterList :

@@ -97,8 +97,8 @@ impl Expression {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            Expression::FallThru(node) => node.contains(kind),
-            Expression::Comma(left, right) => left.contains(kind) || right.contains(kind),
+            Expression::FallThru(node) => kind == ParseNodeKind::AssignmentExpression || node.contains(kind),
+            Expression::Comma(left, right) => [ParseNodeKind::Expression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind),
         }
     }
 

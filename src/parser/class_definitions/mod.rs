@@ -839,9 +839,71 @@ impl ClassElement {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ClassElement::Standard(md) => {
+                // ClassElement : MethodDefinition
+                //  * It is a Syntax Error if PropName of MethodDefinition is not "constructor" and HasDirectSuper of
+                //    MethodDefinition is true.
+                //  * It is a Syntax Error if PropName of MethodDefinition is "constructor" and SpecialMethod of MethodDefinition is true.
+                match md.prop_name() {
+                    Some(s) if s == "constructor" => {
+                        if md.special_method() {
+                            errs.push(create_syntax_error_object(agent, "special methods not allowed in constructors"));
+                        }
+                    }
+                    Some(_) | None => {
+                        if md.has_direct_super() {
+                            errs.push(create_syntax_error_object(agent, "super only allowed for constructors"));
+                        }
+                    }
+                }
+                md.early_errors(agent, errs, strict);
+            }
+            ClassElement::Static(md) => {
+                // ClassElement : static MethodDefinition
+                //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
+                //  * It is a Syntax Error if PropName of MethodDefinition is "prototype".
+                if md.has_direct_super() {
+                    errs.push(create_syntax_error_object(agent, "This method has no binding for super."));
+                }
+                if matches!(md.prop_name(), Some(s) if s == "prototype") {
+                    errs.push(create_syntax_error_object(agent, "prototypes cannot be static"));
+                }
+                md.early_errors(agent, errs, strict);
+            }
+            ClassElement::Field(fd) => {
+                // ClassElement : FieldDefinition ;
+                //  * It is a Syntax Error if PropName of FieldDefinition is "constructor".
+                if matches!(fd.prop_name(), Some(s) if s == "constructor") {
+                    errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields"));
+                }
+                fd.early_errors(agent, errs, strict);
+            }
+            ClassElement::StaticField(fd) => {
+                // ClassElement : static FieldDefinition ;
+                //  * It is a Syntax Error if PropName of FieldDefinition is "prototype" or "constructor".
+                let pn = fd.prop_name();
+                match pn {
+                    Some(s) if s == "prototype" => errs.push(create_syntax_error_object(agent, "prototypes cannot be static")),
+                    Some(s) if s == "constructor" => errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields")),
+                    _ => (),
+                }
+                fd.early_errors(agent, errs, strict);
+            }
+            ClassElement::StaticBlock(sb) => sb.early_errors(agent, errs, strict),
+            ClassElement::Empty => (),
+        }
     }
 
     pub fn class_element_kind(&self) -> Option<CEKind> {
@@ -970,9 +1032,38 @@ impl FieldDefinition {
         self.name.contains_arguments() || self.init.as_ref().map_or(false, |izer| izer.contains_arguments())
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // FieldDefinition :
+        //  ClassElementName Initializer[opt]
+        //  * It is a Syntax Error if Initializer is present and ContainsArguments of Initializer is true.
+        //  * It is a Syntax Error if Initializer is present and Initializer Contains SuperCall is true.
+        self.name.early_errors(agent, errs, strict);
+        if let Some(izer) = self.init.as_ref() {
+            if izer.contains_arguments() {
+                errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here"));
+            }
+            if izer.contains(ParseNodeKind::SuperCall) {
+                errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+            }
+            izer.early_errors(agent, errs, strict);
+        }
+    }
+
+    /// Returns the property name (if it exists) for this node.
+    ///
+    /// See [PropName](https://tc39.es/ecma262/#sec-static-semantics-propname) in ECMA-262.
+    pub fn prop_name(&self) -> Option<JSString> {
+        self.name.prop_name()
     }
 }
 
@@ -1084,9 +1175,27 @@ impl ClassElementName {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ClassElementName::PrivateIdentifier(pid) => {
+                // ClassElementName : PrivateIdentifier
+                //  * It is a Syntax Error if StringValue of PrivateIdentifier is "#constructor".
+                if pid.string_value == "#constructor" {
+                    errs.push(create_syntax_error_object(agent, "#constructor is an invalid private id"));
+                }
+            }
+            ClassElementName::PropertyName(pn) => pn.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -1174,9 +1283,18 @@ impl ClassStaticBlock {
         self.0.contains_arguments()
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -1225,6 +1343,16 @@ impl ClassStaticBlockBody {
         self.0.all_private_identifiers_valid(names)
     }
 
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ClassStaticBlockBody : ClassStaticBlockStatementList
@@ -1259,9 +1387,15 @@ impl ClassStaticBlockBody {
             errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
         }
         if self.0.contains_arguments() {
-            errs.push(create_syntax_error_object(agent, "soemthing"))
+            errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here"))
         }
-        todo!()
+        if self.0.contains(ParseNodeKind::SuperCall) {
+            errs.push(create_syntax_error_object(agent, "super calls not expected here"))
+        }
+        if self.0.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(agent, "await expressions not expected here"))
+        }
+        self.0.early_errors(agent, errs, strict);
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1326,6 +1460,16 @@ impl ClassStaticBlockStatementList {
         self.0.as_ref().map_or(true, |sl| sl.all_private_identifiers_valid(names))
     }
 
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Class Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         if let Some(sl) = self.0.as_ref() {
             sl.early_errors(agent, errs, strict, false, false);
@@ -1382,6 +1526,7 @@ impl ClassStaticBlockStatementList {
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
     pub fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
@@ -1390,6 +1535,14 @@ impl ClassStaticBlockStatementList {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         self.0.as_ref().map_or(false, |sl| sl.contains_arguments())
+    }
+
+    /// Return `true` if the current node has, as one if its children (without looking into function bodies) the
+    /// production specified by `kind`.
+    ///
+    /// See [Contains](https://tc39.es/ecma262/#sec-syntax-directed-operations-contains) from ECMA-262.
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.0.as_ref().map_or(false, |sl| kind == ParseNodeKind::StatementList || sl.contains(kind))
     }
 }
 
