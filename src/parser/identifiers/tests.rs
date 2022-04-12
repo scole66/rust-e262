@@ -4,177 +4,178 @@ use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 
-fn id_kwd_test(kwd: &str) {
-    let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
-    check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
-}
-#[test]
-fn identifier_test_pprint() {
-    let pot_id = Identifier::parse(&mut newparser("phil"), Scanner::new());
-    let (id, _) = pot_id.unwrap();
-    pretty_check(&*id, "Identifier: phil", vec![]);
-    concise_check(&*id, "IdentifierName: phil", vec![]);
-}
-#[test]
-fn identifier_test_await() {
-    id_kwd_test("await")
-}
-#[test]
-fn identifier_test_break() {
-    id_kwd_test("break")
-}
-#[test]
-fn identifier_test_case() {
-    id_kwd_test("case")
-}
-#[test]
-fn identifier_test_catch() {
-    id_kwd_test("catch")
-}
-#[test]
-fn identifier_test_class() {
-    id_kwd_test("class")
-}
-#[test]
-fn identifier_test_const() {
-    id_kwd_test("const")
-}
-#[test]
-fn identifier_test_continue() {
-    id_kwd_test("continue")
-}
-#[test]
-fn identifier_test_debugger() {
-    id_kwd_test("debugger")
-}
-#[test]
-fn identifier_test_default() {
-    id_kwd_test("default")
-}
-#[test]
-fn identifier_test_delete() {
-    id_kwd_test("delete")
-}
-#[test]
-fn identifier_test_do() {
-    id_kwd_test("do")
-}
-#[test]
-fn identifier_test_else() {
-    id_kwd_test("else")
-}
-#[test]
-fn identifier_test_enum() {
-    id_kwd_test("enum")
-}
-#[test]
-fn identifier_test_export() {
-    id_kwd_test("export")
-}
-#[test]
-fn identifier_test_extends() {
-    id_kwd_test("extends")
-}
-#[test]
-fn identifier_test_false() {
-    id_kwd_test("false")
-}
-#[test]
-fn identifier_test_finally() {
-    id_kwd_test("finally")
-}
-#[test]
-fn identifier_test_for() {
-    id_kwd_test("for")
-}
-#[test]
-fn identifier_test_function() {
-    id_kwd_test("function")
-}
-#[test]
-fn identifier_test_if() {
-    id_kwd_test("if")
-}
-#[test]
-fn identifier_test_import() {
-    id_kwd_test("import")
-}
-#[test]
-fn identifier_test_in() {
-    id_kwd_test("in")
-}
-#[test]
-fn identifier_test_instanceof() {
-    id_kwd_test("instanceof")
-}
-#[test]
-fn identifier_test_new() {
-    id_kwd_test("new")
-}
-#[test]
-fn identifier_test_null() {
-    id_kwd_test("null")
-}
-#[test]
-fn identifier_test_return() {
-    id_kwd_test("return")
-}
-#[test]
-fn identifier_test_super() {
-    id_kwd_test("super")
-}
-#[test]
-fn identifier_test_switch() {
-    id_kwd_test("switch")
-}
-#[test]
-fn identifier_test_this() {
-    id_kwd_test("this")
-}
-#[test]
-fn identifier_test_throw() {
-    id_kwd_test("throw")
-}
-#[test]
-fn identifier_test_true() {
-    id_kwd_test("true")
-}
-#[test]
-fn identifier_test_try() {
-    id_kwd_test("try")
-}
-#[test]
-fn identifier_test_typeof() {
-    id_kwd_test("typeof")
-}
-#[test]
-fn identifier_test_var() {
-    id_kwd_test("var")
-}
-#[test]
-fn identifier_test_void() {
-    id_kwd_test("void")
-}
-#[test]
-fn identifier_test_while() {
-    id_kwd_test("while")
-}
-#[test]
-fn identifier_test_with() {
-    id_kwd_test("with")
-}
-#[test]
-fn identifier_test_yield() {
-    id_kwd_test("yield")
-}
-#[test]
-fn identifier_test_err() {
-    let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
-    check_parse_error(result, "not an identifier");
-}
-
 mod identifier {
     use super::*;
+
+    fn id_kwd_test(kwd: &str) {
+        let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
+        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
+    }
+    #[test]
+    fn pprint() {
+        let pot_id = Identifier::parse(&mut newparser("phil"), Scanner::new());
+        let (id, _) = pot_id.unwrap();
+        pretty_check(&*id, "Identifier: phil", vec![]);
+        concise_check(&*id, "IdentifierName: phil", vec![]);
+    }
+    #[test]
+    fn await_kwd() {
+        id_kwd_test("await")
+    }
+    #[test]
+    fn break_kwd() {
+        id_kwd_test("break")
+    }
+    #[test]
+    fn case() {
+        id_kwd_test("case")
+    }
+    #[test]
+    fn catch() {
+        id_kwd_test("catch")
+    }
+    #[test]
+    fn class() {
+        id_kwd_test("class")
+    }
+    #[test]
+    fn const_kwd() {
+        id_kwd_test("const")
+    }
+    #[test]
+    fn continue_kwd() {
+        id_kwd_test("continue")
+    }
+    #[test]
+    fn debugger() {
+        id_kwd_test("debugger")
+    }
+    #[test]
+    fn default() {
+        id_kwd_test("default")
+    }
+    #[test]
+    fn delete() {
+        id_kwd_test("delete")
+    }
+    #[test]
+    fn do_kwd() {
+        id_kwd_test("do")
+    }
+    #[test]
+    fn else_kwd() {
+        id_kwd_test("else")
+    }
+    #[test]
+    fn enum_kwd() {
+        id_kwd_test("enum")
+    }
+    #[test]
+    fn export() {
+        id_kwd_test("export")
+    }
+    #[test]
+    fn extends() {
+        id_kwd_test("extends")
+    }
+    #[test]
+    fn false_kwd() {
+        id_kwd_test("false")
+    }
+    #[test]
+    fn finally() {
+        id_kwd_test("finally")
+    }
+    #[test]
+    fn for_kwd() {
+        id_kwd_test("for")
+    }
+    #[test]
+    fn function() {
+        id_kwd_test("function")
+    }
+    #[test]
+    fn if_kwd() {
+        id_kwd_test("if")
+    }
+    #[test]
+    fn import() {
+        id_kwd_test("import")
+    }
+    #[test]
+    fn in_kwd() {
+        id_kwd_test("in")
+    }
+    #[test]
+    fn instanceof() {
+        id_kwd_test("instanceof")
+    }
+    #[test]
+    fn new() {
+        id_kwd_test("new")
+    }
+    #[test]
+    fn null() {
+        id_kwd_test("null")
+    }
+    #[test]
+    fn return_kwd() {
+        id_kwd_test("return")
+    }
+    #[test]
+    fn super_kwd() {
+        id_kwd_test("super")
+    }
+    #[test]
+    fn switch() {
+        id_kwd_test("switch")
+    }
+    #[test]
+    fn this() {
+        id_kwd_test("this")
+    }
+    #[test]
+    fn throw() {
+        id_kwd_test("throw")
+    }
+    #[test]
+    fn true_kwd() {
+        id_kwd_test("true")
+    }
+    #[test]
+    fn try_kwd() {
+        id_kwd_test("try")
+    }
+    #[test]
+    fn typeof_kwd() {
+        id_kwd_test("typeof")
+    }
+    #[test]
+    fn var() {
+        id_kwd_test("var")
+    }
+    #[test]
+    fn void() {
+        id_kwd_test("void")
+    }
+    #[test]
+    fn while_kwd() {
+        id_kwd_test("while")
+    }
+    #[test]
+    fn with() {
+        id_kwd_test("with")
+    }
+    #[test]
+    fn yield_kwd() {
+        id_kwd_test("yield")
+    }
+    #[test]
+    fn err() {
+        let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
+        check_parse_error(result, "not an identifier");
+    }
+
     mod early_errors {
         use super::*;
         use test_case::test_case;
@@ -280,41 +281,42 @@ mod identifier {
             }
         }
     }
-}
-#[test]
-fn identifier_test_nothing() {
-    let result = Identifier::parse(&mut newparser("."), Scanner::new());
-    check_parse_error(result, "not an identifier");
-}
-#[test]
-fn identifier_test_successful_bob() {
-    let result = check(Identifier::parse(&mut Parser::new("bob", false, ParseGoal::Script), Scanner::new()));
-    let (identifier, scanner) = result;
-    chk_scan(&scanner, 3);
-    let data = &identifier.name;
-    assert!(data.string_value == "bob");
-    assert!(data.keyword_id.is_none());
-    assert!(data.line == 1);
-    assert!(data.column == 1);
-}
-#[test]
-fn identifier_test_successful_japanese() {
-    let text = "手がける黒田征太郎さんです";
-    let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
-    assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
-    let data = &identifier.name;
-    assert!(data.string_value == "手がける黒田征太郎さんです");
-    assert!(data.keyword_id.is_none());
-    assert!(data.line == 1);
-    assert!(data.column == 1);
-}
-#[test]
-fn identifier_test_cache_01() {
-    let mut parser = newparser("bnana");
-    let (node, scanner) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
-    let (node2, scanner2) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
-    assert!(scanner == scanner2);
-    assert!(Rc::ptr_eq(&node, &node2));
+
+    #[test]
+    fn nothing() {
+        let result = Identifier::parse(&mut newparser("."), Scanner::new());
+        check_parse_error(result, "not an identifier");
+    }
+    #[test]
+    fn successful_bob() {
+        let result = check(Identifier::parse(&mut Parser::new("bob", false, ParseGoal::Script), Scanner::new()));
+        let (identifier, scanner) = result;
+        chk_scan(&scanner, 3);
+        let data = &identifier.name;
+        assert!(data.string_value == "bob");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
+    }
+    #[test]
+    fn successful_japanese() {
+        let text = "手がける黒田征太郎さんです";
+        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
+        assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
+        let data = &identifier.name;
+        assert!(data.string_value == "手がける黒田征太郎さんです");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
+    }
+    #[test]
+    fn cache_01() {
+        let mut parser = newparser("bnana");
+        let (node, scanner) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
+        let (node2, scanner2) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
 }
 
 #[test]

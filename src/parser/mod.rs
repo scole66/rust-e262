@@ -505,10 +505,6 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait StringValue {
-    fn string_value(&self) -> JSString;
-}
-
 pub trait HasName {
     fn has_name(&self) -> bool;
 }
