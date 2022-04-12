@@ -10,7 +10,7 @@ use test_case::test_case;
 fn primary_expression_test_debug() {
     let pe = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false);
     let (exp, _) = check(pe);
-    assert_eq!(format!("{:?}", exp), "PrimaryExpression { kind: This }");
+    assert_ne!(format!("{:?}", exp), "");
 }
 #[test]
 fn primary_expression_test_pprint() {
@@ -44,7 +44,7 @@ fn primary_expression_test_idref() {
     let pe_res = PrimaryExpression::parse(&mut newparser("blue"), Scanner::new(), false, false);
     let (boxed_pe, scanner) = check(pe_res);
     chk_scan(&scanner, 4);
-    assert!(matches!(boxed_pe.kind, PrimaryExpressionKind::IdentifierReference(_)));
+    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference(_)));
     assert_eq!(boxed_pe.is_function_definition(), false);
     assert_eq!(boxed_pe.is_identifier_reference(), true);
 }
@@ -52,7 +52,7 @@ fn primary_expression_test_idref() {
 fn primary_expression_test_literal() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Literal(_)));
+    assert!(matches!(*node, PrimaryExpression::Literal(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -60,7 +60,7 @@ fn primary_expression_test_literal() {
 fn primary_expression_test_this() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(node.kind, PrimaryExpressionKind::This));
+    assert!(matches!(*node, PrimaryExpression::This));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -68,7 +68,7 @@ fn primary_expression_test_this() {
 fn primary_expression_test_arraylit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(node.kind, PrimaryExpressionKind::ArrayLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ArrayLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -76,7 +76,7 @@ fn primary_expression_test_arraylit() {
 fn primary_expression_test_objlit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(node.kind, PrimaryExpressionKind::ObjectLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ObjectLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -84,7 +84,7 @@ fn primary_expression_test_objlit() {
 fn primary_expression_test_group() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Parenthesized(_)));
+    assert!(matches!(*node, PrimaryExpression::Parenthesized(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -92,7 +92,7 @@ fn primary_expression_test_group() {
 fn primary_expression_test_func() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Function(..)));
+    assert!(matches!(*node, PrimaryExpression::Function(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
@@ -102,7 +102,7 @@ fn primary_expression_test_func() {
 fn primary_expression_test_generator() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Generator(..)));
+    assert!(matches!(*node, PrimaryExpression::Generator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
@@ -116,7 +116,7 @@ fn primary_expression_test_generator() {
 fn primary_expression_test_async_generator() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
-    assert!(matches!(node.kind, PrimaryExpressionKind::AsyncGenerator(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
@@ -141,7 +141,7 @@ fn primary_expression_test_async_generator() {
 fn primary_expression_test_async_function() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
-    assert!(matches!(node.kind, PrimaryExpressionKind::AsyncFunction(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
@@ -155,7 +155,7 @@ fn primary_expression_test_async_function() {
 fn primary_expression_test_regexp() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(node.kind, PrimaryExpressionKind::RegularExpression(..)));
+    assert!(matches!(*node, PrimaryExpression::RegularExpression(..)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
 }
@@ -163,7 +163,7 @@ fn primary_expression_test_regexp() {
 fn primary_expression_test_class_expression() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("class{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Class(..)));
+    assert!(matches!(*node, PrimaryExpression::Class(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
