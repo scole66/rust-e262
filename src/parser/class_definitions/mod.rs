@@ -1261,6 +1261,7 @@ impl ClassStaticBlockBody {
         if self.0.contains_arguments() {
             errs.push(create_syntax_error_object(agent, "soemthing"))
         }
+        todo!()
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1392,4 +1393,5 @@ impl ClassStaticBlockStatementList {
     }
 }
 
+#[cfg(test)]
 mod tests;
