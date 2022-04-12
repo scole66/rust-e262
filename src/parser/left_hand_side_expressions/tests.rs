@@ -531,7 +531,7 @@ fn meta_property_test_newtarget() {
 #[test_case(ParseGoal::Script => Some(ParseGoal::Script); "script")]
 #[test_case(ParseGoal::Module => Some(ParseGoal::Module); "module")]
 fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
-    let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, false, goal), Scanner::new()));
+    let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
     assert!(matches!(mp.kind, MetaPropertyKind::ImportMeta(_)));
     format!("{:?}", mp);
@@ -604,7 +604,7 @@ mod meta_property {
     fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MetaProperty::parse(&mut Parser::new(src, false, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
+        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

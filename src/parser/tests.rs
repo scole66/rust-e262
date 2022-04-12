@@ -125,8 +125,7 @@ fn yield_await_default_key_01() {
 
 #[test]
 fn parser_01() {
-    let p = Parser::new("program text", false, false, ParseGoal::Script);
-    assert_eq!(p.strict, false);
+    let p = Parser::new("program text", false, ParseGoal::Script);
     assert_eq!(p.direct, false);
     assert_eq!(p.source, "program text");
     assert_eq!(p.goal, ParseGoal::Script);

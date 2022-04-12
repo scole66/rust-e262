@@ -126,7 +126,7 @@ mod labelled_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).labelled_statement().early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).labelled_statement().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -302,7 +302,7 @@ mod labelled_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Maker::new(src).strict(strict).labelled_item().early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).labelled_item().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
