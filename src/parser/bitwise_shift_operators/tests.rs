@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -15,7 +15,6 @@ fn shift_expression_test_01() {
     concise_check(&*se, "IdentifierName: a", vec![]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn shift_expression_test_02() {
@@ -26,7 +25,6 @@ fn shift_expression_test_02() {
     concise_check(&*se, "ShiftExpression: a << b", vec!["IdentifierName: a", "Punctuator: <<", "IdentifierName: b"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn shift_expression_test_03() {
@@ -37,7 +35,6 @@ fn shift_expression_test_03() {
     concise_check(&*se, "ShiftExpression: a >> b", vec!["IdentifierName: a", "Punctuator: >>", "IdentifierName: b"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn shift_expression_test_04() {
@@ -48,7 +45,6 @@ fn shift_expression_test_04() {
     concise_check(&*se, "ShiftExpression: a >>> b", vec!["IdentifierName: a", "Punctuator: >>>", "IdentifierName: b"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn shift_expression_test_05() {
@@ -60,7 +56,6 @@ fn shift_expression_test_06() {
     chk_scan(&scanner, 1);
     assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn shift_expression_test_prettyerrors_1() {
@@ -204,5 +199,29 @@ mod shift_expression {
     #[test_case("a >> b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
         ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments >> bob" => true; "a shr b (left)")]
+    #[test_case("bob >> arguments" => true; "a shr b (right)")]
+    #[test_case("arguments << bob" => true; "a shl b (left)")]
+    #[test_case("bob << arguments" => true; "a shl b (right)")]
+    #[test_case("arguments >>> bob" => true; "a ushr b (left)")]
+    #[test_case("bob >>> arguments" => true; "a ushr b (right)")]
+    #[test_case("xyzzy" => false; "Exp (no)")]
+    #[test_case("xyzzy >> bob" => false; "a shr b (no)")]
+    #[test_case("xyzzy << bob" => false; "a shl b (no)")]
+    #[test_case("xyzzy >>> bob" => false; "a ushr b (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a<<b", false => ATTKind::Invalid; "shl")]
+    #[test_case("a>>b", false => ATTKind::Invalid; "shr")]
+    #[test_case("a>>>b", false => ATTKind::Invalid; "ushr")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).shift_expression().assignment_target_type(strict)
     }
 }

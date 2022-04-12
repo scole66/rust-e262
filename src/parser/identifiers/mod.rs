@@ -15,13 +15,6 @@ pub struct Identifier {
     name: IdentifierData,
 }
 
-impl StringValue for Identifier {
-    fn string_value(&self) -> JSString {
-        let identifier_name = &self.name;
-        identifier_name.string_value.clone()
-    }
-}
-
 impl PrettyPrint for Identifier {
     fn pprint_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -176,6 +169,11 @@ impl Identifier {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str()));
         }
     }
+
+    pub fn string_value(&self) -> JSString {
+        let identifier_name = &self.name;
+        identifier_name.string_value.clone()
+    }
 }
 
 // IdentifierReference[Yield, Await]:
@@ -193,43 +191,9 @@ enum IdentifierReferenceKind {
 #[derive(Debug)]
 pub struct IdentifierReference {
     kind: IdentifierReferenceKind,
-    strict: bool,
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
-}
-
-impl StringValue for IdentifierReference {
-    fn string_value(&self) -> JSString {
-        use IdentifierReferenceKind::*;
-        match &self.kind {
-            Identifier(id) => id.string_value(),
-            Yield => JSString::from("yield"),
-            Await => JSString::from("await"),
-        }
-    }
-}
-
-impl AssignmentTargetType for IdentifierReference {
-    fn assignment_target_type(&self) -> ATTKind {
-        use ATTKind::*;
-        use IdentifierReferenceKind::*;
-        match &self.kind {
-            Identifier(id) => {
-                if self.strict {
-                    let sv = id.string_value();
-                    if sv == "eval" || sv == "arguments" {
-                        Invalid
-                    } else {
-                        Simple
-                    }
-                } else {
-                    Simple
-                }
-            }
-            Await | Yield => Simple,
-        }
-    }
 }
 
 impl PrettyPrint for IdentifierReference {
@@ -274,7 +238,7 @@ impl IdentifierReference {
         let in_module = parser.goal == ParseGoal::Module;
         match production {
             Ok((ident, scanner)) => {
-                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await };
+                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), in_module, yield_flag: arg_yield, await_flag: arg_await };
                 let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
@@ -282,10 +246,10 @@ impl IdentifierReference {
                 let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
                     Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
                     }
                     Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: parser.strict, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
+                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
                     }
                     _ => Err(pe),
                 }
@@ -345,6 +309,54 @@ impl IdentifierReference {
             }
         }
     }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  IdentifierReference : Identifier
+        //      1. If the StringValue of Identifier is "arguments", return true.
+        //      2. Return false.
+        //  IdentifierReference : yield
+        //  IdentifierReference : await
+        //      1. Return false.
+        matches!(&self.kind, IdentifierReferenceKind::Identifier(id) if id.string_value() == "arguments")
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        use ATTKind::*;
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => {
+                if strict {
+                    let sv = id.string_value();
+                    if sv == "eval" || sv == "arguments" {
+                        Invalid
+                    } else {
+                        Simple
+                    }
+                } else {
+                    Simple
+                }
+            }
+            Await | Yield => Simple,
+        }
+    }
+
+    pub fn string_value(&self) -> JSString {
+        use IdentifierReferenceKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
+        }
+    }
 }
 
 // BindingIdentifier[Yield, Await] :
@@ -364,17 +376,6 @@ pub struct BindingIdentifier {
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
-}
-
-impl StringValue for BindingIdentifier {
-    fn string_value(&self) -> JSString {
-        use BindingIdentifierKind::*;
-        match &self.kind {
-            Identifier(id) => id.string_value(),
-            Yield => JSString::from("yield"),
-            Await => JSString::from("await"),
-        }
-    }
 }
 
 impl fmt::Display for BindingIdentifier {
@@ -505,6 +506,15 @@ impl BindingIdentifier {
                     errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
                 }
             }
+        }
+    }
+
+    pub fn string_value(&self) -> JSString {
+        use BindingIdentifierKind::*;
+        match &self.kind {
+            Identifier(id) => id.string_value(),
+            Yield => JSString::from("yield"),
+            Await => JSString::from("await"),
         }
     }
 }

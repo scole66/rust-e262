@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -94,7 +94,13 @@ mod expression_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ExpressionStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("a;" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }

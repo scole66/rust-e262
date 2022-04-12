@@ -1,5 +1,5 @@
 use super::scanner::StringDelimiter;
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -142,7 +142,7 @@ mod function_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -259,7 +259,7 @@ mod function_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionExpression::parse(&mut strictparser(src, strict), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -343,8 +343,14 @@ mod function_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionBody::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).function_body().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).function_body().contains_arguments()
     }
 }
 
@@ -420,28 +426,28 @@ mod function_statement_list {
     #[test_case("" => Vec::<String>::new(); "no statements")]
     #[test_case("var a; var b; var c;" => vec!["a", "b", "c"]; "three statements")]
     fn var_declared_names(src: &str) -> Vec<String> {
-        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src).function_statement_list().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 
     #[test_case("a:a:;" => true; "one statement")]
     #[test_case("a:;" => false; "one statement (no dups)")]
     #[test_case("" => false; "no statements")]
     fn contains_duplicate_labels(src: &str) -> bool {
-        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_duplicate_labels(&[])
+        Maker::new(src).function_statement_list().contains_duplicate_labels(&[])
     }
 
     #[test_case("break a;" => true; "one statement")]
     #[test_case(";" => false; "one statement (no break)")]
     #[test_case("" => false; "no statements")]
     fn contains_undefined_break_target(src: &str) -> bool {
-        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_undefined_break_target(&[])
+        Maker::new(src).function_statement_list().contains_undefined_break_target(&[])
     }
 
     #[test_case("continue x;" => true; "one statement")]
     #[test_case(";" => false; "one statement (no continue)")]
     #[test_case("" => false; "no statements")]
     fn contains_undefined_continue_target(src: &str) -> bool {
-        FunctionStatementList::parse(&mut newparser(src), Scanner::new(), true, true).0.contains_undefined_continue_target(&[], &[])
+        Maker::new(src).function_statement_list().contains_undefined_continue_target(&[], &[])
     }
 
     #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "StatementList")]
@@ -449,7 +455,14 @@ mod function_statement_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionStatementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).function_statement_list().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("" => false; "empty")]
+    #[test_case("arguments;" => true; "stmt (yes)")]
+    #[test_case("a;" => false; "stmt (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).function_statement_list().contains_arguments()
     }
 }

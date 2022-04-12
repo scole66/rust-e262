@@ -68,15 +68,6 @@ impl IsFunctionDefinition for ExponentiationExpression {
     }
 }
 
-impl AssignmentTargetType for ExponentiationExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
-            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(),
-        }
-    }
-}
-
 impl ExponentiationExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
@@ -119,6 +110,23 @@ impl ExponentiationExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ExponentiationExpression::UnaryExpression(ue) => ue.contains_arguments(),
+            ExponentiationExpression::Exponentiation(ue, ee) => ue.contains_arguments() || ee.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.early_errors(agent, errs, strict),
@@ -133,6 +141,16 @@ impl ExponentiationExpression {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
+            ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
         }
     }
 }

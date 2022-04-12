@@ -81,15 +81,6 @@ impl IsFunctionDefinition for EqualityExpression {
     }
 }
 
-impl AssignmentTargetType for EqualityExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            EqualityExpression::RelationalExpression(re) => re.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl EqualityExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
@@ -152,6 +143,25 @@ impl EqualityExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            EqualityExpression::RelationalExpression(re) => re.contains_arguments(),
+            EqualityExpression::Equal(ee, re) | EqualityExpression::NotEqual(ee, re) | EqualityExpression::StrictEqual(ee, re) | EqualityExpression::NotStrictEqual(ee, re) => {
+                ee.contains_arguments() || re.contains_arguments()
+            }
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             EqualityExpression::RelationalExpression(n) => n.early_errors(agent, errs, strict),
@@ -166,6 +176,16 @@ impl EqualityExpression {
         match self {
             EqualityExpression::RelationalExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            EqualityExpression::RelationalExpression(re) => re.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }

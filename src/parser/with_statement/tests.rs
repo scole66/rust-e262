@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, WITH_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, WITH_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -101,7 +101,14 @@ mod with_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        WithStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).with_statement().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("with(arguments);" => true; "Left")]
+    #[test_case("with(1)arguments;" => true; "Right")]
+    #[test_case("with(1);" => false; "None")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).with_statement().contains_arguments()
     }
 }

@@ -1,4 +1,4 @@
-use super::testhelp::{check, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -15,7 +15,6 @@ fn expression_test_01() {
     concise_check(&*se, "IdentifierName: a", vec![]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn expression_test_02() {
@@ -26,7 +25,6 @@ fn expression_test_02() {
     concise_check(&*se, "Expression: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn expression_test_cache_01() {
@@ -111,7 +109,7 @@ mod expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Expression::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -120,5 +118,21 @@ mod expression {
     #[test_case("a , b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
         Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments, bob" => true; "Comma (left)")]
+    #[test_case("bob, arguments" => true; "Comma (right)")]
+    #[test_case("no" => false; "Exp (no)")]
+    #[test_case("no, bob" => false; "Comma (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a,b", false => ATTKind::Invalid; "comma")]
+    #[test_case("eval", false => ATTKind::Simple; "eval; non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).expression().assignment_target_type(strict)
     }
 }

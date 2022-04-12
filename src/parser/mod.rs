@@ -254,7 +254,6 @@ type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
 #[derive(Default)]
 pub struct Parser<'a> {
     pub source: &'a str,
-    pub strict: bool,
     pub direct: bool,
     pub goal: ParseGoal,
     pub arguments_cache: HashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
@@ -306,8 +305,8 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, strict: bool, direct: bool, goal: ParseGoal) -> Self {
-        Self { source, strict, direct, goal, ..Default::default() }
+    pub fn new(source: &'a str, direct: bool, goal: ParseGoal) -> Self {
+        Self { source, direct, goal, ..Default::default() }
     }
 }
 
@@ -506,10 +505,6 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait StringValue {
-    fn string_value(&self) -> JSString;
-}
-
 pub trait HasName {
     fn has_name(&self) -> bool;
 }
@@ -526,9 +521,6 @@ pub trait IsIdentifierReference {
 pub enum ATTKind {
     Invalid,
     Simple,
-}
-pub trait AssignmentTargetType {
-    fn assignment_target_type(&self) -> ATTKind;
 }
 
 pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
@@ -645,7 +637,7 @@ pub enum ParsedText {
 }
 
 pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
-    let mut parser = Parser::new(src, false, false, goal_symbol);
+    let mut parser = Parser::new(src, false, goal_symbol);
     match goal_symbol {
         ParseGoal::Script => {
             let potential_script = Script::parse(&mut parser, Scanner::new());

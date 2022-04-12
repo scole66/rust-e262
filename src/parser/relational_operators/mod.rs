@@ -105,15 +105,6 @@ impl IsFunctionDefinition for RelationalExpression {
     }
 }
 
-impl AssignmentTargetType for RelationalExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            RelationalExpression::ShiftExpression(se) => se.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl RelationalExpression {
     fn is_relational_token(tok: &Token, in_flag: bool) -> bool {
         tok.matches_punct(Punctuator::Lt)
@@ -214,6 +205,29 @@ impl RelationalExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            RelationalExpression::ShiftExpression(se) => se.contains_arguments(),
+            RelationalExpression::Less(re, se)
+            | RelationalExpression::Greater(re, se)
+            | RelationalExpression::LessEqual(re, se)
+            | RelationalExpression::GreaterEqual(re, se)
+            | RelationalExpression::InstanceOf(re, se)
+            | RelationalExpression::In(re, se) => re.contains_arguments() || se.contains_arguments(),
+            RelationalExpression::PrivateIn(_, se) => se.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             RelationalExpression::ShiftExpression(n) => n.early_errors(agent, errs, strict),
@@ -234,6 +248,16 @@ impl RelationalExpression {
         match self {
             RelationalExpression::ShiftExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            RelationalExpression::ShiftExpression(se) => se.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }

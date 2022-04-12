@@ -1,4 +1,4 @@
-use super::testhelp::{check, chk_scan, newparser, set, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -15,7 +15,6 @@ fn conditional_expression_test_01() {
     concise_check(&*se, "IdentifierName: a", vec![]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn conditional_expression_test_02() {
@@ -26,7 +25,6 @@ fn conditional_expression_test_02() {
     concise_check(&*se, "ConditionalExpression: a ? b : c", vec!["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn conditional_expression_test_03() {
@@ -129,5 +127,22 @@ mod conditional_expression {
     #[test_case("a ? 0 : b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
         ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments ? bob : alice" => true; "trinary (left)")]
+    #[test_case("bob ? arguments : alice" => true; "trinary (middle)")]
+    #[test_case("bob ? alice : arguments" => true; "trinary (right)")]
+    #[test_case("xyzzy" => false; "Exp (no)")]
+    #[test_case("xyzzy ? bob : alice" => false; "trinary (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ConditionalExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("eval", false => ATTKind::Simple; "simple eval")]
+    #[test_case("eval", true => ATTKind::Invalid; "strict eval")]
+    #[test_case("a?b:c", false => ATTKind::Invalid; "conditional")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).conditional_expression().assignment_target_type(strict)
     }
 }

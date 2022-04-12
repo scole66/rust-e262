@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -60,19 +60,25 @@ mod unique_formal_parameters {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        UniqueFormalParameters::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).unique_formal_parameters().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a,b" => vec!["a", "b"]; "FormalParameters")]
     fn bound_names(src: &str) -> Vec<String> {
-        UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src).unique_formal_parameters().bound_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 
     #[test_case("a" => true; "simple")]
     #[test_case("{a}" => false; "pattern")]
     fn is_simple_parameter_list(src: &str) -> bool {
-        UniqueFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).0.is_simple_parameter_list()
+        Maker::new(src).unique_formal_parameters().is_simple_parameter_list()
+    }
+
+    #[test_case("{a=arguments}" => true; "yes")]
+    #[test_case("a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).unique_formal_parameters().contains_arguments()
     }
 }
 
@@ -276,8 +282,22 @@ mod formal_parameters {
     fn early_errors(src: &str, strict: bool, dups_already_checked: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FormalParameters::parse(&mut strictparser(src, strict), Scanner::new(), true, true).0.early_errors(&mut agent, &mut errs, strict, dups_already_checked);
+        Maker::new(src).formal_parameters().early_errors(&mut agent, &mut errs, strict, dups_already_checked);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("" => false; "empty")]
+    #[test_case("...{a=arguments}" => true; "rest (yes)")]
+    #[test_case("...a" => false; "rest (no)")]
+    #[test_case("a=arguments" => true; "list-only (yes)")]
+    #[test_case("a" => false; "list-only (no)")]
+    #[test_case("a=arguments," => true; "list-comma (yes)")]
+    #[test_case("a," => false; "list-comma (no)")]
+    #[test_case("a=arguments,...b" => true; "list-rest (left)")]
+    #[test_case("a,...{b=arguments}" => true; "list-rest (right)")]
+    #[test_case("a,...b" => false; "list-rest (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).formal_parameters().contains_arguments()
     }
 }
 
@@ -381,8 +401,17 @@ mod formal_parameter_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FormalParameterList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).formal_parameter_list().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).formal_parameter_list().contains_arguments()
     }
 }
 
@@ -438,8 +467,14 @@ mod function_rest_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionRestParameter::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).function_rest_parameter().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("...{a=arguments}" => true; "yes")]
+    #[test_case("...a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).function_rest_parameter().contains_arguments()
     }
 }
 
@@ -509,7 +544,13 @@ mod formal_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FormalParameter::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).formal_parameter().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "yes")]
+    #[test_case("a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).formal_parameter().contains_arguments()
     }
 }

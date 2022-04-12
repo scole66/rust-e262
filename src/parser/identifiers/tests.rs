@@ -1,180 +1,181 @@
-use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 
-fn id_kwd_test(kwd: &str) {
-    let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
-    check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
-}
-#[test]
-fn identifier_test_pprint() {
-    let pot_id = Identifier::parse(&mut newparser("phil"), Scanner::new());
-    let (id, _) = pot_id.unwrap();
-    pretty_check(&*id, "Identifier: phil", vec![]);
-    concise_check(&*id, "IdentifierName: phil", vec![]);
-}
-#[test]
-fn identifier_test_await() {
-    id_kwd_test("await")
-}
-#[test]
-fn identifier_test_break() {
-    id_kwd_test("break")
-}
-#[test]
-fn identifier_test_case() {
-    id_kwd_test("case")
-}
-#[test]
-fn identifier_test_catch() {
-    id_kwd_test("catch")
-}
-#[test]
-fn identifier_test_class() {
-    id_kwd_test("class")
-}
-#[test]
-fn identifier_test_const() {
-    id_kwd_test("const")
-}
-#[test]
-fn identifier_test_continue() {
-    id_kwd_test("continue")
-}
-#[test]
-fn identifier_test_debugger() {
-    id_kwd_test("debugger")
-}
-#[test]
-fn identifier_test_default() {
-    id_kwd_test("default")
-}
-#[test]
-fn identifier_test_delete() {
-    id_kwd_test("delete")
-}
-#[test]
-fn identifier_test_do() {
-    id_kwd_test("do")
-}
-#[test]
-fn identifier_test_else() {
-    id_kwd_test("else")
-}
-#[test]
-fn identifier_test_enum() {
-    id_kwd_test("enum")
-}
-#[test]
-fn identifier_test_export() {
-    id_kwd_test("export")
-}
-#[test]
-fn identifier_test_extends() {
-    id_kwd_test("extends")
-}
-#[test]
-fn identifier_test_false() {
-    id_kwd_test("false")
-}
-#[test]
-fn identifier_test_finally() {
-    id_kwd_test("finally")
-}
-#[test]
-fn identifier_test_for() {
-    id_kwd_test("for")
-}
-#[test]
-fn identifier_test_function() {
-    id_kwd_test("function")
-}
-#[test]
-fn identifier_test_if() {
-    id_kwd_test("if")
-}
-#[test]
-fn identifier_test_import() {
-    id_kwd_test("import")
-}
-#[test]
-fn identifier_test_in() {
-    id_kwd_test("in")
-}
-#[test]
-fn identifier_test_instanceof() {
-    id_kwd_test("instanceof")
-}
-#[test]
-fn identifier_test_new() {
-    id_kwd_test("new")
-}
-#[test]
-fn identifier_test_null() {
-    id_kwd_test("null")
-}
-#[test]
-fn identifier_test_return() {
-    id_kwd_test("return")
-}
-#[test]
-fn identifier_test_super() {
-    id_kwd_test("super")
-}
-#[test]
-fn identifier_test_switch() {
-    id_kwd_test("switch")
-}
-#[test]
-fn identifier_test_this() {
-    id_kwd_test("this")
-}
-#[test]
-fn identifier_test_throw() {
-    id_kwd_test("throw")
-}
-#[test]
-fn identifier_test_true() {
-    id_kwd_test("true")
-}
-#[test]
-fn identifier_test_try() {
-    id_kwd_test("try")
-}
-#[test]
-fn identifier_test_typeof() {
-    id_kwd_test("typeof")
-}
-#[test]
-fn identifier_test_var() {
-    id_kwd_test("var")
-}
-#[test]
-fn identifier_test_void() {
-    id_kwd_test("void")
-}
-#[test]
-fn identifier_test_while() {
-    id_kwd_test("while")
-}
-#[test]
-fn identifier_test_with() {
-    id_kwd_test("with")
-}
-#[test]
-fn identifier_test_yield() {
-    id_kwd_test("yield")
-}
-#[test]
-fn identifier_test_err() {
-    let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
-    check_parse_error(result, "not an identifier");
-}
-
 mod identifier {
     use super::*;
+
+    fn id_kwd_test(kwd: &str) {
+        let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
+        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
+    }
+    #[test]
+    fn pprint() {
+        let pot_id = Identifier::parse(&mut newparser("phil"), Scanner::new());
+        let (id, _) = pot_id.unwrap();
+        pretty_check(&*id, "Identifier: phil", vec![]);
+        concise_check(&*id, "IdentifierName: phil", vec![]);
+    }
+    #[test]
+    fn await_kwd() {
+        id_kwd_test("await")
+    }
+    #[test]
+    fn break_kwd() {
+        id_kwd_test("break")
+    }
+    #[test]
+    fn case() {
+        id_kwd_test("case")
+    }
+    #[test]
+    fn catch() {
+        id_kwd_test("catch")
+    }
+    #[test]
+    fn class() {
+        id_kwd_test("class")
+    }
+    #[test]
+    fn const_kwd() {
+        id_kwd_test("const")
+    }
+    #[test]
+    fn continue_kwd() {
+        id_kwd_test("continue")
+    }
+    #[test]
+    fn debugger() {
+        id_kwd_test("debugger")
+    }
+    #[test]
+    fn default() {
+        id_kwd_test("default")
+    }
+    #[test]
+    fn delete() {
+        id_kwd_test("delete")
+    }
+    #[test]
+    fn do_kwd() {
+        id_kwd_test("do")
+    }
+    #[test]
+    fn else_kwd() {
+        id_kwd_test("else")
+    }
+    #[test]
+    fn enum_kwd() {
+        id_kwd_test("enum")
+    }
+    #[test]
+    fn export() {
+        id_kwd_test("export")
+    }
+    #[test]
+    fn extends() {
+        id_kwd_test("extends")
+    }
+    #[test]
+    fn false_kwd() {
+        id_kwd_test("false")
+    }
+    #[test]
+    fn finally() {
+        id_kwd_test("finally")
+    }
+    #[test]
+    fn for_kwd() {
+        id_kwd_test("for")
+    }
+    #[test]
+    fn function() {
+        id_kwd_test("function")
+    }
+    #[test]
+    fn if_kwd() {
+        id_kwd_test("if")
+    }
+    #[test]
+    fn import() {
+        id_kwd_test("import")
+    }
+    #[test]
+    fn in_kwd() {
+        id_kwd_test("in")
+    }
+    #[test]
+    fn instanceof() {
+        id_kwd_test("instanceof")
+    }
+    #[test]
+    fn new() {
+        id_kwd_test("new")
+    }
+    #[test]
+    fn null() {
+        id_kwd_test("null")
+    }
+    #[test]
+    fn return_kwd() {
+        id_kwd_test("return")
+    }
+    #[test]
+    fn super_kwd() {
+        id_kwd_test("super")
+    }
+    #[test]
+    fn switch() {
+        id_kwd_test("switch")
+    }
+    #[test]
+    fn this() {
+        id_kwd_test("this")
+    }
+    #[test]
+    fn throw() {
+        id_kwd_test("throw")
+    }
+    #[test]
+    fn true_kwd() {
+        id_kwd_test("true")
+    }
+    #[test]
+    fn try_kwd() {
+        id_kwd_test("try")
+    }
+    #[test]
+    fn typeof_kwd() {
+        id_kwd_test("typeof")
+    }
+    #[test]
+    fn var() {
+        id_kwd_test("var")
+    }
+    #[test]
+    fn void() {
+        id_kwd_test("void")
+    }
+    #[test]
+    fn while_kwd() {
+        id_kwd_test("while")
+    }
+    #[test]
+    fn with() {
+        id_kwd_test("with")
+    }
+    #[test]
+    fn yield_kwd() {
+        id_kwd_test("yield")
+    }
+    #[test]
+    fn err() {
+        let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
+        check_parse_error(result, "not an identifier");
+    }
+
     mod early_errors {
         use super::*;
         use test_case::test_case;
@@ -280,51 +281,52 @@ mod identifier {
             }
         }
     }
-}
-#[test]
-fn identifier_test_nothing() {
-    let result = Identifier::parse(&mut newparser("."), Scanner::new());
-    check_parse_error(result, "not an identifier");
-}
-#[test]
-fn identifier_test_successful_bob() {
-    let result = check(Identifier::parse(&mut Parser::new("bob", true, false, ParseGoal::Script), Scanner::new()));
-    let (identifier, scanner) = result;
-    chk_scan(&scanner, 3);
-    let data = &identifier.name;
-    assert!(data.string_value == "bob");
-    assert!(data.keyword_id.is_none());
-    assert!(data.line == 1);
-    assert!(data.column == 1);
-}
-#[test]
-fn identifier_test_successful_japanese() {
-    let text = "手がける黒田征太郎さんです";
-    let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, true, false, ParseGoal::Script), Scanner::new()));
-    assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
-    let data = &identifier.name;
-    assert!(data.string_value == "手がける黒田征太郎さんです");
-    assert!(data.keyword_id.is_none());
-    assert!(data.line == 1);
-    assert!(data.column == 1);
-}
-#[test]
-fn identifier_test_cache_01() {
-    let mut parser = newparser("bnana");
-    let (node, scanner) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
-    let (node2, scanner2) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
-    assert!(scanner == scanner2);
-    assert!(Rc::ptr_eq(&node, &node2));
+
+    #[test]
+    fn nothing() {
+        let result = Identifier::parse(&mut newparser("."), Scanner::new());
+        check_parse_error(result, "not an identifier");
+    }
+    #[test]
+    fn successful_bob() {
+        let result = check(Identifier::parse(&mut Parser::new("bob", false, ParseGoal::Script), Scanner::new()));
+        let (identifier, scanner) = result;
+        chk_scan(&scanner, 3);
+        let data = &identifier.name;
+        assert!(data.string_value == "bob");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
+    }
+    #[test]
+    fn successful_japanese() {
+        let text = "手がける黒田征太郎さんです";
+        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
+        assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
+        let data = &identifier.name;
+        assert!(data.string_value == "手がける黒田征太郎さんです");
+        assert!(data.keyword_id.is_none());
+        assert!(data.line == 1);
+        assert!(data.column == 1);
+    }
+    #[test]
+    fn cache_01() {
+        let mut parser = newparser("bnana");
+        let (node, scanner) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
+        let (node2, scanner2) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
+        assert!(scanner == scanner2);
+        assert!(Rc::ptr_eq(&node, &node2));
+    }
 }
 
 #[test]
 fn identifier_reference_test_debug() {
-    assert_ne!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, strict: false, in_module: false, yield_flag: false, await_flag: false }), "");
+    assert_ne!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module: false, yield_flag: false, await_flag: false }), "");
 }
-fn idref_create(text: &str, strict: bool) -> Rc<IdentifierReference> {
+fn idref_create(text: &str) -> Rc<IdentifierReference> {
     let yield_syntax = false;
     let await_syntax = false;
-    let result = IdentifierReference::parse(&mut Parser::new(text, strict, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = IdentifierReference::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
     assert!(result.is_ok());
     let (idref, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -333,22 +335,18 @@ fn idref_create(text: &str, strict: bool) -> Rc<IdentifierReference> {
 
 #[test]
 fn identifier_reference_test_simple_success() {
-    let idref = idref_create("identifier", false);
-    assert!(!idref.strict);
+    let idref = idref_create("identifier");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Identifier(..)));
     assert_eq!(idref.string_value(), "identifier");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: identifier", vec!["Identifier: identifier"]);
     concise_check(&*idref, "IdentifierName: identifier", vec![]);
 }
 #[test]
 fn identifier_reference_test_yield() {
-    let idref = idref_create("yield", false);
-    assert!(!idref.strict);
+    let idref = idref_create("yield");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Yield));
     assert_eq!(idref.string_value(), "yield");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: yield", vec![]);
     concise_check(&*idref, "Keyword: yield", vec![]);
@@ -360,11 +358,9 @@ fn identifier_reference_test_yield_02() {
 }
 #[test]
 fn identifier_reference_test_await() {
-    let idref = idref_create("await", false);
-    assert!(!idref.strict);
+    let idref = idref_create("await");
     assert!(matches!(idref.kind, IdentifierReferenceKind::Await));
     assert_eq!(idref.string_value(), "await");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
     assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: await", vec![]);
     concise_check(&*idref, "Keyword: await", vec![]);
@@ -383,36 +379,6 @@ fn identifier_reference_test_kwd() {
 fn identifier_reference_test_punct() {
     let idref = IdentifierReference::parse(&mut newparser("*"), Scanner::new(), true, true);
     check_parse_error(idref, "not an identifier");
-}
-#[test]
-fn identifier_reference_test_att_strict() {
-    let idref = idref_create("abcd", true);
-    assert_eq!(idref.string_value(), "abcd");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
-}
-#[test]
-fn identifier_reference_test_eval_strict() {
-    let idref = idref_create("eval", true);
-    assert_eq!(idref.string_value(), "eval");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
-}
-#[test]
-fn identifier_reference_test_eval_loose() {
-    let idref = idref_create("eval", false);
-    assert_eq!(idref.string_value(), "eval");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
-}
-#[test]
-fn identifier_reference_test_arguments_strict() {
-    let idref = idref_create("arguments", true);
-    assert_eq!(idref.string_value(), "arguments");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Invalid);
-}
-#[test]
-fn identifier_reference_test_arguments_loose() {
-    let idref = idref_create("arguments", false);
-    assert_eq!(idref.string_value(), "arguments");
-    assert_eq!(idref.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn identifier_reference_prettycheck_1() {
@@ -454,90 +420,109 @@ fn identifier_reference_test_cache_01() {
 }
 mod identifier_reference {
     use super::*;
-    mod early_errors {
-        use super::*;
-        use test_case::test_case;
+    use test_case::test_case;
 
-        #[test_case("yield", true, true, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
-        #[test_case("yield", true, true, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
-        #[test_case("yield", true, false, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
-        #[test_case("yield", true, false, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
-        #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
-        #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
-        #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
-        #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
-        #[test_case("await", true, true, true, false => set(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
-        #[test_case("await", true, true, false, false => set(&["identifier not allowed in modules: await"]); "await; strict/module")]
-        #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
-        #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
-        #[test_case("await", false, true, true, false => set(&["identifier not allowed in modules: await"]); "await; module/yield")]
-        #[test_case("await", false, true, false, false => set(&["identifier not allowed in modules: await"]); "await; module")]
-        #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
-        #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
-        #[test_case("\\u{79}ield", true, true, true, true => set(&[
+    #[test_case("yield", true, true, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module/await")]
+    #[test_case("yield", true, true, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/module")]
+    #[test_case("yield", true, false, false, true => set(&["identifier not allowed in strict mode: yield"]); "yield; strict/await")]
+    #[test_case("yield", true, false, false, false => set(&["identifier not allowed in strict mode: yield"]); "yield; strict")]
+    #[test_case("yield", false, true, false, true => AHashSet::<String>::new(); "yield; module/await")]
+    #[test_case("yield", false, true, false, false => AHashSet::<String>::new(); "yield; module")]
+    #[test_case("yield", false, false, false, true => AHashSet::<String>::new(); "yield; await")]
+    #[test_case("yield", false, false, false, false => AHashSet::<String>::new(); "yield; ")]
+    #[test_case("await", true, true, true, false => set(&["identifier not allowed in modules: await"]); "await; strict/module/yield")]
+    #[test_case("await", true, true, false, false => set(&["identifier not allowed in modules: await"]); "await; strict/module")]
+    #[test_case("await", true, false, true, false => AHashSet::<String>::new(); "await; strict/yield")]
+    #[test_case("await", true, false, false, false => AHashSet::<String>::new(); "await; strict")]
+    #[test_case("await", false, true, true, false => set(&["identifier not allowed in modules: await"]); "await; module/yield")]
+    #[test_case("await", false, true, false, false => set(&["identifier not allowed in modules: await"]); "await; module")]
+    #[test_case("await", false, false, true, false => AHashSet::<String>::new(); "await; yield")]
+    #[test_case("await", false, false, false, false => AHashSet::<String>::new(); "await; ")]
+    #[test_case("\\u{79}ield", true, true, true, true => set(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield/await")]
-        #[test_case("\\u{79}ield", true, true, true, false => set(&[
+    #[test_case("\\u{79}ield", true, true, true, false => set(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/module/yield")]
-        #[test_case("\\u{79}ield", true, true, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
-        #[test_case("\\u{79}ield", true, true, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
-        #[test_case("\\u{79}ield", true, false, true, true => set(&[
+    #[test_case("\\u{79}ield", true, true, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module/await")]
+    #[test_case("\\u{79}ield", true, true, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/module")]
+    #[test_case("\\u{79}ield", true, false, true, true => set(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield/await")]
-        #[test_case("\\u{79}ield", true, false, true, false => set(&[
+    #[test_case("\\u{79}ield", true, false, true, false => set(&[
             "identifier 'yield' not allowed when yield expressions are valid", "‘yield’ not allowed as an identifier in strict mode"
         ]); "id-yield; strict/yield")]
-        #[test_case("\\u{79}ield", true, false, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
-        #[test_case("\\u{79}ield", true, false, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
-        #[test_case("\\u{79}ield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
-        #[test_case("\\u{79}ield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
-        #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
-        #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
-        #[test_case("\\u{79}ield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
-        #[test_case("\\u{79}ield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
-        #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
-        #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
-        #[test_case("\\u{61}wait", true, true, true, true => set(&[
+    #[test_case("\\u{79}ield", true, false, false, true => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict/await")]
+    #[test_case("\\u{79}ield", true, false, false, false => set(&["‘yield’ not allowed as an identifier in strict mode"]); "id-yield; strict")]
+    #[test_case("\\u{79}ield", false, true, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield/await")]
+    #[test_case("\\u{79}ield", false, true, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; module/yield")]
+    #[test_case("\\u{79}ield", false, true, false, true => AHashSet::<String>::new(); "id-yield; module/await")]
+    #[test_case("\\u{79}ield", false, true, false, false => AHashSet::<String>::new(); "id-yield; module")]
+    #[test_case("\\u{79}ield", false, false, true, true => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield/await")]
+    #[test_case("\\u{79}ield", false, false, true, false => set(&["identifier 'yield' not allowed when yield expressions are valid"]); "id-yield; yield")]
+    #[test_case("\\u{79}ield", false, false, false, true => AHashSet::<String>::new(); "id-yield; await")]
+    #[test_case("\\u{79}ield", false, false, false, false => AHashSet::<String>::new(); "id-yield; ")]
+    #[test_case("\\u{61}wait", true, true, true, true => set(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/yield/await")]
-        #[test_case("\\u{61}wait", true, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
-        #[test_case("\\u{61}wait", true, true, false, true => set(&[
+    #[test_case("\\u{61}wait", true, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module/yield")]
+    #[test_case("\\u{61}wait", true, true, false, true => set(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; strict/module/await")]
-        #[test_case("\\u{61}wait", true, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
-        #[test_case("\\u{61}wait", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
-        #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
-        #[test_case("\\u{61}wait", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
-        #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
-        #[test_case("\\u{61}wait", false, true, true, true => set(&[
+    #[test_case("\\u{61}wait", true, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; strict/module")]
+    #[test_case("\\u{61}wait", true, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/yield/await")]
+    #[test_case("\\u{61}wait", true, false, true, false => AHashSet::<String>::new(); "id-await; strict/yield")]
+    #[test_case("\\u{61}wait", true, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; strict/await")]
+    #[test_case("\\u{61}wait", true, false, false, false => AHashSet::<String>::new(); "id-await; strict")]
+    #[test_case("\\u{61}wait", false, true, true, true => set(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/yield/await")]
-        #[test_case("\\u{61}wait", false, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
-        #[test_case("\\u{61}wait", false, true, false, true => set(&[
+    #[test_case("\\u{61}wait", false, true, true, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module/yield")]
+    #[test_case("\\u{61}wait", false, true, false, true => set(&[
             "identifier 'await' not allowed when await expressions are valid", "‘await’ not allowed as an identifier in modules"
         ]); "id-await; module/await")]
-        #[test_case("\\u{61}wait", false, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
-        #[test_case("\\u{61}wait", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
-        #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
-        #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
-        #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
-        fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
-            let mut agent = test_agent();
-            let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = IdentifierReference::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
-            let mut errs = vec![];
-            item.early_errors(&mut agent, &mut errs, strict);
-            AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
-        }
+    #[test_case("\\u{61}wait", false, true, false, false => set(&["‘await’ not allowed as an identifier in modules"]); "id-await; module")]
+    #[test_case("\\u{61}wait", false, false, true, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; yield/await")]
+    #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
+    #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
+    #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
+    fn early_errors(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
+        let (item, _) = IdentifierReference::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+        let mut errs = vec![];
+        item.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "IdentifierName/no")]
+    #[test_case("arguments" => true; "IdentifierName/yes")]
+    #[test_case("yield" => false; "kwd Yield")]
+    #[test_case("await" => false; "kwd Await")]
+    #[test_case("\\u0061rguments" => true; "escaped/yes")]
+    fn contains_arguments(src: &str) -> bool {
+        IdentifierReference::parse(&mut newparser(src), Scanner::new(), false, false).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a", false => ATTKind::Simple; "plain; not strict")]
+    #[test_case("arguments", false => ATTKind::Simple; "arguments; not strict")]
+    #[test_case("eval", false => ATTKind::Simple; "eval; not strict")]
+    #[test_case("yield", false => ATTKind::Simple; "yield; not strict")]
+    #[test_case("await", false => ATTKind::Simple; "await; not strict")]
+    #[test_case("a", true => ATTKind::Simple; "plain; strict")]
+    #[test_case("arguments", true => ATTKind::Invalid; "arguments; strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
+    #[test_case("yield", true => ATTKind::Simple; "yield; strict")]
+    #[test_case("await", true => ATTKind::Simple; "await; strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).yield_ok(false).await_ok(false).identifier_reference().assignment_target_type(strict)
     }
 }
 
 fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
     let yield_syntax = y;
     let await_syntax = a;
-    let strict = false;
-    let result = BindingIdentifier::parse(&mut Parser::new(text, strict, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = BindingIdentifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
     assert!(result.is_ok());
     let (bid, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -772,7 +757,7 @@ mod binding_identifier {
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
@@ -996,7 +981,7 @@ mod label_identifier {
         fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, strict, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))

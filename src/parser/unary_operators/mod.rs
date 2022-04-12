@@ -107,22 +107,6 @@ impl IsFunctionDefinition for UnaryExpression {
     }
 }
 
-impl AssignmentTargetType for UnaryExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(),
-            UnaryExpression::Delete(_)
-            | UnaryExpression::Void(_)
-            | UnaryExpression::Typeof(_)
-            | UnaryExpression::NoOp(_)
-            | UnaryExpression::Negate(_)
-            | UnaryExpression::Complement(_)
-            | UnaryExpression::Not(_)
-            | UnaryExpression::Await(_) => ATTKind::Invalid,
-        }
-    }
-}
-
 impl UnaryExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
@@ -200,6 +184,30 @@ impl UnaryExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            UnaryExpression::UpdateExpression(ue) => ue.contains_arguments(),
+            UnaryExpression::Delete(ue)
+            | UnaryExpression::Void(ue)
+            | UnaryExpression::Typeof(ue)
+            | UnaryExpression::NoOp(ue)
+            | UnaryExpression::Negate(ue)
+            | UnaryExpression::Complement(ue)
+            | UnaryExpression::Not(ue) => ue.contains_arguments(),
+            UnaryExpression::Await(ae) => ae.contains_arguments(),
+        }
+    }
+
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
             UnaryExpression::UpdateExpression(exp) => exp.is_strictly_deletable(),
@@ -241,6 +249,23 @@ impl UnaryExpression {
                 n.early_errors(agent, errs, strict)
             }
             UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(strict),
+            UnaryExpression::Delete(_)
+            | UnaryExpression::Void(_)
+            | UnaryExpression::Typeof(_)
+            | UnaryExpression::NoOp(_)
+            | UnaryExpression::Negate(_)
+            | UnaryExpression::Complement(_)
+            | UnaryExpression::Not(_)
+            | UnaryExpression::Await(_) => ATTKind::Invalid,
         }
     }
 }

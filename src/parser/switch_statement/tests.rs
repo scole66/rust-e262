@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -84,8 +84,15 @@ mod switch_statement {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SwitchStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Maker::new(src).switch_statement().early_errors(&mut agent, &mut errs, strict, wi);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("switch(arguments){}" => true; "left")]
+    #[test_case("switch(0){case 0:arguments;}" => true; "right")]
+    #[test_case("switch(0){}" => false; "none")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).switch_statement().contains_arguments()
     }
 }
 
@@ -283,7 +290,7 @@ mod case_block {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CaseBlock::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Maker::new(src).case_block().early_errors(&mut agent, &mut errs, strict, wi);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -294,7 +301,26 @@ mod case_block {
     #[test_case("{ case 1: let a; default: let b; }" => vec!["a", "b"]; "before+default")]
     #[test_case("{ default: let b; case 2: let c; }" => vec!["b", "c"]; "default+after")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        CaseBlock::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).case_block().lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("{case 0:arguments;}" => true; "no-default (yes)")]
+    #[test_case("{case 0:;}" => false; "no-default (no)")]
+    #[test_case("{default:arguments;}" => true; "xDx (yes)")]
+    #[test_case("{default:;}" => false; "xDx (no)")]
+    #[test_case("{case 0:arguments;default:;}" => true; "CDx (left)")]
+    #[test_case("{case 0:;default:arguments;}" => true; "CDx (right)")]
+    #[test_case("{case 0:;default:;}" => false; "CDx (none)")]
+    #[test_case("{default:arguments;case 0:;}" => true; "xDC (left)")]
+    #[test_case("{default:;case 0:arguments;}" => true; "xDC (right)")]
+    #[test_case("{default:;case 0:;}" => false; "xDC (none)")]
+    #[test_case("{case 1:arguments;default:;case 0:;}" => true; "CDC (left)")]
+    #[test_case("{case 1:;default:arguments;case 0:;}" => true; "CDC (middle)")]
+    #[test_case("{case 1:;default:;case 0:arguments;}" => true; "CDC (right)")]
+    #[test_case("{case 1:;default:;case 0:;}" => false; "CDC (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).case_block().contains_arguments()
     }
 }
 
@@ -400,14 +426,23 @@ mod case_clauses {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CaseClauses::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Maker::new(src).case_clauses().early_errors(&mut agent, &mut errs, strict, wi);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("case 0: let a;" => vec!["a"]; "single")]
     #[test_case("case 0: let a; case 3: let x, y, z;" => vec!["a", "x", "y", "z"]; "multi")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        CaseClauses::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).case_clauses().lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("case 0:arguments;" => true; "Item (yes)")]
+    #[test_case("case 0:;" => false; "Item (no)")]
+    #[test_case("case 0:arguments;case 1:;" => true; "List (left)")]
+    #[test_case("case 0:;case 1:arguments;" => true; "List (right)")]
+    #[test_case("case 0:;case 1:;" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).case_clauses().contains_arguments()
     }
 }
 
@@ -511,14 +546,23 @@ mod case_clause {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CaseClause::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Maker::new(src).case_clause().early_errors(&mut agent, &mut errs, strict, wi);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("case 0:" => Vec::<String>::new(); "no statements")]
     #[test_case("case 0: let a;" => vec!["a"]; "some decls")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        CaseClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).case_clause().lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("case arguments:" => true; "Exp (yes)")]
+    #[test_case("case 0:" => false; "Exp (no)")]
+    #[test_case("case arguments:;" => true; "Binary (left)")]
+    #[test_case("case 0:arguments;" => true; "Binary (right)")]
+    #[test_case("case 0:;" => false; "Binary (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).case_clause().contains_arguments()
     }
 }
 
@@ -616,13 +660,20 @@ mod default_clause {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        DefaultClause::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi);
+        Maker::new(src).default_clause().early_errors(&mut agent, &mut errs, strict, wi);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("default:" => Vec::<String>::new(); "no statements")]
     #[test_case("default: let z, w;" => vec!["z", "w"]; "statements with decls")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        DefaultClause::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).default_clause().lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+    }
+
+    #[test_case("default:" => false; "empty")]
+    #[test_case("default:arguments;" => true; "stmt (yes)")]
+    #[test_case("default:;" => false; "stmt (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).default_clause().contains_arguments()
     }
 }

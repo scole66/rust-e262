@@ -66,15 +66,6 @@ impl IsFunctionDefinition for BitwiseANDExpression {
     }
 }
 
-impl AssignmentTargetType for BitwiseANDExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl BitwiseANDExpression {
     // No caching needed. Only one parent.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -118,6 +109,23 @@ impl BitwiseANDExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.contains_arguments(),
+            BitwiseANDExpression::BitwiseAND(bae, ee) => bae.contains_arguments() || ee.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.early_errors(agent, errs, strict),
@@ -132,6 +140,16 @@ impl BitwiseANDExpression {
         match self {
             BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(strict),
+            BitwiseANDExpression::BitwiseAND(..) => ATTKind::Invalid,
         }
     }
 }
@@ -195,15 +213,6 @@ impl IsFunctionDefinition for BitwiseXORExpression {
     }
 }
 
-impl AssignmentTargetType for BitwiseXORExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl BitwiseXORExpression {
     // Only one parent. No need to cache.
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -247,6 +256,23 @@ impl BitwiseXORExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(bae) => bae.contains_arguments(),
+            BitwiseXORExpression::BitwiseXOR(bxe, bae) => bxe.contains_arguments() || bae.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(agent, errs, strict),
@@ -261,6 +287,16 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(strict),
+            BitwiseXORExpression::BitwiseXOR(..) => ATTKind::Invalid,
         }
     }
 }
@@ -324,15 +360,6 @@ impl IsFunctionDefinition for BitwiseORExpression {
     }
 }
 
-impl AssignmentTargetType for BitwiseORExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(),
-            _ => ATTKind::Invalid,
-        }
-    }
-}
-
 impl BitwiseORExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         BitwiseXORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(bxor1, after_bxor1)| {
@@ -387,6 +414,23 @@ impl BitwiseORExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.contains_arguments(),
+            BitwiseORExpression::BitwiseOR(boe, bxe) => boe.contains_arguments() || bxe.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(agent, errs, strict),
@@ -401,6 +445,16 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
+            _ => ATTKind::Invalid,
         }
     }
 }
