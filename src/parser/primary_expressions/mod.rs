@@ -390,7 +390,7 @@ impl PrimaryExpression {
             PrimaryExpression::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
             PrimaryExpression::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
             PrimaryExpression::Function(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpression::Class(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpression::Class(node) => node.early_errors(agent, errs),
             PrimaryExpression::Generator(node) => node.early_errors(agent, errs, strict),
             PrimaryExpression::AsyncFunction(node) => node.early_errors(agent, errs, strict),
             PrimaryExpression::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
@@ -1615,7 +1615,7 @@ impl PropertyDefinition {
                     // E.g.: x = { b() { super(); } };
                     errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
                 }
-                if !md.private_bound_identifiers().is_empty() {
+                if md.private_bound_identifier().is_some() {
                     // E.g.: x = { #b() {} };
                     errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
                 }

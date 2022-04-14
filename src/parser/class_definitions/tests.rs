@@ -98,7 +98,7 @@ mod class_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -190,7 +190,7 @@ mod class_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -446,11 +446,6 @@ fn class_body_test_computed_property_contains_02() {
     let (item, _) = ClassBody::parse(&mut newparser("a(){;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn class_body_test_private_bound_identifiers() {
-    let (item, _) = ClassBody::parse(&mut newparser("a(){} #b(){} async *#c(){}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#b"), JSString::from("#c")]);
-}
 #[test_case("#a(){} b(){this.#a(); item.#valid();}" => true; "valid")]
 #[test_case("#a(){} b(){this.#a(); item.#invalid();}" => false; "invalid")]
 fn class_body_test_all_private_identifiers_valid(src: &str) -> bool {
@@ -471,6 +466,11 @@ mod class_body {
     #[test_case(";" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_body().contains_arguments()
+    }
+
+    #[test_case("a(){} #b(){} async *#c(){}" => vec![("#b".to_string(), IdUsage::Public), ("#c".to_string(), IdUsage::Public)]; "mix")]
+    fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
+        Maker::new(src).class_body().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
     }
 }
 
@@ -555,12 +555,6 @@ fn class_element_list_test_computed_property_contains_05() {
     let (item, _) = ClassElementList::parse(&mut newparser("a(){0;} b(){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test_case("#one_item(){}" => vec![JSString::from("#one_item")]; "Item")]
-#[test_case("#a; #b; #c;" => vec![JSString::from("#a"), JSString::from("#b"), JSString::from("#c")]; "List")]
-fn class_element_list_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
-    let (item, _) = ClassElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.private_bound_identifiers()
-}
 #[test_case("a(){item.#valid;}" => true; "One item valid")]
 #[test_case("a(){item.#valid;} b(){}" => true; "Multi first valid")]
 #[test_case("a(){} b(){item.#valid;}" => true; "Multi second valid")]
@@ -588,6 +582,11 @@ mod class_element_list {
     #[test_case("a; b;" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_element_list().contains_arguments()
+    }
+    #[test_case("#one_item(){}" => vec![("#one_item".to_string(), IdUsage::Public)]; "Item")]
+    #[test_case("#a; #b; #c;" => vec![("#a".to_string(), IdUsage::Public), ("#b".to_string(), IdUsage::Public), ("#c".to_string(), IdUsage::Public)]; "List")]
+    fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
+        Maker::new(src).class_element_list().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
     }
 }
 
@@ -812,16 +811,6 @@ fn class_element_test_computed_property_contains_10() {
     let (item, _) = ClassElement::parse(&mut newparser("static {0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test_case(";" => Vec::<JSString>::new(); "Empty")]
-#[test_case("static { do_thing(); }" => Vec::<JSString>::new(); "Static Block")]
-#[test_case("#method(){}" => vec![JSString::from("#method")]; "Method")]
-#[test_case("static #sm(){}" => vec![JSString::from("#sm")]; "Static Method")]
-#[test_case("#field=77;" => vec![JSString::from("#field")]; "Field")]
-#[test_case("static #sf=88;" => vec![JSString::from("#sf")]; "Static Field")]
-fn class_element_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
-    let (item, _) = ClassElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.private_bound_identifiers()
-}
 #[test_case(";" => true; "Empty")]
 #[test_case("a(){item.#valid;}" => true; "Method valid")]
 #[test_case("static a(){item.#valid;}" => true; "Static method valid")]
@@ -860,6 +849,27 @@ mod class_element {
     #[test_case(";" => false; "semi")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_element().contains_arguments()
+    }
+    #[test_case(";" => None; "Empty")]
+    #[test_case("static { do_thing(); }" => None; "Static Block")]
+    #[test_case("#method(){}" => Some(("#method".to_string(), IdUsage::Public)); "Method")]
+    #[test_case("static #sm(){}" => Some(("#sm".to_string(), IdUsage::Static)); "Static Method")]
+    #[test_case("#field=77;" => Some(("#field".to_string(), IdUsage::Public)); "Field")]
+    #[test_case("static #sf=88;" => Some(("#sf".to_string(), IdUsage::Static)); "Static Field")]
+    #[test_case("get #getter(){}" => Some(("#getter".to_string(), IdUsage::Getter)); "Getter")]
+    #[test_case("set #setter(x){}" => Some(("#setter".to_string(), IdUsage::Setter)); "Setter")]
+    #[test_case("static get #getter(){}" => Some(("#getter".to_string(), IdUsage::StaticGetter)); "Static Getter")]
+    #[test_case("static set #setter(x){}" => Some(("#setter".to_string(), IdUsage::StaticSetter)); "Static Setter")]
+    #[test_case("method(){}" => None; "Method (public)")]
+    #[test_case("static sm(){}" => None; "Static Method (public)")]
+    #[test_case("field=77;" => None; "Field (public)")]
+    #[test_case("static sf=88;" => None; "Static Field (public)")]
+    #[test_case("get getter(){}" => None; "Getter (public)")]
+    #[test_case("set setter(x){}" => None; "Setter (public)")]
+    #[test_case("static get getter(){}" => None; "Static Getter (public)")]
+    #[test_case("static set setter(x){}" => None; "Static Setter (public)")]
+    fn private_bound_identifier(src: &str) -> Option<(String, IdUsage)> {
+        Maker::new(src).class_element().private_bound_identifier().map(|id| (String::from(id.name), id.usage))
     }
 }
 
@@ -944,11 +954,6 @@ fn field_definition_test_computed_property_contains_03() {
     let (item, _) = FieldDefinition::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn field_definition_test_private_bound_identifiers() {
-    let (item, _) = FieldDefinition::parse(&mut newparser("#private"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#private")]);
-}
 #[test_case("[item.#valid]" => true; "No init valid")]
 #[test_case("[item.#valid]=0" => true; "Name valid")]
 #[test_case("a=item.#valid" => true; "Initializer valid")]
@@ -976,6 +981,11 @@ mod field_definition {
     #[test_case("a=b" => false; "initialized (none)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).field_definition().contains_arguments()
+    }
+    #[test_case("#private" => Some("#private".to_string()); "private")]
+    #[test_case("simple" => None; "public")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).field_definition().private_bound_identifier().map(String::from)
     }
 }
 
@@ -1050,12 +1060,7 @@ fn class_element_name_test_computed_property_contains_03() {
     let (item, _) = ClassElementName::parse(&mut newparser("#a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test_case("public" => Vec::<JSString>::new(); "PropertyName")]
-#[test_case("#private" => vec![JSString::from("#private")]; "PrivateIdentifier")]
-fn class_element_name_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
-    let (item, _) = ClassElementName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.private_bound_identifiers()
-}
+
 #[test_case("#a" => true; "PrivateId")]
 #[test_case("[item.#valid]" => true; "Name valid")]
 #[test_case("[item.#invalid]" => false; "Name invalid")]
@@ -1084,6 +1089,12 @@ mod class_element_name {
     #[test_case("#a" => false; "pid")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_element_name().contains_arguments()
+    }
+
+    #[test_case("public" => None; "PropertyName")]
+    #[test_case("#private" => Some("#private".to_string()); "PrivateIdentifier")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).class_element_name().private_bound_identifier().map(String::from)
     }
 }
 
@@ -1225,10 +1236,44 @@ mod class_static_block_statement_list {
         ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
     }
 
+    #[test_case("", &[] => false; "empty")]
+    #[test_case("a;", &["b"] => false; "stmt (no labels)")]
+    #[test_case("b: a;", &["b"] => true; "stmt (dup'd label)")]
+    fn contains_duplicate_labels(src: &str, label_set: &[&str]) -> bool {
+        let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
+        Maker::new(src).class_static_block_statement_list().contains_duplicate_labels(&l_set)
+    }
+
+    #[test_case("", &[] => false; "empty")]
+    #[test_case("break x;", &[] => true; "bare break")]
+    #[test_case("break x;", &["x"] => false; "break (labelset)")]
+    fn contains_undefined_break_target(src: &str, label_set: &[&str]) -> bool {
+        let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
+        Maker::new(src).class_static_block_statement_list().contains_undefined_break_target(&l_set)
+    }
+
+    #[test_case("", &[], &[] => false; "empty")]
+    #[test_case("continue x;", &[], &[] => true; "bare continue")]
+    #[test_case("continue x;", &["x"], &[] => false; "ok continue (iterset)")]
+    #[test_case("for (;;) { continue x; }", &[], &["x"] => false; "ok continue (labelset)")]
+    fn contains_undefined_continue_target(src: &str, iteration_set: &[&str], label_set: &[&str]) -> bool {
+        let i_set = iteration_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
+        let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
+        Maker::new(src).class_static_block_statement_list().contains_undefined_continue_target(&i_set, &l_set)
+    }
+
     #[test_case("" => false; "empty")]
     #[test_case("arguments;" => true; "stmt (yes)")]
     #[test_case("a;" => false; "stmt (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_static_block_statement_list().contains_arguments()
+    }
+
+    #[test_case("", ParseNodeKind::StatementList => false; "empty; has statementlist?")]
+    #[test_case("a=b;", ParseNodeKind::StatementList => true; "statement; has statementlist?")]
+    #[test_case("a=this;", ParseNodeKind::This => true; "statement with this; has this?")]
+    #[test_case("a=b;", ParseNodeKind::This => false; "statement without this; has this?")]
+    fn contains(src: &str, kind: ParseNodeKind) -> bool {
+        Maker::new(src).class_static_block_statement_list().contains(kind)
     }
 }

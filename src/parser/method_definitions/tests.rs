@@ -379,16 +379,6 @@ fn method_definition_test_computed_property_contains_12() {
     let (item, _) = MethodDefinition::parse(&mut newparser("set [0](b){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
 }
-#[test_case("#standard_method(){}" => vec![JSString::from("#standard_method")]; "Standard Method")]
-#[test_case("*#generator(){}" => vec![JSString::from("#generator")]; "Generator")]
-#[test_case("async #async_method(){}" => vec![JSString::from("#async_method")]; "Async Method")]
-#[test_case("async *#async_gen(){}" => vec![JSString::from("#async_gen")]; "Async Generator")]
-#[test_case("get #getter(){}" => vec![JSString::from("#getter")]; "Getter")]
-#[test_case("set #setter(val){}" => vec![JSString::from("#setter")]; "Setter")]
-fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
-    let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.private_bound_identifiers()
-}
 #[test_case("a(){b.#valid;}" => true; "method valid")]
 #[test_case("*a(){b.#valid;}" => true; "generator valid")]
 #[test_case("async a(){b.#valid;}" => true; "async method valid")]
@@ -473,6 +463,22 @@ mod method_definition {
     #[test_case("set a(b){}" => false; "setter (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).method_definition().contains_arguments()
+    }
+
+    #[test_case("#standard_method(){}" => Some((String::from("#standard_method"), MethodType::Normal)); "Standard Method")]
+    #[test_case("*#generator(){}" => Some((String::from("#generator"), MethodType::Normal)); "Generator")]
+    #[test_case("async #async_method(){}" => Some((String::from("#async_method"), MethodType::Normal)); "Async Method")]
+    #[test_case("async *#async_gen(){}" => Some((String::from("#async_gen"), MethodType::Normal)); "Async Generator")]
+    #[test_case("get #getter(){}" => Some((String::from("#getter"), MethodType::Getter)); "Getter")]
+    #[test_case("set #setter(val){}" => Some((String::from("#setter"), MethodType::Setter)); "Setter")]
+    #[test_case("standard_method(){}" => None; "Standard Method; not private")]
+    #[test_case("*generator(){}" => None; "Generator; not private")]
+    #[test_case("async async_method(){}" => None; "Async Method; not private")]
+    #[test_case("async *async_gen(){}" => None; "Async Generator; not private")]
+    #[test_case("get getter(){}" => None; "Getter; not private")]
+    #[test_case("set setter(val){}" => None; "Setter; not private")]
+    fn private_bound_identifier(src: &str) -> Option<(String, MethodType)> {
+        Maker::new(src).method_definition().private_bound_identifier().map(|(jss, mt)| (String::from(jss), mt))
     }
 }
 
