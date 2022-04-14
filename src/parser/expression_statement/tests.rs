@@ -64,16 +64,6 @@ fn expression_statement_test_err_06() {
 fn expression_statement_test_err_07() {
     check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 2);
 }
-#[test]
-fn expression_statement_test_contains_01() {
-    let (item, _) = ExpressionStatement::parse(&mut newparser("0;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_statement_test_contains_02() {
-    let (item, _) = ExpressionStatement::parse(&mut newparser("a;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("'string';" => Some(JSString::from("string")); "String Token")]
 #[test_case("a??b;" => None; "Not token")]
 fn expression_statement_test_as_string_literal(src: &str) -> Option<JSString> {
@@ -102,5 +92,12 @@ mod expression_statement {
     #[test_case("a;" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("0;", ParseNodeKind::Literal => true; "literal match")]
+    #[test_case("a;", ParseNodeKind::Literal => false; "literal no match")]
+    #[test_case("thing;", ParseNodeKind::Expression => true; "just a thing")]
+    fn contains(src: &str, target: ParseNodeKind) -> bool {
+        ExpressionStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains(target)
     }
 }

@@ -1900,14 +1900,16 @@ mod property_definition {
     use test_case::test_case;
 
     const BAD_DESTRUCTURE: &str = "Illegal destructuring syntax in non-destructuring context";
+    const UNEXPECTED_PRIVATE: &str = "Private identifier unexpected here";
+    const UNEXPECTED_SUPER: &str = "'super' keyword unexpected here";
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
     #[test_case("package=b", true => set(&[PACKAGE_NOT_ALLOWED, BAD_DESTRUCTURE]); "cover init")]
     #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "property name")]
-    #[test_case("package(){}", true => panics "not yet implemented"; "method def")]
+    #[test_case("[package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
     #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread element")]
-    #[test_case("a(b=super()){}", true => panics "not yet implemented"; "HasDirectSuper of MethodDefinition")]
-    #[test_case("#a(){}", true => panics "not yet implemented"; "unexpected private id in MethodDef")]
+    #[test_case("a(b=super()){}", true => set(&[UNEXPECTED_SUPER]); "HasDirectSuper of MethodDefinition")]
+    #[test_case("#a(){}", true => set(&[UNEXPECTED_PRIVATE]); "unexpected private id in MethodDef")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
