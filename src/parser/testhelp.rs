@@ -16,6 +16,7 @@ use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
+use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
@@ -365,6 +366,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ExpressionBody`] parse node.
     pub fn expression_body(self) -> Rc<ExpressionBody> {
         ExpressionBody::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ExpressionStatement`] parse node.
+    pub fn expression_statement(self) -> Rc<ExpressionStatement> {
+        ExpressionStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`FieldDefinition`] parse node.
     pub fn field_definition(self) -> Rc<FieldDefinition> {
