@@ -5,6 +5,22 @@ use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 use test_case::test_case;
 
+mod method_type {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", MethodType::Setter), "");
+    }
+
+    #[test_case(MethodType::Setter, MethodType::Setter => true; "equal")]
+    #[test_case(MethodType::Getter, MethodType::Normal => false; "not equal")]
+    fn eq(left: MethodType, right: MethodType) -> bool {
+        left == right
+    }
+}
+
 // METHOD DEFINITION
 #[test]
 fn method_definition_test_01() {
@@ -479,6 +495,16 @@ mod method_definition {
     #[test_case("set setter(val){}" => None; "Setter; not private")]
     fn private_bound_identifier(src: &str) -> Option<(String, MethodType)> {
         Maker::new(src).method_definition().private_bound_identifier().map(|(jss, mt)| (String::from(jss), mt))
+    }
+
+    #[test_case("a(){}" => false; "standard method")]
+    #[test_case("*a(){}" => true; "generator")]
+    #[test_case("async m(){}" => true; "async fcn")]
+    #[test_case("async *m(){}" => true; "async gen")]
+    #[test_case("get foo(){}" => true; "getter")]
+    #[test_case("set foo(val){}" => true; "setter")]
+    fn special_method(src: &str) -> bool {
+        Maker::new(src).method_definition().special_method()
     }
 }
 

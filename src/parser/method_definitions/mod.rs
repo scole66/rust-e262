@@ -364,7 +364,7 @@ impl MethodDefinition {
 
     /// Determine whether this node is an ordinary method, or a special one.
     ///
-    /// "Special" methods are asychronous functions, generators, or propert setters or getters.
+    /// "Special" methods are asychronous functions, generators, or property setters or getters.
     ///
     /// See [SpecialMethod](https://tc39.es/ecma262/#sec-static-semantics-specialmethod) in ECMA-262.
     pub fn special_method(&self) -> bool {
