@@ -59,31 +59,6 @@ fn expression_test_conciseerrors_2() {
     let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn expression_test_contains_01() {
-    let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_02() {
-    let (item, _) = Expression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn expression_test_contains_03() {
-    let (item, _) = Expression::parse(&mut newparser("0,a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_04() {
-    let (item, _) = Expression::parse(&mut newparser("a,0"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_05() {
-    let (item, _) = Expression::parse(&mut newparser("a,a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
 #[test_case("a,b" => None; "Not token")]
 fn expression_test_as_string_literal(src: &str) -> Option<JSString> {
@@ -134,5 +109,17 @@ mod expression {
     #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).expression().assignment_target_type(strict)
+    }
+
+    #[test_case("0", ParseNodeKind::Literal => true; "expr; literal; yes")]
+    #[test_case("a", ParseNodeKind::Literal => false; "expr; literal; no")]
+    #[test_case("a,0", ParseNodeKind::Literal => true; "commas; literal; right")]
+    #[test_case("0,a", ParseNodeKind::Literal => true; "commas; literal; left")]
+    #[test_case("a,a", ParseNodeKind::Literal => false; "commas; literal; none")]
+    #[test_case("a", ParseNodeKind::AssignmentExpression => true; "expr; ae")]
+    #[test_case("a,a", ParseNodeKind::Expression => true; "comma; expr")]
+    #[test_case("a,a", ParseNodeKind::AssignmentExpression => true; "comma; ae")]
+    fn contains(src: &str, target: ParseNodeKind) -> bool {
+        Maker::new(src).expression().contains(target)
     }
 }
