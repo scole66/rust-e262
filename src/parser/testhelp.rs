@@ -81,6 +81,10 @@ pub fn set(items: &[&str]) -> AHashSet<String> {
     AHashSet::from_iter(items.iter().map(|&x| String::from(x)))
 }
 
+pub fn svec(items: &[&str]) -> Vec<String> {
+    items.into_iter().map(|&s| String::from(s)).collect::<Vec<_>>()
+}
+
 /// Parse Node builder for test cases
 ///
 /// This struct holds options used when parsing text to make Parse Nodes, towered together in a builder pattern. Not all
@@ -545,3 +549,10 @@ pub const DUPLICATE_LEXICAL: &str = "Duplicate lexically declared names";
 pub const LEX_DUPED_BY_VAR: &str = "Name defined both lexically and var-style";
 pub const WITH_NOT_ALLOWED: &str = "'with' statements not allowed in strict mode";
 pub const PRIVATE_NOT_ALLOWED: &str = "‘private’ not allowed as an identifier in strict mode";
+pub const UNDEFINED_BREAK: &str = "undefined break target detected";
+pub const DUPLICATE_LABELS: &str = "duplicate labels detected";
+pub const UNEXPECTED_ARGS: &str = "‘arguments’ not expected here";
+pub const UNEXPECTED_SUPER: &str = "super calls not expected here";
+pub const UNDEF_CONT_TGT: &str = "undefined continue target detected";
+pub const A_ALREADY_DEFN: &str = "‘a’ already defined";
+pub const PRIVATE_CONSTRUCTOR: &str = "#constructor is an invalid private id";

@@ -1,8 +1,19 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, DUPLICATE_LABELS, PACKAGE_NOT_ALLOWED, PRIVATE_CONSTRUCTOR, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS,
+    UNEXPECTED_SUPER,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
+
+fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
+    items.into_iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
+}
+fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
+    Some((String::from(s), u))
+}
 
 // CLASS DECLARATION
 #[test]
@@ -468,7 +479,7 @@ mod class_body {
         Maker::new(src).class_body().contains_arguments()
     }
 
-    #[test_case("a(){} #b(){} async *#c(){}" => vec![("#b".to_string(), IdUsage::Public), ("#c".to_string(), IdUsage::Public)]; "mix")]
+    #[test_case("a(){} #b(){} async *#c(){}" => v(&[("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "mix")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
         Maker::new(src).class_body().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
     }
@@ -583,8 +594,8 @@ mod class_element_list {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_element_list().contains_arguments()
     }
-    #[test_case("#one_item(){}" => vec![("#one_item".to_string(), IdUsage::Public)]; "Item")]
-    #[test_case("#a; #b; #c;" => vec![("#a".to_string(), IdUsage::Public), ("#b".to_string(), IdUsage::Public), ("#c".to_string(), IdUsage::Public)]; "List")]
+    #[test_case("#one_item(){}" => v(&[("#one_item", IdUsage::Public)]); "Item")]
+    #[test_case("#a; #b; #c;" => v(&[("#a", IdUsage::Public), ("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "List")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
         Maker::new(src).class_element_list().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
     }
@@ -852,14 +863,14 @@ mod class_element {
     }
     #[test_case(";" => None; "Empty")]
     #[test_case("static { do_thing(); }" => None; "Static Block")]
-    #[test_case("#method(){}" => Some(("#method".to_string(), IdUsage::Public)); "Method")]
-    #[test_case("static #sm(){}" => Some(("#sm".to_string(), IdUsage::Static)); "Static Method")]
-    #[test_case("#field=77;" => Some(("#field".to_string(), IdUsage::Public)); "Field")]
-    #[test_case("static #sf=88;" => Some(("#sf".to_string(), IdUsage::Static)); "Static Field")]
-    #[test_case("get #getter(){}" => Some(("#getter".to_string(), IdUsage::Getter)); "Getter")]
-    #[test_case("set #setter(x){}" => Some(("#setter".to_string(), IdUsage::Setter)); "Setter")]
-    #[test_case("static get #getter(){}" => Some(("#getter".to_string(), IdUsage::StaticGetter)); "Static Getter")]
-    #[test_case("static set #setter(x){}" => Some(("#setter".to_string(), IdUsage::StaticSetter)); "Static Setter")]
+    #[test_case("#method(){}" => s("#method", IdUsage::Public); "Method")]
+    #[test_case("static #sm(){}" => s("#sm", IdUsage::Static); "Static Method")]
+    #[test_case("#field=77;" => s("#field", IdUsage::Public); "Field")]
+    #[test_case("static #sf=88;" => s("#sf", IdUsage::Static); "Static Field")]
+    #[test_case("get #getter(){}" => s("#getter", IdUsage::Getter); "Getter")]
+    #[test_case("set #setter(x){}" => s("#setter", IdUsage::Setter); "Setter")]
+    #[test_case("static get #getter(){}" => s("#getter", IdUsage::StaticGetter); "Static Getter")]
+    #[test_case("static set #setter(x){}" => s("#setter", IdUsage::StaticSetter); "Static Setter")]
     #[test_case("method(){}" => None; "Method (public)")]
     #[test_case("static sm(){}" => None; "Static Method (public)")]
     #[test_case("field=77;" => None; "Field (public)")]
@@ -1071,10 +1082,16 @@ fn class_element_name_test_all_private_identifiers_valid(src: &str) -> bool {
 mod class_element_name {
     use super::*;
     use test_case::test_case;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassElementName::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+
+    #[test_case("bob" => set(&[]); "utterly normal")]
+    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "bad property name")]
+    #[test_case("#constructor" => set(&[PRIVATE_CONSTRUCTOR]); "private constructor")]
+    #[test_case("#private" => set(&[]); "simple private")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_element_name().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a" => Some(JSString::from("a")); "normal")]
@@ -1137,10 +1154,14 @@ mod class_static_block {
         let (item, _) = ClassStaticBlock::parse(&mut newparser(src), Scanner::new()).unwrap();
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassStaticBlock::parse(&mut newparser("static { a; }"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+
+    #[test_case("static {}" => set(&[]); "empty")]
+    #[test_case("static {package;}" => set(&[PACKAGE_NOT_ALLOWED]); "something")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_static_block().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("static { arguments; }" => true; "yes")]
@@ -1178,10 +1199,22 @@ mod class_static_block_body {
         let (item, _) = ClassStaticBlockBody::parse(&mut newparser(src), Scanner::new());
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassStaticBlockBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+
+    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "yes")]
+    #[test_case("p;" => set(&[]); "no")]
+    #[test_case("let a; const a=0;" => set(&[A_ALREADY_DEFN]); "duplicate lexicals")]
+    #[test_case("let a; function a(){}" => set(&[A_ALREADY_DEFN]); "var/lex clash")]
+    #[test_case("a: a: ;" => set(&[DUPLICATE_LABELS]); "duplicate labels")]
+    #[test_case("break foo;" => set(&[UNDEFINED_BREAK]); "undefined break")]
+    #[test_case("while (1) continue foo;" => set(&[UNDEF_CONT_TGT]); "undefined continue")]
+    #[test_case("let x = arguments;" => set(&[UNEXPECTED_ARGS]); "has arguments")]
+    #[test_case("super();" => set(&[UNEXPECTED_SUPER]); "super call")]
+    #[test_case("await a();" => panics "not yet implemented" /*set(&["something"])*/; "await expr")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_static_block_body().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("arguments;" => true; "yes")]
@@ -1230,10 +1263,15 @@ mod class_static_block_statement_list {
         let (item, _) = ClassStaticBlockStatementList::parse(&mut newparser(src), Scanner::new());
         item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassStaticBlockStatementList::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+
+    #[test_case("package;" => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    #[test_case("0;" => set(&[]); "normal")]
+    #[test_case("" => set(&[]); "empty")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_static_block_statement_list().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("", &[] => false; "empty")]
@@ -1275,5 +1313,17 @@ mod class_static_block_statement_list {
     #[test_case("a=b;", ParseNodeKind::This => false; "statement without this; has this?")]
     fn contains(src: &str, kind: ParseNodeKind) -> bool {
         Maker::new(src).class_static_block_statement_list().contains(kind)
+    }
+
+    #[test_case("var a; const q=1; function b(){}" => svec(&["a", "b"]); "names")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).class_static_block_statement_list().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
+    #[test_case("" => svec(&[]); "empty")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).class_static_block_statement_list().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 }
