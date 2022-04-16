@@ -1623,7 +1623,7 @@ impl ClassStaticBlockBody {
             errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here"))
         }
         if self.0.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "super calls not expected here"))
+            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"))
         }
         if self.0.contains(ParseNodeKind::AwaitExpression) {
             errs.push(create_syntax_error_object(agent, "await expressions not expected here"))
@@ -1742,6 +1742,17 @@ impl ClassStaticBlockStatementList {
         }
     }
 
+    /// Detect whether this node contains an undefined break target
+    ///
+    /// * If this node contains a `break` statement with a label contained with `label_set`, then this is not an
+    ///   undefined break target.
+    /// * If this node contains a labelled breakable statement that contains a break statement with th matching label,
+    ///   then this is not an undefined break target.
+    ///
+    /// Any targeted break statement that does not meet one of the above conditions has an "undefined break target".
+    ///
+    /// See [ContainsUndefinedBreakTarget](https://tc39.es/ecma262/#sec-static-semantics-containsundefinedbreaktarget)
+    /// from ECMA-262.
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self.0.as_ref() {
             Some(sl) => sl.contains_undefined_break_target(label_set),
@@ -1749,6 +1760,22 @@ impl ClassStaticBlockStatementList {
         }
     }
 
+    /// Detect whether this node contains an undefined continue target
+    ///
+    /// * If this node contains a `continue` statement with a label contained within `iteration_set`, then this is not
+    ///   an undefined continue target.
+    /// * If this node contains an iteration statement that contains a `continue` statement with a label contained
+    ///   within `label_set`, then this is not an undefined continue target (the label from the label set applies to the
+    ///   iteration statement).
+    /// * If this node contains a labelled iteration statement with a matching continue, then that's also not an
+    ///   undefined target (independent of the input arguments)
+    ///
+    /// Any targeted continue statement that does not meet one of the above conditions has an "undefined continue
+    /// target".
+    ///
+    /// See
+    /// [ContainsUndefinedContinueTarget](https://tc39.es/ecma262/#sec-static-semantics-containsundefinedcontinuetarget)
+    /// from ECMA-262.
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
         match self.0.as_ref() {
             Some(sl) => sl.contains_undefined_continue_target(iteration_set, label_set),

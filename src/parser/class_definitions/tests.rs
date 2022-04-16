@@ -1,6 +1,6 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, DUPLICATE_LABELS, PACKAGE_NOT_ALLOWED, PRIVATE_CONSTRUCTOR, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS,
-    UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_CONSTRUCTOR, UNDEFINED_BREAK,
+    UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -13,6 +13,9 @@ fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
 }
 fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
     Some((String::from(s), u))
+}
+fn ss(s: &str) -> Option<String> {
+    Some(s.to_string())
 }
 
 // CLASS DECLARATION
@@ -882,6 +885,37 @@ mod class_element {
     fn private_bound_identifier(src: &str) -> Option<(String, IdUsage)> {
         Maker::new(src).class_element().private_bound_identifier().map(|id| (String::from(id.name), id.usage))
     }
+
+    #[test_case(";" => false; "empty")]
+    #[test_case("a;" => false; "field def")]
+    #[test_case("static a;" => false; "static field def")]
+    #[test_case("static {}" => false; "static block")]
+    #[test_case("a(){return super();}" => true; "method yes")]
+    #[test_case("a(){}" => false; "method no")]
+    #[test_case("static a(){return super();}" => true; "static method yes")]
+    #[test_case("static a(){}" => false; "static method no")]
+    fn has_direct_super(src: &str) -> bool {
+        Maker::new(src).class_element().has_direct_super()
+    }
+}
+
+mod ce_kind {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(CEKind::ConstructorMethod => with |s| assert_ne!(s, ""); "ConstructorMethod")]
+    #[test_case(CEKind::NonConstructorMethod => with |s| assert_ne!(s, ""); "NonConstructorMethod")]
+    fn debug(item: CEKind) -> String {
+        format!("{:?}", item)
+    }
+
+    #[test_case(CEKind::ConstructorMethod, CEKind::ConstructorMethod => true; "cm eq")]
+    #[test_case(CEKind::NonConstructorMethod, CEKind::ConstructorMethod => false; "ncm ne cm")]
+    #[test_case(CEKind::ConstructorMethod, CEKind::NonConstructorMethod => false; "cm ne ncm")]
+    #[test_case(CEKind::NonConstructorMethod, CEKind::NonConstructorMethod => true; "ncm eq")]
+    fn eq(left: CEKind, right: CEKind) -> bool {
+        left == right
+    }
 }
 
 // FIELD DEFINITION
@@ -979,10 +1013,15 @@ mod field_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        FieldDefinition::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("[package]=implements" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "with izer")]
+    #[test_case("[package]" => set(&[PACKAGE_NOT_ALLOWED]); "without izer")]
+    #[test_case("a=arguments" => set(&[UNEXPECTED_ARGS]); "args in izer")]
+    #[test_case("a=super()" => set(&[UNEXPECTED_SUPER]); "super in izer")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).field_definition().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("[arguments]" => true; "name (yes)")]
@@ -997,6 +1036,12 @@ mod field_definition {
     #[test_case("simple" => None; "public")]
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).field_definition().private_bound_identifier().map(String::from)
+    }
+
+    #[test_case("blue" => ss("blue"); "simple")]
+    #[test_case("[Math.sin(x)]" => None; "complex")]
+    fn prop_name(src: &str) -> Option<String> {
+        Maker::new(src).field_definition().prop_name().map(String::from)
     }
 }
 
@@ -1285,6 +1330,7 @@ mod class_static_block_statement_list {
     #[test_case("", &[] => false; "empty")]
     #[test_case("break x;", &[] => true; "bare break")]
     #[test_case("break x;", &["x"] => false; "break (labelset)")]
+    #[test_case("x: while(1) { break x; }", &[] => false; "break (labelled loop)")]
     fn contains_undefined_break_target(src: &str, label_set: &[&str]) -> bool {
         let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
         Maker::new(src).class_static_block_statement_list().contains_undefined_break_target(&l_set)
@@ -1294,6 +1340,7 @@ mod class_static_block_statement_list {
     #[test_case("continue x;", &[], &[] => true; "bare continue")]
     #[test_case("continue x;", &["x"], &[] => false; "ok continue (iterset)")]
     #[test_case("for (;;) { continue x; }", &[], &["x"] => false; "ok continue (labelset)")]
+    #[test_case("x: while (1) { continue x; }", &[], &[] => false; "ok continue (labelled iteration)")]
     fn contains_undefined_continue_target(src: &str, iteration_set: &[&str], label_set: &[&str]) -> bool {
         let i_set = iteration_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
         let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<JSString>>();
