@@ -1,6 +1,6 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_CONSTRUCTOR, UNDEFINED_BREAK,
-    UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+    PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -844,10 +844,25 @@ mod class_element {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case(";" => set(&[]); "empty")]
+    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "field def")]
+    #[test_case("static a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "static field")]
+    #[test_case("a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
+    #[test_case("static a(){package;}" => set(&[PACKAGE_NOT_ALLOWED]); "static method def")]
+    #[test_case("static { package; }" => set(&[PACKAGE_NOT_ALLOWED]); "static block")]
+    #[test_case("constructor(){super();}" => set(&[]); "constructor with super")]
+    #[test_case("other(){super();}" => set(&[BAD_SUPER]); "other with super")]
+    #[test_case("get constructor(){}" => set(&[SPECIAL_CONSTRUCTOR]); "constructor special")]
+    #[test_case("static thing(){super();}" => set(&[BAD_SUPER]); "static super")]
+    #[test_case("static prototype(){ return a }" => set(&[STATIC_PROTO]); "static prototype")]
+    #[test_case("constructor;" => set(&[CONSTRUCTOR_FIELD]); "constructor field")]
+    #[test_case("static prototype;" => set(&[STATIC_PROTO]); "static proto field")]
+    #[test_case("static constructor;" => set(&[CONSTRUCTOR_FIELD]); "static constructor field")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_element().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("[arguments](){}" => true; "Method (yes)")]
@@ -896,6 +911,37 @@ mod class_element {
     #[test_case("static a(){}" => false; "static method no")]
     fn has_direct_super(src: &str) -> bool {
         Maker::new(src).class_element().has_direct_super()
+    }
+
+    #[test_case(";" => false; "empty")]
+    #[test_case("a;" => false; "field def")]
+    #[test_case("a(){}" => false; "method def")]
+    #[test_case("static {}" => true; "static block")]
+    #[test_case("static a;" => true; "static field")]
+    #[test_case("static a(){}" => true; "static method")]
+    fn is_static(src: &str) -> bool {
+        Maker::new(src).class_element().is_static()
+    }
+
+    #[test_case(";" => None; "empty")]
+    #[test_case("a;" => ss("a"); "field def")]
+    #[test_case("static a;" => ss("a"); "static field")]
+    #[test_case("a(){}" => ss("a"); "method")]
+    #[test_case("static a(){}" => ss("a"); "static method")]
+    #[test_case("static {}" => None; "Static block")]
+    fn prop_name(src: &str) -> Option<String> {
+        Maker::new(src).class_element().prop_name().map(String::from)
+    }
+
+    #[test_case(";" => None; "empty")]
+    #[test_case("constructor(a1, a2){ return { a1, a2 }; }" => Some(CEKind::ConstructorMethod); "constructor")]
+    #[test_case("a(){}" => Some(CEKind::NonConstructorMethod); "method")]
+    #[test_case("static a(){}" => Some(CEKind::NonConstructorMethod); "static method")]
+    #[test_case("a;" => Some(CEKind::NonConstructorMethod); "field definition")]
+    #[test_case("static a;" => Some(CEKind::NonConstructorMethod); "static field")]
+    #[test_case("static {}" => Some(CEKind::NonConstructorMethod); "static block")]
+    fn class_element_kind(src: &str) -> Option<CEKind> {
+        Maker::new(src).class_element().class_element_kind()
     }
 }
 
@@ -1322,6 +1368,7 @@ mod class_static_block_statement_list {
     #[test_case("", &[] => false; "empty")]
     #[test_case("a;", &["b"] => false; "stmt (no labels)")]
     #[test_case("b: a;", &["b"] => true; "stmt (dup'd label)")]
+    #[test_case("b: { work(1); b: work(2); }", &[] => true; "label in label")]
     fn contains_duplicate_labels(src: &str, label_set: &[&str]) -> bool {
         let l_set = label_set.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
         Maker::new(src).class_static_block_statement_list().contains_duplicate_labels(&l_set)

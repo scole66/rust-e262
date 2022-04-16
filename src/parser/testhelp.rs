@@ -556,3 +556,7 @@ pub const UNEXPECTED_SUPER: &str = "Calls to ‘super’ not allowed here";
 pub const UNDEF_CONT_TGT: &str = "undefined continue target detected";
 pub const A_ALREADY_DEFN: &str = "‘a’ already defined";
 pub const PRIVATE_CONSTRUCTOR: &str = "#constructor is an invalid private id";
+pub const BAD_SUPER: &str = "super only allowed for constructors";
+pub const CONSTRUCTOR_FIELD: &str = "constructors may not be defined as class fields";
+pub const STATIC_PROTO: &str = "prototypes cannot be static";
+pub const SPECIAL_CONSTRUCTOR: &str = "special methods not allowed for constructors";

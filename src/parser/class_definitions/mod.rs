@@ -1073,7 +1073,7 @@ impl ClassElement {
                 match md.prop_name() {
                     Some(s) if s == "constructor" => {
                         if md.special_method() {
-                            errs.push(create_syntax_error_object(agent, "special methods not allowed in constructors"));
+                            errs.push(create_syntax_error_object(agent, "special methods not allowed for constructors"));
                         }
                     }
                     Some(_) | None => {
@@ -1089,7 +1089,7 @@ impl ClassElement {
                 //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
                 //  * It is a Syntax Error if PropName of MethodDefinition is "prototype".
                 if md.has_direct_super() {
-                    errs.push(create_syntax_error_object(agent, "This method has no binding for super."));
+                    errs.push(create_syntax_error_object(agent, "super only allowed for constructors"));
                 }
                 if matches!(md.prop_name(), Some(s) if s == "prototype") {
                     errs.push(create_syntax_error_object(agent, "prototypes cannot be static"));
@@ -1709,6 +1709,11 @@ impl ClassStaticBlockStatementList {
         }
     }
 
+    /// Return a list of identifiers defined lexically for this node.
+    ///
+    /// Note that class static blocks are treated like top-level code in that top-level function identifiers are _not_ included in this list.
+    ///
+    /// See [LexicallyDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-lexicallydeclarednames) in ECMA-262.
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
@@ -1722,6 +1727,12 @@ impl ClassStaticBlockStatementList {
         }
     }
 
+    /// Return a list of identifiers defined by the `var` statement for this node.
+    ///
+    /// Note that class static blocks are treated like top-level code in that top-level functions identifiers are part
+    /// of the var-declared list.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
     pub fn var_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: VarDeclaredNames
         // The syntax-directed operation VarDeclaredNames takes no arguments and returns a List of Strings.
@@ -1735,6 +1746,15 @@ impl ClassStaticBlockStatementList {
         }
     }
 
+    /// Detect whether this node contains any duplicate labels.
+    ///
+    /// A "duplicate label" occurs when one labelled statement contains another labelled statement and they share the
+    /// same label. For the purposes of this function, return `true` if this node:
+    /// * Contains a labelled statement whose label is also contained in `label_set`, or
+    /// * Contains a labelled statement which itself contains a labelled statement and whose labels match (regardless of
+    ///   the parameters to this function).
+    ///
+    /// See [ContainsDuplicateLabels](https://tc39.es/ecma262/#sec-static-semantics-containsduplicatelabels) from ECMA-262.
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self.0.as_ref() {
             Some(sl) => sl.contains_duplicate_labels(label_set),
@@ -1744,9 +1764,9 @@ impl ClassStaticBlockStatementList {
 
     /// Detect whether this node contains an undefined break target
     ///
-    /// * If this node contains a `break` statement with a label contained with `label_set`, then this is not an
+    /// * If this node contains a `break` statement with a label contained within `label_set`, then this is not an
     ///   undefined break target.
-    /// * If this node contains a labelled breakable statement that contains a break statement with th matching label,
+    /// * If this node contains a labelled breakable statement that contains a break statement with the matching label,
     ///   then this is not an undefined break target.
     ///
     /// Any targeted break statement that does not meet one of the above conditions has an "undefined break target".
