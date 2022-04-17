@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -138,13 +138,13 @@ mod async_function_declaration {
     #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
     #[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
-        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.all_private_identifiers_valid(&[JSString::from("valid")])
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
     #[test_case("async function(a=await b()){}", false => panics "not yet implemented"; "await param")] //"Await not allowed in parameter lists"
-    #[test_case("async function(a,a){'use strict';}", false => set(&["Duplicate formal parameter identifiers in strict mode definition"]); "duplicate; strict body")]
-    #[test_case("async function(a,a){}", true => set(&["Duplicate formal parameter identifiers in strict mode definition"]); "duplicate; strict context")]
+    #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
+    #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
     #[test_case("async function(a=super.prop){}", false => set(&["Parameters may not include super properties"]); "superprop params")]
     #[test_case("async function(){return super.prop;}", false => set(&["Body may not contain super properties"]); "superprop body")]
@@ -155,7 +155,7 @@ mod async_function_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AsyncFunctionDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -278,7 +278,7 @@ fn async_function_expression_test_contains_02() {
 #[test_case("async function x(arg) { arg.#invalid(); }" => false; "Body invalid")]
 fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
@@ -380,11 +380,6 @@ fn async_method_test_computed_property_contains_02() {
     let (item, _) = AsyncMethod::parse(&mut newparser("async [name]() {}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn async_method_test_private_bound_identifiers() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async #blue() {}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("blue")]);
-}
 #[test_case("async [item.#valid](){}" => true; "ElementName valid")]
 #[test_case("async bob(arg=item.#valid){}" => true; "Params valid")]
 #[test_case("async bob(arg){item.#valid;}" => true; "Body valid")]
@@ -393,11 +388,17 @@ fn async_method_test_private_bound_identifiers() {
 #[test_case("async bob(arg){item.#invalid;}" => false; "Body invalid")]
 fn async_method_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod async_method {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("async #blue() {}" => Some("#blue".to_string()); "pid there")]
+    #[test_case("async blue(){}" => None; "nothing private")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).async_method().private_bound_identifier().map(String::from)
+    }
 
     #[test_case("async a(){}" => false; "without")]
     #[test_case("async a(b=super(0)){}" => true; "params")]
@@ -417,8 +418,14 @@ mod async_method {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AsyncMethod::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("async [arguments](){}" => true; "yes")]
+    #[test_case("async a(){}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_method().contains_arguments()
     }
 }
 
@@ -471,7 +478,7 @@ fn async_function_body_test_contains_02() {
 #[test_case("item.#invalid;" => false; "FunctionBody invalid")]
 fn async_function_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncFunctionBody::parse(&mut newparser(src), Scanner::new());
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("0;" => false; "not strict")]
 #[test_case("'use strict';" => true; "strict")]
@@ -492,8 +499,14 @@ mod async_function_body {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AsyncFunctionBody::parse(&mut strictparser(src, strict), Scanner::new()).0.early_errors(&mut agent, &mut errs, strict);
+        AsyncFunctionBody::parse(&mut newparser(src), Scanner::new()).0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments;" => true; "yes")]
+    #[test_case("" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_function_body().contains_arguments()
     }
 }
 
@@ -534,11 +547,16 @@ fn await_expression_test_contains_02() {
     let (item, _) = AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
+#[test]
+fn await_expression_test_contains_03() {
+    let item = AwaitExpression::parse(&mut newparser("await a"), Scanner::new(), true).unwrap().0;
+    assert_eq!(item.contains(ParseNodeKind::AwaitExpression), true);
+}
 #[test_case("await item.#valid" => true; "Expression valid")]
 #[test_case("await item.#invalid" => false; "Expression invalid")]
 fn await_expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod await_expression {
     use super::*;
@@ -548,7 +566,13 @@ mod await_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AwaitExpression::parse(&mut strictparser(src, strict), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("await arguments" => true; "yes")]
+    #[test_case("await a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).await_expression().contains_arguments()
     }
 }

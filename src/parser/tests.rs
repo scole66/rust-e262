@@ -125,8 +125,7 @@ fn yield_await_default_key_01() {
 
 #[test]
 fn parser_01() {
-    let p = Parser::new("program text", false, false, ParseGoal::Script);
-    assert_eq!(p.strict, false);
+    let p = Parser::new("program text", false, ParseGoal::Script);
     assert_eq!(p.direct, false);
     assert_eq!(p.source, "program text");
     assert_eq!(p.goal, ParseGoal::Script);
@@ -379,7 +378,7 @@ fn scan_for_identifiername_02() {
 fn scan_for_private_identifier_01() {
     let (id, after) = scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv).unwrap();
     assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
-    assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None, line: 1, column: 2 });
+    assert_eq!(id, IdentifierData { string_value: JSString::from("#rust"), keyword_id: None, line: 1, column: 1 });
 }
 #[test]
 fn scan_for_private_identifier_02() {

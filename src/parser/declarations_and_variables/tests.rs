@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -76,7 +76,7 @@ fn lexical_declaration_test_contains_01() {
 #[test_case("let a=item.#invalid;" => false; "invalid")]
 fn lexical_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod lexical_declaration {
     use super::*;
@@ -99,8 +99,14 @@ mod lexical_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LexicalDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("let a=arguments;" => true; "yes")]
+    #[test_case("let b;" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -196,7 +202,7 @@ fn binding_list_test_contains_02() {
 #[test_case("a, b=item.#invalid" => false; "multi second invalid")]
 fn binding_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_list {
     use super::*;
@@ -207,8 +213,17 @@ mod binding_list {
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
+        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -298,7 +313,7 @@ fn lexical_binding_test_contains_05() {
 #[test_case("[a]=[item.#invalid]" => false; "pattern init invalid")]
 fn lexical_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod lexical_binding {
     use super::*;
@@ -314,8 +329,18 @@ mod lexical_binding {
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LexicalBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
+        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("a=arguments" => true; "izer (yes)")]
+    #[test_case("a=0" => false; "izer (no)")]
+    #[test_case("{b=arguments}=a" => true; "pattern (left)")]
+    #[test_case("{b}=arguments" => true; "pattern (right)")]
+    #[test_case("{a}=b" => false; "pattern (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -371,7 +396,7 @@ fn variable_statement_test_contains_02() {
 #[test_case("var a=item.#invalid;" => false; "invalid")]
 fn variable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_statement {
     use super::*;
@@ -381,8 +406,14 @@ mod variable_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("var a=arguments;" => true; "yes")]
+    #[test_case("var a;" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -464,7 +495,7 @@ fn variable_declaration_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "multi last invalid")]
 fn variable_declaration_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_declaration_list {
     use super::*;
@@ -475,8 +506,17 @@ mod variable_declaration_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableDeclarationList::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -571,7 +611,7 @@ fn variable_declaration_test_contains_06() {
 #[test_case("[a]=[item.#invalid]" => false; "pattern izer invalid")]
 fn variable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod variable_declaration {
     use super::*;
@@ -583,8 +623,18 @@ mod variable_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "Id")]
+    #[test_case("a=arguments" => true; "izer (yes)")]
+    #[test_case("a=0" => false; "izer (no)")]
+    #[test_case("{a=arguments}=b" => true; "Pattern (left)")]
+    #[test_case("{a}=arguments" => true; "Pattern (right)")]
+    #[test_case("{a}=b" => false; "Pattern (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -659,7 +709,7 @@ fn binding_pattern_test_contains_04() {
 #[test_case("[a=item.#invalid]" => false; "ABP invalid")]
 fn binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_pattern {
     use super::*;
@@ -670,8 +720,16 @@ mod binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingPattern::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("{a=arguments}" => true; "Object (yes)")]
+    #[test_case("{a}" => false; "Object (no)")]
+    #[test_case("[a=arguments]" => true; "Array (yes)")]
+    #[test_case("[a]" => false; "Array (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -830,7 +888,7 @@ fn object_binding_pattern_test_contains_08() {
 #[test_case("{a=item.#invalid,...b}" => false; "BindingListRest invalid")]
 fn object_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod object_binding_pattern {
     use super::*;
@@ -844,8 +902,20 @@ mod object_binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ObjectBindingPattern::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("{}" => false; "empty")]
+    #[test_case("{...a}" => false; "rest")]
+    #[test_case("{a=arguments}" => true; "List Only (yes)")]
+    #[test_case("{a}" => false; "List Only (no)")]
+    #[test_case("{a=arguments,}" => true; "List Comma (yes)")]
+    #[test_case("{a,}" => false; "List Comma (no)")]
+    #[test_case("{a=arguments,...b}" => true; "ListRest (yes)")]
+    #[test_case("{a,...b}" => false; "ListRest (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1118,7 +1188,7 @@ fn array_binding_pattern_test_contains_18() {
 #[test_case("[a,,...[b=item.#invalid]]" => false; "ElementERest rest invalid")]
 fn array_binding_pattern_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod array_binding_pattern {
     use super::*;
@@ -1136,8 +1206,30 @@ mod array_binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ArrayBindingPattern::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("[]" => false; "emtpy")]
+    #[test_case("[,]" => false; "elision")]
+    #[test_case("[...{a=arguments}]" => true; "Rest (yes)")]
+    #[test_case("[...{a}]" => false; "Rest (no)")]
+    #[test_case("[,...{a=arguments}]" => true; "Elision Rest (yes)")]
+    #[test_case("[,...{a}]" => false; "Elision Rest (no)")]
+    #[test_case("[a=arguments]" => true; "List (yes)")]
+    #[test_case("[a]" => false; "List (no)")]
+    #[test_case("[a=arguments,]" => true; "List Comma (yes)")]
+    #[test_case("[a,]" => false; "List Comma (no)")]
+    #[test_case("[a=arguments,...b]" => true; "List Rest (left)")]
+    #[test_case("[a,...{b=arguments}]" => true; "List Rest (right)")]
+    #[test_case("[a,...b]" => false; "List Rest (none)")]
+    #[test_case("[a=arguments,,]" => true; "List Elision (yes)")]
+    #[test_case("[a,,]" => false; "List Elision (no)")]
+    #[test_case("[a=arguments,,...b]" => true; "List Elision Rest (left)")]
+    #[test_case("[a,,...{b=arguments}]" => true; "List Elision Rest (right)")]
+    #[test_case("[a,,...b]" => false; "List Elision Rest (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1186,7 +1278,7 @@ mod binding_rest_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingRestProperty::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -1272,7 +1364,7 @@ fn binding_property_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
 fn binding_property_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_property_list {
     use super::*;
@@ -1283,8 +1375,17 @@ mod binding_property_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingPropertyList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1369,7 +1470,7 @@ fn binding_element_list_test_contains_05() {
 #[test_case("a,b=item.#invalid" => false; "Multi second invalid")]
 fn binding_element_list_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_element_list {
     use super::*;
@@ -1380,8 +1481,17 @@ mod binding_element_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElementList::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case("a=arguments,b" => true; "List (left)")]
+    #[test_case("a,b=arguments" => true; "List (right)")]
+    #[test_case("a,b" => false; "List (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1443,7 +1553,7 @@ fn binding_elision_element_test_contains_04() {
 #[test_case(",a=item.#invalid" => false; "Commas invalid")]
 fn binding_elision_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_elision_element {
     use super::*;
@@ -1454,8 +1564,16 @@ mod binding_elision_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElisionElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Item (yes)")]
+    #[test_case("a" => false; "Item (no)")]
+    #[test_case(",a=arguments" => true; "Elision Item (yes)")]
+    #[test_case(",a" => false; "Elision Item (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1540,7 +1658,7 @@ fn binding_property_test_contains_05() {
 #[test_case("[item.#invalid]:b" => false; "Name invalid")]
 fn binding_property_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_property {
     use super::*;
@@ -1551,8 +1669,17 @@ mod binding_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingProperty::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Single (yes)")]
+    #[test_case("a" => false; "Single (no)")]
+    #[test_case("[arguments]:a" => true; "N:E (left)")]
+    #[test_case("a:b=arguments" => true; "N:E (right)")]
+    #[test_case("a:b" => false; "N:E (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1657,7 +1784,7 @@ fn binding_element_test_contains_07() {
 #[test_case("[a]=[item.#invalid]" => false; "Izer invalid")]
 fn binding_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "Single simple")]
 #[test_case("a=3" => false; "Single complex")]
@@ -1677,8 +1804,19 @@ mod binding_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a=arguments" => true; "Single (yes)")]
+    #[test_case("a" => false; "Single (no)")]
+    #[test_case("{a=arguments}" => true; "BP (yes)")]
+    #[test_case("{a}" => false; "BP (no)")]
+    #[test_case("{a=arguments}=b" => true; "BP Izer (left)")]
+    #[test_case("{a}=arguments" => true; "BP Izer (right)")]
+    #[test_case("{a}=b" => false; "BP Izer (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1747,7 +1885,7 @@ fn single_name_binding_test_contains_03() {
 #[test_case("a=item.#invalid" => false; "Izer invalid")]
 fn single_name_binding_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("a" => true; "Name only")]
 #[test_case("a=0" => false; "Has Initializer")]
@@ -1764,8 +1902,15 @@ mod single_name_binding {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SingleNameBinding::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "Id")]
+    #[test_case("a=arguments" => true; "izer (yes)")]
+    #[test_case("a=b" => false; "izer (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1838,7 +1983,7 @@ fn binding_rest_element_test_contains_03() {
 #[test_case("...[a=item.#invalid]" => false; "Pattern invalid")]
 fn binding_rest_element_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod binding_rest_element {
     use super::*;
@@ -1849,7 +1994,14 @@ mod binding_rest_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingRestElement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("...a" => false; "id")]
+    #[test_case("...{a=arguments}" => true; "pattern (yes)")]
+    #[test_case("...{a}" => false; "pattern (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }

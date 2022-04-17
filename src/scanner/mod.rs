@@ -337,7 +337,7 @@ impl fmt::Display for Token {
         match self {
             Token::Eof => Ok(()),
             Token::Punctuator(p) => p.fmt(f),
-            Token::Identifier(id) => id.fmt(f),
+            Token::Identifier(id) | Token::PrivateIdentifier(id) => id.fmt(f),
             Token::Number(val) => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *val).unwrap();
@@ -351,7 +351,6 @@ impl fmt::Display for Token {
             Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
-            Token::PrivateIdentifier(id) => write!(f, "#{}", id),
         }
     }
 }
@@ -1866,7 +1865,13 @@ fn template(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     match_char(scanner, source, '#').and_then(|s| match identifier_internal(&s, source) {
         Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
-        Ok(Some((data, scan))) => Some((Token::PrivateIdentifier(data), scan)),
+        Ok(Some((data, scan))) => {
+            // Keep the '#' as part of the string_value
+            let mut new_id = Vec::<u16>::with_capacity(data.string_value.len() + 1);
+            new_id.push('#' as u16);
+            new_id.extend(Vec::<u16>::from(data.string_value));
+            Some((Token::PrivateIdentifier(IdentifierData { keyword_id: data.keyword_id, line: data.line, column: data.column - 1, string_value: new_id.into() }), scan))
+        }
         Ok(None) => None,
     })
 }

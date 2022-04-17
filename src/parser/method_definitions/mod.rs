@@ -117,6 +117,13 @@ impl PrettyPrint for MethodDefinition {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum MethodType {
+    Normal,
+    Setter,
+    Getter,
+}
+
 impl MethodDefinition {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MethodDefinition), scanner))
@@ -190,26 +197,28 @@ impl MethodDefinition {
         }
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+    pub fn private_bound_identifier(&self) -> Option<(JSString, MethodType)> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
             // MethodDefinition : get ClassElementName ( ) { FunctionBody }
             // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
             //  1. Return PrivateBoundIdentifiers of ClassElementName.
-            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifiers(),
+            MethodDefinition::NamedFunction(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Normal)),
+            MethodDefinition::Getter(cen, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Getter)),
+            MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Setter)),
 
             // MethodDefinition : GeneratorMethod
             //  1. Return PrivateBoundIdentifiers of GeneratorMethod.
-            MethodDefinition::Generator(node) => node.private_bound_identifiers(),
+            MethodDefinition::Generator(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
 
             // MethodDefinition : AsyncMethod
             //  1. Return PrivateBoundIdentifiers of AsyncMethod.
-            MethodDefinition::Async(node) => node.private_bound_identifiers(),
+            MethodDefinition::Async(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
 
             // MethodDefinition : AsyncGeneratorMethod
             //  1. Return PrivateBoundIdentifiers of AsyncGeneratorMethod.
-            MethodDefinition::AsyncGenerator(node) => node.private_bound_identifiers(),
+            MethodDefinition::AsyncGenerator(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
         }
     }
 
@@ -229,6 +238,26 @@ impl MethodDefinition {
             MethodDefinition::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
             MethodDefinition::Getter(name, body) => name.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
             MethodDefinition::Setter(name, args, body) => name.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  MethodDefinition :
+        //      ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+        //      get ClassElementName ( ) { FunctionBody }
+        //      set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+        //  1. Return ContainsArguments of ClassElementName.
+        match self {
+            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.contains_arguments(),
+            MethodDefinition::Generator(gm) => gm.contains_arguments(),
+            MethodDefinition::Async(am) => am.contains_arguments(),
+            MethodDefinition::AsyncGenerator(agm) => agm.contains_arguments(),
         }
     }
 
@@ -259,9 +288,60 @@ impl MethodDefinition {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        match self {
+            MethodDefinition::NamedFunction(cen, ufp, fb) => {
+                //  MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
+                //      * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and
+                //        IsSimpleParameterList of UniqueFormalParameters is false.
+                //      * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in
+                //        the LexicallyDeclaredNames of FunctionBody.
+                if fb.function_body_contains_use_strict() && !ufp.is_simple_parameter_list() {
+                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                }
+                let ldn = fb.lexically_declared_names();
+                for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                ufp.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Setter(cen, pspl, fb) => {
+                //  MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
+                //      * It is a Syntax Error if BoundNames of PropertySetParameterList contains any duplicate
+                //        elements.
+                //      * It is a Syntax Error if FunctionBodyContainsUseStrict of FunctionBody is true and
+                //        IsSimpleParameterList of PropertySetParameterList is false.
+                //      * It is a Syntax Error if any element of the BoundNames of PropertySetParameterList also occurs
+                //        in the LexicallyDeclaredNames of FunctionBody.
+                let bn = pspl.bound_names();
+                for name in duplicates(&bn) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
+                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                }
+                let ldn = fb.lexically_declared_names();
+                for name in bn.into_iter().filter(|n| ldn.contains(n)) {
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                }
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                pspl.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Getter(cen, fb) => {
+                let strict_function = strict || fb.function_body_contains_use_strict();
+                cen.early_errors(agent, errs, strict_function);
+                fb.early_errors(agent, errs, strict_function);
+            }
+            MethodDefinition::Generator(g) => g.early_errors(agent, errs, strict),
+            MethodDefinition::Async(a) => a.early_errors(agent, errs, strict),
+            MethodDefinition::AsyncGenerator(ag) => ag.early_errors(agent, errs, strict),
+        }
     }
 
     pub fn prop_name(&self) -> Option<JSString> {
@@ -280,6 +360,15 @@ impl MethodDefinition {
             MethodDefinition::Async(node) => node.prop_name(),
             MethodDefinition::AsyncGenerator(node) => node.prop_name(),
         }
+    }
+
+    /// Determine whether this node is an ordinary method, or a special one.
+    ///
+    /// "Special" methods are asychronous functions, generators, or property setters or getters.
+    ///
+    /// See [SpecialMethod](https://tc39.es/ecma262/#sec-static-semantics-specialmethod) in ECMA-262.
+    pub fn special_method(&self) -> bool {
+        !matches!(self, MethodDefinition::NamedFunction(..))
     }
 }
 
@@ -333,9 +422,16 @@ impl PropertySetParameterList {
         self.node.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.node.bound_names()
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        self.node.is_simple_parameter_list()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.node.early_errors(agent, errs, strict);
     }
 }
 

@@ -23,7 +23,7 @@ uid = "0.1.5"
 counter = "0.5.3"
 
 [dev-dependencies]
-test-case = "1.2.0"
+test-case = "2.0"
 
 [profile.coverage]
 inherits = "dev"

@@ -78,11 +78,11 @@ impl AsyncGeneratorMethod {
         self.name.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+    pub fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // AsyncGeneratorMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
-        self.name.private_bound_identifiers()
+        self.name.private_bound_identifier()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -93,6 +93,17 @@ impl AsyncGeneratorMethod {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. Return ContainsArguments of ClassElementName.
+        self.name.contains_arguments()
     }
 
     pub fn has_direct_super(&self) -> bool {

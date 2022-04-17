@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // ARROW FUNCTION
@@ -90,14 +91,37 @@ fn arrow_function_test_contains_09() {
 #[test_case("x => x.#invalid" => false; "Body invalid")]
 fn arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowFunction::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn arrow_function_test_early_errors() {
-    let mut agent = test_agent();
-    ArrowFunction::parse(&mut newparser("x => x"), Scanner::new(), true, false, false).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+mod arrow_function {
+    use super::*;
+    use test_case::test_case;
+
+    const ILLEGAL_YIELD: &str = "Illegal yield expression in arrow function parameters";
+    const ILLEGAL_AWAIT: &str = "Illegal await expression in arrow function parameters";
+    const ILLEGAL_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
+    const A_DUPLICATED: &str = "‘a’ already defined";
+
+    #[test_case("package => implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
+    #[test_case("(a=yield b) => a", false => panics "not yet implemented" /*set(&[ILLEGAL_YIELD])*/; "Yield in params")]
+    #[test_case("(a=await b) => a", false => panics "not yet implemented" /*set(&[ILLEGAL_AWAIT])*/; "Await in params")]
+    #[test_case("(...a) => { 'use strict'; }", false => set(&[ILLEGAL_USE_STRICT]); "complex params")]
+    #[test_case("a => { let a; }", false => set(&[A_DUPLICATED]); "param/lex clash")]
+    #[test_case("package => { 'use strict'; implements; }", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "strict mode trigger")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).arrow_function().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("(a=arguments) => a" => true; "left")]
+    #[test_case("a => arguments" => true; "right")]
+    #[test_case("a => a" => false; "none")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).arrow_function().contains_arguments()
+    }
 }
 
 // ARROW PARAMETERS
@@ -176,14 +200,41 @@ fn arrow_parameters_test_contains_03() {
 #[test_case("(a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
 fn arrow_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn arrow_parameters_test_early_errors() {
-    let mut agent = test_agent();
-    ArrowParameters::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+mod arrow_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("x" => vec!["x"]; "BindingIdentifier")]
+    #[test_case("(left, right)" => vec!["left", "right"]; "ArrowFormalParameters")]
+    fn bound_names(src: &str) -> Vec<String> {
+        Maker::new(src).arrow_parameters().bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("x" => true; "simple id")]
+    #[test_case("(x)" => true; "simple formals")]
+    #[test_case("({x})" => false; "complex formals")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        Maker::new(src).arrow_parameters().is_simple_parameter_list()
+    }
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "ArrowFormalParameters")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).arrow_parameters().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("(a=arguments)" => true; "yes")]
+    #[test_case("(a)" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).arrow_parameters().contains_arguments()
+    }
 }
 
 // CONCISE BODY
@@ -260,14 +311,42 @@ fn concise_body_test_contains_04() {
 #[test_case("{ item.#invalid }" => false; "FunctionBody invalid")]
 fn concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn concise_body_test_early_errors() {
-    let mut agent = test_agent();
-    ConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+mod concise_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("3" => false; "ExpressionBody")]
+    #[test_case("{ 'use strict'; }" => true; "{ FunctionBody }")]
+    #[test_case("{ 3; 'use strict'; }" => false; "FunctionBody without")]
+    fn concise_body_contains_use_strict(src: &str) -> bool {
+        Maker::new(src).concise_body().concise_body_contains_use_strict()
+    }
+
+    #[test_case("expression" => Vec::<String>::new(); "ExpressionBody")]
+    #[test_case("{ let a; }" => vec!["a"]; "{ FunctionBody }")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).concise_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "ExpressionBody")]
+    #[test_case("{ package; }", true => set(&[PACKAGE_NOT_ALLOWED]); "{ FunctionBody }")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).concise_body().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("a" => false; "Exp (no)")]
+    #[test_case("{arguments;}" => true; "body (yes)")]
+    #[test_case("{;}" => false; "body (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).concise_body().contains_arguments()
+    }
 }
 
 // EXPRESSION BODY
@@ -315,13 +394,25 @@ fn expression_body_test_contains_02() {
 #[test_case("item.#invalid" => false; "ExpressionBody invalid")]
 fn expression_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ExpressionBody::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn expression_body_test_early_errors() {
-    let mut agent = test_agent();
-    ExpressionBody::parse(&mut newparser("x => x"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+mod expression_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).expression_body().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("arguments" => true; "yes")]
+    #[test_case("a" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).expression_body().contains_arguments()
+    }
 }
 
 // ARROW FORMAL PARAMETERS
@@ -373,11 +464,35 @@ fn arrow_formal_parameters_test_contains_02() {
 #[test_case("(a=item.#invalid)" => false; "UniqueFormalParameters invalid")]
 fn arrow_formal_parameters_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrowFormalParameters::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn arrow_formal_parameters_test_early_errors() {
-    let mut agent = test_agent();
-    ArrowFormalParameters::parse(&mut newparser("(a)"), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut vec![], true);
+
+mod arrow_formal_parameters {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("(a,b)" => vec!["a", "b"]; "( UniqueFormalParameters )")]
+    fn bound_names(src: &str) -> Vec<String> {
+        Maker::new(src).arrow_formal_parameters().bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("(a)" => true; "simple")]
+    #[test_case("({a})" => false; "complex")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        Maker::new(src).arrow_formal_parameters().is_simple_parameter_list()
+    }
+
+    #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( UniqueFormalParameters )")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).arrow_formal_parameters().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("(a=arguments)" => true; "yes")]
+    #[test_case("(a)" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).arrow_formal_parameters().contains_arguments()
+    }
 }

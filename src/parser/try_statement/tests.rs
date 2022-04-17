@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -156,7 +156,7 @@ fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bo
 #[test_case("try{} catch{} finally{a.#invalid;}" => false; "tcf: finally invalid")]
 fn try_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod try_statement {
     use super::*;
@@ -168,8 +168,22 @@ mod try_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        TryStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).try_statement().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("try { arguments; } catch {}" => true; "try-catch (left)")]
+    #[test_case("try {} catch {arguments;}" => true; "try-catch (right)")]
+    #[test_case("try {} catch {}" => false; "try-catch (none)")]
+    #[test_case("try{arguments;}finally{}" => true; "try-finally (left)")]
+    #[test_case("try{}finally{arguments;}" => true; "try-finally (right)")]
+    #[test_case("try{}finally{}" => false; "try-finally (none)")]
+    #[test_case("try{arguments;}catch{}finally{}" => true; "try-catch-finally (left)")]
+    #[test_case("try{}catch{arguments;}finally{}" => true; "try-catch-finally (middle)")]
+    #[test_case("try{}catch{}finally{arguments;}" => true; "try-catch-finally (right)")]
+    #[test_case("try{}catch{}finally{}" => false; "try-catch-finally (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).try_statement().contains_arguments()
     }
 }
 
@@ -273,7 +287,7 @@ fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
 #[test_case("catch{a.#invalid;}" => false; "cb: block invalid")]
 fn catch_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod catch {
     use super::*;
@@ -289,8 +303,17 @@ mod catch {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Catch::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).catch().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("catch({a=arguments}){}" => true; "param (left)")]
+    #[test_case("catch(a){arguments;}" => true; "param (right)")]
+    #[test_case("catch(a){}" => false; "param (none)")]
+    #[test_case("catch{arguments;}" => true; "block (yes)")]
+    #[test_case("catch{}" => false; "block (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).catch().contains_arguments()
     }
 }
 
@@ -356,7 +379,7 @@ fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
 #[test_case("finally {a.#invalid;}" => false; "invalid")]
 fn finally_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod finally {
     use super::*;
@@ -366,8 +389,14 @@ mod finally {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Finally::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Maker::new(src).finally().early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("finally{arguments;}" => true; "yes")]
+    #[test_case("finally{}" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).finally().contains_arguments()
     }
 }
 
@@ -435,7 +464,7 @@ fn catch_parameter_test_contains() {
 #[test_case("[a=b.#invalid]" => false; "pattern invalid")]
 fn catch_parameter_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod catch_parameter {
     use super::*;
@@ -444,7 +473,7 @@ mod catch_parameter {
     #[test_case("a" => vec!["a"]; "BindingIdentifier")]
     #[test_case("{a,b,c}" => vec!["a", "b", "c"]; "BindingPattern")]
     fn bound_names(src: &str) -> Vec<String> {
-        CatchParameter::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Maker::new(src).catch_parameter().bound_names().into_iter().map(String::from).collect::<Vec<String>>()
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "BindingIdentifier")]
@@ -452,7 +481,14 @@ mod catch_parameter {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CatchParameter::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Maker::new(src).catch_parameter().early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => false; "id")]
+    #[test_case("{a=arguments}" => true; "pat (yes)")]
+    #[test_case("{a}" => false; "pat (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).catch_parameter().contains_arguments()
     }
 }

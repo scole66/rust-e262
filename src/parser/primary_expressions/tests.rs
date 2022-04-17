@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -10,7 +10,7 @@ use test_case::test_case;
 fn primary_expression_test_debug() {
     let pe = PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false);
     let (exp, _) = check(pe);
-    assert_eq!(format!("{:?}", exp), "PrimaryExpression { kind: This }");
+    assert_ne!(format!("{:?}", exp), "");
 }
 #[test]
 fn primary_expression_test_pprint() {
@@ -44,64 +44,57 @@ fn primary_expression_test_idref() {
     let pe_res = PrimaryExpression::parse(&mut newparser("blue"), Scanner::new(), false, false);
     let (boxed_pe, scanner) = check(pe_res);
     chk_scan(&scanner, 4);
-    assert!(matches!(boxed_pe.kind, PrimaryExpressionKind::IdentifierReference(_)));
+    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference(_)));
     assert_eq!(boxed_pe.is_function_definition(), false);
     assert_eq!(boxed_pe.is_identifier_reference(), true);
-    assert_eq!(boxed_pe.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn primary_expression_test_literal() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Literal(_)));
+    assert!(matches!(*node, PrimaryExpression::Literal(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_this() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(node.kind, PrimaryExpressionKind::This));
+    assert!(matches!(*node, PrimaryExpression::This));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_arraylit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(node.kind, PrimaryExpressionKind::ArrayLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ArrayLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_objlit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(node.kind, PrimaryExpressionKind::ObjectLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ObjectLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_group() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Parenthesized(_)));
+    assert!(matches!(*node, PrimaryExpression::Parenthesized(_)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn primary_expression_test_func() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Function(..)));
+    assert!(matches!(*node, PrimaryExpression::Function(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
     concise_check(&*node, "FunctionExpression: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
 }
@@ -109,10 +102,9 @@ fn primary_expression_test_func() {
 fn primary_expression_test_generator() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Generator(..)));
+    assert!(matches!(*node, PrimaryExpression::Generator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -124,10 +116,9 @@ fn primary_expression_test_generator() {
 fn primary_expression_test_async_generator() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
-    assert!(matches!(node.kind, PrimaryExpressionKind::AsyncGenerator(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -150,10 +141,9 @@ fn primary_expression_test_async_generator() {
 fn primary_expression_test_async_function() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
-    assert!(matches!(node.kind, PrimaryExpressionKind::AsyncFunction(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -165,19 +155,17 @@ fn primary_expression_test_async_function() {
 fn primary_expression_test_regexp() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(node.kind, PrimaryExpressionKind::RegularExpression(..)));
+    assert!(matches!(*node, PrimaryExpression::RegularExpression(..)));
     assert_eq!(node.is_function_definition(), false);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn primary_expression_test_class_expression() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("class{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(node.kind, PrimaryExpressionKind::Class(..)));
+    assert!(matches!(*node, PrimaryExpression::Class(..)));
     assert_eq!(node.is_function_definition(), true);
     assert_eq!(node.is_identifier_reference(), false);
-    assert_eq!(node.assignment_target_type(), ATTKind::Invalid);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
 }
@@ -406,58 +394,61 @@ fn primary_expression_test_contains_19() {
     let (item, _) = PrimaryExpression::parse(&mut newparser("2048"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
-#[test_case("\"string\"" => Some(String::from("string")); "String Token")]
-#[test_case("string" => None; "Identifier Reference")]
-fn primary_expression_test_as_string_literal(src: &str) -> Option<String> {
-    let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.as_string_literal().map(|st| String::from(st.value))
-}
-#[test_case("this" => true; "this")]
-#[test_case("a" => true; "identifier reference")]
-#[test_case("10" => true; "literal")]
-#[test_case("/bob/" => true; "regular expression")]
-#[test_case("[a.#valid]" => true; "ArrayLiteral valid")]
-#[test_case("{a=b.#valid}" => true; "ObjectLiteral valid")]
-#[test_case("function (){a.#valid;}" => true; "FunctionExpression valid")]
-#[test_case("class {a=b.#valid;}" => true; "ClassExpression valid")]
-#[test_case("function *(){a.#valid;}" => true; "GeneratorExpression valid")]
-#[test_case("async function (){a.#valid;}" => true; "AsyncFunctionExpression valid")]
-#[test_case("async function *(){a.#valid;}" => true; "AsyncGeneratorExpression valid")]
-#[test_case("`${a.#valid}`" => true; "TemplateLiteral valid")]
-#[test_case("(a.#valid)" => true; "Grouping valid")]
-#[test_case("[a.#invalid]" => false; "ArrayLiteral invalid")]
-#[test_case("{a=b.#invalid}" => false; "ObjectLiteral invalid")]
-#[test_case("function (){a.#invalid;}" => false; "FunctionExpression invalid")]
-#[test_case("class {a=b.#invalid;}" => false; "ClassExpression invalid")]
-#[test_case("function *(){a.#invalid;}" => false; "GeneratorExpression invalid")]
-#[test_case("async function (){a.#invalid;}" => false; "AsyncFunctionExpression invalid")]
-#[test_case("async function *(){a.#invalid;}" => false; "AsyncGeneratorExpression invalid")]
-#[test_case("`${a.#invalid}`" => false; "TemplateLiteral invalid")]
-#[test_case("(a.#invalid)" => false; "Grouping invalid")]
-fn primary_expression_test_all_parameters_valid(src: &str) -> bool {
-    let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
-
-#[test_case("this" => false; "This")]
-#[test_case("a" => false; "IdentifierReference")]
-#[test_case("3" => false; "Literal")]
-#[test_case("[]" => true; "ArrayLiteral")]
-#[test_case("{}" => true; "ObjectLiteral")]
-#[test_case("function (){}" => false; "FunctionExpression")]
-#[test_case("class {}" => false; "ClassExpression")]
-#[test_case("function *(){}" => false; "GeneratorExpression")]
-#[test_case("async function (){}" => false; "AsyncFunctionExpression")]
-#[test_case("async function *(){}" => false; "AsyncGeneratorExpression")]
-#[test_case("/a/" => false; "RegularExpressionLiteral")]
-#[test_case("``" => false; "TemplateLiteral")]
-#[test_case("(a)" => false; "ParenthesizedExpression")]
-fn primary_expression_test_is_object_or_array_literal(src: &str) -> bool {
-    PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
-}
 mod primary_expression {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("\"string\"" => Some(String::from("string")); "String Token")]
+    #[test_case("string" => None; "Identifier Reference")]
+    fn as_string_literal(src: &str) -> Option<String> {
+        let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.as_string_literal().map(|st| String::from(st.value))
+    }
+
+    #[test_case("this" => true; "this")]
+    #[test_case("a" => true; "identifier reference")]
+    #[test_case("10" => true; "literal")]
+    #[test_case("/bob/" => true; "regular expression")]
+    #[test_case("[a.#valid]" => true; "ArrayLiteral valid")]
+    #[test_case("{a=b.#valid}" => true; "ObjectLiteral valid")]
+    #[test_case("function (){a.#valid;}" => true; "FunctionExpression valid")]
+    #[test_case("class {a=b.#valid;}" => true; "ClassExpression valid")]
+    #[test_case("function *(){a.#valid;}" => true; "GeneratorExpression valid")]
+    #[test_case("async function (){a.#valid;}" => true; "AsyncFunctionExpression valid")]
+    #[test_case("async function *(){a.#valid;}" => true; "AsyncGeneratorExpression valid")]
+    #[test_case("`${a.#valid}`" => true; "TemplateLiteral valid")]
+    #[test_case("(a.#valid)" => true; "Grouping valid")]
+    #[test_case("[a.#invalid]" => false; "ArrayLiteral invalid")]
+    #[test_case("{a=b.#invalid}" => false; "ObjectLiteral invalid")]
+    #[test_case("function (){a.#invalid;}" => false; "FunctionExpression invalid")]
+    #[test_case("class {a=b.#invalid;}" => false; "ClassExpression invalid")]
+    #[test_case("function *(){a.#invalid;}" => false; "GeneratorExpression invalid")]
+    #[test_case("async function (){a.#invalid;}" => false; "AsyncFunctionExpression invalid")]
+    #[test_case("async function *(){a.#invalid;}" => false; "AsyncGeneratorExpression invalid")]
+    #[test_case("`${a.#invalid}`" => false; "TemplateLiteral invalid")]
+    #[test_case("(a.#invalid)" => false; "Grouping invalid")]
+    fn all_parameters_valid(src: &str) -> bool {
+        let (item, _) = PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
+
+    #[test_case("this" => false; "This")]
+    #[test_case("a" => false; "IdentifierReference")]
+    #[test_case("3" => false; "Literal")]
+    #[test_case("[]" => true; "ArrayLiteral")]
+    #[test_case("{}" => true; "ObjectLiteral")]
+    #[test_case("function (){}" => false; "FunctionExpression")]
+    #[test_case("class {}" => false; "ClassExpression")]
+    #[test_case("function *(){}" => false; "GeneratorExpression")]
+    #[test_case("async function (){}" => false; "AsyncFunctionExpression")]
+    #[test_case("async function *(){}" => false; "AsyncGeneratorExpression")]
+    #[test_case("/a/" => false; "RegularExpressionLiteral")]
+    #[test_case("``" => false; "TemplateLiteral")]
+    #[test_case("(a)" => false; "ParenthesizedExpression")]
+    fn is_object_or_array_literal(src: &str) -> bool {
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+    }
+
     #[test_case("this", true => set(&[]); "this")]
     #[test_case("a", true => set(&[]); "simple identifier")]
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "package/strict")]
@@ -465,9 +456,9 @@ mod primary_expression {
     #[test_case("3", true => set(&[]); "literal")]
     #[test_case("[]", true => set(&[]); "ArrayLiteral")]
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "package-in-array-strict")]
-    #[test_case("{b(a=super()){}}", true => panics "not yet implemented"; "ObjectLiteral with error")]
+    #[test_case("{b(a=super()){}}", true => set(&["'super' keyword unexpected here"]); "ObjectLiteral with error")]
     #[test_case("function eval(){}", true => set(&["identifier not allowed in strict mode: eval"]); "FunctionExpression")]
-    #[test_case("class package {}", true => panics "not yet implemented"; "ClassExpression")]
+    #[test_case("class package {}", true => set(&[PACKAGE_NOT_ALLOWED]); "ClassExpression")]
     #[test_case("function *package(){}", true => panics "not yet implemented"; "GeneratorExpression")]
     #[test_case("async function package(){}", true => panics "not yet implemented"; "AsyncFunctionExpression")]
     #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
@@ -498,6 +489,51 @@ mod primary_expression {
     #[test_case("(1)" => true; "parenthesized literal")]
     fn is_strictly_deletable(src: &str) -> bool {
         PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("this" => false; "this")]
+    #[test_case("1" => false; "Literal")]
+    #[test_case("function arguments(arguments) { return arguments; }" => false; "Func Exp")]
+    #[test_case("function *arguments(arguments) { return arguments; }" => false; "Gen Exp")]
+    #[test_case("async function arguments(arguments) { return arguments; }" => false; "Async Func Exp")]
+    #[test_case("async function *arguments(arguments) { return arguments; }" => false; "Async Gen Exp")]
+    #[test_case("/a/" => false; "Regexp")]
+    #[test_case("`${arguments}`" => true; "Template (yes)")]
+    #[test_case("class bob {value=arguments;}" => true; "Class Exp (yes)")]
+    #[test_case("arguments" => true; "IdRef (yes)")]
+    #[test_case("[arguments]" => true; "ArrayLit (yes)")]
+    #[test_case("{a:arguments}" => true; "ObjectLit (yes)")]
+    #[test_case("(arguments)" => true; "Parenthesis (yes)")]
+    #[test_case("`${xyzzy}`" => false; "Template (no)")]
+    #[test_case("class bob {value=xyzzy;}" => false; "Class Exp (no)")]
+    #[test_case("xyzzy" => false; "IdRef (no)")]
+    #[test_case("[xyzzy]" => false; "ArrayLit (no)")]
+    #[test_case("{a:xyzzy}" => false; "ObjectLit (no)")]
+    #[test_case("(xyzzy)" => false; "Parenthesis (no)")]
+
+    fn contains_arguments(src: &str) -> bool {
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("this", false => ATTKind::Invalid; "this")]
+    #[test_case("1", false => ATTKind::Invalid; "literal")]
+    #[test_case("[a]", false => ATTKind::Invalid; "array literal")]
+    #[test_case("{a}", false => ATTKind::Invalid; "object literal")]
+    #[test_case("function (){}", false => ATTKind::Invalid; "function expression")]
+    #[test_case("class a{}", false => ATTKind::Invalid; "class expression")]
+    #[test_case("function *(){}", false => ATTKind::Invalid; "generator expression")]
+    #[test_case("async function (){}", false => ATTKind::Invalid; "async function expression")]
+    #[test_case("async function *(){}", false => ATTKind::Invalid; "async generator expression")]
+    #[test_case("/a/", false => ATTKind::Invalid; "Regular Expression")]
+    #[test_case("``", false => ATTKind::Invalid; "Template Literal")]
+    #[test_case("(a)", false => ATTKind::Simple; "Parenthesized Expression (simple)")]
+    #[test_case("(this)", false => ATTKind::Invalid; "Parenthesized Expression (invalid)")]
+    #[test_case("a", false => ATTKind::Simple; "idref")]
+    #[test_case("eval", false => ATTKind::Simple; "eval (not-strict)")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval (strict)")]
+    #[test_case("(eval)", true => ATTKind::Invalid; "eval (parens) (strict)")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).primary_expression().assignment_target_type(strict)
     }
 }
 
@@ -724,22 +760,30 @@ fn spread_element_test_contains_02() {
     let (item, _) = SpreadElement::parse(&mut newparser("...a"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("...a.#valid" => true; "valid")]
-#[test_case("...a.#invalid" => false; "invalid")]
-fn spread_element_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = SpreadElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod spread_element {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("...a.#valid" => true; "valid")]
+    #[test_case("...a.#invalid" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = SpreadElement::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "... AssignmentExpression")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ElementList::parse(&mut strictparser(src, strict), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SpreadElement::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("...xyzzy" => false; "no")]
+    #[test_case("...arguments" => true; "yes")]
+    fn contains_arguments(src: &str) -> bool {
+        SpreadElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1011,37 +1055,38 @@ fn element_list_test_contains_20() {
     let (item, _) = ElementList::parse(&mut newparser("this,,,...c"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
-#[test_case("a.#valid" => true; "AssignmentExpression: valid")]
-#[test_case(",a.#valid" => true; "Elision AssignmentExpression: valid")]
-#[test_case("...a.#valid" => true; "SpreadElement: valid")]
-#[test_case(",...a.#valid" => true; "Elision SpreadElement: valid")]
-#[test_case("a.#valid,b" => true; "ElementList AssignmentExpression: list valid")]
-#[test_case("a,b.#valid" => true; "ElementList AssignmentExpression: expression valid")]
-#[test_case("a.#valid,,b" => true; "ElementList Elision AssignmentExpression: list valid")]
-#[test_case("a,,b.#valid" => true; "ElementList Elision AssignmentExpression: expression valid")]
-#[test_case("a.#valid,...b" => true; "ElementList SpreadElement: list valid")]
-#[test_case("a,...b.#valid" => true; "ElementList SpreadElement: element valid")]
-#[test_case("a.#valid,,...b" => true; "ElementList Elision SpreadElement: list valid")]
-#[test_case("a,,...b.#valid" => true; "ElementList Elision SpreadElement: element valid")]
-#[test_case("a.#invalid" => false; "AssignmentExpression: invalid")]
-#[test_case(",a.#invalid" => false; "Elision AssignmentExpression: invalid")]
-#[test_case("...a.#invalid" => false; "SpreadElement: invalid")]
-#[test_case(",...a.#invalid" => false; "Elision SpreadElement: invalid")]
-#[test_case("a.#invalid,b" => false; "ElementList AssignmentExpression: list invalid")]
-#[test_case("a,b.#invalid" => false; "ElementList AssignmentExpression: expression invalid")]
-#[test_case("a.#invalid,,b" => false; "ElementList Elision AssignmentExpression: list invalid")]
-#[test_case("a,,b.#invalid" => false; "ElementList Elision AssignmentExpression: expression invalid")]
-#[test_case("a.#invalid,...b" => false; "ElementList SpreadElement: list invalid")]
-#[test_case("a,...b.#invalid" => false; "ElementList SpreadElement: element invalid")]
-#[test_case("a.#invalid,,...b" => false; "ElementList Elision SpreadElement: list invalid")]
-#[test_case("a,,...b.#invalid" => false; "ElementList Elision SpreadElement: element invalid")]
-fn element_list_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
 mod element_list {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("a.#valid" => true; "AssignmentExpression: valid")]
+    #[test_case(",a.#valid" => true; "Elision AssignmentExpression: valid")]
+    #[test_case("...a.#valid" => true; "SpreadElement: valid")]
+    #[test_case(",...a.#valid" => true; "Elision SpreadElement: valid")]
+    #[test_case("a.#valid,b" => true; "ElementList AssignmentExpression: list valid")]
+    #[test_case("a,b.#valid" => true; "ElementList AssignmentExpression: expression valid")]
+    #[test_case("a.#valid,,b" => true; "ElementList Elision AssignmentExpression: list valid")]
+    #[test_case("a,,b.#valid" => true; "ElementList Elision AssignmentExpression: expression valid")]
+    #[test_case("a.#valid,...b" => true; "ElementList SpreadElement: list valid")]
+    #[test_case("a,...b.#valid" => true; "ElementList SpreadElement: element valid")]
+    #[test_case("a.#valid,,...b" => true; "ElementList Elision SpreadElement: list valid")]
+    #[test_case("a,,...b.#valid" => true; "ElementList Elision SpreadElement: element valid")]
+    #[test_case("a.#invalid" => false; "AssignmentExpression: invalid")]
+    #[test_case(",a.#invalid" => false; "Elision AssignmentExpression: invalid")]
+    #[test_case("...a.#invalid" => false; "SpreadElement: invalid")]
+    #[test_case(",...a.#invalid" => false; "Elision SpreadElement: invalid")]
+    #[test_case("a.#invalid,b" => false; "ElementList AssignmentExpression: list invalid")]
+    #[test_case("a,b.#invalid" => false; "ElementList AssignmentExpression: expression invalid")]
+    #[test_case("a.#invalid,,b" => false; "ElementList Elision AssignmentExpression: list invalid")]
+    #[test_case("a,,b.#invalid" => false; "ElementList Elision AssignmentExpression: expression invalid")]
+    #[test_case("a.#invalid,...b" => false; "ElementList SpreadElement: list invalid")]
+    #[test_case("a,...b.#invalid" => false; "ElementList SpreadElement: element invalid")]
+    #[test_case("a.#invalid,,...b" => false; "ElementList Elision SpreadElement: list invalid")]
+    #[test_case("a,,...b.#invalid" => false; "ElementList Elision SpreadElement: element invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ElementList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "AssignmentExpression: err")]
     #[test_case(",package", true => set(&[PACKAGE_NOT_ALLOWED]); "Elision AssignmentExpression: err")]
@@ -1060,6 +1105,30 @@ mod element_list {
         let mut errs = vec![];
         ElementList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("xyzzy" => false; "AssignmentExpression (no)")]
+    #[test_case(",xyzzy" => false; "Elision AssignmentExpression (no)")]
+    #[test_case("...xyzzy" => false; "SpreadElement (no)")]
+    #[test_case(",...xyzzy" => false; "Elision SpreadElement (no)")]
+    #[test_case("xyzzy,bob" => false; "ElementList , AssignmentExpression (no)")]
+    #[test_case("xyzzy,,bob" => false; "ElementList , Elision AssignmentExpression (no)")]
+    #[test_case("xyzzy,...bob" => false; "ElementList , SpreadElement (no)")]
+    #[test_case("xyzzy,,...bob" => false; "ElementList , Elision SpreadElement (no)")]
+    #[test_case("arguments" => true; "AssignmentExpression (yes)")]
+    #[test_case(",arguments" => true; "Elision AssignmentExpression (yes)")]
+    #[test_case("...arguments" => true; "SpreadElement (yes)")]
+    #[test_case(",...arguments" => true; "Elision SpreadElement (yes)")]
+    #[test_case("arguments,bob" => true; "ElementList , AssignmentExpression (left)")]
+    #[test_case("arguments,,bob" => true; "ElementList , Elision AssignmentExpression (left)")]
+    #[test_case("arguments,...bob" => true; "ElementList , SpreadElement (left)")]
+    #[test_case("arguments,,...bob" => true; "ElementList , Elision SpreadElement (left)")]
+    #[test_case("alice,arguments" => true; "ElementList , AssignmentExpression (right)")]
+    #[test_case("alice,,arguments" => true; "ElementList , Elision AssignmentExpression (right)")]
+    #[test_case("alice,...arguments" => true; "ElementList , SpreadElement (right)")]
+    #[test_case("alice,,...arguments" => true; "ElementList , Elision SpreadElement (right)")]
+    fn contains_arguments(src: &str) -> bool {
+        ElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1229,7 +1298,7 @@ fn array_literal_test_contains_08() {
 #[test_case("[a.#invalid,,]" => false; "ElementList Elision invalid")]
 fn array_literal_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod array_literal {
     use super::*;
@@ -1243,6 +1312,18 @@ mod array_literal {
         let mut errs = vec![];
         ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("[]" => false; "empty")]
+    #[test_case("[,]" => false; "Elision")]
+    #[test_case("[a]" => false; "ElementList (no)")]
+    #[test_case("[arguments]" => true; "ElementList (yes)")]
+    #[test_case("[a,,]" => false; "ElementList Elision (no)")]
+    #[test_case("[arguments,,]" => true; "ElementList Elision (yes)")]
+    #[test_case("[a,]" => false; "ElementList (Comma) (no)")]
+    #[test_case("[arguments,]" => true; "ElementList (Comma) (yes)")]
+    fn contains_arguments(src: &str) -> bool {
+        ArrayLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1293,7 +1374,7 @@ fn initializer_test_contains_02() {
 #[test_case("=a.#invalid" => false; "invalid")]
 fn initializer_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Initializer::parse(&mut newparser(src), Scanner::new(), true, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod initializer {
     use super::*;
@@ -1305,6 +1386,12 @@ mod initializer {
         let mut errs = vec![];
         Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("=xyzzy" => false; "no")]
+    #[test_case("=arguments" => true; "yes")]
+    fn contains_arguments(src: &str) -> bool {
+        Initializer::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1350,7 +1437,7 @@ fn cover_initialized_name_test_contains_02() {
 #[test_case("a=b.#invalid" => false; "invalid")]
 fn cover_initialized_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod cover_initialized_name {
     use super::*;
@@ -1418,7 +1505,7 @@ fn computed_property_name_test_contains_02() {
 #[test_case("[a.#invalid]" => false; "invalid")]
 fn computed_property_name_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod computed_property_name {
     use super::*;
@@ -1428,8 +1515,13 @@ mod computed_property_name {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ComputedPropertyName::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+    #[test_case("[xyzzy]" => false; "no")]
+    #[test_case("[arguments]" => true; "yes")]
+    fn contains_arguments(src: &str) -> bool {
+        ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1593,16 +1685,19 @@ fn property_name_test_computed_property_contains_03() {
     let (item, _) = PropertyName::parse(&mut newparser("[0]"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::This), false);
 }
-#[test_case("a" => true; "literal property name")]
-#[test_case("[a.#valid]" => true; "computed property name valid")]
-#[test_case("[a.#invalid]" => false; "computed property name invalid")]
-fn property_name_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod property_name {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("a" => true; "literal property name")]
+    #[test_case("[a.#valid]" => true; "computed property name valid")]
+    #[test_case("[a.#invalid]" => false; "computed property name invalid")]
+    fn private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
+
     #[test_case("package", true => set(&[]); "LiteralPropertyName")]
     #[test_case("[package]", true => set(&[PACKAGE_NOT_ALLOWED]); "ComputedPropertyName")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -1617,6 +1712,13 @@ mod property_name {
     fn prop_name(src: &str) -> Option<JSString> {
         let (item, _) = PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.prop_name()
+    }
+
+    #[test_case("arguments" => false; "LPN")]
+    #[test_case("[arguments]" => true; "CPN (yes)")]
+    #[test_case("[xyzyz]" => false; "CPN (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        PropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1791,21 +1893,23 @@ fn property_definition_test_contains_10() {
 #[test_case("...a.#invalid" => false; "...AssignmentExpression invalid")]
 fn property_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod property_definition {
     use super::*;
     use test_case::test_case;
 
     const BAD_DESTRUCTURE: &str = "Illegal destructuring syntax in non-destructuring context";
+    const UNEXPECTED_PRIVATE: &str = "Private identifier unexpected here";
+    const UNEXPECTED_SUPER: &str = "'super' keyword unexpected here";
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "identifier")]
     #[test_case("package=b", true => set(&[PACKAGE_NOT_ALLOWED, BAD_DESTRUCTURE]); "cover init")]
     #[test_case("[package]:interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "property name")]
-    #[test_case("package(){}", true => panics "not yet implemented"; "method def")]
+    #[test_case("[package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "method def")]
     #[test_case("...package", true => set(&[PACKAGE_NOT_ALLOWED]); "spread element")]
-    #[test_case("a(b=super()){}", true => panics "not yet implemented"; "HasDirectSuper of MethodDefinition")]
-    #[test_case("#a(){}", true => panics "not yet implemented"; "unexpected private id in MethodDef")]
+    #[test_case("a(b=super()){}", true => set(&[UNEXPECTED_SUPER]); "HasDirectSuper of MethodDefinition")]
+    #[test_case("#a(){}", true => set(&[UNEXPECTED_PRIVATE]); "unexpected private id in MethodDef")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
@@ -1832,6 +1936,20 @@ mod property_definition {
     fn special_proto_count(src: &str) -> u64 {
         let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.special_proto_count()
+    }
+
+    #[test_case("arguments" => true; "IdRef (yes)")]
+    #[test_case("arguments=0" => false; "CoverInitializedName")]
+    #[test_case("[arguments]:bob" => true; "Name : AE (left)")]
+    #[test_case("bob:arguments" => true; "Name : AE (right)")]
+    #[test_case("[arguments](){}" => true; "MethodDef (yes)")]
+    #[test_case("...arguments" => true; "spread (yes)")]
+    #[test_case("xyzzy" => false; "IdRef (no)")]
+    #[test_case("[xyzzy]:bob" => false; "Name : AE (no)")]
+    #[test_case("[xyzzy](){}" => false; "MethodDef (no)")]
+    #[test_case("...xyzzy" => false; "spread (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -1910,19 +2028,21 @@ fn property_definition_list_test_contains_05() {
     let (item, _) = PropertyDefinitionList::parse(&mut newparser("a=0,b=2"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("a:b.#valid" => true; "Item valid")]
-#[test_case("a:b.#valid,c" => true; "List head valid")]
-#[test_case("a,b:c.#valid" => true; "List tail vaild")]
-#[test_case("a:b.#invalid" => false; "Item invalid")]
-#[test_case("a:b.#invalid,c" => false; "List head invalid")]
-#[test_case("a,b:c.#invalid" => false; "List tail invalid")]
-fn property_definition_list_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod property_definition_list {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("a:b.#valid" => true; "Item valid")]
+    #[test_case("a:b.#valid,c" => true; "List head valid")]
+    #[test_case("a,b:c.#valid" => true; "List tail vaild")]
+    #[test_case("a:b.#invalid" => false; "Item invalid")]
+    #[test_case("a:b.#invalid,c" => false; "List head invalid")]
+    #[test_case("a,b:c.#invalid" => false; "List tail invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("[package]:3", true => set(&[PACKAGE_NOT_ALLOWED]); "item")]
     #[test_case("[package]:3,b", true => set(&[PACKAGE_NOT_ALLOWED]); "list head")]
@@ -1943,6 +2063,15 @@ mod property_definition_list {
     fn special_proto_count(src: &str) -> u64 {
         let (item, _) = PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
         item.special_proto_count()
+    }
+
+    #[test_case("arguments" => true; "item (yes)")]
+    #[test_case("arguments,bob" => true; "list, item (left)")]
+    #[test_case("bob,arguments" => true; "list, item (right)")]
+    #[test_case("xyzzy" => false; "item (no)")]
+    #[test_case("xyzzy,bob" => false; "list, item (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -2043,18 +2172,20 @@ fn object_literal_test_contains_05() {
     let (item, _) = ObjectLiteral::parse(&mut newparser("{a=0,}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("{}" => true; "empty")]
-#[test_case("{a:b.#valid}" => true; "List valid")]
-#[test_case("{a:b.#valid,}" => true; "List comma valid")]
-#[test_case("{a:b.#invalid}" => false; "List invalid")]
-#[test_case("{a:b.#invalid,}" => false; "List comma invalid")]
-fn object_literal_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod object_literal {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("{}" => true; "empty")]
+    #[test_case("{a:b.#valid}" => true; "List valid")]
+    #[test_case("{a:b.#valid,}" => true; "List comma valid")]
+    #[test_case("{a:b.#invalid}" => false; "List invalid")]
+    #[test_case("{a:b.#invalid,}" => false; "List comma invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const DUP_PROTO: &str = "Duplicate __proto__ fields are not allowed in object literals";
 
@@ -2069,6 +2200,15 @@ mod object_literal {
         ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("{}" => false; "{} (empty)")]
+    #[test_case("{xyzzy}" => false; "{ PDL } (no)")]
+    #[test_case("{xyzzy,}" => false; "{ PDL, } (comma) (no)")]
+    #[test_case("{arguments}" => true; "{ PDL } (yes)")]
+    #[test_case("{arguments,}" => true; "{ PDL, } (comma) (yes)")]
+    fn contains_arguments(src: &str) -> bool {
+        ObjectLiteral::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
 }
 
 // PARENTHESIZED EXPRESSION
@@ -2081,7 +2221,6 @@ fn parenthesized_expression_test_01() {
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     format!("{:?}", pe);
     assert_eq!(pe.is_function_definition(), false);
-    assert_eq!(pe.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn parenthesized_expression_test_02() {
@@ -2115,21 +2254,23 @@ fn parenthesized_expression_test_contains_02() {
     let (item, _) = ParenthesizedExpression::parse(&mut newparser("(1)"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("(a.#valid)" => true; "valid")]
-#[test_case("(a.#invalid)" => false; "invalid")]
-fn parenthesized_expression_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod parenthesized_expression {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("(a.#valid)" => true; "valid")]
+    #[test_case("(a.#invalid)" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("(package)", true => set(&[PACKAGE_NOT_ALLOWED]); "( Expression )")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ParenthesizedExpression::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2137,6 +2278,20 @@ mod parenthesized_expression {
     #[test_case("(1)" => true; "parenthesized literal")]
     fn is_strictly_deletable(src: &str) -> bool {
         ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("(arguments)" => true; "yes")]
+    #[test_case("(xyzzy)" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("(this)", false => ATTKind::Invalid; "invalid")]
+    #[test_case("(a)", false => ATTKind::Simple; "valid")]
+    #[test_case("(eval)", false => ATTKind::Simple; "not-strict eval")]
+    #[test_case("(eval)", true => ATTKind::Invalid; "strict eval")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).parenthesized_expression().assignment_target_type(strict)
     }
 }
 
@@ -2219,19 +2374,20 @@ fn template_middle_list_test_contains_05() {
     let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${a"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("}${a.#valid" => true; "Item valid")]
-#[test_case("}${a.#valid}${b" => true; "List head valid")]
-#[test_case("}${a}${b.#valid" => true; "List tail valid")]
-#[test_case("}${a.#invalid" => false; "Item invalid")]
-#[test_case("}${a.#invalid}${b" => false; "List head invalid")]
-#[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
-fn template_middle_list_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
 mod template_middle_list {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("}${a.#valid" => true; "Item valid")]
+    #[test_case("}${a.#valid}${b" => true; "List head valid")]
+    #[test_case("}${a}${b.#valid" => true; "List tail valid")]
+    #[test_case("}${a.#invalid" => false; "Item invalid")]
+    #[test_case("}${a.#invalid}${b" => false; "List head invalid")]
+    #[test_case("}${a}${b.#invalid" => false; "List tail invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let item = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap().0;
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
@@ -2254,8 +2410,17 @@ mod template_middle_list {
     #[test_case("}a${9}\\u{66}${0", true => vec![Some(JSString::from("a")), Some(JSString::from("\\u{66}"))]; "list-raw")]
     #[test_case("}a${9}\\u{66}${0", false => vec![Some(JSString::from("a")), Some(JSString::from("f"))]; "list-cooked")]
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
-        let (item, _) = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
+        let item = TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0;
         item.template_strings(raw)
+    }
+
+    #[test_case("}${arguments" => true; "TM Expression (yes)")]
+    #[test_case("}${xyzzy" => false; "TM Expression (no)")]
+    #[test_case("}${arguments}${bob" => true; "TML TM Exp (left)")]
+    #[test_case("}${bob}${arguments" => true; "TML TM Exp (right)")]
+    #[test_case("}${bob}${xyzzy" => false; "TML TM Exp (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2318,16 +2483,18 @@ fn template_spans_test_contains_03() {
     let (item, _) = TemplateSpans::parse(&mut newparser("} ${ a }`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("}`" => true; "TemplateTail")]
-#[test_case("}${a.#valid}`" => true; "valid")]
-#[test_case("}${a.#invalid}`" => false; "invalid")]
-fn template_spans_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod template_spans {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("}`" => true; "TemplateTail")]
+    #[test_case("}${a.#valid}`" => true; "valid")]
+    #[test_case("}${a.#invalid}`" => false; "invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
 
@@ -2350,6 +2517,13 @@ mod template_spans {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("}`" => false; "Tail")]
+    #[test_case("}${arguments}`" => true; "Middle Tail (yes)")]
+    #[test_case("}${xyzzy}`" => false; "Middle Tail (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateSpans::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2400,17 +2574,19 @@ fn substitution_template_test_contains_03() {
     let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("`${a.#valid}${b}`" => true; "expr valid")]
-#[test_case("`${a}${b.#valid}`" => true; "spans valid")]
-#[test_case("`${a.#invalid}${b}`" => false; "expr invalid")]
-#[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
-fn substitution_template_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod substitution_template {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("`${a.#valid}${b}`" => true; "expr valid")]
+    #[test_case("`${a}${b.#valid}`" => true; "spans valid")]
+    #[test_case("`${a.#invalid}${b}`" => false; "expr invalid")]
+    #[test_case("`${a}${b.#invalid}`" => false; "spans invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     const RE_ESCAPE_ONE: &str = "Invalid character escape in template literal";
     const RE_ESCAPE_TWO: &str = "Invalid escape sequence in template literal";
@@ -2419,7 +2595,7 @@ mod substitution_template {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SubstitutionTemplate::parse(&mut strictparser(src, strict), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2428,6 +2604,13 @@ mod substitution_template {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("`${arguments}`" => true; "Head - Expression - Spans (left)")]
+    #[test_case("`${bob}${arguments}`" => true; "Head - Expression - Spans (right)")]
+    #[test_case("`${xyzzy}`" => false; "Head - Expression - Spans (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 
@@ -2501,16 +2684,18 @@ fn template_literal_test_contains_03() {
     let (item, _) = TemplateLiteral::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
-#[test_case("`a`" => true; "no substitution")]
-#[test_case("`${a.#valid}`" => true; "sub valid")]
-#[test_case("`${a.#invalid}`" => false; "sub invalid")]
-fn template_literal_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
-}
+
 mod template_literal {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("`a`" => true; "no substitution")]
+    #[test_case("`${a.#valid}`" => true; "sub valid")]
+    #[test_case("`${a.#invalid}`" => false; "sub invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, false, false).unwrap();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     mod early_errors {
         use super::*;
@@ -2553,6 +2738,13 @@ mod template_literal {
     fn template_strings(src: &str, raw: bool) -> Vec<Option<JSString>> {
         let (item, _) = TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap();
         item.template_strings(raw)
+    }
+
+    #[test_case("``" => false; "NoSub")]
+    #[test_case("`${arguments}`" => true; "Sub (yes)")]
+    #[test_case("`${xyzzy}`" => false; "Sub (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        TemplateLiteral::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
     }
 }
 

@@ -351,11 +351,11 @@ impl AsyncMethod {
         self.ident.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+    pub fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
-        self.ident.private_bound_identifiers()
+        self.ident.private_bound_identifier()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -366,6 +366,17 @@ impl AsyncMethod {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.ident.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. Return ContainsArguments of ClassElementName.
+        self.ident.contains_arguments()
     }
 
     pub fn has_direct_super(&self) -> bool {
@@ -386,8 +397,7 @@ impl AsyncMethod {
         //  * It is a Syntax Error if UniqueFormalParameters Contains AwaitExpression is true.
         //  * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in the
         //    LexicallyDeclaredNames of AsyncFunctionBody.
-        todo!();
-
+        //todo!();
 
         self.ident.early_errors(agent, errs, strict);
         self.params.early_errors(agent, errs, strict);
@@ -463,6 +473,20 @@ impl AsyncFunctionBody {
         self.0.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
+    }
+
     pub fn function_body_contains_use_strict(&self) -> bool {
         // Static Semantics: FunctionBodyContainsUseStrict
         // AsyncFunctionBody : FunctionBody
@@ -528,8 +552,10 @@ impl AwaitExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let AwaitExpression::Await(boxed) = self;
-        boxed.contains(kind)
+        kind == ParseNodeKind::AwaitExpression || {
+            let AwaitExpression::Await(boxed) = self;
+            boxed.contains(kind)
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -546,6 +572,21 @@ impl AwaitExpression {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let AwaitExpression::Await(ue) = self;
         ue.early_errors(agent, errs, strict);
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let AwaitExpression::Await(ue) = self;
+        ue.contains_arguments()
     }
 }
 

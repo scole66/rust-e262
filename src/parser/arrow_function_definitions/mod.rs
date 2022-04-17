@@ -73,9 +73,47 @@ impl ArrowFunction {
         self.parameters.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.parameters.contains_arguments() || self.body.contains_arguments()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  ArrowFunction : ArrowParameters => ConciseBody
+        //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
+        //  * It is a Syntax Error if ArrowParameters Contains AwaitExpression is true.
+        //  * It is a Syntax Error if ConciseBodyContainsUseStrict of ConciseBody is true and IsSimpleParameterList of
+        //    ArrowParameters is false.
+        //  * It is a Syntax Error if any element of the BoundNames of ArrowParameters also occurs in the
+        //    LexicallyDeclaredNames of ConciseBody.
+        if self.parameters.contains(ParseNodeKind::YieldExpression) {
+            errs.push(create_syntax_error_object(agent, "Illegal yield expression in arrow function parameters"));
+        }
+        if self.parameters.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(agent, "Illegal await expression in arrow function parameters"));
+        }
+        if self.body.concise_body_contains_use_strict() && !self.parameters.is_simple_parameter_list() {
+            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        }
+        let bn = self.parameters.bound_names();
+        let ldn = self.body.lexically_declared_names();
+        for name in bn.into_iter().filter(|n| ldn.contains(n)) {
+            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+        }
+
+        let strict_function = strict || self.body.concise_body_contains_use_strict();
+        self.parameters.early_errors(agent, errs, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
@@ -166,9 +204,49 @@ impl ArrowParameters {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ArrowParameters::Identifier(_) => false,
+            ArrowParameters::Formals(afp) => afp.contains_arguments(),
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        match self {
+            ArrowParameters::Identifier(id) => id.bound_names(),
+            ArrowParameters::Formals(afp) => afp.bound_names(),
+        }
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
+        //  ArrowParameters : BindingIdentifier
+        //      1. Return true.
+        //  ArrowParameters : CoverParenthesizedExpressionAndArrowParameterList
+        //      1. Let formals be the ArrowFormalParameters that is covered by CoverParenthesizedExpressionAndArrowParameterList.
+        //      2. Return IsSimpleParameterList of formals.
+        match self {
+            ArrowParameters::Identifier(_) => true,
+            ArrowParameters::Formals(formals) => formals.is_simple_parameter_list(),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ArrowParameters::Identifier(id) => id.early_errors(agent, errs, strict),
+            ArrowParameters::Formals(afp) => afp.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -240,9 +318,34 @@ impl ArrowFormalParameters {
         self.0.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.0.contains_arguments()
+    }
+
+    pub fn bound_names(&self) -> Vec<JSString> {
+        self.0.bound_names()
+    }
+
+    pub fn is_simple_parameter_list(&self) -> bool {
+        // Static Semantics: IsSimpleParameterList
+        // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
+        //  ArrowFormalParameters : ( UniqueFormalParameters )
+        //      1. Return IsSimpleParameterList of UniqueFormalParameters.
+        self.0.is_simple_parameter_list()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.0.early_errors(agent, errs, strict);
     }
 }
 
@@ -336,9 +439,56 @@ impl ConciseBody {
         }
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ConciseBody::Expression(eb) => eb.contains_arguments(),
+            ConciseBody::Function(fb) => fb.contains_arguments(),
+        }
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        // Static Semantics: LexicallyDeclaredNames
+        // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
+        //  ConciseBody : ExpressionBody
+        //      1. Return a new empty List.
+        //  ConciseBody : { FunctionBody }
+        //      1. Return LexicallyDeclaredNames of FunctionBody.
+        match self {
+            ConciseBody::Expression(_) => vec![],
+            ConciseBody::Function(fb) => fb.lexically_declared_names(),
+        }
+    }
+
+    pub fn concise_body_contains_use_strict(&self) -> bool {
+        // Static Semantics: ConciseBodyContainsUseStrict
+        // The syntax-directed operation ConciseBodyContainsUseStrict takes no arguments and returns a Boolean. It is
+        // defined piecewise over the following productions:
+        //
+        //  ConciseBody : ExpressionBody
+        //      1. Return false.
+        //  ConciseBody : { FunctionBody }
+        //      1. Return FunctionBodyContainsUseStrict of FunctionBody.
+        match self {
+            ConciseBody::Expression(_) => false,
+            ConciseBody::Function(fb) => fb.function_body_contains_use_strict(),
+        }
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        match self {
+            ConciseBody::Expression(exp) => exp.early_errors(agent, errs, strict),
+            ConciseBody::Function(fb) => fb.early_errors(agent, errs, strict),
+        }
     }
 }
 
@@ -406,9 +556,22 @@ impl ExpressionBody {
         self.expression.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.expression.contains_arguments()
+    }
+
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        self.expression.early_errors(agent, errs, strict);
     }
 }
 

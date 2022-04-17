@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -474,7 +474,7 @@ fn statement_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("a.#invalid;" => false; "expression invalid")]
 fn statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod statement {
     use super::*;
@@ -496,7 +496,7 @@ mod statement {
     fn early_errors(src: &str, strict: bool, wi: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Statement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi, false);
+        Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, wi, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -504,6 +504,34 @@ mod statement {
     #[test_case("bob;" => false; "not a function")]
     fn is_labelled_function(src: &str) -> bool {
         Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_labelled_function()
+    }
+
+    #[test_case("debugger;" => false; "Debugger stmt")]
+    #[test_case("continue;" => false; "Continued stmt")]
+    #[test_case("break;" => false; "Break stmt")]
+    #[test_case(";" => false; "Empty")]
+    #[test_case("{arguments;}" => true; "Block (yes)")]
+    #[test_case("var bob=arguments;" => true; "Var (yes)")]
+    #[test_case("arguments;" => true; "Exp (yes)")]
+    #[test_case("if (arguments) ;" => true; "If (yes)")]
+    #[test_case("for (arguments;;);" => true; "Breakable (yes)")]
+    #[test_case("return arguments;" => true; "Return (yes)")]
+    #[test_case("with (arguments) {}" => true; "With (yes)")]
+    #[test_case("a:arguments;" => true; "Labelled (yes)")]
+    #[test_case("throw arguments;" => true; "Throw (yes)")]
+    #[test_case("try {arguments;} finally{}" => true; "Try (yes)")]
+    #[test_case("{xyzzy;}" => false; "Block (no)")]
+    #[test_case("var bob=xyzzy;" => false; "Var (no)")]
+    #[test_case("xyzzy;" => false; "Exp (no)")]
+    #[test_case("if (xyzzy) ;" => false; "If (no)")]
+    #[test_case("for (xyzzy;;);" => false; "Breakable (no)")]
+    #[test_case("return xyzzy;" => false; "Return (no)")]
+    #[test_case("with (xyzzy) {}" => false; "With (no)")]
+    #[test_case("a:xyzzy;" => false; "Labelled (no)")]
+    #[test_case("throw xyzzy;" => false; "Throw (no)")]
+    #[test_case("try {xyzzy;} finally{}" => false; "Try (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -596,20 +624,29 @@ fn declaration_test_contains() {
 #[test_case("let a=b.#invalid;" => false; "LexicalDeclaration invalid")]
 fn declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod declaration {
     use super::*;
     use test_case::test_case;
 
     #[test_case("function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "HoistableDeclaration")]
-    #[test_case("class package{}", true => panics "not yet implemented" /* set(&[PACKAGE_NOT_ALLOWED]) */; "ClassDeclaration")]
+    #[test_case("class package{}", true => set(&[PACKAGE_NOT_ALLOWED]); "ClassDeclaration")]
     #[test_case("let package;", true => set(&[PACKAGE_NOT_ALLOWED]); "LexicalDeclaration")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Declaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("function a(){}" => false; "Hoistable")]
+    #[test_case("class foo { [arguments] = 12; }" => true; "Class (yes)")]
+    #[test_case("let a=arguments;" => true; "Lexical (yes)")]
+    #[test_case("class foo { [xyzzy] = 12; }" => false; "Class (no)")]
+    #[test_case("let a=xyzzy;" => false; "Lexical (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
 }
 
@@ -734,7 +771,7 @@ fn hoistable_declaration_test_contains() {
 #[test_case("async function *a(b){b.#invalid;}" => false; "async generator invalid")]
 fn hoistable_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod hoistable_declaration {
     use super::*;
@@ -747,7 +784,7 @@ mod hoistable_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        HoistableDeclaration::parse(&mut strictparser(src, strict), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -852,7 +889,7 @@ fn breakable_statement_test_contains_undefined_continue_target(src: &str) -> (bo
 #[test_case("switch(a.#invalid){}" => false; "switch statement invalid")]
 fn breakable_statement_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod breakable_statement {
     use super::*;
@@ -863,7 +900,15 @@ mod breakable_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BreakableStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("for(;;)arguments;" => true; "Iteration (yes)")]
+    #[test_case("switch (a) { case 1: arguments; }" => true; "Switch (yes)")]
+    #[test_case("for(;;);" => false; "Iteration (no)")]
+    #[test_case("switch (a) {}" => false; "Switch (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 }

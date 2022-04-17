@@ -77,15 +77,6 @@ impl IsFunctionDefinition for AdditiveExpression {
     }
 }
 
-impl AssignmentTargetType for AdditiveExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        match self {
-            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
-            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(),
-        }
-    }
-}
-
 impl AdditiveExpression {
     // AdditiveExpression's only direct parent is ShiftExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -133,6 +124,23 @@ impl AdditiveExpression {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            AdditiveExpression::MultiplicativeExpression(me) => me.contains_arguments(),
+            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => ae.contains_arguments() || me.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.early_errors(agent, errs, strict),
@@ -147,6 +155,16 @@ impl AdditiveExpression {
         match self {
             AdditiveExpression::MultiplicativeExpression(node) => node.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        match self {
+            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
+            AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(strict),
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::testhelp::{check, chk_scan, newparser, set, strictparser, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -15,7 +15,6 @@ fn expression_test_01() {
     concise_check(&*se, "IdentifierName: a", vec![]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Simple);
 }
 #[test]
 fn expression_test_02() {
@@ -26,7 +25,6 @@ fn expression_test_02() {
     concise_check(&*se, "Expression: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     format!("{:?}", se);
     assert_eq!(se.is_function_definition(), false);
-    assert_eq!(se.assignment_target_type(), ATTKind::Invalid);
 }
 #[test]
 fn expression_test_cache_01() {
@@ -61,31 +59,6 @@ fn expression_test_conciseerrors_2() {
     let (item, _) = Expression::parse(&mut newparser("a,b"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn expression_test_contains_01() {
-    let (item, _) = Expression::parse(&mut newparser("0"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_02() {
-    let (item, _) = Expression::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn expression_test_contains_03() {
-    let (item, _) = Expression::parse(&mut newparser("0,a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_04() {
-    let (item, _) = Expression::parse(&mut newparser("a,0"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn expression_test_contains_05() {
-    let (item, _) = Expression::parse(&mut newparser("a,a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
 #[test_case("a,b" => None; "Not token")]
 fn expression_test_as_string_literal(src: &str) -> Option<JSString> {
@@ -100,7 +73,7 @@ fn expression_test_as_string_literal(src: &str) -> Option<JSString> {
 #[test_case("a, item.#invalid" => false; "Right invalid")]
 fn expression_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 mod expression {
     use super::*;
@@ -111,7 +84,7 @@ mod expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Expression::parse(&mut strictparser(src, strict), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -120,5 +93,33 @@ mod expression {
     #[test_case("a , b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
         Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+    }
+
+    #[test_case("arguments" => true; "Exp (yes)")]
+    #[test_case("arguments, bob" => true; "Comma (left)")]
+    #[test_case("bob, arguments" => true; "Comma (right)")]
+    #[test_case("no" => false; "Exp (no)")]
+    #[test_case("no, bob" => false; "Comma (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Expression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("a,b", false => ATTKind::Invalid; "comma")]
+    #[test_case("eval", false => ATTKind::Simple; "eval; non-strict")]
+    #[test_case("eval", true => ATTKind::Invalid; "eval; strict")]
+    fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
+        Maker::new(src).expression().assignment_target_type(strict)
+    }
+
+    #[test_case("0", ParseNodeKind::Literal => true; "expr; literal; yes")]
+    #[test_case("a", ParseNodeKind::Literal => false; "expr; literal; no")]
+    #[test_case("a,0", ParseNodeKind::Literal => true; "commas; literal; right")]
+    #[test_case("0,a", ParseNodeKind::Literal => true; "commas; literal; left")]
+    #[test_case("a,a", ParseNodeKind::Literal => false; "commas; literal; none")]
+    #[test_case("a", ParseNodeKind::AssignmentExpression => true; "expr; ae")]
+    #[test_case("a,a", ParseNodeKind::Expression => true; "comma; expr")]
+    #[test_case("a,a", ParseNodeKind::AssignmentExpression => true; "comma; ae")]
+    fn contains(src: &str, target: ParseNodeKind) -> bool {
+        Maker::new(src).expression().contains(target)
     }
 }

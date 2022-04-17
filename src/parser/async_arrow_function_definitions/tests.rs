@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::test_agent;
@@ -149,13 +149,27 @@ fn async_arrow_function_test_contains_10() {
 #[test_case("async (a,b) => a.#invalid - b" => false; "WithParams AsyncConciseBody invalid")]
 fn async_arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncArrowFunction::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_function_test_early_errors() {
     AsyncArrowFunction::parse(&mut newparser("async x => x"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+}
+
+mod async_arrow_function {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("async a => arguments" => true; "no-formals (yes)")]
+    #[test_case("async a => a" => false; "no-formals (no)")]
+    #[test_case("async ({a=arguments}) => a" => true; "formals (left)")]
+    #[test_case("async (a) => arguments" => true; "formals (right)")]
+    #[test_case("async (a) => a" => false; "formals (none)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_arrow_function().contains_arguments()
+    }
 }
 
 // ASYNC CONCISE BODY
@@ -231,7 +245,7 @@ fn async_concise_body_test_contains_04() {
 #[test_case("{ return item.#invalid; }" => false; "Function invalid")]
 fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncConciseBody::parse(&mut newparser(src), Scanner::new(), true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 #[test]
@@ -240,6 +254,18 @@ fn async_concise_body_test_early_errors() {
     AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
 }
 
+mod async_concise_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("arguments" => true; "exp (yes)")]
+    #[test_case("a" => false; "exp (no)")]
+    #[test_case("{ arguments; }" => true; "block (yes)")]
+    #[test_case("{}" => false; "block (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_concise_body().contains_arguments()
+    }
+}
 // ASYNC ARROW BINDING IDENTIFIER
 #[test]
 fn async_arrow_binding_identifier_test_01() {
@@ -376,10 +402,21 @@ fn async_arrow_head_test_contains_02() {
 #[test_case("async (a=item.#invalid)" => false; "ArrowFormalParameters invalid")]
 fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = AsyncArrowHead::parse(&mut newparser(src), Scanner::new()).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
 #[should_panic(expected = "not yet implemented")]
 fn async_arrow_head_test_early_errors() {
     AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+}
+
+mod async_arrow_head {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("async ({a=arguments})" => true; "yes")]
+    #[test_case("async (a)" => false; "no")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).async_arrow_head().contains_arguments()
+    }
 }

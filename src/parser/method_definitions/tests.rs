@@ -1,8 +1,25 @@
-use super::testhelp::{check, check_err, chk_scan, newparser};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
+
+mod method_type {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", MethodType::Setter), "");
+    }
+
+    #[test_case(MethodType::Setter, MethodType::Setter => true; "equal")]
+    #[test_case(MethodType::Getter, MethodType::Normal => false; "not equal")]
+    fn eq(left: MethodType, right: MethodType) -> bool {
+        left == right
+    }
+}
 
 // METHOD DEFINITION
 #[test]
@@ -378,16 +395,6 @@ fn method_definition_test_computed_property_contains_12() {
     let (item, _) = MethodDefinition::parse(&mut newparser("set [0](b){}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
 }
-#[test_case("#standard_method(){}" => vec![JSString::from("standard_method")]; "Standard Method")]
-#[test_case("*#generator(){}" => vec![JSString::from("generator")]; "Generator")]
-#[test_case("async #async_method(){}" => vec![JSString::from("async_method")]; "Async Method")]
-#[test_case("async *#async_gen(){}" => vec![JSString::from("async_gen")]; "Async Generator")]
-#[test_case("get #getter(){}" => vec![JSString::from("getter")]; "Getter")]
-#[test_case("set #setter(val){}" => vec![JSString::from("setter")]; "Setter")]
-fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> {
-    let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.private_bound_identifiers()
-}
 #[test_case("a(){b.#valid;}" => true; "method valid")]
 #[test_case("*a(){b.#valid;}" => true; "generator valid")]
 #[test_case("async a(){b.#valid;}" => true; "async method valid")]
@@ -402,7 +409,7 @@ fn method_definition_test_private_bound_identifiers(src: &str) -> Vec<JSString> 
 #[test_case("set a(b){c.#invalid;}" => false; "setter invalid")]
 fn method_definition_test_all_private_identifiers_valid(src: &str) -> bool {
     let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("valid")])
+    item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 
 mod method_definition {
@@ -424,14 +431,28 @@ mod method_definition {
     #[test_case("async a(){}" => false; "async method without")]
     #[test_case("async a(){super(0);}" => true; "async method with")]
     fn has_direct_super(src: &str) -> bool {
-        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.has_direct_super()
+        Maker::new(src).method_definition().has_direct_super()
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        MethodDefinition::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("[package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
+    #[test_case("*[package](){}", true => panics "not yet implemented"; "GeneratorMethod")]
+    #[test_case("async [package](){}", true => panics "not yet implemented"; "AsyncMethod")]
+    #[test_case("async *[package](){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
+    #[test_case("get [package](){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
+    #[test_case("set [package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
+    #[test_case("[package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; ordinary")]
+    #[test_case("get [package](){'use strict'; implements;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "contains strict; getter")]
+    #[test_case("set [package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; setter")]
+    #[test_case("a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "ordinary; bad use-strict")]
+    #[test_case("set a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "setter; bad use-strict")]
+    #[test_case("foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "ordinary; duped lexical")]
+    #[test_case("set foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "setter; duped lexical")]
+    #[test_case("set foo([a, a]){}", false => set(&[A_ALREADY_DEFN]); "setter; duped params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).method_definition().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a(){}" => Some(JSString::from("a")); "simple")]
@@ -441,8 +462,49 @@ mod method_definition {
     #[test_case("async a(){}" => Some(JSString::from("a")); "async fun")]
     #[test_case("async *a(){}" => Some(JSString::from("a")); "async gen")]
     fn prop_name(src: &str) -> Option<JSString> {
-        let (item, _) = MethodDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.prop_name()
+        Maker::new(src).method_definition().prop_name()
+    }
+
+    #[test_case("[arguments](){}" => true; "normal method (yes)")]
+    #[test_case("a(){}" => false; "normal method (no)")]
+    #[test_case("*[arguments](){}" => true; "generator (yes)")]
+    #[test_case("*a(){}" => false; "generator (no)")]
+    #[test_case("async [arguments](){}" => true; "async method (yes)")]
+    #[test_case("async a(){}" => false; "async method (no)")]
+    #[test_case("async *[arguments](){}" => true; "async gen (yes)")]
+    #[test_case("async *a(){}" => false; "async gen (no)")]
+    #[test_case("get [arguments](){}" => true; "getter (yes)")]
+    #[test_case("get a(){}" => false; "getter (no)")]
+    #[test_case("set [arguments](a){}" => true; "setter (yes)")]
+    #[test_case("set a(b){}" => false; "setter (no)")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).method_definition().contains_arguments()
+    }
+
+    #[test_case("#standard_method(){}" => Some((String::from("#standard_method"), MethodType::Normal)); "Standard Method")]
+    #[test_case("*#generator(){}" => Some((String::from("#generator"), MethodType::Normal)); "Generator")]
+    #[test_case("async #async_method(){}" => Some((String::from("#async_method"), MethodType::Normal)); "Async Method")]
+    #[test_case("async *#async_gen(){}" => Some((String::from("#async_gen"), MethodType::Normal)); "Async Generator")]
+    #[test_case("get #getter(){}" => Some((String::from("#getter"), MethodType::Getter)); "Getter")]
+    #[test_case("set #setter(val){}" => Some((String::from("#setter"), MethodType::Setter)); "Setter")]
+    #[test_case("standard_method(){}" => None; "Standard Method; not private")]
+    #[test_case("*generator(){}" => None; "Generator; not private")]
+    #[test_case("async async_method(){}" => None; "Async Method; not private")]
+    #[test_case("async *async_gen(){}" => None; "Async Generator; not private")]
+    #[test_case("get getter(){}" => None; "Getter; not private")]
+    #[test_case("set setter(val){}" => None; "Setter; not private")]
+    fn private_bound_identifier(src: &str) -> Option<(String, MethodType)> {
+        Maker::new(src).method_definition().private_bound_identifier().map(|(jss, mt)| (String::from(jss), mt))
+    }
+
+    #[test_case("a(){}" => false; "standard method")]
+    #[test_case("*a(){}" => true; "generator")]
+    #[test_case("async m(){}" => true; "async fcn")]
+    #[test_case("async *m(){}" => true; "async gen")]
+    #[test_case("get foo(){}" => true; "getter")]
+    #[test_case("set foo(val){}" => true; "setter")]
+    fn special_method(src: &str) -> bool {
+        Maker::new(src).method_definition().special_method()
     }
 }
 
@@ -482,12 +544,25 @@ mod property_set_parameter_list {
     #[test_case("a=b.#invalid" => false; "invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
         let (item, _) = PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap();
-        item.all_private_identifiers_valid(&[JSString::from("valid")])
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        PropertySetParameterList::parse(&mut newparser("a"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "FormalParameter")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("a" => vec!["a"]; "FormalParameter")]
+    fn bound_names(src: &str) -> Vec<String> {
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a" => true; "simple")]
+    #[test_case("[a]" => false; "complex")]
+    fn is_simple_parameter_list(src: &str) -> bool {
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.is_simple_parameter_list()
     }
 }

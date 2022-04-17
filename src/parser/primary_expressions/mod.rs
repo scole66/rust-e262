@@ -34,7 +34,7 @@ use std::io::Write;
 //      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
 
 #[derive(Debug)]
-pub enum PrimaryExpressionKind {
+pub enum PrimaryExpression {
     This,
     IdentifierReference(Rc<IdentifierReference>),
     Literal(Rc<Literal>),
@@ -50,27 +50,22 @@ pub enum PrimaryExpressionKind {
     RegularExpression(RegularExpressionData),
 }
 
-#[derive(Debug)]
-pub struct PrimaryExpression {
-    kind: PrimaryExpressionKind,
-}
-
 impl fmt::Display for PrimaryExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            PrimaryExpressionKind::This => write!(f, "this"),
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::Literal(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpressionKind::Function(node) => node.fmt(f),
-            PrimaryExpressionKind::Class(node) => node.fmt(f),
-            PrimaryExpressionKind::Generator(node) => node.fmt(f),
-            PrimaryExpressionKind::AsyncFunction(node) => node.fmt(f),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.fmt(f),
-            PrimaryExpressionKind::RegularExpression(node) => node.fmt(f),
+        match self {
+            PrimaryExpression::This => write!(f, "this"),
+            PrimaryExpression::IdentifierReference(boxed) => boxed.fmt(f),
+            PrimaryExpression::Literal(boxed) => boxed.fmt(f),
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpression::Parenthesized(boxed) => boxed.fmt(f),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.fmt(f),
+            PrimaryExpression::Function(node) => node.fmt(f),
+            PrimaryExpression::Class(node) => node.fmt(f),
+            PrimaryExpression::Generator(node) => node.fmt(f),
+            PrimaryExpression::AsyncFunction(node) => node.fmt(f),
+            PrimaryExpression::AsyncGenerator(node) => node.fmt(f),
+            PrimaryExpression::RegularExpression(node) => node.fmt(f),
         }
     }
 }
@@ -82,20 +77,20 @@ impl PrettyPrint for PrimaryExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
-        match &self.kind {
-            PrimaryExpressionKind::This => Ok(()),
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::Class(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::AsyncFunction(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpressionKind::RegularExpression(_) => Ok(()),
+        match self {
+            PrimaryExpression::This => Ok(()),
+            PrimaryExpression::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Class(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::AsyncFunction(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::RegularExpression(_) => Ok(()),
         }
     }
 
@@ -103,28 +98,28 @@ impl PrettyPrint for PrimaryExpression {
     where
         T: Write,
     {
-        match &self.kind {
-            PrimaryExpressionKind::This => pprint_token(writer, "this", TokenType::Keyword, pad, state),
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::Literal(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::Function(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::Class(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::Generator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpressionKind::RegularExpression(item) => pprint_token(writer, item, TokenType::RegularExpression, pad, state),
+        match self {
+            PrimaryExpression::This => pprint_token(writer, "this", TokenType::Keyword, pad, state),
+            PrimaryExpression::IdentifierReference(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Literal(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Parenthesized(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Function(node) => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Class(node) => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Generator(node) => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::RegularExpression(item) => pprint_token(writer, item, TokenType::RegularExpression, pad, state),
         }
     }
 }
 
 impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
-        use PrimaryExpressionKind::*;
-        match &self.kind {
+        use PrimaryExpression::*;
+        match self {
             This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) => false,
             Parenthesized(exp) => exp.is_function_definition(),
             Function(node) => node.is_function_definition(),
@@ -138,8 +133,8 @@ impl IsFunctionDefinition for PrimaryExpression {
 
 impl IsIdentifierReference for PrimaryExpression {
     fn is_identifier_reference(&self) -> bool {
-        use PrimaryExpressionKind::*;
-        match &self.kind {
+        use PrimaryExpression::*;
+        match self {
             This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_)
             | AsyncFunction(_) | AsyncGenerator(_) => false,
             IdentifierReference(_) => true,
@@ -147,95 +142,83 @@ impl IsIdentifierReference for PrimaryExpression {
     }
 }
 
-impl AssignmentTargetType for PrimaryExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        use PrimaryExpressionKind::*;
-        match &self.kind {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_)
-            | AsyncGenerator(_) => ATTKind::Invalid,
-            IdentifierReference(id) => id.assignment_target_type(),
-            Parenthesized(expr) => expr.assignment_target_type(),
-        }
-    }
-}
-
-pub trait ToPrimaryExpressionKind {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind;
+pub trait ToPrimaryExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression;
     fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
-        Ok((Rc::new(PrimaryExpression { kind: Self::to_primary_expression_kind(node) }), scanner))
+        Ok((Rc::new(Self::to_primary_expression(node)), scanner))
     }
 }
 
-impl ToPrimaryExpressionKind for IdentifierReference {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::IdentifierReference(node)
+impl ToPrimaryExpression for IdentifierReference {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::IdentifierReference(node)
     }
 }
 
-impl ToPrimaryExpressionKind for Literal {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::Literal(node)
+impl ToPrimaryExpression for Literal {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::Literal(node)
     }
 }
 
-impl ToPrimaryExpressionKind for ArrayLiteral {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::ArrayLiteral(node)
+impl ToPrimaryExpression for ArrayLiteral {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::ArrayLiteral(node)
     }
 }
 
-impl ToPrimaryExpressionKind for ObjectLiteral {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::ObjectLiteral(node)
+impl ToPrimaryExpression for ObjectLiteral {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::ObjectLiteral(node)
     }
 }
 
-impl ToPrimaryExpressionKind for ParenthesizedExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::Parenthesized(node)
+impl ToPrimaryExpression for ParenthesizedExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::Parenthesized(node)
     }
 }
 
-impl ToPrimaryExpressionKind for TemplateLiteral {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::TemplateLiteral(node)
+impl ToPrimaryExpression for TemplateLiteral {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::TemplateLiteral(node)
     }
 }
 
-impl ToPrimaryExpressionKind for FunctionExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::Function(node)
+impl ToPrimaryExpression for FunctionExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::Function(node)
     }
 }
 
-impl ToPrimaryExpressionKind for ClassExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::Class(node)
+impl ToPrimaryExpression for ClassExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::Class(node)
     }
 }
 
-impl ToPrimaryExpressionKind for GeneratorExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::Generator(node)
+impl ToPrimaryExpression for GeneratorExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::Generator(node)
     }
 }
 
-impl ToPrimaryExpressionKind for AsyncFunctionExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::AsyncFunction(node)
+impl ToPrimaryExpression for AsyncFunctionExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::AsyncFunction(node)
     }
 }
 
-impl ToPrimaryExpressionKind for AsyncGeneratorExpression {
-    fn to_primary_expression_kind(node: Rc<Self>) -> PrimaryExpressionKind {
-        PrimaryExpressionKind::AsyncGenerator(node)
+impl ToPrimaryExpression for AsyncGeneratorExpression {
+    fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
+        PrimaryExpression::AsyncGenerator(node)
     }
 }
 
 impl PrimaryExpression {
     fn parse_this(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
-        Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::This }), after))
+        Ok((Rc::new(PrimaryExpression::This), after))
     }
 
     fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -294,7 +277,7 @@ impl PrimaryExpression {
     fn parse_regex(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression { kind: PrimaryExpressionKind::RegularExpression(rd) }), after)),
+            Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression::RegularExpression(rd)), after)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RegularExpression), scanner)),
         }
     }
@@ -317,26 +300,26 @@ impl PrimaryExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            PrimaryExpressionKind::This => kind == ParseNodeKind::This,
-            PrimaryExpressionKind::IdentifierReference(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpressionKind::Function(node) => node.contains(kind),
-            PrimaryExpressionKind::Class(node) => node.contains(kind),
-            PrimaryExpressionKind::Generator(node) => node.contains(kind),
-            PrimaryExpressionKind::AsyncFunction(node) => node.contains(kind),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.contains(kind),
-            PrimaryExpressionKind::RegularExpression(..) => false,
+        match self {
+            PrimaryExpression::This => kind == ParseNodeKind::This,
+            PrimaryExpression::IdentifierReference(boxed) => boxed.contains(kind),
+            PrimaryExpression::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpression::Parenthesized(boxed) => boxed.contains(kind),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.contains(kind),
+            PrimaryExpression::Function(node) => node.contains(kind),
+            PrimaryExpression::Class(node) => node.contains(kind),
+            PrimaryExpression::Generator(node) => node.contains(kind),
+            PrimaryExpression::AsyncFunction(node) => node.contains(kind),
+            PrimaryExpression::AsyncGenerator(node) => node.contains(kind),
+            PrimaryExpression::RegularExpression(..) => false,
         }
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            PrimaryExpressionKind::Literal(n) => n.as_string_literal(),
+        match self {
+            PrimaryExpression::Literal(n) => n.as_string_literal(),
             _ => None,
         }
     }
@@ -348,42 +331,70 @@ impl PrimaryExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match &self.kind {
-            PrimaryExpressionKind::This => true,
-            PrimaryExpressionKind::IdentifierReference(_) => true,
-            PrimaryExpressionKind::Literal(_) => true,
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::Function(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::Class(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::Generator(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::AsyncFunction(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpressionKind::RegularExpression(..) => true,
+        match self {
+            PrimaryExpression::This => true,
+            PrimaryExpression::IdentifierReference(_) => true,
+            PrimaryExpression::Literal(_) => true,
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.all_private_identifiers_valid(names),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.all_private_identifiers_valid(names),
+            PrimaryExpression::Parenthesized(boxed) => boxed.all_private_identifiers_valid(names),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.all_private_identifiers_valid(names),
+            PrimaryExpression::Function(node) => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Class(node) => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Generator(node) => node.all_private_identifiers_valid(names),
+            PrimaryExpression::AsyncFunction(node) => node.all_private_identifiers_valid(names),
+            PrimaryExpression::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
+            PrimaryExpression::RegularExpression(..) => true,
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PrimaryExpression::This
+            | PrimaryExpression::Literal(_)
+            | PrimaryExpression::Function(_)
+            | PrimaryExpression::Generator(_)
+            | PrimaryExpression::AsyncFunction(_)
+            | PrimaryExpression::AsyncGenerator(_)
+            | PrimaryExpression::RegularExpression(..) => false,
+            PrimaryExpression::IdentifierReference(ir) => ir.contains_arguments(),
+            PrimaryExpression::ArrayLiteral(al) => al.contains_arguments(),
+            PrimaryExpression::ObjectLiteral(ol) => ol.contains_arguments(),
+            PrimaryExpression::Parenthesized(pe) => pe.contains_arguments(),
+            PrimaryExpression::Class(ce) => ce.contains_arguments(),
+            PrimaryExpression::TemplateLiteral(tl) => tl.contains_arguments(),
         }
     }
 
     pub fn is_object_or_array_literal(&self) -> bool {
-        matches!(&self.kind, PrimaryExpressionKind::ArrayLiteral(_) | PrimaryExpressionKind::ObjectLiteral(_))
+        matches!(self, PrimaryExpression::ArrayLiteral(_) | PrimaryExpression::ObjectLiteral(_))
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match &self.kind {
-            PrimaryExpressionKind::This => {}
-            PrimaryExpressionKind::IdentifierReference(id) => id.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::Literal(lit) => lit.early_errors(),
-            PrimaryExpressionKind::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
-            PrimaryExpressionKind::Function(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::Class(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::Generator(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::AsyncFunction(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpressionKind::RegularExpression(regex) => {
+        match self {
+            PrimaryExpression::This => {}
+            PrimaryExpression::IdentifierReference(id) => id.early_errors(agent, errs, strict),
+            PrimaryExpression::Literal(lit) => lit.early_errors(),
+            PrimaryExpression::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpression::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpression::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
+            PrimaryExpression::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
+            PrimaryExpression::Function(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpression::Class(node) => node.early_errors(agent, errs),
+            PrimaryExpression::Generator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpression::AsyncFunction(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpression::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
+            PrimaryExpression::RegularExpression(regex) => {
                 // Static Semantics: Early Errors
                 //      PrimaryExpression : RegularExpressionLiteral
                 //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
@@ -395,10 +406,23 @@ impl PrimaryExpression {
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        match &self.kind {
-            PrimaryExpressionKind::IdentifierReference(..) => false,
-            PrimaryExpressionKind::Parenthesized(exp) => exp.is_strictly_deletable(),
+        match self {
+            PrimaryExpression::IdentifierReference(..) => false,
+            PrimaryExpression::Parenthesized(exp) => exp.is_strictly_deletable(),
             _ => true,
+        }
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        use PrimaryExpression::*;
+        match self {
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_)
+            | AsyncGenerator(_) => ATTKind::Invalid,
+            IdentifierReference(id) => id.assignment_target_type(strict),
+            Parenthesized(expr) => expr.assignment_target_type(strict),
         }
     }
 }
@@ -529,6 +553,21 @@ impl SpreadElement {
         //  2. Return true.
         let SpreadElement::AssignmentExpression(boxed) = self;
         boxed.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let SpreadElement::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -744,6 +783,25 @@ impl ElementList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ElementList::AssignmentExpression((_, ae)) => ae.contains_arguments(),
+            ElementList::SpreadElement((_, se)) => se.contains_arguments(),
+            ElementList::ElementListAssignmentExpression((el, _, ae)) => el.contains_arguments() || ae.contains_arguments(),
+            ElementList::ElementListSpreadElement((el, _, se)) => el.contains_arguments() || se.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ElementList::AssignmentExpression((_, b)) => {
@@ -898,6 +956,23 @@ impl ArrayLiteral {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ArrayLiteral::Empty(_) => false,
+            ArrayLiteral::ElementList(el) | ArrayLiteral::ElementListElision(el, _) => el.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty(_) => {}
@@ -975,6 +1050,21 @@ impl Initializer {
         //  2. Return true.
         let Initializer::AssignmentExpression(node) = self;
         node.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -1118,6 +1208,21 @@ impl ComputedPropertyName {
         n.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ComputedPropertyName::AssignmentExpression(ae) = self;
+        ae.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ComputedPropertyName::AssignmentExpression(node) = self;
         node.early_errors(agent, errs, strict);
@@ -1164,7 +1269,7 @@ impl PrettyPrint for LiteralPropertyName {
     {
         match self {
             LiteralPropertyName::IdentifierName(id) => pprint_token(writer, id, TokenType::IdentifierName, pad, state),
-            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, &format!("{}", s), TokenType::String, pad, state),
+            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, s, TokenType::String, pad, state),
             LiteralPropertyName::NumericLiteral(n) => pprint_token(writer, n, TokenType::Numeric, pad, state),
         }
     }
@@ -1297,6 +1402,23 @@ impl PropertyName {
         match self {
             PropertyName::LiteralPropertyName(_) => true,
             PropertyName::ComputedPropertyName(n) => n.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyName::LiteralPropertyName(_) => false,
+            PropertyName::ComputedPropertyName(cpn) => cpn.contains_arguments(),
         }
     }
 
@@ -1456,6 +1578,26 @@ impl PropertyDefinition {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyDefinition::IdentifierReference(ir) => ir.contains_arguments(),
+            PropertyDefinition::CoverInitializedName(_) => false, // This triggers a syntax error elsewhere; so ignore it now
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains_arguments() || ae.contains_arguments(),
+            PropertyDefinition::MethodDefinition(md) => md.contains_arguments(),
+            PropertyDefinition::AssignmentExpression(ae) => ae.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
@@ -1473,7 +1615,7 @@ impl PropertyDefinition {
                     // E.g.: x = { b() { super(); } };
                     errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
                 }
-                if !md.private_bound_identifiers().is_empty() {
+                if md.private_bound_identifier().is_some() {
                     // E.g.: x = { #b() {} };
                     errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
                 }
@@ -1620,6 +1762,23 @@ impl PropertyDefinitionList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.contains_arguments(),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains_arguments() || pd.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
@@ -1733,6 +1892,23 @@ impl ObjectLiteral {
             ObjectLiteral::Empty => true,
             ObjectLiteral::Normal(pdl) => pdl.all_private_identifiers_valid(names),
             ObjectLiteral::TrailingComma(pdl) => pdl.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            ObjectLiteral::Empty => false,
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.contains_arguments(),
         }
     }
 
@@ -2001,6 +2177,23 @@ impl TemplateLiteral {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate(..) => false,
+            TemplateLiteral::SubstitutionTemplate(st) => st.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
@@ -2114,6 +2307,20 @@ impl SubstitutionTemplate {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.expression.all_private_identifiers_valid(names) && self.template_spans.all_private_identifiers_valid(names)
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        self.expression.contains_arguments() || self.template_spans.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
@@ -2241,6 +2448,23 @@ impl TemplateSpans {
         match self {
             TemplateSpans::Tail(..) => true,
             TemplateSpans::List(tml, _, _) => tml.all_private_identifiers_valid(names),
+        }
+    }
+
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateSpans::Tail(..) => false,
+            TemplateSpans::List(tml, ..) => tml.contains_arguments(),
         }
     }
 
@@ -2402,6 +2626,23 @@ impl TemplateMiddleList {
         }
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        match self {
+            TemplateMiddleList::ListHead(_, e, _) => e.contains_arguments(),
+            TemplateMiddleList::ListMid(tml, _, e, _) => tml.contains_arguments() || e.contains_arguments(),
+        }
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateMiddleList :
@@ -2504,13 +2745,6 @@ impl IsFunctionDefinition for ParenthesizedExpression {
     }
 }
 
-impl AssignmentTargetType for ParenthesizedExpression {
-    fn assignment_target_type(&self) -> ATTKind {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.assignment_target_type()
-    }
-}
-
 impl ParenthesizedExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
@@ -2535,6 +2769,21 @@ impl ParenthesizedExpression {
         e.all_private_identifiers_valid(names)
     }
 
+    /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
+    /// [`IdentifierReference`] with string value `"arguments"`.
+    ///
+    /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
+    pub fn contains_arguments(&self) -> bool {
+        // Static Semantics: ContainsArguments
+        // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
+        //  1. For each child node child of this Parse Node, do
+        //      a. If child is an instance of a nonterminal, then
+        //          i. If ContainsArguments of child is true, return true.
+        //  2. Return false.
+        let ParenthesizedExpression::Expression(e) = self;
+        e.contains_arguments()
+    }
+
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ParenthesizedExpression::Expression(e) = self;
         e.early_errors(agent, errs, strict)
@@ -2543,6 +2792,14 @@ impl ParenthesizedExpression {
     pub fn is_strictly_deletable(&self) -> bool {
         let ParenthesizedExpression::Expression(e) = self;
         e.is_strictly_deletable()
+    }
+
+    /// Whether an expression can be assigned to. `Simple` or `Invalid`.
+    ///
+    /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
+    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.assignment_target_type(strict)
     }
 }
 

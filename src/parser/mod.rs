@@ -47,8 +47,11 @@ impl Default for ParseGoal {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ParseNodeKind {
+    ArrowFunction,
     AssignmentExpression,
+    AssignmentOperator,
     AssignmentPattern,
+    AsyncArrowFunction,
     AsyncConciseBody,
     AwaitExpression,
     BindingElement,
@@ -64,6 +67,7 @@ pub enum ParseNodeKind {
     ClassElementName,
     ClassHeritage,
     ConciseBody,
+    ConditionalExpression,
     ContinueStatement,
     DebuggerStatement,
     Declaration,
@@ -114,12 +118,16 @@ pub enum ParseNodeKind {
     VariableDeclaration,
     VariableStatement,
     WithStatement,
+    YieldExpression,
 }
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
+            ParseNodeKind::ArrowFunction => "ArrowFunction",
             ParseNodeKind::AssignmentExpression => "AssignmentExpression",
+            ParseNodeKind::AssignmentOperator => "AssignmentOperator",
             ParseNodeKind::AssignmentPattern => "AssignmentPattern",
+            ParseNodeKind::AsyncArrowFunction => "AsyncArrowFunction",
             ParseNodeKind::AsyncConciseBody => "AsyncConciseBody",
             ParseNodeKind::AwaitExpression => "AwaitExpression",
             ParseNodeKind::BindingElement => "BindingElement",
@@ -135,6 +143,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::ClassElementName => "ClassElementName",
             ParseNodeKind::ClassHeritage => "ClassHeritage",
             ParseNodeKind::ConciseBody => "ConciseBody",
+            ParseNodeKind::ConditionalExpression => "ConditionalExpression",
             ParseNodeKind::ContinueStatement => "ContinueStatement",
             ParseNodeKind::DebuggerStatement => "DebuggerStatement",
             ParseNodeKind::Declaration => "Declaration",
@@ -185,6 +194,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::VariableDeclaration => "VariableDeclaration",
             ParseNodeKind::VariableStatement => "VariableStatement",
             ParseNodeKind::WithStatement => "WithStatement",
+            ParseNodeKind::YieldExpression => "YieldExpression",
         })
     }
 }
@@ -252,7 +262,6 @@ type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
 #[derive(Default)]
 pub struct Parser<'a> {
     pub source: &'a str,
-    pub strict: bool,
     pub direct: bool,
     pub goal: ParseGoal,
     pub arguments_cache: HashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
@@ -304,8 +313,8 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, strict: bool, direct: bool, goal: ParseGoal) -> Self {
-        Self { source, strict, direct, goal, ..Default::default() }
+    pub fn new(source: &'a str, direct: bool, goal: ParseGoal) -> Self {
+        Self { source, direct, goal, ..Default::default() }
     }
 }
 
@@ -504,10 +513,6 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait StringValue {
-    fn string_value(&self) -> JSString;
-}
-
 pub trait HasName {
     fn has_name(&self) -> bool;
 }
@@ -524,9 +529,6 @@ pub trait IsIdentifierReference {
 pub enum ATTKind {
     Invalid,
     Simple,
-}
-pub trait AssignmentTargetType {
-    fn assignment_target_type(&self) -> ATTKind;
 }
 
 pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
@@ -643,7 +645,7 @@ pub enum ParsedText {
 }
 
 pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> ParsedText {
-    let mut parser = Parser::new(src, false, false, goal_symbol);
+    let mut parser = Parser::new(src, false, goal_symbol);
     match goal_symbol {
         ParseGoal::Script => {
             let potential_script = Script::parse(&mut parser, Scanner::new());

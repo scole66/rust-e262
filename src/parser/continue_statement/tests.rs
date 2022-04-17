@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, strictparser, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -102,6 +102,6 @@ fn continue_statement_test_contains_undefined_continue_target(src: &str) -> (boo
 fn early_errors(src: &str, strict: bool, within_iteration: bool) -> AHashSet<String> {
     let mut agent = test_agent();
     let mut errs = vec![];
-    ContinueStatement::parse(&mut strictparser(src, strict), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_iteration);
+    ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_iteration);
     AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
 }
