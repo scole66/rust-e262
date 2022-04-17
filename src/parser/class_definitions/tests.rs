@@ -1,7 +1,7 @@
 use super::testhelp::{
     check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK,
-    UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
+    PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO,
+    UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -110,10 +110,13 @@ mod class_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
+    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_declaration().early_errors(&mut agent, &mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -202,10 +205,13 @@ mod class_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassExpression::parse(&mut newparser("class {}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![]);
+    #[test_case("class { a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "class tail only")]
+    #[test_case("class package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "id + tail")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_expression().early_errors(&mut agent, &mut errs);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("class a { [arguments]; }" => true; "named (yes)")]
@@ -339,10 +345,20 @@ mod class_tail {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassTail::parse(&mut newparser("{}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("{ a=package; }" => set(&[PACKAGE_NOT_ALLOWED]); "no heritage")]
+    #[test_case("extends package { a=implements; }" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "has heritage")]
+    #[test_case("extends package {}" => set(&[PACKAGE_NOT_ALLOWED]); "heritage, no body")]
+    #[test_case("extends Boolean { constructor() { super(); }}" => set(&[]); "super with extends")]
+    #[test_case("{ constructor() { super(); }}" => set(&[PARENTLESS_SUPER]); "super without extends")]
+    #[test_case("{ constructor(){} }" => set(&[]); "constructor without super")]
+    #[test_case("{ a(){} }" => set(&[]); "no constructor")]
+    #[test_case("{}" => set(&[]); "no body")]
+
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_tail().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("{}" => false; "empty")]
@@ -405,10 +421,13 @@ mod class_heritage {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassHeritage::parse(&mut newparser("extends a"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("extends package" => set(&[PACKAGE_NOT_ALLOWED]); "err")]
+    #[test_case("extends Boolean" => set(&[]); "ok")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_heritage().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("extends arguments" => true; "yes")]

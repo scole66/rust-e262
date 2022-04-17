@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -434,20 +434,20 @@ mod method_definition {
         Maker::new(src).method_definition().has_direct_super()
     }
 
-    #[test_case("package(implements){interface;}", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED])*/; "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
-    #[test_case("*package(){}", true => panics "not yet implemented"; "GeneratorMethod")]
-    #[test_case("async package(){}", true => panics "not yet implemented"; "AsyncMethod")]
-    #[test_case("async *package(){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
-    #[test_case("get package(){implements;}", true => panics "not yet implemented"; "get ClassElementName () { FunctionBody }")]
-    #[test_case("set package(implements){interface;}", true => panics "not yet implemented"; "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
-    #[test_case("package(implements){'use strict'; interface;}", false => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED])*/; "contains strict; ordinary")]
-    #[test_case("get package(){'use strict'; implements;}", false => panics "not yet implemented"; "contains strict; getter")]
-    #[test_case("set package(implements){'use strict'; interface;}", false => panics "not yet implemented"; "contains strict; setter")]
-    #[test_case("a([b]){'use strict';}", false => panics "not yet implemented"; "ordinary; bad use-strict")]
-    #[test_case("set a([b]){'use strict';}", false => panics "not yet implemented"; "setter; bad use-strict")]
-    #[test_case("a(b){let b;}", false => panics "not yet implemented"; "ordinary; duped lexical")]
-    #[test_case("set a(b){let b;}", false => panics "not yet implemented"; "setter; duped lexical")]
-    #[test_case("set a([b, b]){}", false => panics "not yet implemented"; "setter; duped params")]
+    #[test_case("[package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
+    #[test_case("*[package](){}", true => panics "not yet implemented"; "GeneratorMethod")]
+    #[test_case("async [package](){}", true => panics "not yet implemented"; "AsyncMethod")]
+    #[test_case("async *[package](){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
+    #[test_case("get [package](){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
+    #[test_case("set [package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]
+    #[test_case("[package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; ordinary")]
+    #[test_case("get [package](){'use strict'; implements;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "contains strict; getter")]
+    #[test_case("set [package](implements){'use strict'; interface;}", false => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "contains strict; setter")]
+    #[test_case("a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "ordinary; bad use-strict")]
+    #[test_case("set a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "setter; bad use-strict")]
+    #[test_case("foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "ordinary; duped lexical")]
+    #[test_case("set foo(a){let a;}", false => set(&[A_ALREADY_DEFN]); "setter; duped lexical")]
+    #[test_case("set foo([a, a]){}", false => set(&[A_ALREADY_DEFN]); "setter; duped params")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
