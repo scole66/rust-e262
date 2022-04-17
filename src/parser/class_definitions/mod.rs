@@ -587,7 +587,6 @@ impl ClassBody {
         if self.0.prototype_property_name_list().into_iter().filter(|x| x == &"constructor").count() > 1 {
             errs.push(create_syntax_error_object(agent, "Classes may have only one constructor"));
         }
-        #[derive(PartialEq, Copy, Clone)]
         enum HowSeen {
             Completely,   // Any further use triggers "duplicate" error
             Getter,       // Saw as a non-static getter
@@ -599,28 +598,28 @@ impl ClassBody {
         for pid in self.0.private_bound_identifiers() {
             match private_ids.get(&pid.name) {
                 Some(&HowSeen::Completely) => {
-                    errs.push(create_syntax_error_object(agent, format!("{} already defined", pid.name)));
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", pid.name)));
                 }
                 Some(&HowSeen::Getter) if pid.usage != IdUsage::Setter => {
-                    errs.push(create_syntax_error_object(agent, format!("{} was previously defined as a getter method.", pid.name)));
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a getter method.", pid.name)));
                 }
                 Some(&HowSeen::Getter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::Setter) if pid.usage != IdUsage::Getter => {
-                    errs.push(create_syntax_error_object(agent, format!("{} was previously defined as a setter method.", pid.name)));
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a setter method.", pid.name)));
                 }
                 Some(&HowSeen::Setter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::StaticGetter) if pid.usage != IdUsage::StaticSetter => {
-                    errs.push(create_syntax_error_object(agent, format!("{} was previously defined as a static getter method.", pid.name)));
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a static getter method.", pid.name)));
                 }
                 Some(&HowSeen::StaticGetter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::StaticSetter) if pid.usage != IdUsage::StaticGetter => {
-                    errs.push(create_syntax_error_object(agent, format!("{} was previously defined as a static setter method.", pid.name)));
+                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a static setter method.", pid.name)));
                 }
                 Some(&HowSeen::StaticSetter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
@@ -775,6 +774,9 @@ impl ClassElementList {
         }
     }
 
+    /// Returns a reference to the ClassElement of the constructor within this node (if it exists)
+    ///
+    /// See [ConstructorMethod](https://tc39.es/ecma262/#sec-static-semantics-constructormethod) from ECMA-262.
     pub fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
         // Static Semantics: ConstructorMethod
         // The syntax-directed operation ConstructorMethod takes no arguments and returns a ClassElement Parse Node or empty.
@@ -836,6 +838,11 @@ impl ClassElementList {
         }
     }
 
+    /// Collect all the known-at-compile-time property names from this node
+    ///
+    /// See [PrototypePropertyNameList][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-static-semantics-prototypepropertynamelist
     pub fn prototype_property_name_list(&self) -> Vec<JSString> {
         match self {
             ClassElementList::Item(ce) => {

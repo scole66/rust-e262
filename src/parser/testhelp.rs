@@ -82,7 +82,7 @@ pub fn set(items: &[&str]) -> AHashSet<String> {
 }
 
 pub fn svec(items: &[&str]) -> Vec<String> {
-    items.into_iter().map(|&s| String::from(s)).collect::<Vec<_>>()
+    items.iter().map(|&s| String::from(s)).collect::<Vec<_>>()
 }
 
 /// Parse Node builder for test cases
@@ -560,3 +560,9 @@ pub const BAD_SUPER: &str = "super only allowed for constructors";
 pub const CONSTRUCTOR_FIELD: &str = "constructors may not be defined as class fields";
 pub const STATIC_PROTO: &str = "prototypes cannot be static";
 pub const SPECIAL_CONSTRUCTOR: &str = "special methods not allowed for constructors";
+pub const DUPLICATE_CONSTRUCTOR: &str = "Classes may have only one constructor";
+pub const PRIVATE_A_ALREADY_DEFN: &str = "‘#a’ already defined";
+pub const PREV_STATIC_GETTER: &str = "‘#a’ was previously defined as a static getter method.";
+pub const PREV_GETTER: &str = "‘#a’ was previously defined as a getter method.";
+pub const PREV_STATIC_SETTER: &str = "‘#a’ was previously defined as a static setter method.";
+pub const PREV_SETTER: &str = "‘#a’ was previously defined as a setter method.";

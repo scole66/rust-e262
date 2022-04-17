@@ -1,6 +1,7 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
-    PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED,
+    PACKAGE_NOT_ALLOWED, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK,
+    UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -9,7 +10,7 @@ use ahash::AHashSet;
 use test_case::test_case;
 
 fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
-    items.into_iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
+    items.iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
 }
 fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
     Some((String::from(s), u))
@@ -470,10 +471,28 @@ mod class_body {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassBody::parse(&mut newparser(";"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case(";" => set(&[]); "empty")]
+    #[test_case("[package];" => set(&[PACKAGE_NOT_ALLOWED]); "one field")]
+    #[test_case("constructor(){this.stage=1;} constructor(){this.stage=2;}" => set(&[DUPLICATE_CONSTRUCTOR]); "duplicate constructor")]
+    #[test_case("#a; #a;" => set(&[PRIVATE_A_ALREADY_DEFN]); "duplicate private id")]
+    #[test_case("get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[]); "getter/setter ok")]
+    #[test_case("static get #a(){return this.val;} set #a(val){this.val=val;}" => set(&[PREV_STATIC_GETTER]); "static getter / nonstatic setter")]
+    #[test_case("get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[PREV_GETTER]); "nonstatic getter / static setter")]
+    #[test_case("static get #a(){return this.val;} static set #a(val){this.val=val;}" => set(&[]); "static getter / static setter")]
+    #[test_case("set #a(val){this.val=val;} get #a(){this.val=val;}" => set(&[]); "setter/getter ok")]
+    #[test_case("static set #a(val){return this.val;} get #a(){this.val=val;}" => set(&[PREV_STATIC_SETTER]); "static setter / nonstatic getter")]
+    #[test_case("set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[PREV_SETTER]); "nonstatic setter / static getter")]
+    #[test_case("static set #a(val){return this.val;} static get #a(){this.val=val;}" => set(&[]); "static setter / static getter")]
+    #[test_case("get #a(){return this.val;} #a(){}" => set(&[PREV_GETTER]); "nonstatic getter / method")]
+    #[test_case("static get #a(){return this.val;} #a(){}" => set(&[PREV_STATIC_GETTER]); "static getter / method")]
+    #[test_case("set #a(val){this.val=val;} #a(){}" => set(&[PREV_SETTER]); "setter / method")]
+    #[test_case("static set #a(val){this.val=val;} #a(){}" => set(&[PREV_STATIC_SETTER]); "static setter / method")]
+    #[test_case("static #a(){} get #a(){return this.val;}" => set(&[PRIVATE_A_ALREADY_DEFN]); "static method / getter")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_body().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("[arguments];" => true; "yes")]
@@ -485,6 +504,51 @@ mod class_body {
     #[test_case("a(){} #b(){} async *#c(){}" => v(&[("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "mix")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
         Maker::new(src).class_body().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+    }
+
+    #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) {  }"); "constructor present")]
+    #[test_case("boring;" => None; "no constructor present")]
+    fn constructor_method(src: &str) -> Option<String> {
+        Maker::new(src).class_body().constructor_method().map(|cstr| format!("{}", cstr))
+    }
+}
+
+mod id_usage {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(IdUsage::Getter => with |s| assert_ne!(s, ""); "getter")]
+    fn debug(item: IdUsage) -> String {
+        format!("{:?}", item)
+    }
+
+    #[test_case(IdUsage::Public, IdUsage::Setter => false; "ne")]
+    #[test_case(IdUsage::Setter, IdUsage::Setter => true; "eq")]
+    fn eq(left: IdUsage, right: IdUsage) -> bool {
+        left == right
+    }
+
+    #[test_case(IdUsage::Public => IdUsage::Public; "works")]
+    fn clone(item: IdUsage) -> IdUsage {
+        #[allow(clippy::clone_on_copy)]
+        item.clone()
+    }
+}
+
+mod private_id_info {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => with |s| assert_ne!(s, ""); "normal")]
+    fn debug(item: PrivateIdInfo) -> String {
+        format!("{:?}", item)
+    }
+
+    #[test_case(PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => ("travis".to_string(), IdUsage::Setter); "clone")]
+    fn clone(item: PrivateIdInfo) -> (String, IdUsage) {
+        #[allow(clippy::redundant_clone)]
+        let c = item.clone();
+        (String::from(c.name), c.usage)
     }
 }
 
@@ -583,10 +647,15 @@ mod class_element_list {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("a=package;" => set(&[PACKAGE_NOT_ALLOWED]); "item (errs)")]
+    #[test_case("a=10;" => set(&[]); "item (ok)")]
+    #[test_case("a=package; b=implements;" => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "list (errs)")]
+    #[test_case("a=10; b=20;" => set(&[]); "list (ok)")]
+    fn early_errors(src: &str) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).class_element_list().early_errors(&mut agent, &mut errs, true);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("[arguments];" => true; "item (yes)")]
@@ -598,9 +667,28 @@ mod class_element_list {
         Maker::new(src).class_element_list().contains_arguments()
     }
     #[test_case("#one_item(){}" => v(&[("#one_item", IdUsage::Public)]); "Item")]
-    #[test_case("#a; #b; #c;" => v(&[("#a", IdUsage::Public), ("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "List")]
+    #[test_case("#a; #b; other; #c;" => v(&[("#a", IdUsage::Public), ("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "List")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
         Maker::new(src).class_element_list().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+    }
+
+    #[test_case("static foo;" => svec(&[]); "item; static")]
+    #[test_case("[a];" => svec(&[]); "item; no name")]
+    #[test_case("a;" => svec(&["a"]); "item, named")]
+    #[test_case("a; b; static c;" => svec(&["a", "b"]); "List; static")]
+    #[test_case("a; b; [c];" => svec(&["a", "b"]); "List; no name")]
+    #[test_case("a; b; c;" => svec(&["a", "b", "c"]); "List; named")]
+    fn prototype_property_name_list(src: &str) -> Vec<String> {
+        Maker::new(src).class_element_list().prototype_property_name_list().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a;" => None; "Item: just a field")]
+    #[test_case("constructor(...args) { super(...args); }" => ss("constructor ( ... args ) { super ( ... args ) ; }"); "Item: valid constructor")]
+    #[test_case("constructor(...args) { super(...args); } worker(a) { return this.helper(a); }" => ss("constructor ( ... args ) { super ( ... args ) ; }"); "List: (left)")]
+    #[test_case("worker(a) { return this.helper(a); } constructor(...args) { super(...args); } " => ss("constructor ( ... args ) { super ( ... args ) ; }"); "List: (right)")]
+    #[test_case("a; b;" => None; "List: none")]
+    fn constructor_method(src: &str) -> Option<String> {
+        Maker::new(src).class_element_list().constructor_method().map(|cstr| format!("{}", cstr))
     }
 }
 
