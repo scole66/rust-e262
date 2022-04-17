@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_AWAIT};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -142,7 +142,7 @@ mod async_function_declaration {
     }
 
     #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => panics "not yet implemented"; "await param")] //"Await not allowed in parameter lists"
+    #[test_case("async function(a=await b()){}", false => set(&[UNEXPECTED_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
     #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
@@ -414,7 +414,7 @@ mod async_method {
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
     }
 
-    #[test_case("async package(interface) { implements; }", true => panics "not yet implemented" /*set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED])*/; "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
+    #[test_case("async [package](interface) { implements; }", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
