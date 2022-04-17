@@ -16,6 +16,7 @@ use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
+use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
@@ -78,6 +79,10 @@ where
 }
 pub fn set(items: &[&str]) -> AHashSet<String> {
     AHashSet::from_iter(items.iter().map(|&x| String::from(x)))
+}
+
+pub fn svec(items: &[&str]) -> Vec<String> {
+    items.iter().map(|&s| String::from(s)).collect::<Vec<_>>()
 }
 
 /// Parse Node builder for test cases
@@ -366,6 +371,10 @@ impl<'a> Maker<'a> {
     pub fn expression_body(self) -> Rc<ExpressionBody> {
         ExpressionBody::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ExpressionStatement`] parse node.
+    pub fn expression_statement(self) -> Rc<ExpressionStatement> {
+        ExpressionStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`FieldDefinition`] parse node.
     pub fn field_definition(self) -> Rc<FieldDefinition> {
         FieldDefinition::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -540,3 +549,22 @@ pub const DUPLICATE_LEXICAL: &str = "Duplicate lexically declared names";
 pub const LEX_DUPED_BY_VAR: &str = "Name defined both lexically and var-style";
 pub const WITH_NOT_ALLOWED: &str = "'with' statements not allowed in strict mode";
 pub const PRIVATE_NOT_ALLOWED: &str = "‘private’ not allowed as an identifier in strict mode";
+pub const UNDEFINED_BREAK: &str = "undefined break target detected";
+pub const DUPLICATE_LABELS: &str = "duplicate labels detected";
+pub const UNEXPECTED_ARGS: &str = "‘arguments’ not expected here";
+pub const UNEXPECTED_SUPER: &str = "Calls to ‘super’ not allowed here";
+pub const UNDEF_CONT_TGT: &str = "undefined continue target detected";
+pub const A_ALREADY_DEFN: &str = "‘a’ already defined";
+pub const PRIVATE_CONSTRUCTOR: &str = "#constructor is an invalid private id";
+pub const BAD_SUPER: &str = "super only allowed for constructors";
+pub const CONSTRUCTOR_FIELD: &str = "constructors may not be defined as class fields";
+pub const STATIC_PROTO: &str = "prototypes cannot be static";
+pub const SPECIAL_CONSTRUCTOR: &str = "special methods not allowed for constructors";
+pub const DUPLICATE_CONSTRUCTOR: &str = "Classes may have only one constructor";
+pub const PRIVATE_A_ALREADY_DEFN: &str = "‘#a’ already defined";
+pub const PREV_STATIC_GETTER: &str = "‘#a’ was previously defined as a static getter method.";
+pub const PREV_GETTER: &str = "‘#a’ was previously defined as a getter method.";
+pub const PREV_STATIC_SETTER: &str = "‘#a’ was previously defined as a static setter method.";
+pub const PREV_SETTER: &str = "‘#a’ was previously defined as a setter method.";
+pub const PARENTLESS_SUPER: &str = "Cannot use super in a constructor with no parent class";
+pub const BAD_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";

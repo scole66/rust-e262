@@ -47,8 +47,11 @@ impl Default for ParseGoal {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ParseNodeKind {
+    ArrowFunction,
     AssignmentExpression,
+    AssignmentOperator,
     AssignmentPattern,
+    AsyncArrowFunction,
     AsyncConciseBody,
     AwaitExpression,
     BindingElement,
@@ -64,6 +67,7 @@ pub enum ParseNodeKind {
     ClassElementName,
     ClassHeritage,
     ConciseBody,
+    ConditionalExpression,
     ContinueStatement,
     DebuggerStatement,
     Declaration,
@@ -119,8 +123,11 @@ pub enum ParseNodeKind {
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
+            ParseNodeKind::ArrowFunction => "ArrowFunction",
             ParseNodeKind::AssignmentExpression => "AssignmentExpression",
+            ParseNodeKind::AssignmentOperator => "AssignmentOperator",
             ParseNodeKind::AssignmentPattern => "AssignmentPattern",
+            ParseNodeKind::AsyncArrowFunction => "AsyncArrowFunction",
             ParseNodeKind::AsyncConciseBody => "AsyncConciseBody",
             ParseNodeKind::AwaitExpression => "AwaitExpression",
             ParseNodeKind::BindingElement => "BindingElement",
@@ -136,6 +143,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::ClassElementName => "ClassElementName",
             ParseNodeKind::ClassHeritage => "ClassHeritage",
             ParseNodeKind::ConciseBody => "ConciseBody",
+            ParseNodeKind::ConditionalExpression => "ConditionalExpression",
             ParseNodeKind::ContinueStatement => "ContinueStatement",
             ParseNodeKind::DebuggerStatement => "DebuggerStatement",
             ParseNodeKind::Declaration => "Declaration",

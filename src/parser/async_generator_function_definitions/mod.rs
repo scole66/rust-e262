@@ -78,11 +78,11 @@ impl AsyncGeneratorMethod {
         self.name.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+    pub fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // AsyncGeneratorMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
-        self.name.private_bound_identifiers()
+        self.name.private_bound_identifier()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {

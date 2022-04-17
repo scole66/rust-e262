@@ -363,11 +363,6 @@ fn async_method_test_computed_property_contains_02() {
     let (item, _) = AsyncMethod::parse(&mut newparser("async [name]() {}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn async_method_test_private_bound_identifiers() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async #blue() {}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#blue")]);
-}
 #[test_case("async [item.#valid](){}" => true; "ElementName valid")]
 #[test_case("async bob(arg=item.#valid){}" => true; "Params valid")]
 #[test_case("async bob(arg){item.#valid;}" => true; "Body valid")]
@@ -382,17 +377,18 @@ mod async_method {
     use super::*;
     use test_case::test_case;
 
-    mod has_direct_super {
-        use super::*;
-        use test_case::test_case;
+    #[test_case("async #blue() {}" => Some("#blue".to_string()); "pid there")]
+    #[test_case("async blue(){}" => None; "nothing private")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).async_method().private_bound_identifier().map(String::from)
+    }
 
-        #[test_case("async a(){}" => false; "without")]
-        #[test_case("async a(b=super(0)){}" => true; "params")]
-        #[test_case("async a(){super(-1);}" => true; "body")]
-        fn f(src: &str) -> bool {
-            let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-            item.has_direct_super()
-        }
+    #[test_case("async a(){}" => false; "without")]
+    #[test_case("async a(b=super(0)){}" => true; "params")]
+    #[test_case("async a(){super(-1);}" => true; "body")]
+    fn has_direct_super(src: &str) -> bool {
+        let (item, _) = AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+        item.has_direct_super()
     }
 
     #[test]

@@ -117,6 +117,13 @@ impl PrettyPrint for MethodDefinition {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum MethodType {
+    Normal,
+    Setter,
+    Getter,
+}
+
 impl MethodDefinition {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MethodDefinition), scanner))
@@ -190,26 +197,28 @@ impl MethodDefinition {
         }
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<JSString> {
+    pub fn private_bound_identifier(&self) -> Option<(JSString, MethodType)> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
             // MethodDefinition : get ClassElementName ( ) { FunctionBody }
             // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
             //  1. Return PrivateBoundIdentifiers of ClassElementName.
-            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifiers(),
+            MethodDefinition::NamedFunction(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Normal)),
+            MethodDefinition::Getter(cen, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Getter)),
+            MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Setter)),
 
             // MethodDefinition : GeneratorMethod
             //  1. Return PrivateBoundIdentifiers of GeneratorMethod.
-            MethodDefinition::Generator(node) => node.private_bound_identifiers(),
+            MethodDefinition::Generator(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
 
             // MethodDefinition : AsyncMethod
             //  1. Return PrivateBoundIdentifiers of AsyncMethod.
-            MethodDefinition::Async(node) => node.private_bound_identifiers(),
+            MethodDefinition::Async(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
 
             // MethodDefinition : AsyncGeneratorMethod
             //  1. Return PrivateBoundIdentifiers of AsyncGeneratorMethod.
-            MethodDefinition::AsyncGenerator(node) => node.private_bound_identifiers(),
+            MethodDefinition::AsyncGenerator(node) => node.private_bound_identifier().map(|s| (s, MethodType::Normal)),
         }
     }
 
@@ -351,6 +360,15 @@ impl MethodDefinition {
             MethodDefinition::Async(node) => node.prop_name(),
             MethodDefinition::AsyncGenerator(node) => node.prop_name(),
         }
+    }
+
+    /// Determine whether this node is an ordinary method, or a special one.
+    ///
+    /// "Special" methods are asychronous functions, generators, or property setters or getters.
+    ///
+    /// See [SpecialMethod](https://tc39.es/ecma262/#sec-static-semantics-specialmethod) in ECMA-262.
+    pub fn special_method(&self) -> bool {
+        !matches!(self, MethodDefinition::NamedFunction(..))
     }
 }
 

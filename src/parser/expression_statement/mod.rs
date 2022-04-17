@@ -75,7 +75,7 @@ impl ExpressionStatement {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let ExpressionStatement::Expression(node) = self;
-        node.contains(kind)
+        kind == ParseNodeKind::Expression || node.contains(kind)
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {

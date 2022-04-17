@@ -95,11 +95,6 @@ fn async_generator_method_test_comptued_property_contains_04() {
     let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn async_generator_method_test_private_bound_identifiers() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * #private() { return; }"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#private")]);
-}
 #[test_case("async *[item.#valid](){}" => true; "Name valid")]
 #[test_case("async *a(arg=item.#valid){}" => true; "Params valid")]
 #[test_case("async *a(arg){arg.#valid;}" => true; "Body valid")]
@@ -138,6 +133,12 @@ mod async_generator_method {
     #[test_case("async *a(){}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_generator_method().contains_arguments()
+    }
+
+    #[test_case("async * #private() { return; }" => Some("#private".to_string()); "private")]
+    #[test_case("async * public() {}" => None; "public")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).async_generator_method().private_bound_identifier().map(String::from)
     }
 }
 

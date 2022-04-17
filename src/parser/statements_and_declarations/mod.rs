@@ -492,10 +492,20 @@ impl Declaration {
         }
     }
 
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#early-error
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             Declaration::Hoistable(node) => node.early_errors(agent, errs, strict),
-            Declaration::Class(node) => node.early_errors(agent, errs, strict),
+            Declaration::Class(node) => node.early_errors(agent, errs),
             Declaration::Lexical(node) => node.early_errors(agent, errs, strict),
         }
     }

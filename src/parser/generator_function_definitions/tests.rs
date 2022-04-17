@@ -77,11 +77,6 @@ fn generator_method_test_computed_property_contains_02() {
     let (item, _) = GeneratorMethod::parse(&mut newparser("*[a](x=0){0;}"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
-#[test]
-fn generator_method_test_private_bound_identifiers() {
-    let (item, _) = GeneratorMethod::parse(&mut newparser("*#PRIVATE(x=0){0;}"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.private_bound_identifiers(), vec![JSString::from("#PRIVATE")]);
-}
 #[test_case("*[a.#valid](){}" => true; "name valid")]
 #[test_case("*a(b=c.#valid){}" => true; "params valid")]
 #[test_case("*a(){b.#valid;}" => true; "body valid")]
@@ -119,6 +114,12 @@ mod generator_method {
     #[test_case("*a(){}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).generator_method().contains_arguments()
+    }
+
+    #[test_case("*#PRIVATE(x=0){0;}" => Some("#PRIVATE".to_string()); "private")]
+    #[test_case("*public(){}" => None; "public")]
+    fn private_bound_identifier(src: &str) -> Option<String> {
+        Maker::new(src).generator_method().private_bound_identifier().map(String::from)
     }
 }
 
