@@ -436,7 +436,7 @@ mod method_definition {
 
     #[test_case("[package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ClassElementName ( UniqueFormalParameters ) { FunctionBody }")]
     #[test_case("*[package](){}", true => panics "not yet implemented"; "GeneratorMethod")]
-    #[test_case("async [package](){}", true => panics "not yet implemented"; "AsyncMethod")]
+    #[test_case("async [package](){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncMethod")]
     #[test_case("async *[package](){}", true => panics "not yet implemented"; "AsyncGeneratorMethod")]
     #[test_case("get [package](){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "get ClassElementName () { FunctionBody }")]
     #[test_case("set [package](implements){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "set ClassElementName ( PropertySetParameterList ) { FunctionBody }")]

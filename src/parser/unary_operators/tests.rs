@@ -352,7 +352,7 @@ mod unary_expression {
     #[test_case("- package", true => set(&[PACKAGE_NOT_ALLOWED]); "negate")]
     #[test_case("~ package", true => set(&[PACKAGE_NOT_ALLOWED]); "complement")]
     #[test_case("! package", true => set(&[PACKAGE_NOT_ALLOWED]); "not")]
-    #[test_case("await package", true => panics "not yet implemented"; "await_")]
+    #[test_case("await package", true => set(&[PACKAGE_NOT_ALLOWED]); "await_")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

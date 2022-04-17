@@ -50,7 +50,7 @@ impl PrettyPrint for Script {
     }
 }
 
-fn has_unique_elements<T>(iter: T) -> bool
+pub fn has_unique_elements<T>(iter: T) -> bool
 where
     T: IntoIterator,
     T::Item: Eq + Hash,

@@ -568,3 +568,5 @@ pub const PREV_STATIC_SETTER: &str = "‘#a’ was previously defined as a stati
 pub const PREV_SETTER: &str = "‘#a’ was previously defined as a setter method.";
 pub const PARENTLESS_SUPER: &str = "Cannot use super in a constructor with no parent class";
 pub const BAD_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
+pub const UNEXPECTED_AWAIT: &str = "await expressions not expected here";
+pub const ILLEGAL_ASYNC_AWAIT: &str = "Illegal await-expression in formal parameters of async function";
