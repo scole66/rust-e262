@@ -110,6 +110,16 @@ impl AsyncFunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AsyncFunctionDeclaration :
@@ -278,9 +288,87 @@ impl AsyncFunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    #[allow(clippy::ptr_arg)]
-    pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
-        todo!()
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
+    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
+        // Static Semantics: Early Errors
+        //  AsyncFunctionExpression :
+        //      async function BindingIdentifier[opt] ( FormalParameters ) { AsyncFunctionBody }
+        //
+        //  * It is a Syntax Error if FunctionBodyContainsUseStrict of AsyncFunctionBody is true and
+        //    IsSimpleParameterList of FormalParameters is false.
+        //  * It is a Syntax Error if FormalParameters Contains AwaitExpression is true.
+        //  * If the source code matching FormalParameters is strict mode code, the Early Error rules for
+        //    UniqueFormalParameters : FormalParameters are applied.
+        //  * If BindingIdentifier is present and the source code matching BindingIdentifier is strict mode code, it is
+        //    a Syntax Error if the StringValue of BindingIdentifier is "eval" or "arguments". (Superfluous!)
+        //  * It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncFunctionBody.
+        //  * It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        //  * It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
+        //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        //  * It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
+        let strict_function = strict || self.body.function_body_contains_use_strict();
+        if strict_function && !self.params.is_simple_parameter_list() {
+            // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
+            // is false
+            errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
+        }
+        if self.params.contains(ParseNodeKind::AwaitExpression) {
+            // FormalParameters Contains AwaitExpression is true.
+            errs.push(create_syntax_error_object(agent, "await expressions not expected here"));
+        }
+        let duplicates_checked = if strict_function {
+            // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
+            //      Static Semantics: Early Errors
+            //          UniqueFormalParameters : FormalParameters
+            //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
+            let bn = self.params.bound_names();
+            for name in duplicates(&bn) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            }
+            true
+        } else {
+            false
+        };
+        // It is a Syntax Error if any element of the BoundNames of FormalParameters also occurs in the
+        //    LexicallyDeclaredNames of AsyncFunctionBody
+        let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
+        let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
+        if !bn.is_disjoint(&ldn) {
+            errs.push(create_syntax_error_object(agent, "Lexical decls in body duplicate parameters"));
+        }
+        // It is a Syntax Error if FormalParameters Contains SuperProperty is true.
+        if self.params.contains(ParseNodeKind::SuperProperty) {
+            errs.push(create_syntax_error_object(agent, "Parameters may not include super properties"));
+        }
+        // It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
+        if self.body.contains(ParseNodeKind::SuperProperty) {
+            errs.push(create_syntax_error_object(agent, "Body may not contain super properties"));
+        }
+        // It is a Syntax Error if FormalParameters Contains SuperCall is true.
+        if self.params.contains(ParseNodeKind::SuperCall) {
+            errs.push(create_syntax_error_object(agent, "Parameters may not include super calls"));
+        }
+        // It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
+        if self.body.contains(ParseNodeKind::SuperCall) {
+            errs.push(create_syntax_error_object(agent, "Body may not contain super calls"));
+        }
+
+        // All the children
+        if let Some(binding_identifier) = &self.ident {
+            binding_identifier.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, duplicates_checked);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
@@ -388,6 +476,16 @@ impl AsyncMethod {
         self.params.contains(ParseNodeKind::SuperCall) || self.body.contains(ParseNodeKind::SuperCall)
     }
 
+    /// Add the early errors of this node and its children to the error list.
+    ///
+    /// This calculates all the early errors of this parse node, and then follows them up with the early errors of all
+    /// the children's nodes, placing them in the `errs` vector as ECMAScript SyntaxError objects. `strict` is used to
+    /// indicate whether this node was parsed in strict mode. `agent` is the Evaluation Agent under which the objects
+    /// are created.
+    ///
+    /// See [Early Errors for Async Function Definitions][1] from ECMA-262.
+    ///
+    /// [1]: https://tc39.es/ecma262/#sec-async-function-definitions-static-semantics-early-errors
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
@@ -397,11 +495,27 @@ impl AsyncMethod {
         //  * It is a Syntax Error if UniqueFormalParameters Contains AwaitExpression is true.
         //  * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in the
         //    LexicallyDeclaredNames of AsyncFunctionBody.
-        //todo!();
+        let cus = self.body.function_body_contains_use_strict();
+        if cus && !self.params.is_simple_parameter_list() {
+            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        }
+        if self.has_direct_super() {
+            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+        }
+        if self.params.contains(ParseNodeKind::AwaitExpression) {
+            errs.push(create_syntax_error_object(agent, "Illegal await-expression in formal parameters of async function"))
+        }
+        let bn = self.params.bound_names();
+        for name in self.body.lexically_declared_names() {
+            if bn.contains(&name) {
+                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            }
+        }
 
-        self.ident.early_errors(agent, errs, strict);
-        self.params.early_errors(agent, errs, strict);
-        self.body.early_errors(agent, errs, strict);
+        let strict_func = strict || cus;
+        self.ident.early_errors(agent, errs, strict_func);
+        self.params.early_errors(agent, errs, strict_func);
+        self.body.early_errors(agent, errs, strict_func);
     }
 
     pub fn prop_name(&self) -> Option<JSString> {

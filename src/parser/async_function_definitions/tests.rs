@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_AWAIT};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, ILLEGAL_ASYNC_AWAIT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+    UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -280,10 +283,28 @@ fn async_function_expression_test_all_private_identifiers_valid(src: &str) -> bo
     let (item, _) = AsyncFunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap();
     item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn async_function_expression_test_early_errors() {
-    AsyncFunctionExpression::parse(&mut newparser("async function a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+
+mod async_function_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
+    #[test_case("async function(a=await b()){}", false => set(&[UNEXPECTED_AWAIT]); "await param")]
+    #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
+    #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
+    #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
+    #[test_case("async function(a=super.prop){}", false => set(&["Parameters may not include super properties"]); "superprop params")]
+    #[test_case("async function(){return super.prop;}", false => set(&["Body may not contain super properties"]); "superprop body")]
+    #[test_case("async function(a=super()){}", false => set(&["Parameters may not include super calls"]); "supercall params")]
+    #[test_case("async function(){return super();}", false => set(&["Body may not contain super calls"]); "supercall body")]
+    #[test_case("async function package(interface){implements;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "without default")]
+    #[test_case("async function(package){interface;}", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "with default")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).async_function_expression().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
 }
 
 // ASYNC METHOD
@@ -415,6 +436,12 @@ mod async_method {
     }
 
     #[test_case("async [package](interface) { implements; }", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }")]
+    #[test_case("async a([b]){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params; directive")]
+    #[test_case("async a([b]){}", true => set(&[]); "complex params; no directive")]
+    #[test_case("async a(){super();}", false => set(&[UNEXPECTED_SUPER]); "supercall")]
+    #[test_case("async a(x=await j){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await in params")]
+    #[test_case("async w(a){let a; const bb=0;}", false => set(&[A_ALREADY_DEFN]); "duplicate lex")]
+    #[test_case("async f(a){'use strict'; package;}", false => set(&[PACKAGE_NOT_ALLOWED]); "directive works")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
