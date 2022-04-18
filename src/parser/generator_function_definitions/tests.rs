@@ -1,7 +1,8 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
+use ahash::AHashSet;
 use test_case::test_case;
 
 // GENERATOR METHOD
@@ -386,10 +387,14 @@ fn generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod generator_body {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        GeneratorBody::parse(&mut newparser("a;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "statements")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).generator_body().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -525,10 +530,14 @@ mod yield_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Maker::new("yield a").yield_expression().early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield exp")]
+    #[test_case("yield", true => set(&[]); "no expresion")]
+    #[test_case("yield *package", true => set(&[PACKAGE_NOT_ALLOWED]); "yield from")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).yield_expression().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("yield" => false; "bare")]

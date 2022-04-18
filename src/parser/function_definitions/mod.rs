@@ -121,7 +121,7 @@ impl FunctionDeclaration {
     }
 }
 
-fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ident: Option<&Rc<BindingIdentifier>>, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) {
+pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ident: Option<&Rc<BindingIdentifier>>, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) {
     // Static Semantics: Early Errors
     //  FunctionDeclaration :
     //      function BindingIdentifier ( FormalParameters ) { FunctionBody }

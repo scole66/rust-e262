@@ -104,7 +104,7 @@ mod arrow_function {
     const A_DUPLICATED: &str = "‘a’ already defined";
 
     #[test_case("package => implements", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "ArrowParameters => ConciseBody")]
-    #[test_case("(a=yield b) => a", false => panics "not yet implemented" /*set(&[ILLEGAL_YIELD])*/; "Yield in params")]
+    #[test_case("(a=yield b) => a", false => set(&[ILLEGAL_YIELD]); "Yield in params")]
     #[test_case("(a=await b) => a", false => set(&[ILLEGAL_AWAIT]); "Await in params")]
     #[test_case("(...a) => { 'use strict'; }", false => set(&[ILLEGAL_USE_STRICT]); "complex params")]
     #[test_case("a => { let a; }", false => set(&[A_DUPLICATED]); "param/lex clash")]

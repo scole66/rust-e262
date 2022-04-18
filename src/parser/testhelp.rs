@@ -18,7 +18,7 @@ use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionStatementList};
-use generator_function_definitions::{GeneratorMethod, YieldExpression};
+use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
 use iteration_statements::{ForBinding, ForDeclaration};
 use labelled_statements::{LabelledItem, LabelledStatement};
@@ -414,6 +414,18 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`FunctionStatementList`] parse node.
     pub fn function_statement_list(self) -> Rc<FunctionStatementList> {
         FunctionStatementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`GeneratorBody`] parse node.
+    pub fn generator_body(self) -> Rc<GeneratorBody> {
+        GeneratorBody::parse(&mut newparser(self.source), Scanner::new()).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`GeneratorDeclaration`] parse node.
+    pub fn generator_declaration(self) -> Rc<GeneratorDeclaration> {
+        GeneratorDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`GeneratorExpression`] parse node.
+    pub fn generator_expression(self) -> Rc<GeneratorExpression> {
+        GeneratorExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`GeneratorMethod`] parse node.
     pub fn generator_method(self) -> Rc<GeneratorMethod> {
