@@ -336,7 +336,7 @@ mod assignment_expression {
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
-    #[test_case("yield package", true => panics "not yet implemented"; "YieldExpression")]
+    #[test_case("yield package", true => set(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
     #[test_case("package=>interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
     #[test_case("async package=>interface", true => panics "not yet implemented"; "AsyncArrowFunction")]
     #[test_case("package=interface", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
