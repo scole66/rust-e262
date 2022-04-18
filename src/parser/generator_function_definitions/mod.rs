@@ -144,7 +144,7 @@ impl GeneratorMethod {
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
-            errs.push(create_syntax_error_object(agent, format!("{name} already defined")));
+            errs.push(create_syntax_error_object(agent, format!("‘{name}’ already defined")));
         }
 
         let strict_func = strict || cus;

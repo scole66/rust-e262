@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER,
+    UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -99,10 +102,18 @@ mod generator_method {
         Maker::new(src).generator_method().has_direct_super()
     }
 
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        Maker::new("*a(){}").generator_method().early_errors(&mut test_agent(), &mut vec![], true);
+    #[test_case("*[package](implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("*a(...b){}", true => set(&[]); "complex params in strict mode")]
+    #[test_case("*a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("*a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("*a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("*a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    #[test_case("*a(b){super(b);}", false => set(&[UNEXPECTED_SUPER]); "direct super")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).generator_method().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test]
@@ -234,10 +245,26 @@ fn generator_declaration_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod generator_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).generator_declaration().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -335,10 +362,26 @@ fn generator_expression_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod generator_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("function *package(implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "named function")]
+    #[test_case("function *(implements) {interface;}", true => set(&[IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "anonymous function")]
+    #[test_case("function *a(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicated params (strict)")]
+    #[test_case("function *a(a,a){}", false => set(&[]); "duplicated params (non-strict)")]
+    #[test_case("function *a(...b){}", true => set(&[]); "complex params in strict mode")]
+    #[test_case("function *a(...b){'use strict';}", true => set(&[BAD_USE_STRICT]); "complex params with use strict (strict mode)")]
+    #[test_case("function *a(...b){'use strict';}", false => set(&[BAD_USE_STRICT]); "complex params with use strict (non-strict mode)")]
+    #[test_case("function *a(a){let a=3; const p=0;}", true => set(&[A_ALREADY_DEFN]); "lexname shadowing params")]
+    #[test_case("function *a(b=super()){}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in params")]
+    #[test_case("function *a(b=super.c){}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in params")]
+    #[test_case("function *a(){super();}", false => set(&[UNEXPECTED_SUPER2]); "SuperCall in body")]
+    #[test_case("function *a(){super.b;}", false => set(&[UNEXPECTED_SUPER2]); "SuperProperty in body")]
+    #[test_case("function *a(b=yield 10){}", false => set(&[YIELD_IN_GENPARAM]); "yield in generator params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).generator_expression().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
