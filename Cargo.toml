@@ -21,6 +21,7 @@ lazy_static = "1.4.0"
 regex = "1"
 uid = "0.1.5"
 counter = "0.5.3"
+anyhow = "1.0.56"
 
 [dev-dependencies]
 test-case = "2.0"
