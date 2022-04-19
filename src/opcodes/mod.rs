@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use std::fmt;
 
 pub type Opcode = u16;
 
@@ -7,6 +8,16 @@ pub enum Insn {
     PushStr,
     Resolve,
     StrictResolve,
+}
+
+impl fmt::Display for Insn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Insn::PushStr => "PUSH_STR",
+            Insn::Resolve => "RESOLVE",
+            Insn::StrictResolve => "STRICT_RESOLVE",
+        })
+    }
 }
 
 impl From<Insn> for Opcode {
