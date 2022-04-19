@@ -1,6 +1,6 @@
 use super::testhelp::{
     check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, ILLEGAL_ASYNC_AWAIT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
-    UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
+    UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -145,7 +145,7 @@ mod async_function_declaration {
     }
 
     #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => set(&[UNEXPECTED_AWAIT]); "await param")]
+    #[test_case("async function(a=await b()){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
     #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]
@@ -289,7 +289,7 @@ mod async_function_expression {
     use test_case::test_case;
 
     #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
-    #[test_case("async function(a=await b()){}", false => set(&[UNEXPECTED_AWAIT]); "await param")]
+    #[test_case("async function(a=await b()){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await param")]
     #[test_case("async function(a,a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "duplicate; strict body")]
     #[test_case("async function(a,a){}", true => set(&[A_ALREADY_DEFN]); "duplicate; strict context")]
     #[test_case("async function(lex) { const lex=10; return lex; }", false => set(&["Lexical decls in body duplicate parameters"]); "lexical duplication")]

@@ -461,7 +461,7 @@ mod primary_expression {
     #[test_case("class package {}", true => set(&[PACKAGE_NOT_ALLOWED]); "ClassExpression")]
     #[test_case("function *package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "GeneratorExpression")]
     #[test_case("async function package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncFunctionExpression")]
-    #[test_case("async function *package(){}", true => panics "not yet implemented"; "AsyncGeneratorExpression")]
+    #[test_case("async function *package(){}", true => set(&[PACKAGE_NOT_ALLOWED]); "AsyncGeneratorExpression")]
     #[test_case("/a/", true => set(&[]); "RegularExpressionLiteral")]
     #[test_case("/a/xx", true => set(&["Unknown regex flag ‘x’ in flags ‘xx’"]); "RegularExpressionLiteral with errors")]
     #[test_case("`${package}`", true => set(&[PACKAGE_NOT_ALLOWED]); "TemplateLiteral")]

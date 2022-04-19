@@ -117,11 +117,16 @@ impl FunctionDeclaration {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
+        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body);
+        if let Some(ident) = &self.ident {
+            ident.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
-pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ident: Option<&Rc<BindingIdentifier>>, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) {
+pub fn common_function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) -> bool {
     // Static Semantics: Early Errors
     //  FunctionDeclaration :
     //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
@@ -168,11 +173,7 @@ pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: 
         errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
     }
 
-    if let Some(ident) = ident {
-        ident.early_errors(agent, errs, strict_function);
-    }
-    params.early_errors(agent, errs, strict_function, strict_function);
-    body.early_errors(agent, errs, strict_function);
+    strict_function
 }
 
 // FunctionExpression :
@@ -263,7 +264,12 @@ impl FunctionExpression {
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
+        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body);
+        if let Some(ident) = &self.ident {
+            ident.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 

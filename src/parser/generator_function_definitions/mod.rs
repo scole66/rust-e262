@@ -4,7 +4,7 @@ use std::io::Write;
 
 use super::assignment_operators::AssignmentExpression;
 use super::class_definitions::ClassElementName;
-use super::function_definitions::{function_early_errors, FunctionBody};
+use super::function_definitions::{common_function_early_errors, FunctionBody};
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
 use super::scanner::Scanner;
@@ -291,7 +291,13 @@ impl GeneratorDeclaration {
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
         }
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body.0);
+
+        if let Some(ident) = &self.ident {
+            ident.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 
@@ -414,7 +420,13 @@ impl GeneratorExpression {
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
         }
-        function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
+        let strict_function = common_function_early_errors(agent, errs, strict, &self.params, &self.body.0);
+
+        if let Some(ident) = &self.ident {
+            ident.early_errors(agent, errs, strict_function);
+        }
+        self.params.early_errors(agent, errs, strict_function, strict_function);
+        self.body.early_errors(agent, errs, strict_function);
     }
 }
 

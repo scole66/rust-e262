@@ -1,7 +1,7 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO,
-    UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, svec, Maker, AWAIT_IN_CLASS_STATIC, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS,
+    IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR,
+    SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -1407,7 +1407,7 @@ mod class_static_block_body {
     #[test_case("while (1) continue foo;" => set(&[UNDEF_CONT_TGT]); "undefined continue")]
     #[test_case("let x = arguments;" => set(&[UNEXPECTED_ARGS]); "has arguments")]
     #[test_case("super();" => set(&[UNEXPECTED_SUPER]); "super call")]
-    #[test_case("await a();" => set(&[UNEXPECTED_AWAIT]); "await expr")]
+    #[test_case("await a();" => set(&[AWAIT_IN_CLASS_STATIC]); "await expr")]
     fn early_errors(src: &str) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];

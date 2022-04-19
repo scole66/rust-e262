@@ -1,8 +1,9 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, Maker};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, BAD_USE_STRICT,A_ALREADY_DEFN, ILLEGAL_ASYNC_AWAIT, UNEXPECTED_SUPER2, BAD_EVAL, BAD_ARGUMENTS};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
-use crate::tests::test_agent;
+use crate::tests::{test_agent, unwind_syntax_error_object};
 use test_case::test_case;
+use ahash::AHashSet;
 
 // ASYNC GENERATOR METHOD
 #[test]
@@ -390,10 +391,29 @@ fn async_generator_expression_test_all_private_identifiers_valid(src: &str) -> b
 }
 mod async_generator_expression {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("async function *package(a=implements) {interface;}", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "sub exprs (with id)")]
+    #[test_case("async function *(a=package) { implements; }", true => set(&[PACKAGE_NOT_ALLOWED, IMPLEMENTS_NOT_ALLOWED]); "sub exprs (no id)")]
+    #[test_case("async function *foo() { super(); }", false => set(&[UNEXPECTED_SUPER2]); "body supercall")]
+    #[test_case("async function *foo(a=super()){}", false => set(&[UNEXPECTED_SUPER2]); "params supercall")]
+    #[test_case("async function *foo(){return super.a;}", false => set(&[UNEXPECTED_SUPER2]); "body superprop")]
+    #[test_case("async function *foo(a=super.a){}", false => set(&[UNEXPECTED_SUPER2]); "params superprop")]
+    #[test_case("async function *foo(a, a, a){}", false => set(&[]); "dups, but not strict")]
+    #[test_case("async function *foo(a, a, a){'use strict';}", false => set(&[A_ALREADY_DEFN]); "dups; strict via directive")]
+    #[test_case("async function *foo(a, a, a){}", true => set(&[A_ALREADY_DEFN]); "dups; strict via function call")]
+    #[test_case("async function *eval(){}", true => set(&[BAD_EVAL]); "named eval in strict")]
+    #[test_case("async function *arguments(){'use strict';}", false => set(&[BAD_ARGUMENTS]); "named arguments via directive")]
+    #[test_case("async function *foo(...a) { 'use strict'; f(a);}", false => set(&[BAD_USE_STRICT]); "complex params")]
+    #[test_case("async function *foo(a){let a; const b=0;}", false => set(&[A_ALREADY_DEFN]); "param/body lex dup")]
+    #[test_case("async function *foo(a=await j){}", false => set(&[ILLEGAL_ASYNC_AWAIT]); "await in params")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        let node = Maker::new(src).async_generator_expression();
+        println!("{node}");
+        node.early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
 
@@ -442,9 +462,13 @@ fn async_generator_body_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 mod async_generator_body {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn early_errors() {
-        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+    use test_case::test_case;
+
+    #[test_case("package;", true => set(&[PACKAGE_NOT_ALLOWED]); "std")]
+    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        Maker::new(src).async_generator_body().early_errors(&mut agent, &mut errs, strict);
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

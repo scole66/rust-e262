@@ -4,7 +4,7 @@ use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowPara
 use assignment_operators::AssignmentExpression;
 use async_arrow_function_definitions::{AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody};
 use async_function_definitions::{AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression};
-use async_generator_function_definitions::AsyncGeneratorMethod;
+use async_generator_function_definitions::{AsyncGeneratorBody, AsyncGeneratorDeclaration, AsyncGeneratorExpression, AsyncGeneratorMethod};
 use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
 use binary_logical_operators::{CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression};
 use bitwise_shift_operators::ShiftExpression;
@@ -235,13 +235,25 @@ impl<'a> Maker<'a> {
     pub fn async_function_expression(self) -> Rc<AsyncFunctionExpression> {
         AsyncFunctionExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
-    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
-    pub fn async_method(self) -> Rc<AsyncMethod> {
-        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorBody`] parse node.
+    pub fn async_generator_body(self) -> Rc<AsyncGeneratorBody> {
+        AsyncGeneratorBody::parse(&mut newparser(self.source), Scanner::new()).0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorDeclaration`] parse node.
+    pub fn async_generator_declaration(self) -> Rc<AsyncGeneratorDeclaration> {
+        AsyncGeneratorDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorExpression`] parse node.
+    pub fn async_generator_expression(self) -> Rc<AsyncGeneratorExpression> {
+        AsyncGeneratorExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
     pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
         AsyncGeneratorMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
+    pub fn async_method(self) -> Rc<AsyncMethod> {
+        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`AwaitExpression`] parse node.
     pub fn await_expression(self) -> Rc<AwaitExpression> {
@@ -581,6 +593,9 @@ pub const PREV_STATIC_SETTER: &str = "‘#a’ was previously defined as a stati
 pub const PREV_SETTER: &str = "‘#a’ was previously defined as a setter method.";
 pub const PARENTLESS_SUPER: &str = "Cannot use super in a constructor with no parent class";
 pub const BAD_USE_STRICT: &str = "Illegal 'use strict' directive in function with non-simple parameter list";
-pub const UNEXPECTED_AWAIT: &str = "await expressions not expected here";
+pub const UNEXPECTED_AWAIT: &str = "Await expressions can't be parameter initializers in async functions";
 pub const ILLEGAL_ASYNC_AWAIT: &str = "Illegal await-expression in formal parameters of async function";
 pub const YIELD_IN_GENPARAM: &str = "Yield expressions can't be parameter initializers in generators";
+pub const AWAIT_IN_CLASS_STATIC: &str = "Cannot use await in class static initialization block";
+pub const BAD_EVAL: &str = "identifier not allowed in strict mode: eval";
+pub const BAD_ARGUMENTS: &str = "identifier not allowed in strict mode: arguments";
