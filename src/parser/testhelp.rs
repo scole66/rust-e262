@@ -503,6 +503,10 @@ impl<'a> Maker<'a> {
     pub fn return_statement(self) -> Rc<ReturnStatement> {
         ReturnStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Script`] parse node.
+    pub fn script(self) -> Rc<Script> {
+        Script::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ShiftExpression`] parse node.
     pub fn shift_expression(self) -> Rc<ShiftExpression> {
         ShiftExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
