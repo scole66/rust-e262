@@ -52,7 +52,7 @@ fn agent_running_execution_context() {
     assert!(r2.script_or_module.is_none());
 
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r2.realm.clone())))));
     agent.push_execution_context(test_ec);
 
     // Then get it back and check its script_or_module to ensure we got the new one.
@@ -73,7 +73,7 @@ fn agent_running_execution_context_mut() {
     assert!(r2.script_or_module.is_none());
 
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r2.realm.clone())))));
     agent.push_execution_context(test_ec);
 
     // Then get it back and check its script_or_module to ensure we got the new one.
@@ -86,7 +86,7 @@ fn agent_pop_execution_context() {
     agent.initialize_host_defined_realm();
     let r1 = agent.running_execution_context().unwrap();
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r1.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let test_ec = ExecutionContext::new(None, r1.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r1.realm.clone())))));
     agent.push_execution_context(test_ec);
     // now pop it.
     agent.pop_execution_context();

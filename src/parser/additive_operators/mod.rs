@@ -1,11 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::multiplicative_operators::MultiplicativeExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AdditiveExpression[Yield, Await] :
 //      MultiplicativeExpression[?Yield, ?Await]
@@ -165,6 +166,14 @@ impl AdditiveExpression {
         match self {
             AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => ATTKind::Invalid,
             AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(strict),
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

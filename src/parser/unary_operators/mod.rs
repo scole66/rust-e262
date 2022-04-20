@@ -1,12 +1,13 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::async_function_definitions::AwaitExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::update_expressions::UpdateExpression;
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // UnaryExpression[Yield, Await] :
 //      UpdateExpression[?Yield, ?Await]
@@ -266,6 +267,14 @@ impl UnaryExpression {
             | UnaryExpression::Complement(_)
             | UnaryExpression::Not(_)
             | UnaryExpression::Await(_) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

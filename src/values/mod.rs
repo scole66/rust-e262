@@ -30,6 +30,7 @@ pub enum ECMAScriptValue {
     BigInt(Rc<BigInt>),
     Symbol(Symbol),
     Object(Object),
+    Empty,
 }
 
 impl ECMAScriptValue {
@@ -89,6 +90,7 @@ impl ECMAScriptValue {
             ECMAScriptValue::BigInt(b) => write!(f, "{:?}", b),
             ECMAScriptValue::Symbol(sym) => write!(f, "{}", sym),
             ECMAScriptValue::Object(o) => o.concise(f),
+            ECMAScriptValue::Empty => write!(f, "[empty]"),
         }
     }
 }
@@ -601,8 +603,7 @@ pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: O
 impl From<ECMAScriptValue> for bool {
     fn from(val: ECMAScriptValue) -> bool {
         match val {
-            ECMAScriptValue::Undefined => false,
-            ECMAScriptValue::Null => false,
+            ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Empty => false,
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
             ECMAScriptValue::String(s) => s.len() > 0,
@@ -667,7 +668,7 @@ pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Nu
 // +---------------+-------------------------------------------------------------------+
 pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
     match value.into() {
-        ECMAScriptValue::Undefined => Ok(f64::NAN),
+        ECMAScriptValue::Undefined | ECMAScriptValue::Empty => Ok(f64::NAN),
         ECMAScriptValue::Null => Ok(0_f64),
         ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
         ECMAScriptValue::Number(n) => Ok(n),
@@ -919,6 +920,7 @@ pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompl
             let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::String))?;
             to_string(agent, prim_value)
         }
+        ECMAScriptValue::Empty => Ok(JSString::from("[empty]")),
     }
 }
 
@@ -942,7 +944,7 @@ pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompl
 // +---------------+-------------------------------------------------------------------------------------+
 pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompletion<Object> {
     match val.into() {
-        ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
+        ECMAScriptValue::Null | ECMAScriptValue::Undefined | ECMAScriptValue::Empty => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
         ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
         ECMAScriptValue::String(s) => Ok(create_string_object(agent, s)),

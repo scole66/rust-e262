@@ -1,28 +1,47 @@
 use crate::opcodes::{Insn, Opcode};
 use crate::strings::JSString;
 use anyhow::anyhow;
+use num::bigint::BigInt;
 
 /// A compilation unit
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Chunk {
+    name: String,
     strings: Vec<JSString>,
     opcodes: Vec<Opcode>,
+    floats: Vec<f64>,
+    bigints: Vec<BigInt>,
 }
 
 impl Chunk {
-    pub fn new() -> Self {
-        Self { strings: vec![], opcodes: vec![] }
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into(), ..Default::default() }
     }
 
     pub fn add_to_string_pool(&mut self, s: JSString) -> anyhow::Result<u16> {
-        for (idx, name) in self.strings.iter().enumerate() {
-            if name == &s {
+        Self::add_to_pool(&mut self.strings, s, "strings")
+    }
+
+    pub fn add_to_float_pool(&mut self, n: f64) -> anyhow::Result<u16> {
+        Self::add_to_pool(&mut self.floats, n, "floats")
+    }
+
+    pub fn add_to_bigint_pool(&mut self, n: BigInt) -> anyhow::Result<u16> {
+        Self::add_to_pool(&mut self.bigints, n, "big ints")
+    }
+
+    fn add_to_pool<Item>(collection: &mut Vec<Item>, item: Item, collection_name: &str) -> anyhow::Result<u16>
+    where
+        Item: PartialEq,
+    {
+        for (idx, existing) in collection.iter().enumerate() {
+            if existing == &item {
                 // This unwrap is safe, as we're returning something that was ok at least once before.
                 return Ok(idx.try_into().unwrap());
             }
         }
-        self.strings.push(s);
-        (self.strings.len() - 1).try_into().map_err(|_| anyhow!("Out of room for strings in this compilation unit"))
+        collection.push(item);
+        (collection.len() - 1).try_into().map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
     }
 
     pub fn op(&mut self, opcode: Insn) {
@@ -32,5 +51,62 @@ impl Chunk {
     pub fn op_plus_arg(&mut self, opcode: Insn, arg: u16) {
         self.opcodes.push(opcode.into());
         self.opcodes.push(arg);
+    }
+
+    pub fn disassemble(&self) -> Vec<String> {
+        let mut idx = 0;
+        let mut result = vec![];
+        result.push(format!("====== {} ======", self.name));
+        while idx < self.opcodes.len() {
+            let insn = Insn::try_from(self.opcodes[idx]).unwrap();
+            idx += 1;
+            match insn {
+                Insn::String => {
+                    let arg = self.opcodes[idx] as usize;
+                    idx += 1;
+                    result.push(format!("    {:<10}{} ({})", insn, arg, self.strings[arg]));
+                }
+                Insn::Float => {
+                    let arg = self.opcodes[idx] as usize;
+                    idx += 1;
+                    result.push(format!("    {:<10}{} ({})", insn, arg, self.floats[arg]));
+                }
+                Insn::Bigint => {
+                    let arg = self.opcodes[idx] as usize;
+                    idx += 1;
+                    result.push(format!("    {:<10}{} ({})", insn, arg, self.bigints[arg]));
+                }
+                Insn::Resolve | Insn::StrictResolve | Insn::This | Insn::Null | Insn::True | Insn::False | Insn::GetValue => {
+                    result.push(format!("    {insn}"));
+                }
+            }
+        }
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::testhelp::Maker;
+    use test_case::test_case;
+
+    #[test_case("Boolean")]
+    #[test_case("67.2")]
+    #[test_case("'Thanksgiving'")]
+    #[test_case("null")]
+    #[test_case("true")]
+    #[test_case("false")]
+    #[test_case("34791057890163987078960471890743891203561n")]
+    #[test_case("(undefined)")]
+    #[test_case("a+b" => panics "not yet implemented")]
+    fn compile_an_expression(src: &str) {
+        let node = Maker::new(src).script();
+        let mut my_chunk = Chunk::new("test chunk");
+        node.compile(&mut my_chunk).unwrap();
+
+        for line in my_chunk.disassemble() {
+            println!("{line}");
+        }
     }
 }

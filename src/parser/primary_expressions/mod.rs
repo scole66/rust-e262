@@ -10,8 +10,11 @@ use super::identifiers::{BindingIdentifier, IdentifierReference};
 use super::method_definitions::MethodDefinition;
 use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
+use crate::chunk::Chunk;
+use crate::opcodes::Insn;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use crate::values::number_to_string;
+use anyhow;
 use num::bigint::BigInt;
 use std::fmt;
 use std::io::Result as IoResult;
@@ -423,6 +426,26 @@ impl PrimaryExpression {
             | AsyncGenerator(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(strict),
             Parenthesized(expr) => expr.assignment_target_type(strict),
+        }
+    }
+
+    /// Generate the code for PrimaryExpression
+    ///
+    /// References from ECMA-262:
+    /// * [Evaluation of the `this` keyword](https://tc39.es/ecma262/#sec-this-keyword-runtime-semantics-evaluation)
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            PrimaryExpression::IdentifierReference(id) => id.compile(chunk, strict),
+            PrimaryExpression::This => {
+                // Runtime Semantics: Evaluation
+                //  PrimaryExpression : this
+                //      1. Return ? ResolveThisBinding().
+                chunk.op(Insn::This);
+                Ok(())
+            }
+            PrimaryExpression::Literal(lit) => lit.compile(chunk),
+            PrimaryExpression::Parenthesized(exp) => exp.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }
@@ -2080,6 +2103,46 @@ impl Literal {
         //    }
         //}
     }
+
+    /// Generate the code for Literal
+    ///
+    /// See [Evaluation for Literal](https://tc39.es/ecma262/#sec-literals-runtime-semantics-evaluation) from ECMA-262.
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
+        match &self.kind {
+            LiteralKind::NullLiteral => {
+                // Literal : NullLiteral
+                //  1. Return null.
+                chunk.op(Insn::Null);
+            }
+            LiteralKind::BooleanLiteral(is_true) => {
+                // Literal : BooleanLiteral
+                //  1. If BooleanLiteral is the token false, return false.
+                //  2. If BooleanLiteral is the token true, return true.
+                chunk.op(if *is_true { Insn::True } else { Insn::False });
+            }
+            LiteralKind::StringLiteral(s) => {
+                // Literal : StringLiteral
+                //  1. Return the SV of StringLiteral as defined in [12.8.4.2](https://tc39.es/ecma262/#sec-static-semantics-sv).
+                let idx = chunk.add_to_string_pool(s.value.clone())?;
+                chunk.op_plus_arg(Insn::String, idx);
+            }
+            LiteralKind::NumericLiteral(numeric) => {
+                // Literal : NumericLiteral
+                //  1. Return the NumericValue of NumericLiteral as defined in [12.8.3.3](https://tc39.es/ecma262/#sec-numericvalue).
+                match numeric {
+                    Numeric::Number(n) => {
+                        let idx = chunk.add_to_float_pool(*n)?;
+                        chunk.op_plus_arg(Insn::Float, idx);
+                    }
+                    Numeric::BigInt(bi) => {
+                        let idx = chunk.add_to_bigint_pool(bi.clone())?;
+                        chunk.op_plus_arg(Insn::Bigint, idx);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
@@ -2800,6 +2863,21 @@ impl ParenthesizedExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         let ParenthesizedExpression::Expression(e) = self;
         e.assignment_target_type(strict)
+    }
+
+    /// Generate the code for ParenthesizedExpression
+    ///
+    /// See [Evaluation for Grouping Operator](https://tc39.es/ecma262/#sec-grouping-operator-runtime-semantics-evaluation) from ECMA-262.
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        // Runtime Semantics: Evaluation
+        //  ParenthesizedExpression : ( Expression )
+        //      1. Return the result of evaluating Expression. This may be of type Reference.
+        //
+        // NOTE | This algorithm does not apply GetValue to the result of evaluating Expression. The principal
+        //      | motivation for this is so that operators such as delete and typeof may be applied to parenthesized
+        //      | expressions.
+        let ParenthesizedExpression::Expression(e) = self;
+        e.compile(chunk, strict)
     }
 }
 

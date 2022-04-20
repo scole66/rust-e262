@@ -1,11 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::equality_operators::EqualityExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // BitwiseANDExpression[In, Yield, Await] :
 //      EqualityExpression[?In, ?Yield, ?Await]
@@ -150,6 +151,14 @@ impl BitwiseANDExpression {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(strict),
             BitwiseANDExpression::BitwiseAND(..) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }
@@ -297,6 +306,14 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(strict),
             BitwiseXORExpression::BitwiseXOR(..) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }
@@ -455,6 +472,14 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
             _ => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

@@ -20,7 +20,9 @@ use super::throw_statement::ThrowStatement;
 use super::try_statement::TryStatement;
 use super::with_statement::WithStatement;
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
+use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -394,6 +396,13 @@ impl Statement {
             Statement::Labelled(ls) => ls.contains_arguments(),
             Statement::Throw(ts) => ts.contains_arguments(),
             Statement::Try(ts) => ts.contains_arguments(),
+        }
+    }
+
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            Statement::Expression(exp) => exp.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

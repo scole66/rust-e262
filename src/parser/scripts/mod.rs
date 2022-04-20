@@ -1,8 +1,10 @@
 use super::scanner::Scanner;
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use crate::scanner::StringToken;
 use ahash::AHashSet;
+use anyhow;
 use std::fmt;
 use std::hash::Hash;
 use std::io::Result as IoResult;
@@ -11,7 +13,7 @@ use std::io::Write;
 // Script :
 //      ScriptBody opt
 #[derive(Debug)]
-pub struct Script(Option<Rc<ScriptBody>>);
+pub struct Script(pub Option<Rc<ScriptBody>>);
 
 impl fmt::Display for Script {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -59,6 +61,24 @@ where
     iter.into_iter().all(move |x| uniq.insert(x))
 }
 
+use super::async_function_definitions::AsyncFunctionDeclaration;
+use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
+use super::declarations_and_variables::VariableDeclaration;
+use super::function_definitions::FunctionDeclaration;
+use super::generator_function_definitions::GeneratorDeclaration;
+use super::identifiers::BindingIdentifier;
+use super::iteration_statements::ForBinding;
+#[derive(Clone)]
+pub enum VarScopeDecl {
+    VariableDeclaration(Rc<VariableDeclaration>),
+    ForBinding(Rc<ForBinding>),
+    BindingIdentifier(Rc<BindingIdentifier>),
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+}
+
 impl Script {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (script, after_script, err) = match ScriptBody::parse(parser, scanner) {
@@ -103,6 +123,25 @@ impl Script {
         match &self.0 {
             None => false,
             Some(n) => kind == ParseNodeKind::ScriptBody || n.contains(kind),
+        }
+    }
+
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        todo!()
+    }
+
+    pub fn var_declared_names(&self) -> Vec<JSString> {
+        todo!()
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        todo!()
+    }
+
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
+        match &self.0 {
+            None => Ok(()),
+            Some(sb) => sb.compile(chunk),
         }
     }
 }
@@ -201,6 +240,11 @@ impl ScriptBody {
         let prologue = self.directive_prologue();
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
+    }
+
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
+        let strict = self.contains_use_strict();
+        self.statement_list.compile(chunk, strict)
     }
 }
 

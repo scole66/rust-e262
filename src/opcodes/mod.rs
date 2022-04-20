@@ -1,39 +1,37 @@
-use anyhow::anyhow;
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
 use std::fmt;
 
 pub type Opcode = u16;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u16)]
 pub enum Insn {
-    PushStr,
+    String,
     Resolve,
     StrictResolve,
+    This,
+    Null,
+    True,
+    False,
+    Float,
+    Bigint,
+    GetValue,
 }
 
 impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Insn::PushStr => "PUSH_STR",
+        f.pad(match self {
+            Insn::String => "STRING",
             Insn::Resolve => "RESOLVE",
             Insn::StrictResolve => "STRICT_RESOLVE",
+            Insn::This => "THIS",
+            Insn::Null => "NULL",
+            Insn::True => "TRUE",
+            Insn::False => "FALSE",
+            Insn::Float => "FLOAT",
+            Insn::Bigint => "BIGINT",
+            Insn::GetValue => "GET_VALUE",
         })
-    }
-}
-
-impl From<Insn> for Opcode {
-    fn from(src: Insn) -> Self {
-        src as Opcode
-    }
-}
-
-impl TryFrom<Opcode> for Insn {
-    type Error = anyhow::Error;
-    fn try_from(src: Opcode) -> anyhow::Result<Insn> {
-        match src {
-            x if x == Insn::PushStr as Opcode => Ok(Insn::PushStr),
-            x if x == Insn::Resolve as Opcode => Ok(Insn::Resolve),
-            x if x == Insn::StrictResolve as Opcode => Ok(Insn::StrictResolve),
-            _ => Err(anyhow!("Invalid opcode {}", src)),
-        }
     }
 }

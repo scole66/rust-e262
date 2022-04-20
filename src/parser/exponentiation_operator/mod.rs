@@ -1,12 +1,13 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::unary_operators::UnaryExpression;
 use super::update_expressions::UpdateExpression;
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // ExponentiationExpression[Yield, Await] :
 //      UnaryExpression[?Yield, ?Await]
@@ -151,6 +152,14 @@ impl ExponentiationExpression {
         match self {
             ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
             ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

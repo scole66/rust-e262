@@ -1,11 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::AssignmentExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // Expression[In, Yield, Await] :
 //      AssignmentExpression[?In, ?Yield, ?Await]
@@ -163,6 +164,14 @@ impl Expression {
         match &self {
             Expression::FallThru(node) => node.assignment_target_type(strict),
             Expression::Comma(_, _) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            Expression::FallThru(ae) => ae.compile(chunk, strict),
+            Expression::Comma(e, ae) => todo!(),
         }
     }
 }

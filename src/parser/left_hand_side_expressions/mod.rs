@@ -1,14 +1,15 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::AssignmentExpression;
 use super::comma_operator::Expression;
 use super::primary_expressions::PrimaryExpression;
 use super::primary_expressions::TemplateLiteral;
 use super::scanner::{IdentifierData, Keyword, Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 //////// 12.3 Left-Hand-Side Expressions
 
@@ -371,6 +372,14 @@ impl MemberExpression {
             MemberExpressionKind::SuperProperty(..) => ATTKind::Simple,
             MemberExpressionKind::MetaProperty(..) => ATTKind::Invalid,
             MemberExpressionKind::NewArguments(..) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(pe) => pe.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }
@@ -1086,6 +1095,14 @@ impl NewExpression {
             NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
         }
     }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(me) => me.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1737,6 +1754,14 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::New(boxed) => boxed.assignment_target_type(strict),
             LeftHandSideExpression::Call(boxed) => boxed.assignment_target_type(),
             LeftHandSideExpression::Optional(_) => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            LeftHandSideExpression::New(ne) => ne.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

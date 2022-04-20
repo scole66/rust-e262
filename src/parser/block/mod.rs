@@ -1,8 +1,10 @@
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashSet;
+use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -493,6 +495,14 @@ impl StatementList {
             StatementList::List(sl, sli) => sl.contains_arguments() || sli.contains_arguments(),
         }
     }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            StatementList::Item(sli) => sli.compile(chunk, strict),
+            StatementList::List(sl, sli) => todo!(),
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -665,6 +675,14 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(stmt) => stmt.contains_arguments(),
             StatementListItem::Declaration(decl) => decl.contains_arguments(),
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            StatementListItem::Statement(stmt) => stmt.compile(chunk, strict),
+            StatementListItem::Declaration(decl) => todo!(),
         }
     }
 }

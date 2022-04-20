@@ -146,7 +146,7 @@ impl Agent {
 
         realm.global_object = Some(go.clone());
         let new_global_env = GlobalEnvironmentRecord::new(go, tv);
-        realm.global_env = Some(new_global_env);
+        realm.global_env = Some(Rc::new(RefCell::new(new_global_env)));
     }
 
     // SetDefaultGlobalBindings ( realmRec )
@@ -186,8 +186,9 @@ impl Agent {
         //
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
         let gtv = {
-            let global_env = &self.running_execution_context().unwrap().realm.borrow().global_env;
-            global_env.as_ref().unwrap().get_this_binding()
+            let o_env = &self.running_execution_context().unwrap().realm.borrow().global_env;
+            let global_env = o_env.as_ref().unwrap().borrow();
+            global_env.get_this_binding()
         };
         global_data!("globalThis", gtv, true, false, true);
 
@@ -318,6 +319,11 @@ impl Agent {
         self.set_realm_global_object(None, None);
         self.set_default_global_bindings();
     }
+
+    #[allow(unused_variables)]
+    pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion {
+        todo!()
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -352,6 +358,110 @@ pub struct WellKnownSymbols {
     pub to_primitive_: Symbol,
     pub to_string_tag_: Symbol,
     pub unscopables_: Symbol,
+}
+
+use super::chunk::Chunk;
+use super::execution_context::ScriptRecord;
+use super::parser::scripts::VarScopeDecl;
+use super::parser::{parse_text, ParseGoal, ParsedText};
+use super::realm::Realm;
+use std::cell::RefCell;
+
+pub fn parse_script(agent: &mut Agent, source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
+    let script = parse_text(agent, source_text, ParseGoal::Script);
+    match script {
+        ParsedText::Errors(errs) => Err(errs),
+        ParsedText::Script(script) => {
+            let mut chunk = Chunk::new("top level script");
+            script.compile(&mut chunk).unwrap();
+            Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk) })
+        }
+    }
+}
+
+#[allow(unused_variables)]
+pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, env: Rc<RefCell<GlobalEnvironmentRecord>>) -> Completion {
+    let lex_names = script.lexically_declared_names();
+    let var_names = script.var_declared_names();
+    for name in lex_names {
+        if env.borrow().has_var_declaration(&name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+        if env.borrow().has_lexical_declaration(agent, &name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+        let has_restricted_global = env.borrow().has_restricted_global_property(agent, &name)?;
+        if has_restricted_global {
+            return Err(create_syntax_error(agent, format!("{name} is restricted and may not be used")));
+        }
+    }
+    for name in var_names {
+        if env.borrow().has_lexical_declaration(agent, &name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+    }
+    let var_declarations = script.var_scoped_declarations();
+    let mut functions_to_initialize = vec![];
+    let mut declared_function_names = vec![];
+    for d in var_declarations.iter().rev() {
+        if matches!(d, VarScopeDecl::FunctionDeclaration(_) | VarScopeDecl::GeneratorDeclaration(_) | VarScopeDecl::AsyncFunctionDeclaration(_) | VarScopeDecl::AsyncGeneratorDeclaration(_))
+        {
+            let func_name = match d {
+                VarScopeDecl::FunctionDeclaration(fd) => fd.bound_names()[0].clone(),
+                VarScopeDecl::GeneratorDeclaration(gd) => gd.bound_names()[0].clone(),
+                VarScopeDecl::AsyncFunctionDeclaration(afd) => afd.bound_names()[0].clone(),
+                VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.bound_names()[0].clone(),
+                _ => unreachable!(),
+            };
+            if !declared_function_names.contains(&func_name) {
+                let fn_definable = env.borrow().can_declare_global_function(agent, &func_name)?;
+                if !fn_definable {
+                    return Err(create_type_error(agent, format!("Cannot create global function {func_name}")));
+                }
+                declared_function_names.push(func_name);
+                functions_to_initialize.insert(0, d.clone());
+            }
+        }
+    }
+
+    todo!()
+}
+
+use crate::cr::Completion;
+use crate::environment_record::EnvironmentRecord;
+use crate::errors::{create_syntax_error, create_type_error};
+use crate::execution_context::ScriptOrModule;
+use crate::parser::scripts::Script;
+
+pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion {
+    let global_env = sr.realm.borrow().global_env.clone();
+    let mut script_context = ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
+    script_context.lexical_environment = global_env.clone().map(|g| g as Rc<RefCell<dyn EnvironmentRecord>>);
+    script_context.variable_environment = global_env.clone().map(|g| g as Rc<RefCell<dyn EnvironmentRecord>>);
+
+    agent.push_execution_context(script_context);
+
+    let script = sr.ecmascript_code.clone();
+
+    let mut result = global_declaration_instantiation(agent, script, global_env.unwrap());
+    if result.is_ok() {
+        result = agent.evaluate(sr.compiled);
+        if let Ok(ECMAScriptValue::Empty) = result {
+            result = Ok(ECMAScriptValue::Undefined);
+        }
+    }
+
+    agent.pop_execution_context();
+
+    result
+}
+
+pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, String> {
+    let realm = Rc::clone(&agent.running_execution_context().unwrap().realm);
+    let x = parse_script(agent, source_text, realm).map_err(|_| "errors happened during compilation".to_string())?;
+
+    script_evaluation(agent, x).map_err(|_| "errors happend during evaluation".to_string())?;
+    todo!()
 }
 
 #[cfg(test)]

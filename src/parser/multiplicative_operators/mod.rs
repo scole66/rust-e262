@@ -1,11 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::exponentiation_operator::ExponentiationExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // MultiplicativeOperator : one of
 //      * / %
@@ -203,6 +204,14 @@ impl MultiplicativeExpression {
         match self {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => ATTKind::Invalid,
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(strict),
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

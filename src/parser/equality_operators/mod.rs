@@ -1,11 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::relational_operators::RelationalExpression;
 use super::scanner::{scan_token, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
+use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use anyhow;
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // EqualityExpression[In, Yield, Await] :
 //      RelationalExpression[?In, ?Yield, ?Await]
@@ -186,6 +187,14 @@ impl EqualityExpression {
         match self {
             EqualityExpression::RelationalExpression(re) => re.assignment_target_type(strict),
             _ => ATTKind::Invalid,
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict),
+            _ => todo!(),
         }
     }
 }

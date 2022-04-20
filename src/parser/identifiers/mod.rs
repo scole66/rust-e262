@@ -383,7 +383,7 @@ impl IdentifierReference {
             IdentifierReferenceKind::Yield => "yield".into(),
             IdentifierReferenceKind::Await => "await".into(),
         })?;
-        chunk.op_plus_arg(Insn::PushStr, string_id);
+        chunk.op_plus_arg(Insn::String, string_id);
         chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
         Ok(())
     }
