@@ -135,9 +135,14 @@ impl Script {
             Some(sb) => sb.lexically_declared_names(),
         }
     }
-
+    /// Return a list of the var delcared names for this script.
+    ///
+    /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        todo!()
+        match &self.0 {
+            None => vec![],
+            Some(sb) => sb.var_declared_names(),
+        }
     }
 
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
