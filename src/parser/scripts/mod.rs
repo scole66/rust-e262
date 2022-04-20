@@ -105,6 +105,16 @@ impl Script {
             Some(n) => kind == ParseNodeKind::ScriptBody || n.contains(kind),
         }
     }
+
+    /// Return a list of the lexically declared names for this script.
+    ///
+    /// See [LexicallyDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-lexicallydeclarednames) from ECMA-262.
+    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+        match &self.0 {
+            None => vec![],
+            Some(sb) => sb.lexically_declared_names(),
+        }
+    }
 }
 
 // ScriptBody :

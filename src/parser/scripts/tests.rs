@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::scanner::StringDelimiter;
@@ -87,6 +87,12 @@ mod script {
         let mut errs = vec![];
         Script::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("let a; const pi=3; function bob(){}" => svec(&["a", "pi"]); "statement list")]
+    fn lexically_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
