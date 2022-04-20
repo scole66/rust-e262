@@ -90,9 +90,15 @@ mod script {
     }
 
     #[test_case("" => svec(&[]); "empty")]
-    #[test_case("let a; const pi=3; function bob(){}" => svec(&["a", "pi"]); "statement list")]
+    #[test_case("let a; const pi=3; var alice; function bob(){}" => svec(&["a", "pi"]); "statement list")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
         Maker::new(src).script().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("let a; const pi=3; var alice; function bob(){}" => svec(&["alice", "bob"]); "statement list")]
+    fn var_declared_names(src: &str) -> Vec<String> {
+        Maker::new(src).script().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
