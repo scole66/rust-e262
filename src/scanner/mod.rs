@@ -375,6 +375,11 @@ impl Scanner {
         Scanner { line: 1, column: 1, start_idx: 0 }
     }
 }
+impl Default for Scanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl PartialOrd for Scanner {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.line < other.line {
