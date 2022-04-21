@@ -111,4 +111,8 @@ mod with_statement {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).with_statement().contains_arguments()
     }
+
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).with_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }

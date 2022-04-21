@@ -14,6 +14,7 @@ use class_definitions::{
 };
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
+use declarations_and_variables::{VariableDeclarationList, VariableStatement};
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
@@ -546,6 +547,14 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`UnaryExpression`] parse node.
     pub fn unary_expression(self) -> Rc<UnaryExpression> {
         UnaryExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`VariableDeclarationList`] parse node.
+    pub fn variable_declaration_list(self) -> Rc<VariableDeclarationList> {
+        VariableDeclarationList::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`VariableStatement`] parse node.
+    pub fn variable_statement(self) -> Rc<VariableStatement> {
+        VariableStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`WithStatement`] parse node.
     pub fn with_statement(self) -> Rc<WithStatement> {

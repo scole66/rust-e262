@@ -1,13 +1,13 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::function_definitions::FunctionDeclaration;
 use super::identifiers::LabelIdentifier;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // LabelledStatement[Yield, Await, Return] :
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
@@ -139,6 +139,14 @@ impl LabelledStatement {
         //  4. Let subStmt be the Statement of item.
         //  5. Return IsLabelledFunction(subStmt).
         self.item.is_labelled_function()
+    }
+
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.top_level_var_scoped_declarations()
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.var_scoped_declarations()
     }
 }
 
@@ -314,6 +322,23 @@ impl LabelledItem {
         match self {
             LabelledItem::Function(_) => true,
             LabelledItem::Statement(sub_stmt) => sub_stmt.is_labelled_function(),
+        }
+    }
+
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(fd) => vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))],
+            LabelledItem::Statement(stmt) => match &**stmt {
+                Statement::Labelled(ls) => ls.top_level_var_scoped_declarations(),
+                _ => stmt.var_scoped_declarations(),
+            },
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(_) => vec![],
+            LabelledItem::Statement(stmt) => stmt.var_scoped_declarations(),
         }
     }
 }

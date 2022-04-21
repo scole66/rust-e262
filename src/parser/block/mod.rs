@@ -1,4 +1,5 @@
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::{Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
@@ -102,6 +103,11 @@ impl BlockStatement {
         //  2. Return false.
         let BlockStatement::Block(block) = self;
         block.contains_arguments()
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let BlockStatement::Block(block) = self;
+        block.var_scoped_declarations()
     }
 }
 
@@ -270,6 +276,14 @@ impl Block {
                 errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
             }
             sl.early_errors(agent, errs, strict, within_iteration, within_switch);
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let Block::Statements(sl) = self;
+        match sl {
+            None => vec![],
+            Some(sl) => sl.var_scoped_declarations(),
         }
     }
 }
@@ -493,6 +507,28 @@ impl StatementList {
             StatementList::List(sl, sli) => sl.contains_arguments() || sli.contains_arguments(),
         }
     }
+
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementList::Item(sli) => sli.top_level_var_scoped_declarations(),
+            StatementList::List(sl, sli) => {
+                let mut list = sl.top_level_var_scoped_declarations();
+                list.extend(sli.top_level_var_scoped_declarations());
+                list
+            }
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementList::Item(sli) => sli.var_scoped_declarations(),
+            StatementList::List(sl, sli) => {
+                let mut list = sl.var_scoped_declarations();
+                list.extend(sli.var_scoped_declarations());
+                list
+            }
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -665,6 +701,26 @@ impl StatementListItem {
         match self {
             StatementListItem::Statement(stmt) => stmt.contains_arguments(),
             StatementListItem::Declaration(decl) => decl.contains_arguments(),
+        }
+    }
+
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementListItem::Statement(node) => match &**node {
+                Statement::Labelled(stmt) => stmt.top_level_var_scoped_declarations(),
+                _ => node.var_scoped_declarations(),
+            },
+            StatementListItem::Declaration(node) => match &**node {
+                Declaration::Hoistable(decl) => vec![decl.declaration_part().into()],
+                _ => vec![],
+            },
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            StatementListItem::Declaration(_) => vec![],
+            StatementListItem::Statement(stmt) => stmt.var_scoped_declarations(),
         }
     }
 }

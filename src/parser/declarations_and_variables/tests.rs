@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -415,6 +415,11 @@ mod variable_statement {
     fn contains_arguments(src: &str) -> bool {
         VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("var left, center='ham', right;" => svec(&["left", "center = 'ham'", "right"]); "a list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).variable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // VARIABLE DECLARATION LIST
@@ -517,6 +522,12 @@ mod variable_declaration_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("item" => svec(&["item"]); "just one")]
+    #[test_case("left, center='ham', right" => svec(&["left", "center = 'ham'", "right"]); "a list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).variable_declaration_list().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 

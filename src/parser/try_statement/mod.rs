@@ -1,13 +1,13 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::block::Block;
 use super::declarations_and_variables::BindingPattern;
 use super::identifiers::BindingIdentifier;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // TryStatement[Yield, Await, Return] :
 //      try Block[?Yield, ?Await, ?Return] Catch[?Yield, ?Await, ?Return]
@@ -221,6 +221,22 @@ impl TryStatement {
             finally.early_errors(agent, errs, strict, within_iteration, within_switch);
         }
     }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let (block, catch, finally) = match self {
+            TryStatement::Catch(block, catch) => (block, Some(catch), None),
+            TryStatement::Finally(block, finally) => (block, None, Some(finally)),
+            TryStatement::Full(block, catch, finally) => (block, Some(catch), Some(finally)),
+        };
+        let mut list = block.var_scoped_declarations();
+        if let Some(catch) = catch {
+            list.extend(catch.var_scoped_declarations());
+        }
+        if let Some(finally) = finally {
+            list.extend(finally.var_scoped_declarations());
+        }
+        list
+    }
 }
 
 // Catch[Yield, Await, Return] :
@@ -354,6 +370,10 @@ impl Catch {
         }
         self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.block.var_scoped_declarations()
+    }
 }
 
 // Finally[Yield, Await, Return] :
@@ -443,6 +463,10 @@ impl Finally {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
         self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.block.var_scoped_declarations()
     }
 }
 

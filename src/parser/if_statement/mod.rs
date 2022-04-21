@@ -1,12 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // IfStatement[Yield, Await, Return] :
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] else Statement[?Yield, ?Await, ?Return]
@@ -166,6 +166,17 @@ impl IfStatement {
         s1.early_errors(agent, errs, strict, within_iteration, within_switch);
         if let Some(s) = s2 {
             s.early_errors(agent, errs, strict, within_iteration, within_switch);
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            IfStatement::WithElse(_, s1, s2) => {
+                let mut list = s1.var_scoped_declarations();
+                list.extend(s2.var_scoped_declarations());
+                list
+            }
+            IfStatement::WithoutElse(_, s1) => s1.var_scoped_declarations(),
         }
     }
 }

@@ -15,6 +15,7 @@ use super::iteration_statements::IterationStatement;
 use super::labelled_statements::LabelledStatement;
 use super::return_statement::ReturnStatement;
 use super::scanner::{Scanner, StringToken};
+use super::scripts::VarScopeDecl;
 use super::switch_statement::SwitchStatement;
 use super::throw_statement::ThrowStatement;
 use super::try_statement::TryStatement;
@@ -396,6 +397,19 @@ impl Statement {
             Statement::Try(ts) => ts.contains_arguments(),
         }
     }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            Statement::Empty(_) | Statement::Debugger(_) | Statement::Continue(_) | Statement::Break(_) | Statement::Expression(_) | Statement::Throw(_) | Statement::Return(_) => vec![],
+            Statement::Block(bs) => bs.var_scoped_declarations(),
+            Statement::Variable(vs) => vs.var_scoped_declarations(),
+            Statement::If(is) => is.var_scoped_declarations(),
+            Statement::Breakable(bs) => bs.var_scoped_declarations(),
+            Statement::With(ws) => ws.var_scoped_declarations(),
+            Statement::Labelled(ls) => ls.var_scoped_declarations(),
+            Statement::Try(ts) => ts.var_scoped_declarations(),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -443,6 +457,16 @@ impl PrettyPrint for Declaration {
             Declaration::Lexical(node) => node.concise_with_leftpad(writer, pad, state),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum HoistableDeclPart {
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+    //ClassDeclaration(Rc<ClassDeclaration>),
+    //LexicalDeclaration(Rc<LexicalDeclaration>),
 }
 
 impl Declaration {
@@ -643,6 +667,15 @@ impl HoistableDeclaration {
             HoistableDeclaration::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
         }
     }
+
+    pub fn declaration_part(&self) -> HoistableDeclPart {
+        match self {
+            HoistableDeclaration::Function(fd) => HoistableDeclPart::FunctionDeclaration(Rc::clone(fd)),
+            HoistableDeclaration::Generator(gd) => HoistableDeclPart::GeneratorDeclaration(Rc::clone(gd)),
+            HoistableDeclaration::AsyncFunction(afd) => HoistableDeclPart::AsyncFunctionDeclaration(Rc::clone(afd)),
+            HoistableDeclaration::AsyncGenerator(agd) => HoistableDeclPart::AsyncGeneratorDeclaration(Rc::clone(agd)),
+        }
+    }
 }
 
 // BreakableStatement[Yield, Await, Return] :
@@ -774,6 +807,13 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
             BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),
+        }
+    }
+
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            BreakableStatement::Iteration(node) => node.var_scoped_declarations(),
+            BreakableStatement::Switch(node) => node.var_scoped_declarations(),
         }
     }
 }
