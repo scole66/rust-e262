@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -204,5 +204,11 @@ mod if_statement {
     #[test_case("if(1);" => false; "binary (none)")]
     fn contains_arguments(src: &str) -> bool {
         IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("if (a==b) { var x=67; } else { var y=12, b=0; }" => svec(&["x = 67", "y = 12", "b = 0"]); "with else")]
+    #[test_case("if(0){var x;}" => svec(&["x"]); "without else")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).if_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

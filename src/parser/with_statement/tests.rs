@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, WITH_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, WITH_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -112,6 +112,7 @@ mod with_statement {
         Maker::new(src).with_statement().contains_arguments()
     }
 
+    #[test_case("with (Object) { var a=3; var alpha=undefined; }" => svec(&["a = 3", "alpha = undefined"]); "with")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).with_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }

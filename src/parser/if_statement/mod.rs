@@ -169,6 +169,9 @@ impl IfStatement {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             IfStatement::WithElse(_, s1, s2) => {

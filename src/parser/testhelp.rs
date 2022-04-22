@@ -8,6 +8,7 @@ use async_generator_function_definitions::AsyncGeneratorMethod;
 use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
 use binary_logical_operators::{CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression};
 use bitwise_shift_operators::ShiftExpression;
+use block::{Block, BlockStatement, StatementList, StatementListItem};
 use class_definitions::{
     ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage, ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList,
     ClassTail, FieldDefinition,
@@ -21,7 +22,8 @@ use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
-use iteration_statements::{ForBinding, ForDeclaration};
+use if_statement::IfStatement;
+use iteration_statements::{ForBinding, ForDeclaration, IterationStatement, DoWhileStatement, WhileStatement, ForStatement, ForInOfStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{
     ArgumentList, Arguments, CallExpression, CallMemberExpression, ImportCall, LeftHandSideExpression, MemberExpression, MetaProperty, NewExpression, OptionalChain, OptionalExpression,
@@ -260,6 +262,14 @@ impl<'a> Maker<'a> {
     pub fn bitwise_or_expression(self) -> Rc<BitwiseORExpression> {
         BitwiseORExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Block`] parse node.
+    pub fn block(self) -> Rc<Block> {
+        Block::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BlockStatement`] parse node.
+    pub fn block_statement(self) -> Rc<BlockStatement> {
+        BlockStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`CallExpression`] parse node.
     pub fn call_expression(self) -> Rc<CallExpression> {
         CallExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -356,6 +366,10 @@ impl<'a> Maker<'a> {
     pub fn default_clause(self) -> Rc<DefaultClause> {
         DefaultClause::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`DoWhileStatement`] parse node.
+    pub fn do_while_statement(self) -> Rc<DoWhileStatement> {
+        DoWhileStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ExponentiationExpression`] parse node.
     pub fn exponentiation_expression(self) -> Rc<ExponentiationExpression> {
         ExponentiationExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -404,6 +418,14 @@ impl<'a> Maker<'a> {
     pub fn formal_parameters(self) -> Rc<FormalParameters> {
         FormalParameters::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ForInOfStatement`] parse node.
+    pub fn for_in_of_statement(self) -> Rc<ForInOfStatement> {
+        ForInOfStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ForStatement`] parse node.
+    pub fn for_statement(self) -> Rc<ForStatement> {
+        ForStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`FunctionBody`] parse node.
     pub fn function_body(self) -> Rc<FunctionBody> {
         FunctionBody::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).0
@@ -435,6 +457,14 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`IdentifierReference`] parse node.
     pub fn identifier_reference(self) -> Rc<IdentifierReference> {
         IdentifierReference::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`IterationStatement`] parse node.
+    pub fn iteration_statement(self) -> Rc<IterationStatement> {
+        IterationStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`IfStatement`] parse node.
+    pub fn if_statement(self) -> Rc<IfStatement> {
+        IfStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`ImportCall`] parse node.
     pub fn import_call(self) -> Rc<ImportCall> {
@@ -516,6 +546,14 @@ impl<'a> Maker<'a> {
     pub fn short_circuit_expression(self) -> Rc<ShortCircuitExpression> {
         ShortCircuitExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`StatementList`] parse node.
+    pub fn statement_list(self) -> Rc<StatementList> {
+        StatementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`StatementListItem`] parse node.
+    pub fn statement_list_item(self) -> Rc<StatementListItem> {
+        StatementListItem::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`SuperCall`] parse node.
     pub fn super_call(self) -> Rc<SuperCall> {
         SuperCall::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -555,6 +593,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`VariableStatement`] parse node.
     pub fn variable_statement(self) -> Rc<VariableStatement> {
         VariableStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`WhileStatement`] parse node.
+    pub fn while_statement(self) -> Rc<WhileStatement> {
+        WhileStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`WithStatement`] parse node.
     pub fn with_statement(self) -> Rc<WithStatement> {

@@ -105,6 +105,9 @@ impl BlockStatement {
         block.contains_arguments()
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let BlockStatement::Block(block) = self;
         block.var_scoped_declarations()
@@ -279,6 +282,9 @@ impl Block {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let Block::Statements(sl) = self;
         match sl {
@@ -508,6 +514,12 @@ impl StatementList {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the chidren of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
     pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             StatementList::Item(sli) => sli.top_level_var_scoped_declarations(),
@@ -519,6 +531,9 @@ impl StatementList {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             StatementList::Item(sli) => sli.var_scoped_declarations(),
@@ -704,6 +719,12 @@ impl StatementListItem {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the chidren of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
     pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             StatementListItem::Statement(node) => match &**node {
@@ -717,6 +738,9 @@ impl StatementListItem {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             StatementListItem::Declaration(_) => vec![],
