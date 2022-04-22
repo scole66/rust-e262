@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, svec, sv, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, sv, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -255,8 +255,7 @@ mod iteration_statement {
     #[test_case("while (x) var t;" => svec(&["t"]); "while stmt")]
     #[test_case("for(;;)var y;" => svec(&["y"]); "for stmt")]
     #[test_case("for(x in b) var ww;" => svec(&["ww"]); "for-in stmt")]
-    fn var_scoped_declarations(src:&str) -> Vec<String>
-    {
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).iteration_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
@@ -377,8 +376,7 @@ mod do_while_statement {
     }
 
     #[test_case("do { var xyz; } while (0)" => svec(&["xyz"]); "dowhile")]
-    fn var_scoped_declarations(src:&str) -> Vec<String>
-    {
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).do_while_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
@@ -487,8 +485,7 @@ mod while_statement {
     }
 
     #[test_case("while(0)var u;" => svec(&["u"]); "while stmt")]
-    fn var_scoped_declarations(src:&str) -> Vec<String>
-    {
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).while_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
@@ -1214,8 +1211,7 @@ mod for_statement {
     #[test_case("for(a=0;a<10;a++){var b;}" => svec(&["b"]); "for stmt")]
     #[test_case("for(var a=0;a<10;a++){var b;}" => svec(&["a = 0", "b"]); "for var")]
     #[test_case("for(let a=0;a<10;a++){var b;}" => svec(&["b"]); "for lex")]
-    fn var_scoped_declarations(src:&str) -> Vec<String>
-    {
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).for_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
@@ -2010,11 +2006,9 @@ mod for_in_of_statement {
     #[test_case("for await({a} of b)var x;" => svec(&["x"]); "dstr-of-await")]
     #[test_case("for await(var a of b)var x;" => svec(&["a", "x"]); "for-var-of-await")]
     #[test_case("for await(let a of b)var x;" => svec(&["x"]); "for-lex-of-await")]
-    fn var_scoped_declarations(src:&str) -> Vec<String>
-    {
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).for_in_of_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
-
 }
 
 // FOR DECLARATION

@@ -23,7 +23,7 @@ use function_definitions::{FunctionBody, FunctionStatementList};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
 use if_statement::IfStatement;
-use iteration_statements::{ForBinding, ForDeclaration, IterationStatement, DoWhileStatement, WhileStatement, ForStatement, ForInOfStatement};
+use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
 use left_hand_side_expressions::{
     ArgumentList, Arguments, CallExpression, CallMemberExpression, ImportCall, LeftHandSideExpression, MemberExpression, MetaProperty, NewExpression, OptionalChain, OptionalExpression,
