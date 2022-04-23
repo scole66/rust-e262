@@ -485,6 +485,12 @@ mod statement_list {
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).statement_list().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("let dragon=xorn;" => svec(&["let dragon = xorn ;"]); "item")]
+    #[test_case("const a=0; function b(){} class c{}" => svec(&["const a = 0 ;", "class c { }"]); "list")]
+    fn top_level_lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list().top_level_lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // STATEMENT LIST ITEM
@@ -701,5 +707,11 @@ mod statement_list_item {
     #[test_case("const rust=10;" => svec(&[]); "not hoistable")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).statement_list_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("var a=27;" => svec(&[]); "statement")]
+    #[test_case("class rocket{}" => svec(&["class rocket { }"]); "declaration")]
+    fn top_level_lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list_item().top_level_lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

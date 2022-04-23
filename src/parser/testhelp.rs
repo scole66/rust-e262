@@ -15,7 +15,7 @@ use class_definitions::{
 };
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
-use declarations_and_variables::{VariableDeclaration, VariableDeclarationList, VariableStatement};
+use declarations_and_variables::{LexicalDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement};
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
@@ -36,7 +36,7 @@ use primary_expressions::{ParenthesizedExpression, PrimaryExpression};
 use relational_operators::RelationalExpression;
 use return_statement::ReturnStatement;
 use scripts::{Script, ScriptBody};
-use statements_and_declarations::{BreakableStatement, HoistableDeclaration, Statement};
+use statements_and_declarations::{BreakableStatement, Declaration, HoistableDeclaration, Statement};
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use throw_statement::ThrowStatement;
 use try_statement::{Catch, CatchParameter, Finally, TryStatement};
@@ -376,6 +376,10 @@ impl<'a> Maker<'a> {
     pub fn conditional_expression(self) -> Rc<ConditionalExpression> {
         ConditionalExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`Declaration`] parse node.
+    pub fn declaration(self) -> Rc<Declaration> {
+        Declaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`DefaultClause`] parse node.
     pub fn default_clause(self) -> Rc<DefaultClause> {
         DefaultClause::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
@@ -503,6 +507,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`LeftHandSideExpression`] parse node.
     pub fn left_hand_side_expression(self) -> Rc<LeftHandSideExpression> {
         LeftHandSideExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LexicalDeclaration`] parse node.
+    pub fn lexical_declaration(self) -> Rc<LexicalDeclaration> {
+        LexicalDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`LogicalANDExpression`] parse node.
     pub fn logical_and_expression(self) -> Rc<LogicalANDExpression> {

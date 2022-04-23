@@ -160,6 +160,12 @@ mod script {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("var a; function b(){} class q{} const h=0;" => svec(&["class q { }", "const h = 0 ;"]); "statement list")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // SCRIPT BODY
@@ -261,5 +267,10 @@ mod script_body {
     #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script_body().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("class q{}" => svec(&["class q { }"]); "statements")]
+    fn lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

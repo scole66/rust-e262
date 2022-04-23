@@ -1,6 +1,6 @@
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::scripts::VarScopeDecl;
-use super::statements_and_declarations::{Declaration, Statement};
+use super::statements_and_declarations::{DeclPart, Declaration, Statement};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashSet;
@@ -544,6 +544,20 @@ impl StatementList {
             }
         }
     }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementList::Item(sli) => sli.top_level_lexically_scoped_declarations(),
+            StatementList::List(sl, sli) => {
+                let mut list = sl.top_level_lexically_scoped_declarations();
+                list.extend(sli.top_level_lexically_scoped_declarations());
+                list
+            }
+        }
+    }
 }
 
 // StatementListItem[Yield, Await, Return] :
@@ -745,6 +759,16 @@ impl StatementListItem {
         match self {
             StatementListItem::Declaration(_) => vec![],
             StatementListItem::Statement(stmt) => stmt.var_scoped_declarations(),
+        }
+    }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            StatementListItem::Statement(_) => vec![],
+            StatementListItem::Declaration(d) => d.top_level_lexically_scoped_declarations(),
         }
     }
 }
