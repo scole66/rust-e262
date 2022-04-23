@@ -7,6 +7,59 @@ use ahash::AHashSet;
 
 const UNDEF_BREAK: &str = "undefined break target detected";
 
+mod var_scope_decl {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    fn from_hoistable(part: HoistableDeclPart) -> String {
+        VarScopeDecl::from(part).to_string()
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
+    fn display(part: VarScopeDecl) -> String {
+        part.to_string()
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
+    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
+    fn string_from(part: VarScopeDecl) -> String {
+        String::from(&part)
+    }
+
+    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
+    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "generator decl")]
+    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "async function decl")]
+    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
+    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
+    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
+    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => with |s| assert_ne!(s, ""); "ident")]
+    fn debug(part: VarScopeDecl) -> String {
+        format!("{:?}", part)
+    }
+
+    #[test]
+    fn clone() {
+        let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
+        let copy = vsd.clone();
+        assert_eq!(vsd.to_string(), copy.to_string());
+    }
+}
+
 // SCRIPT
 #[test]
 fn script_test_01() {
@@ -72,59 +125,6 @@ fn script_test_contains_03() {
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 
-mod var_scope_decl {
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
-    fn from_hoistable(part: HoistableDeclPart) -> String {
-        VarScopeDecl::from(part).to_string()
-    }
-
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
-    fn display(part: VarScopeDecl) -> String {
-        part.to_string()
-    }
-
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a (  ) {  }"; "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a (  ) {  }"; "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a (  ) {  }"; "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a (  ) {  }"; "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => "a"; "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => "a"; "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => "a"; "ident")]
-    fn string_from(part: VarScopeDecl) -> String {
-        String::from(&part)
-    }
-
-    #[test_case(VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
-    #[test_case(VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "generator decl")]
-    #[test_case(VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "async function decl")]
-    #[test_case(VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "async generator decl")]
-    #[test_case(VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => with |s| assert_ne!(s, ""); "var decl")]
-    #[test_case(VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => with |s| assert_ne!(s, ""); "for binding")]
-    #[test_case(VarScopeDecl::BindingIdentifier(Maker::new("a").binding_identifier()) => with |s| assert_ne!(s, ""); "ident")]
-    fn debug(part: VarScopeDecl) -> String {
-        format!("{:?}", part)
-    }
-
-    #[test]
-    fn clone() {
-        let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
-        let copy = vsd.clone();
-        assert_eq!(vsd.to_string(), copy.to_string());
-    }
-}
-
 mod script {
     use super::*;
     use test_case::test_case;
@@ -153,6 +153,12 @@ mod script {
     #[test_case("let a; const pi=3; var alice; function bob(){}" => svec(&["alice", "bob"]); "statement list")]
     fn var_declared_names(src: &str) -> Vec<String> {
         Maker::new(src).script().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("" => svec(&[]); "empty")]
+    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -250,5 +256,10 @@ mod script_body {
         let mut errs = vec![];
         ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("var a; function b(){}" => svec(&["a", "function b (  ) {  }"]); "statements")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).script_body().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

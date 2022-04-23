@@ -679,6 +679,9 @@ impl HoistableDeclaration {
         }
     }
 
+    /// Returns the parse node corresponding to the declaration of this node.
+    ///
+    /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
     pub fn declaration_part(&self) -> HoistableDeclPart {
         match self {
             HoistableDeclaration::Function(fd) => HoistableDeclPart::FunctionDeclaration(Rc::clone(fd)),

@@ -35,6 +35,7 @@ use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, Fu
 use primary_expressions::{ParenthesizedExpression, PrimaryExpression};
 use relational_operators::RelationalExpression;
 use return_statement::ReturnStatement;
+use scripts::{Script, ScriptBody};
 use statements_and_declarations::{BreakableStatement, HoistableDeclaration, Statement};
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use throw_statement::ThrowStatement;
@@ -554,6 +555,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ReturnStatement`] parse node.
     pub fn return_statement(self) -> Rc<ReturnStatement> {
         ReturnStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ScriptBody`] parse node.
+    pub fn script_body(self) -> Rc<ScriptBody> {
+        ScriptBody::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`Script`] parse node.
     pub fn script(self) -> Rc<Script> {
