@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -141,6 +141,18 @@ mod labelled_statement {
     #[test_case("a:b;" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).labelled_statement().contains_arguments()
+    }
+
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:{ function b(){} }" => svec(&[]); "too deep")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_statement().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a:function b(){}" => svec(&[]); "function")]
+    #[test_case("a:var u;" => svec(&["u"]); "not a function")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -318,5 +330,18 @@ mod labelled_item {
     #[test_case("function a(){}" => false; "func")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).labelled_item().contains_arguments()
+    }
+
+    #[test_case("function b(){}" => svec(&["function b (  ) {  }"]); "function")]
+    #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "labelled function")]
+    #[test_case("var a;" => svec(&["a"]); "statement")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("function a(){}" => svec(&[]); "function")]
+    #[test_case("var a;" => svec(&["a"]); "statement")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).labelled_item().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

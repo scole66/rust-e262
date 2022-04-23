@@ -1,13 +1,13 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::function_definitions::FunctionDeclaration;
 use super::identifiers::LabelIdentifier;
 use super::scanner::{Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // LabelledStatement[Yield, Await, Return] :
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
@@ -139,6 +139,23 @@ impl LabelledStatement {
         //  4. Let subStmt be the Statement of item.
         //  5. Return IsLabelledFunction(subStmt).
         self.item.is_labelled_function()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.top_level_var_scoped_declarations()
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.item.var_scoped_declarations()
     }
 }
 
@@ -314,6 +331,32 @@ impl LabelledItem {
         match self {
             LabelledItem::Function(_) => true,
             LabelledItem::Statement(sub_stmt) => sub_stmt.is_labelled_function(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
+    /// as though they are declared var-style.
+    ///
+    /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
+    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(fd) => vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))],
+            LabelledItem::Statement(stmt) => match &**stmt {
+                Statement::Labelled(ls) => ls.top_level_var_scoped_declarations(),
+                _ => stmt.var_scoped_declarations(),
+            },
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            LabelledItem::Function(_) => vec![],
+            LabelledItem::Statement(stmt) => stmt.var_scoped_declarations(),
         }
     }
 }

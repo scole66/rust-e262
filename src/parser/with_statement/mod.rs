@@ -1,12 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // WithStatement[Yield, Await, Return] :
 //      with ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
@@ -110,6 +110,13 @@ impl WithStatement {
         }
         self.expression.early_errors(agent, errs, strict);
         self.statement.early_errors(agent, errs, strict, within_iteration, within_switch);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.statement.var_scoped_declarations()
     }
 }
 

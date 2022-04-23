@@ -1,12 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::block::StatementList;
 use super::comma_operator::Expression;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // SwitchStatement[Yield, Await, Return] :
 //      switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
@@ -118,6 +118,13 @@ impl SwitchStatement {
 
         self.expression.early_errors(agent, errs, strict);
         self.case_block.early_errors(agent, errs, strict, within_iteration);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.case_block.var_scoped_declarations()
     }
 }
 
@@ -364,6 +371,27 @@ impl CaseBlock {
             cc.early_errors(agent, errs, strict, within_iteration);
         }
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let (before, default, after) = match self {
+            CaseBlock::NoDefault(cc) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(cc1, def, cc2) => (cc1.as_ref(), Some(def), cc2.as_ref()),
+        };
+        let mut list = vec![];
+        if let Some(before) = before {
+            list.extend(before.var_scoped_declarations());
+        }
+        if let Some(def) = default {
+            list.extend(def.var_scoped_declarations());
+        }
+        if let Some(after) = after {
+            list.extend(after.var_scoped_declarations());
+        }
+        list
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -517,6 +545,20 @@ impl CaseClauses {
         }
         item.early_errors(agent, errs, strict, within_iteration);
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            CaseClauses::Item(cc) => cc.var_scoped_declarations(),
+            CaseClauses::List(ccl, cc) => {
+                let mut list = ccl.var_scoped_declarations();
+                list.extend(cc.var_scoped_declarations());
+                list
+            }
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -656,6 +698,17 @@ impl CaseClause {
             stmt.early_errors(agent, errs, strict, within_iteration, true);
         }
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        if let Some(sl) = &self.statements {
+            sl.var_scoped_declarations()
+        } else {
+            vec![]
+        }
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
@@ -784,6 +837,17 @@ impl DefaultClause {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         if let Some(stmt) = &self.0 {
             stmt.early_errors(agent, errs, strict, within_iteration, true);
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        if let Some(stmt) = &self.0 {
+            stmt.var_scoped_declarations()
+        } else {
+            vec![]
         }
     }
 }

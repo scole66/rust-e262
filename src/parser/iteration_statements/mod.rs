@@ -1,16 +1,16 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::{AssignmentExpression, AssignmentPattern};
 use super::comma_operator::Expression;
 use super::declarations_and_variables::{BindingPattern, LetOrConst, LexicalDeclaration, VariableDeclarationList};
 use super::identifiers::BindingIdentifier;
 use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::statements_and_declarations::Statement;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // IterationStatement[Yield, Await, Return] :
 //      DoWhileStatement[?Yield, ?Await, ?Return]
@@ -172,6 +172,18 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.early_errors(agent, errs, strict, within_switch),
         }
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            IterationStatement::DoWhile(node) => node.var_scoped_declarations(),
+            IterationStatement::While(node) => node.var_scoped_declarations(),
+            IterationStatement::For(node) => node.var_scoped_declarations(),
+            IterationStatement::ForInOf(node) => node.var_scoped_declarations(),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -284,6 +296,14 @@ impl DoWhileStatement {
         s.early_errors(agent, errs, strict, true, within_switch);
         e.early_errors(agent, errs, strict);
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let DoWhileStatement::Do(s, _) = self;
+        s.var_scoped_declarations()
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -391,6 +411,14 @@ impl WhileStatement {
         let WhileStatement::While(e, s) = self;
         e.early_errors(agent, errs, strict);
         s.early_errors(agent, errs, strict, true, within_switch);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let WhileStatement::While(_, s) = self;
+        s.var_scoped_declarations()
     }
 }
 
@@ -708,6 +736,20 @@ impl ForStatement {
             exp3.early_errors(agent, errs, strict);
         }
         stmt.early_errors(agent, errs, strict, true, within_switch);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            ForStatement::For(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.var_scoped_declarations(),
+            ForStatement::ForVar(vd, _, _, s) => {
+                let mut list = vd.var_scoped_declarations();
+                list.extend(s.var_scoped_declarations());
+                list
+            }
+        }
     }
 }
 
@@ -1171,6 +1213,28 @@ impl ForInOfStatement {
             ae.early_errors(agent, errs, strict);
         }
         stmt.early_errors(agent, errs, strict, true, within_switch);
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            ForInOfStatement::In(_, _, s)
+            | ForInOfStatement::DestructuringIn(_, _, s)
+            | ForInOfStatement::LexIn(_, _, s)
+            | ForInOfStatement::Of(_, _, s)
+            | ForInOfStatement::DestructuringOf(_, _, s)
+            | ForInOfStatement::LexOf(_, _, s)
+            | ForInOfStatement::AwaitOf(_, _, s)
+            | ForInOfStatement::AwaitLexOf(_, _, s)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, s) => s.var_scoped_declarations(),
+            ForInOfStatement::VarIn(fd, _, s) | ForInOfStatement::VarOf(fd, _, s) | ForInOfStatement::AwaitVarOf(fd, _, s) => {
+                let mut list = vec![VarScopeDecl::ForBinding(Rc::clone(fd))];
+                list.extend(s.var_scoped_declarations());
+                list
+            }
+        }
     }
 }
 

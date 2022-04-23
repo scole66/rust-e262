@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -93,6 +93,11 @@ mod switch_statement {
     #[test_case("switch(0){}" => false; "none")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).switch_statement().contains_arguments()
+    }
+
+    #[test_case("switch(x){case 0: var a;}" => svec(&["a"]); "switch")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).switch_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -322,6 +327,16 @@ mod case_block {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_block().contains_arguments()
     }
+
+    #[test_case("{}" => svec(&[]); "empty")]
+    #[test_case("{case 0:var q;}" => svec(&["q"]); "no default")]
+    #[test_case("{case 0:var a;default:var b;case 1:var c;}" => svec(&["a", "b", "c"]); "CDC")]
+    #[test_case("{case 0:var a;default:var b;}" => svec(&["a", "b"]); "CDx")]
+    #[test_case("{default:var b;case 1:var c;}" => svec(&["b", "c"]); "xDC")]
+    #[test_case("{default:var b;}" => svec(&["b"]); "xDx")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_block().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // CASE CLAUSES
@@ -444,6 +459,12 @@ mod case_clauses {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_clauses().contains_arguments()
     }
+
+    #[test_case("case 0:var a;" => svec(&["a"]); "item")]
+    #[test_case("case 0:var a;case 1:var b;" => svec(&["a", "b"]); "list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clauses().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // CASE CLAUSE
@@ -564,6 +585,12 @@ mod case_clause {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).case_clause().contains_arguments()
     }
+
+    #[test_case("case 0:" => svec(&[]); "empty")]
+    #[test_case("case 0:var a;" => svec(&["a"]); "item")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).case_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // DEFAULT CLAUSE
@@ -675,5 +702,11 @@ mod default_clause {
     #[test_case("default:;" => false; "stmt (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).default_clause().contains_arguments()
+    }
+
+    #[test_case("default:" => svec(&[]); "empty")]
+    #[test_case("default:var a;" => svec(&["a"]); "item")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).default_clause().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }

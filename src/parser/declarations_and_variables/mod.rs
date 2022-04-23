@@ -1,12 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::identifiers::BindingIdentifier;
 use super::primary_expressions::{Elisions, Initializer, PropertyName};
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner};
+use super::scripts::VarScopeDecl;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 use counter::Counter;
 
@@ -546,6 +546,14 @@ impl VariableStatement {
         let VariableStatement::Var(vdl) = self;
         vdl.early_errors(agent, errs, strict);
     }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        let VariableStatement::Var(vdl) = self;
+        vdl.var_scoped_declarations()
+    }
 }
 
 // VariableDeclarationList[In, Yield, Await] :
@@ -679,6 +687,20 @@ impl VariableDeclarationList {
             VariableDeclarationList::List(vdl, vd) => {
                 vdl.early_errors(agent, errs, strict);
                 vd.early_errors(agent, errs, strict);
+            }
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match self {
+            VariableDeclarationList::Item(vd) => vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))],
+            VariableDeclarationList::List(vdl, vd) => {
+                let mut list = vdl.var_scoped_declarations();
+                list.push(VarScopeDecl::VariableDeclaration(Rc::clone(vd)));
+                list
             }
         }
     }

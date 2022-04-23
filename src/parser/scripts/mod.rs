@@ -1,7 +1,14 @@
-use super::scanner::Scanner;
+use super::async_function_definitions::AsyncFunctionDeclaration;
+use super::async_generator_function_definitions::AsyncGeneratorDeclaration;
+use super::declarations_and_variables::VariableDeclaration;
+use super::function_definitions::FunctionDeclaration;
+use super::generator_function_definitions::GeneratorDeclaration;
+use super::identifiers::BindingIdentifier;
+use super::iteration_statements::ForBinding;
+use super::scanner::{Scanner, StringToken};
+use super::statements_and_declarations::HoistableDeclPart;
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
-use crate::scanner::StringToken;
 use ahash::AHashSet;
 use std::fmt;
 use std::hash::Hash;
@@ -57,6 +64,45 @@ where
 {
     let mut uniq = AHashSet::new();
     iter.into_iter().all(move |x| uniq.insert(x))
+}
+
+#[derive(Debug, Clone)]
+pub enum VarScopeDecl {
+    VariableDeclaration(Rc<VariableDeclaration>),
+    ForBinding(Rc<ForBinding>),
+    BindingIdentifier(Rc<BindingIdentifier>),
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+}
+impl From<HoistableDeclPart> for VarScopeDecl {
+    fn from(src: HoistableDeclPart) -> Self {
+        match src {
+            HoistableDeclPart::FunctionDeclaration(fd) => VarScopeDecl::FunctionDeclaration(fd),
+            HoistableDeclPart::GeneratorDeclaration(gd) => VarScopeDecl::GeneratorDeclaration(gd),
+            HoistableDeclPart::AsyncFunctionDeclaration(afd) => VarScopeDecl::AsyncFunctionDeclaration(afd),
+            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => VarScopeDecl::AsyncGeneratorDeclaration(agd),
+        }
+    }
+}
+impl fmt::Display for VarScopeDecl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VarScopeDecl::FunctionDeclaration(fd) => fd.fmt(f),
+            VarScopeDecl::GeneratorDeclaration(gd) => gd.fmt(f),
+            VarScopeDecl::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+            VarScopeDecl::VariableDeclaration(vd) => vd.fmt(f),
+            VarScopeDecl::ForBinding(fb) => fb.fmt(f),
+            VarScopeDecl::BindingIdentifier(bi) => bi.fmt(f),
+        }
+    }
+}
+impl From<&VarScopeDecl> for String {
+    fn from(src: &VarScopeDecl) -> String {
+        src.to_string()
+    }
 }
 
 impl Script {
@@ -123,6 +169,19 @@ impl Script {
         match &self.0 {
             None => vec![],
             Some(sb) => sb.var_declared_names(),
+        }
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
+    /// they are declared var-style.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        match &self.0 {
+            None => vec![],
+            Some(sb) => sb.var_scoped_declarations(),
         }
     }
 }
@@ -221,6 +280,16 @@ impl ScriptBody {
         let prologue = self.directive_prologue();
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
+    }
+
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
+    /// they are declared var-style.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
+    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+        self.statement_list.top_level_var_scoped_declarations()
     }
 }
 
