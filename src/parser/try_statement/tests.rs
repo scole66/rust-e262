@@ -323,7 +323,6 @@ mod catch {
         Maker::new(src).catch().contains_arguments()
     }
 
-
     #[test_case("catch (a) { var slug; }" => svec(&["slug"]); "with param")]
     #[test_case("catch { var worm; }" => svec(&["worm"]); "without param")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
