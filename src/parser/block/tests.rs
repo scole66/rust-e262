@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -97,6 +97,11 @@ mod block_statement {
     #[test_case("{;}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("{var rust;}" => svec(&["rust"]); "vsd")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).block_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -250,6 +255,12 @@ mod block {
     #[test_case("{}" => false; "empty")]
     fn contains_arguments(src: &str) -> bool {
         Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("{var rust;}" => svec(&["rust"]); "vsd")]
+    #[test_case("{}" => svec(&([])); "empty")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).block().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 
@@ -462,6 +473,18 @@ mod statement_list {
     fn contains_arguments(src: &str) -> bool {
         StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("var rust='bob';" => svec(&["rust = 'bob'"]); "item")]
+    #[test_case("a; function b(){}; var third;" => svec(&["third"]); "list")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("var rust='bob';" => svec(&["rust = 'bob'"]); "item")]
+    #[test_case("a; function b(){}; var third;" => svec(&["function b (  ) {  }", "third"]); "list")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // STATEMENT LIST ITEM
@@ -663,5 +686,20 @@ mod statement_list_item {
     #[test_case("let b;" => false; "Decl (no)")]
     fn contains_arguments(src: &str) -> bool {
         StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("for(var idx=0; idx<10; idx++){a();}" => svec(&["idx = 0"]); "stmt")]
+    #[test_case("function abcd(efg){hij;}" => svec(&[]); "decl")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list_item().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("for(var idx=0; idx<10; idx++){a();}" => svec(&["idx = 0"]); "stmt")]
+    #[test_case("blue: function a(){}" => svec(&["function a (  ) {  }"]); "labelled stmt")]
+    #[test_case("{blue: function a(){}}" => svec(&[]); "no longer top level")]
+    #[test_case("function abcd(efg){hij;}" => svec(&["function abcd ( efg ) { hij ; }"]); "decl")]
+    #[test_case("const rust=10;" => svec(&[]); "not hoistable")]
+    fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement_list_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
