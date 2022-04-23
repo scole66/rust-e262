@@ -403,26 +403,46 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
     let var_declarations = script.var_scoped_declarations();
     let mut functions_to_initialize = vec![];
     let mut declared_function_names = vec![];
-    for d in var_declarations.iter().rev() {
-        if matches!(d, VarScopeDecl::FunctionDeclaration(_) | VarScopeDecl::GeneratorDeclaration(_) | VarScopeDecl::AsyncFunctionDeclaration(_) | VarScopeDecl::AsyncGeneratorDeclaration(_))
-        {
-            let func_name = match d {
-                VarScopeDecl::FunctionDeclaration(fd) => fd.bound_names()[0].clone(),
-                VarScopeDecl::GeneratorDeclaration(gd) => gd.bound_names()[0].clone(),
-                VarScopeDecl::AsyncFunctionDeclaration(afd) => afd.bound_names()[0].clone(),
-                VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.bound_names()[0].clone(),
-                _ => unreachable!(),
-            };
-            if !declared_function_names.contains(&func_name) {
-                let fn_definable = env.borrow().can_declare_global_function(agent, &func_name)?;
-                if !fn_definable {
-                    return Err(create_type_error(agent, format!("Cannot create global function {func_name}")));
+    for d in var_declarations.iter().rev().filter(|&pn| {
+        matches!(pn, VarScopeDecl::FunctionDeclaration(_) | VarScopeDecl::GeneratorDeclaration(_) | VarScopeDecl::AsyncFunctionDeclaration(_) | VarScopeDecl::AsyncGeneratorDeclaration(_))
+    }) {
+        let func_name = match d {
+            VarScopeDecl::FunctionDeclaration(fd) => fd.bound_names()[0].clone(),
+            VarScopeDecl::GeneratorDeclaration(gd) => gd.bound_names()[0].clone(),
+            VarScopeDecl::AsyncFunctionDeclaration(afd) => afd.bound_names()[0].clone(),
+            VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.bound_names()[0].clone(),
+            _ => unreachable!(),
+        };
+        if !declared_function_names.contains(&func_name) {
+            let fn_definable = env.borrow().can_declare_global_function(agent, &func_name)?;
+            if !fn_definable {
+                return Err(create_type_error(agent, format!("Cannot create global function {func_name}")));
+            }
+            declared_function_names.push(func_name);
+            functions_to_initialize.insert(0, d.clone());
+        }
+    }
+    let mut declared_var_names = vec![];
+    for d in var_declarations.iter().filter(|&pn| matches!(pn, VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_))) {
+        for vn in match d {
+            VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
+            VarScopeDecl::ForBinding(fb) => fb.bound_names(),
+            VarScopeDecl::BindingIdentifier(bi) => bi.bound_names(),
+            _ => unreachable!(),
+        } {
+            if !declared_function_names.contains(&vn) {
+                let vn_definable = env.borrow().can_declare_global_var(agent, &vn)?;
+                if !vn_definable {
+                    return Err(create_type_error(agent, format!("Cannot create global variable {vn}")));
                 }
-                declared_function_names.push(func_name);
-                functions_to_initialize.insert(0, d.clone());
+                if !declared_var_names.contains(&vn) {
+                    declared_var_names.push(vn);
+                }
             }
         }
     }
+    let lex_declarations = script.lexically_scoped_declarations();
+    let private_env = None;
 
     todo!()
 }

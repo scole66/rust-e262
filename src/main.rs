@@ -13,6 +13,7 @@ mod bigint_object;
 mod boolean_object;
 mod chunk;
 mod comparison;
+mod compiler;
 mod cr;
 mod dtoa_r;
 mod environment_record;

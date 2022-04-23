@@ -5,9 +5,7 @@ use super::generator_function_definitions::YieldExpression;
 use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -388,14 +386,6 @@ impl AssignmentExpression {
             | AssignmentExpression::CoalAssignment(_, _)
             | AssignmentExpression::Destructuring(..) => ATTKind::Invalid,
             AssignmentExpression::FallThru(node) => node.assignment_target_type(strict),
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }
