@@ -479,6 +479,42 @@ impl fmt::Display for HoistableDeclPart {
         }
     }
 }
+#[derive(Debug)]
+pub enum DeclPart {
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+    ClassDeclaration(Rc<ClassDeclaration>),
+    LexicalDeclaration(Rc<LexicalDeclaration>),
+}
+impl From<HoistableDeclPart> for DeclPart {
+    fn from(src: HoistableDeclPart) -> Self {
+        match src {
+            HoistableDeclPart::FunctionDeclaration(fd) => DeclPart::FunctionDeclaration(fd),
+            HoistableDeclPart::GeneratorDeclaration(gd) => DeclPart::GeneratorDeclaration(gd),
+            HoistableDeclPart::AsyncFunctionDeclaration(afd) => DeclPart::AsyncFunctionDeclaration(afd),
+            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => DeclPart::AsyncGeneratorDeclaration(agd),
+        }
+    }
+}
+impl fmt::Display for DeclPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DeclPart::FunctionDeclaration(fd) => fd.fmt(f),
+            DeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
+            DeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            DeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+            DeclPart::ClassDeclaration(cd) => cd.fmt(f),
+            DeclPart::LexicalDeclaration(ld) => ld.fmt(f),
+        }
+    }
+}
+impl From<&DeclPart> for String {
+    fn from(src: &DeclPart) -> String {
+        src.to_string()
+    }
+}
 
 impl Declaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -560,6 +596,27 @@ impl Declaration {
             Declaration::Hoistable(_) => false,
             Declaration::Class(cd) => cd.contains_arguments(),
             Declaration::Lexical(ld) => ld.contains_arguments(),
+        }
+    }
+
+    /// Returns the parse node corresponding to the declaration of this node.
+    ///
+    /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
+    pub fn declaration_part(&self) -> DeclPart {
+        match self {
+            Declaration::Hoistable(h) => h.declaration_part().into(),
+            Declaration::Class(cd) => DeclPart::ClassDeclaration(cd.clone()),
+            Declaration::Lexical(ld) => DeclPart::LexicalDeclaration(ld.clone()),
+        }
+    }
+
+    /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
+    ///
+    /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
+    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match self {
+            Declaration::Hoistable(_) => vec![],
+            Declaration::Class(_) | Declaration::Lexical(_) => vec![self.declaration_part()],
         }
     }
 }

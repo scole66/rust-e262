@@ -581,6 +581,44 @@ mod hoistable_decl_part {
     }
 }
 
+mod decl_part {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => with |s| assert_ne!(s, ""); "function decl")]
+    fn debug(part: DeclPart) -> String {
+        format!("{:?}", part)
+    }
+
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    fn from_hoistable(part: HoistableDeclPart) -> String {
+        DeclPart::from(part).to_string()
+    }
+
+    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
+    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
+    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
+    fn display(part: DeclPart) -> String {
+        part.to_string()
+    }
+
+    #[test_case(DeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
+    #[test_case(DeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(DeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
+    #[test_case(DeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    #[test_case(DeclPart::ClassDeclaration(Maker::new("class rust {}").class_declaration()) => "class rust { }"; "class def")]
+    #[test_case(DeclPart::LexicalDeclaration(Maker::new("const PI = 4.0;").lexical_declaration()) => "const PI = 4 ;"; "lexical decl")]
+    fn string_from(part: DeclPart) -> String {
+        String::from(&part)
+    }
+}
+
 // DECLARATION
 #[test]
 fn declaration_test_01() {
@@ -693,6 +731,20 @@ mod declaration {
     #[test_case("let a=xyzzy;" => false; "Lexical (no)")]
     fn contains_arguments(src: &str) -> bool {
         Declaration::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("function kobold(){}" => "function kobold (  ) {  }"; "hoistable")]
+    #[test_case("class goblin {}" => "class goblin { }"; "class def")]
+    #[test_case("const pixie = bullywug;" => "const pixie = bullywug ;"; "lexical decl")]
+    fn declaration_part(src: &str) -> String {
+        Maker::new(src).declaration().declaration_part().to_string()
+    }
+
+    #[test_case("function kobold(){}" => svec(&[]); "hoistable")]
+    #[test_case("class goblin {}" => svec(&["class goblin { }"]); "class def")]
+    #[test_case("const pixie = bullywug;" => svec(&["const pixie = bullywug ;"]); "lexical decl")]
+    fn top_level_lexically_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).declaration().top_level_lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 

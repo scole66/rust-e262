@@ -6,7 +6,7 @@ use super::generator_function_definitions::GeneratorDeclaration;
 use super::identifiers::BindingIdentifier;
 use super::iteration_statements::ForBinding;
 use super::scanner::{Scanner, StringToken};
-use super::statements_and_declarations::HoistableDeclPart;
+use super::statements_and_declarations::{DeclPart, HoistableDeclPart};
 use super::*;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use ahash::AHashSet;
@@ -184,6 +184,19 @@ impl Script {
             Some(sb) => sb.var_scoped_declarations(),
         }
     }
+
+    /// Return a list of parse nodes for the lexically declared identifiers contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scipe are treated as though
+    /// they are declared var-style, and as such won't be reflected here.
+    ///
+    /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        match &self.0 {
+            None => vec![],
+            Some(sb) => sb.lexically_scoped_declarations(),
+        }
+    }
 }
 
 // ScriptBody :
@@ -290,6 +303,16 @@ impl ScriptBody {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statement_list.top_level_var_scoped_declarations()
+    }
+
+    /// Return a list of parse nodes for the lexically declared identifiers contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scipe are treated as though
+    /// they are declared var-style, and as such won't be reflected here.
+    ///
+    /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
+    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+        self.statement_list.top_level_lexically_scoped_declarations()
     }
 }
 
