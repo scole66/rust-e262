@@ -4,7 +4,7 @@ use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowPara
 use assignment_operators::AssignmentExpression;
 use async_arrow_function_definitions::{AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody};
 use async_function_definitions::{AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression};
-use async_generator_function_definitions::AsyncGeneratorMethod;
+use async_generator_function_definitions::{AsyncGeneratorDeclaration, AsyncGeneratorMethod};
 use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
 use binary_logical_operators::{CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression};
 use bitwise_shift_operators::ShiftExpression;
@@ -19,7 +19,7 @@ use declarations_and_variables::{VariableDeclarationList, VariableStatement};
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
-use function_definitions::{FunctionBody, FunctionStatementList};
+use function_definitions::{FunctionBody, FunctionDeclaration, FunctionStatementList};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
 use identifiers::IdentifierReference;
 use if_statement::IfStatement;
@@ -35,6 +35,7 @@ use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, Fu
 use primary_expressions::{ParenthesizedExpression, PrimaryExpression};
 use relational_operators::RelationalExpression;
 use return_statement::ReturnStatement;
+use statements_and_declarations::{BreakableStatement, HoistableDeclaration, Statement};
 use switch_statement::{CaseBlock, CaseClause, CaseClauses, DefaultClause, SwitchStatement};
 use throw_statement::ThrowStatement;
 use try_statement::{Catch, CatchParameter, Finally, TryStatement};
@@ -242,6 +243,10 @@ impl<'a> Maker<'a> {
     pub fn async_method(self) -> Rc<AsyncMethod> {
         AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorDeclaration`] parse node.
+    pub fn async_generator_declaration(self) -> Rc<AsyncGeneratorDeclaration> {
+        AsyncGeneratorDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
     pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
         AsyncGeneratorMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -269,6 +274,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`BlockStatement`] parse node.
     pub fn block_statement(self) -> Rc<BlockStatement> {
         BlockStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BreakableStatement`] parse node.
+    pub fn breakable_statement(self) -> Rc<BreakableStatement> {
+        BreakableStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`CallExpression`] parse node.
     pub fn call_expression(self) -> Rc<CallExpression> {
@@ -430,6 +439,10 @@ impl<'a> Maker<'a> {
     pub fn function_body(self) -> Rc<FunctionBody> {
         FunctionBody::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).0
     }
+    /// Use the configs in the [`Maker`] object to make a [`FunctionDeclaration`] parse node.
+    pub fn function_declaration(self) -> Rc<FunctionDeclaration> {
+        FunctionDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`FunctionRestParameter`] parse node.
     pub fn function_rest_parameter(self) -> Rc<FunctionRestParameter> {
         FunctionRestParameter::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
@@ -453,6 +466,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`GeneratorMethod`] parse node.
     pub fn generator_method(self) -> Rc<GeneratorMethod> {
         GeneratorMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`HoistableDeclaration`] parse node.
+    pub fn hoistable_declaration(self) -> Rc<HoistableDeclaration> {
+        HoistableDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.default_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`IdentifierReference`] parse node.
     pub fn identifier_reference(self) -> Rc<IdentifierReference> {
@@ -545,6 +562,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ShortCircuitExpression`] parse node.
     pub fn short_circuit_expression(self) -> Rc<ShortCircuitExpression> {
         ShortCircuitExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`Statement`] parse node.
+    pub fn statement(self) -> Rc<Statement> {
+        Statement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag, self.return_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`StatementList`] parse node.
     pub fn statement_list(self) -> Rc<StatementList> {

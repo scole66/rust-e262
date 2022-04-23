@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -185,6 +185,13 @@ mod try_statement {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).try_statement().contains_arguments()
     }
+
+    #[test_case("try {var one;} catch {var two;}" => svec(&["one", "two"]); "catch only")]
+    #[test_case("try {var one;} finally {var two;}" => svec(&["one", "two"]); "finally only")]
+    #[test_case("try {var one;} catch {var two;} finally {var three;}" => svec(&["one", "two", "three"]); "catch/finally")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).try_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // CATCH
@@ -315,6 +322,13 @@ mod catch {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).catch().contains_arguments()
     }
+
+
+    #[test_case("catch (a) { var slug; }" => svec(&["slug"]); "with param")]
+    #[test_case("catch { var worm; }" => svec(&["worm"]); "without param")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).catch().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // FINALLY
@@ -397,6 +411,11 @@ mod finally {
     #[test_case("finally{}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).finally().contains_arguments()
+    }
+
+    #[test_case("finally { var baloon; }" => svec(&["baloon"]); "finally")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).finally().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
 

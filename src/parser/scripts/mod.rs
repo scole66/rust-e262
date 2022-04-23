@@ -86,18 +86,22 @@ impl From<HoistableDeclPart> for VarScopeDecl {
         }
     }
 }
-#[cfg(test)]
+impl fmt::Display for VarScopeDecl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VarScopeDecl::FunctionDeclaration(fd) => fd.fmt(f),
+            VarScopeDecl::GeneratorDeclaration(gd) => gd.fmt(f),
+            VarScopeDecl::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            VarScopeDecl::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+            VarScopeDecl::VariableDeclaration(vd) => vd.fmt(f),
+            VarScopeDecl::ForBinding(fb) => fb.fmt(f),
+            VarScopeDecl::BindingIdentifier(bi) => bi.fmt(f),
+        }
+    }
+}
 impl From<&VarScopeDecl> for String {
     fn from(src: &VarScopeDecl) -> String {
-        match src {
-            VarScopeDecl::FunctionDeclaration(fd) => format!("{fd}"),
-            VarScopeDecl::GeneratorDeclaration(gd) => format!("{gd}"),
-            VarScopeDecl::AsyncFunctionDeclaration(afd) => format!("{afd}"),
-            VarScopeDecl::AsyncGeneratorDeclaration(agd) => format!("{agd}"),
-            VarScopeDecl::VariableDeclaration(vd) => format!("{vd}"),
-            VarScopeDecl::ForBinding(fb) => format!("{fb}"),
-            VarScopeDecl::BindingIdentifier(bi) => format!("{bi}"),
-        }
+        src.to_string()
     }
 }
 

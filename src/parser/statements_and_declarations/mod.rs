@@ -465,8 +465,16 @@ pub enum HoistableDeclPart {
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
     AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
     AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
-    //ClassDeclaration(Rc<ClassDeclaration>),
-    //LexicalDeclaration(Rc<LexicalDeclaration>),
+}
+impl fmt::Display for HoistableDeclPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HoistableDeclPart::FunctionDeclaration(fd) => fd.fmt(f),
+            HoistableDeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
+            HoistableDeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
+            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+        }
+    }
 }
 
 impl Declaration {

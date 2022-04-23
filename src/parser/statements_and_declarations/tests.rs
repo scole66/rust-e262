@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, WITH_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -533,6 +533,52 @@ mod statement {
     fn contains_arguments(src: &str) -> bool {
         Statement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case(";" => svec(&[]); "empty")]
+    #[test_case("debugger;" => svec(&[]); "debugger stmt")]
+    #[test_case("continue;" => svec(&[]); "continue stmt")]
+    #[test_case("break;" => svec(&[]); "break stmt")]
+    #[test_case("3;" => svec(&[]); "Expression")]
+    #[test_case("throw a;" => svec(&[]); "throw stmt")]
+    #[test_case("return;" => svec(&[]); "return stmt")]
+    #[test_case("{ var a; }" => svec(&["a"]); "block stmt")]
+    #[test_case("var a;" => svec(&["a"]); "var stmt")]
+    #[test_case("if(1){var a;}" => svec(&["a"]); "if stmt")]
+    #[test_case("for(;;){var a;}" => svec(&["a"]); "breakable")]
+    #[test_case("with(0){var a;}" => svec(&["a"]); "with stmt")]
+    #[test_case("lbl:var a;" => svec(&["a"]); "labelled stmt")]
+    #[test_case("try { var a; } finally {}" => svec(&["a"]); "try stmt")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+}
+
+mod hoistable_decl_part {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => with |s| assert_ne!(s, ""); "Function Decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => with |s| assert_ne!(s, ""); "Generator Decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => with |s| assert_ne!(s, ""); "Async Function Decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => with |s| assert_ne!(s, ""); "Async Generator Decl")]
+    fn debug(part: HoistableDeclPart) -> String {
+        format!("{:?}", part)
+    }
+
+    #[test]
+    fn clone() {
+        let hdp = HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){'hdp';}").function_declaration());
+        let my_copy = hdp.clone();
+        assert_eq!(hdp.to_string(), my_copy.to_string());
+    }
+
+    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function banana(){}").function_declaration()) => "function banana (  ) {  }"; "Function Decl")]
+    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){'apple';}").generator_declaration()) => "function * a (  ) { 'apple' ; }"; "Generator Decl")]
+    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(strawberry){}").async_function_declaration()) => "async function a ( strawberry ) {  }"; "Async Function Decl")]
+    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){plum();}").async_generator_declaration()) => "async function * a (  ) { plum ( ) ; }"; "Async Generator Decl")]
+    fn display(part: HoistableDeclPart) -> String {
+        part.to_string()
+    }
 }
 
 // DECLARATION
@@ -787,6 +833,14 @@ mod hoistable_declaration {
         HoistableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
+
+    #[test_case("function a(){}" => "function a (  ) {  }"; "function def")]
+    #[test_case("function *a(){}" => "function * a (  ) {  }"; "generator def")]
+    #[test_case("async function a(){}" => "async function a (  ) {  }"; "async fcn")]
+    #[test_case("async function *a(){}" => "async function * a (  ) {  }"; "async gen")]
+    fn declaration_part(src: &str) -> String {
+        Maker::new(src).hoistable_declaration().declaration_part().to_string()
+    }
 }
 
 // BREAKABLE STATEMENT
@@ -910,5 +964,11 @@ mod breakable_statement {
     #[test_case("switch (a) {}" => false; "Switch (no)")]
     fn contains_arguments(src: &str) -> bool {
         BreakableStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("for(;;)var d;" => svec(&["d"]); "iteration")]
+    #[test_case("switch (x) { case 1: var p; break; }" => svec(&["p"]); "switch stmt")]
+    fn var_scoped_declarations(src: &str) -> Vec<String> {
+        Maker::new(src).breakable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
 }
