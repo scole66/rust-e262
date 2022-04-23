@@ -120,6 +120,9 @@ impl SwitchStatement {
         self.case_block.early_errors(agent, errs, strict, within_iteration);
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.case_block.var_scoped_declarations()
     }
@@ -369,6 +372,9 @@ impl CaseBlock {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc) => (cc.as_ref(), None, None),
@@ -540,6 +546,9 @@ impl CaseClauses {
         item.early_errors(agent, errs, strict, within_iteration);
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             CaseClauses::Item(cc) => cc.var_scoped_declarations(),
@@ -690,6 +699,9 @@ impl CaseClause {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         if let Some(sl) = &self.statements {
             sl.var_scoped_declarations()
@@ -828,6 +840,9 @@ impl DefaultClause {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         if let Some(stmt) = &self.0 {
             stmt.var_scoped_declarations()

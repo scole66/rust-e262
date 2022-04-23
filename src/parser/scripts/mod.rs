@@ -172,6 +172,12 @@ impl Script {
         }
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
+    /// they are declared var-style.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match &self.0 {
             None => vec![],
@@ -276,6 +282,12 @@ impl ScriptBody {
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
 
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
+    ///
+    /// For Scripts and ScriptBodies, function definitions that exist lexically at global scope are treated as though
+    /// they are declared var-style.
+    ///
+    /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statement_list.top_level_var_scoped_declarations()
     }

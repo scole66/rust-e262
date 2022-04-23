@@ -514,7 +514,7 @@ impl StatementList {
         }
     }
 
-    /// Return a list of parse nodes for the var-style declarations contained within the chidren of this node.
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
     /// as though they are declared var-style.
@@ -719,7 +719,7 @@ impl StatementListItem {
         }
     }
 
-    /// Return a list of parse nodes for the var-style declarations contained within the chidren of this node.
+    /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// This is the top-level form; in this form, function definitions that exist lexically at global scope are treated
     /// as though they are declared var-style.

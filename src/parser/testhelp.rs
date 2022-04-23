@@ -15,13 +15,13 @@ use class_definitions::{
 };
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
-use declarations_and_variables::{VariableDeclarationList, VariableStatement};
+use declarations_and_variables::{VariableDeclaration, VariableDeclarationList, VariableStatement};
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
 use function_definitions::{FunctionBody, FunctionDeclaration, FunctionStatementList};
 use generator_function_definitions::{GeneratorBody, GeneratorDeclaration, GeneratorExpression, GeneratorMethod, YieldExpression};
-use identifiers::IdentifierReference;
+use identifiers::{BindingIdentifier, IdentifierReference};
 use if_statement::IfStatement;
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
@@ -254,6 +254,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`AwaitExpression`] parse node.
     pub fn await_expression(self) -> Rc<AwaitExpression> {
         AwaitExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingIdentifier`] parse node.
+    pub fn binding_identifier(self) -> Rc<BindingIdentifier> {
+        BindingIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`BitwiseANDExpression`] parse node.
     pub fn bitwise_and_expression(self) -> Rc<BitwiseANDExpression> {
@@ -606,6 +610,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`UnaryExpression`] parse node.
     pub fn unary_expression(self) -> Rc<UnaryExpression> {
         UnaryExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`VariableDeclaration`] parse node.
+    pub fn variable_declaration(self) -> Rc<VariableDeclaration> {
+        VariableDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`VariableDeclarationList`] parse node.
     pub fn variable_declaration_list(self) -> Rc<VariableDeclarationList> {
