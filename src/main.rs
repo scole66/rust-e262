@@ -98,6 +98,8 @@ fn repl(vm: &mut VM) {
     }
 }
 
+use crate::agent::process_ecmascript;
+
 fn run_file(vm: &mut VM, fname: &str) {
     println!("Running from the file {}", fname);
     let potential_file_content = fs::read(fname);
@@ -105,10 +107,14 @@ fn run_file(vm: &mut VM, fname: &str) {
         Err(e) => println!("{}", e),
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
-            match interpret(vm, &script_source) {
-                Ok(value) => println!("{}", value),
+            match process_ecmascript(&mut vm.agent, &script_source) {
+                Ok(value) => println!("{:?}", value),
                 Err(err) => println!("{}", err),
             }
+            //match interpret(vm, &script_source) {
+            //    Ok(value) => println!("{}", value),
+            //    Err(err) => println!("{}", err),
+            //}
         }
     }
 }

@@ -6,11 +6,11 @@ use num::bigint::BigInt;
 /// A compilation unit
 #[derive(Debug, Default)]
 pub struct Chunk {
-    name: String,
-    strings: Vec<JSString>,
-    opcodes: Vec<Opcode>,
-    floats: Vec<f64>,
-    bigints: Vec<BigInt>,
+    pub name: String,
+    pub strings: Vec<JSString>,
+    pub opcodes: Vec<Opcode>,
+    pub floats: Vec<f64>,
+    pub bigints: Vec<BigInt>,
 }
 
 impl Chunk {

@@ -203,6 +203,26 @@ impl From<ECMAScriptValue> for SuperValue {
         Self::Value(src)
     }
 }
+impl From<bool> for SuperValue {
+    fn from(src: bool) -> Self {
+        Self::Value(ECMAScriptValue::from(src))
+    }
+}
+impl From<f64> for SuperValue {
+    fn from(src: f64) -> Self {
+        Self::Value(ECMAScriptValue::from(src))
+    }
+}
+impl From<JSString> for SuperValue {
+    fn from(src: JSString) -> Self {
+        Self::Value(ECMAScriptValue::from(src))
+    }
+}
+impl From<&JSString> for SuperValue {
+    fn from(src: &JSString) -> Self {
+        Self::Value(ECMAScriptValue::from(src))
+    }
+}
 impl From<Reference> for SuperValue {
     fn from(src: Reference) -> Self {
         Self::Reference(src)

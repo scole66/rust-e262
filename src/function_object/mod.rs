@@ -1,12 +1,16 @@
 use super::agent::Agent;
 use super::cr::{AltCompletion, Completion};
-use super::environment_record::EnvironmentRecord;
+use super::environment_record::{EnvironmentRecord, PrivateEnvironmentRecord};
 use super::execution_context::ExecutionContext;
 use super::object::{
     define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
     ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface, InternalSlotName, Object,
     ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
+use super::parser::async_function_definitions::AsyncFunctionDeclaration;
+use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
+use super::parser::function_definitions::FunctionDeclaration;
+use super::parser::generator_function_definitions::GeneratorDeclaration;
 use super::parser::parameter_lists::FormalParameters;
 use super::parser::scripts::Script;
 use super::realm::Realm;
@@ -521,6 +525,34 @@ pub fn create_builtin_function(
     set_function_length(agent, &func, length);
     set_function_name(agent, &func, FunctionName::from(name), prefix);
     func
+}
+
+impl FunctionDeclaration {
+    #[allow(unused_variables)]
+    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+        todo!()
+    }
+}
+
+impl GeneratorDeclaration {
+    #[allow(unused_variables)]
+    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+        todo!()
+    }
+}
+
+impl AsyncFunctionDeclaration {
+    #[allow(unused_variables)]
+    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+        todo!()
+    }
+}
+
+impl AsyncGeneratorDeclaration {
+    #[allow(unused_variables)]
+    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+        todo!()
+    }
 }
 
 #[cfg(test)]
