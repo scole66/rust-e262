@@ -107,18 +107,14 @@ impl ExecutionContext {
 //
 //  1. Let currentRealm be the current Realm Record.
 //  2. Return currentRealm.[[GlobalObject]].
-pub fn get_global_object(agent: &mut Agent) -> Option<Object> {
-    let ec = agent.running_execution_context();
-    ec.and_then(|ec| {
-        let g = &ec.realm.borrow().global_object;
-        g.as_ref().cloned()
-    })
+pub fn get_global_object(agent: &Agent) -> Option<Object> {
+    agent.current_realm_record()?.borrow().global_object.clone()
 }
 
 /// Finds the Environment Record that currently supplies the binding of the keyword this.
 ///
 /// See [GetThisEnvironment](https://tc39.es/ecma262/#sec-getthisenvironment) in ECMA-262.
-pub fn get_this_environment(agent: &mut Agent) -> Rc<dyn EnvironmentRecord> {
+pub fn get_this_environment(agent: &Agent) -> Rc<dyn EnvironmentRecord> {
     // The abstract operation GetThisEnvironment takes no arguments and returns an Environment Record. It finds the
     // Environment Record that currently supplies the binding of the keyword this. It performs the following steps when
     // called:
@@ -132,8 +128,7 @@ pub fn get_this_environment(agent: &mut Agent) -> Rc<dyn EnvironmentRecord> {
     //      e. Set env to outer.
     // NOTE |   The loop in step 2 will always terminate because the list of environments always ends with the global
     //      |   environment which has a this binding.
-    let ec = agent.running_execution_context().unwrap();
-    let mut env = ec.lexical_environment.as_ref().unwrap().clone();
+    let mut env = agent.current_lexical_environment().unwrap();
     loop {
         let exists = env.has_this_binding();
         if exists {

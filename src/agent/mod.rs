@@ -17,7 +17,7 @@ use super::realm::{create_realm, IntrinsicId, Realm};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // Agents
@@ -41,7 +41,7 @@ use std::rc::Rc;
 pub struct Agent {
     execution_context_stack: Vec<ExecutionContext>,
     pub symbols: WellKnownSymbols,
-    obj_id: Cell<usize>,
+    obj_id: usize,
     pub symbol_id: usize,
 }
 
@@ -49,7 +49,7 @@ pub struct Agent {
 impl Agent {
     pub fn new() -> Self {
         Agent {
-            obj_id: Cell::new(1),
+            obj_id: 1,
             execution_context_stack: vec![],
             symbols: WellKnownSymbols {
                 async_iterator_: Symbol(Rc::new(SymbolInternals { id: 1, description: Some(JSString::from("Symbol.asyncIterator")) })),
@@ -70,31 +70,34 @@ impl Agent {
         }
     }
 
-    pub fn running_execution_context(&self) -> Option<&ExecutionContext> {
-        let len = self.execution_context_stack.len();
-        if len > 0 {
-            Some(&self.execution_context_stack[len - 1])
-        } else {
-            None
-        }
-    }
-    pub fn running_execution_context_mut(&mut self) -> Option<&mut ExecutionContext> {
-        let len = self.execution_context_stack.len();
-        if len > 0 {
-            Some(&mut self.execution_context_stack[len - 1])
-        } else {
-            None
-        }
-    }
+    //pub fn running_execution_context(&self) -> Option<&ExecutionContext> {
+    //    let len = self.execution_context_stack.len();
+    //    if len > 0 {
+    //        Some(&self.execution_context_stack[len - 1])
+    //    } else {
+    //        None
+    //    }
+    //}
+    //pub fn running_execution_context_mut(&mut self) -> Option<&mut ExecutionContext> {
+    //    let len = self.execution_context_stack.len();
+    //    if len > 0 {
+    //        Some(&mut self.execution_context_stack[len - 1])
+    //    } else {
+    //        None
+    //    }
+    //}
 
     pub fn active_function_object(&self) -> Option<Object> {
-        self.running_execution_context().and_then(|ec| ec.function.as_ref().cloned())
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].function.clone(),
+        }
     }
 
-    pub fn next_object_id(&self) -> usize {
-        let result = self.obj_id.get();
+    pub fn next_object_id(&mut self) -> usize {
+        let result = self.obj_id;
         assert!(result < usize::MAX);
-        self.obj_id.set(result + 1);
+        self.obj_id = result + 1;
         result
     }
 
@@ -132,8 +135,24 @@ impl Agent {
         .clone()
     }
 
+    pub fn current_realm_record(&self) -> Option<Rc<RefCell<Realm>>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => Some(self.execution_context_stack[n - 1].realm.clone()),
+        }
+    }
+
+    pub fn current_lexical_environment(&self) -> Option<Rc<dyn EnvironmentRecord>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].lexical_environment.clone(),
+        }
+    }
+
     pub fn intrinsic(&self, id: IntrinsicId) -> Object {
-        self.running_execution_context().unwrap().realm.borrow().intrinsics.get(id)
+        let realm_ref = self.current_realm_record().unwrap();
+        let realm = realm_ref.borrow();
+        realm.intrinsics.get(id)
     }
 
     // SetRealmGlobalObject ( realmRec, globalObj, thisValue )
@@ -156,7 +175,8 @@ impl Agent {
             ordinary_object_create(self, Some(object_proto), &[])
         });
         let tv = this_value.unwrap_or_else(|| go.clone());
-        let mut realm = self.running_execution_context().unwrap().realm.borrow_mut();
+        let realm_ref = self.current_realm_record().unwrap();
+        let mut realm = realm_ref.borrow_mut();
 
         realm.global_object = Some(go.clone());
         let new_global_env = GlobalEnvironmentRecord::new(go, tv);
@@ -201,7 +221,8 @@ impl Agent {
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
         let gtv = {
             let global_env = {
-                let realm = self.running_execution_context().unwrap().realm.borrow();
+                let realm_ref = self.current_realm_record().unwrap();
+                let realm = realm_ref.borrow();
                 realm.global_env.as_ref().unwrap().clone()
             };
             global_env.get_this_binding(self).unwrap()
@@ -338,15 +359,16 @@ impl Agent {
 
     #[allow(unused_variables)]
     pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion {
-        let ec = {
-            let oec = self.running_execution_context_mut();
-            if oec.is_none() {
-                return Err(create_type_error(self, "No active execution context"));
-            }
-            oec.unwrap()
-        };
-        ec.prepare_for_execution(chunk);
-        ec.execute(self)
+        //let ec = {
+        //    let oec = self.running_execution_context_mut();
+        //    if oec.is_none() {
+        //        return Err(create_type_error(self, "No active execution context"));
+        //    }
+        //    oec.unwrap()
+        //};
+        //ec.prepare_for_execution(chunk);
+        //ec.execute(self)
+        todo!()
     }
 }
 
@@ -549,7 +571,7 @@ pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion {
 }
 
 pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, String> {
-    let realm = Rc::clone(&agent.running_execution_context().unwrap().realm);
+    let realm = agent.current_realm_record().unwrap();
     let x = parse_script(agent, source_text, realm).map_err(|_| "errors happened during compilation".to_string())?;
 
     script_evaluation(agent, x).map_err(|_| "errors happend during evaluation".to_string())

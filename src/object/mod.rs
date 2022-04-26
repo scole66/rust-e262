@@ -981,17 +981,17 @@ pub trait ObjectInterface: Debug {
         false
     }
 
-    fn get_prototype_of(&self, agent: & Agent) -> AltCompletion<Option<Object>>;
-    fn set_prototype_of(&self, agent: & Agent, obj: Option<Object>) -> AltCompletion<bool>;
-    fn is_extensible(&self, agent: & Agent) -> AltCompletion<bool>;
-    fn prevent_extensions(&self, agent: & Agent) -> AltCompletion<bool>;
-    fn get_own_property(&self, agent: & Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
-    fn define_own_property(&self, agent: & Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
-    fn has_property(&self, agent: & Agent, key: &PropertyKey) -> AltCompletion<bool>;
-    fn get(&self, agent: & Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
-    fn set(&self, agent: & Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
-    fn delete(&self, agent: & Agent, key: &PropertyKey) -> AltCompletion<bool>;
-    fn own_property_keys(&self, agent: & Agent) -> AltCompletion<Vec<PropertyKey>>;
+    fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>>;
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool>;
+    fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool>;
+    fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool>;
+    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool>;
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool>;
+    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>>;
 }
 
 pub trait FunctionInterface: CallableObject {
@@ -1023,7 +1023,7 @@ pub struct CommonObjectData {
 }
 
 impl CommonObjectData {
-    pub fn new(agent: &Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
+    pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
         Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots), private_elements: vec![] }
     }
 
@@ -1867,7 +1867,7 @@ impl ObjectInterface for DeadObject {
 }
 
 impl DeadObject {
-    pub fn object(agent: &Agent) -> Object {
+    pub fn object(agent: &mut Agent) -> Object {
         Object { o: Rc::new(Self { objid: agent.next_object_id() }) }
     }
 }
@@ -2059,7 +2059,7 @@ pub fn get_function_realm(agent: &mut Agent, obj: &Object) -> AltCompletion<Rc<R
         // Add the proxy check
         eprintln!("GetFunctionRealm: Skipping over bound-function and proxy checks...");
 
-        Ok(agent.running_execution_context().unwrap().realm.clone())
+        Ok(agent.current_realm_record().unwrap())
     }
 }
 

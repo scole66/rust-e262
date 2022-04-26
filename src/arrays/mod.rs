@@ -311,7 +311,7 @@ pub fn array_species_create(agent: &mut Agent, original_array: &Object, length: 
     let mut c = get(agent, original_array, &"constructor".into())?;
     if is_constructor(&c) {
         let c_obj = Object::try_from(&c).unwrap();
-        let this_realm = agent.running_execution_context().unwrap().realm.clone();
+        let this_realm = agent.current_realm_record().unwrap();
         let realm_c = get_function_realm(agent, &c_obj)?;
         if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
