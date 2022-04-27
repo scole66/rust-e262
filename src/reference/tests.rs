@@ -4,6 +4,8 @@ use crate::object::{define_property_or_throw, get, ordinary_object_create, priva
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error};
 use crate::values::{PrivateName, PropertyKey};
+use num::BigInt;
+use std::rc::Rc;
 
 mod base {
     use super::*;
@@ -267,13 +269,40 @@ mod super_value {
     mod from {
         use super::*;
         #[test]
-        fn value() {
+        fn ecmascript_value() {
             let v = ECMAScriptValue::from("blue");
             let sv = SuperValue::from(v);
             match sv {
                 SuperValue::Value(vv) => assert_eq!(vv, ECMAScriptValue::from("blue")),
                 SuperValue::Reference(_) => unreachable!(),
             }
+        }
+        #[test]
+        fn from_bool() {
+            let sv = SuperValue::from(true);
+            assert!(matches!(sv, SuperValue::Value(ECMAScriptValue::Boolean(true))));
+        }
+        #[test]
+        fn from_f64() {
+            let sv = SuperValue::from(10.0);
+            assert!(matches!(sv, SuperValue::Value(ECMAScriptValue::Number(x)) if x == 10.0));
+        }
+        #[test]
+        fn from_string() {
+            let sv = SuperValue::from(JSString::from("bob"));
+            assert!(matches!(sv, SuperValue::Value(ECMAScriptValue::String(x)) if x == "bob"));
+        }
+        #[test]
+        fn from_string_ref() {
+            let s = JSString::from("alice");
+            let sv = SuperValue::from(&s);
+            assert!(matches!(sv, SuperValue::Value(ECMAScriptValue::String(x)) if x == "alice"));
+        }
+        #[test]
+        fn from_bigint_rc() {
+            let bi = Rc::new(BigInt::from(987654));
+            let sv = SuperValue::from(bi);
+            assert!(matches!(sv, SuperValue::Value(ECMAScriptValue::BigInt(_))));
         }
         #[test]
         fn reference() {

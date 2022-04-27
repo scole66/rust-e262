@@ -2,9 +2,9 @@ use super::chunk::Chunk;
 use super::opcodes::*;
 use super::parser::additive_operators::*;
 use super::parser::assignment_operators::*;
+use super::parser::block::*;
 use super::parser::identifiers::*;
 use super::parser::primary_expressions::*;
-use super::parser::block::*;
 
 impl AdditiveExpression {
     #[allow(unused_variables)]
@@ -121,10 +121,18 @@ impl Literal {
 }
 
 impl StatementList {
+    #[allow(unused_variables)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match self {
             StatementList::Item(sli) => sli.compile(chunk, strict),
-            StatementList::List(sl, sli) => todo!(),
+            StatementList::List(sl, sli) => {
+                sl.compile(chunk, strict)?;
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                sli.compile(chunk, strict)?;
+                chunk.op(Insn::UpdateEmpty);
+                chunk.fixup(mark);
+                Ok(())
+            }
         }
     }
 }

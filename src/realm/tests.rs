@@ -71,6 +71,8 @@ fn intrinsics_get() {
     let realm_ptr = agent.current_realm_record().unwrap();
     let realm = realm_ptr.borrow();
     let intrinsics = &realm.intrinsics;
+    assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
+    assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
     assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);

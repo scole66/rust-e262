@@ -1,5 +1,5 @@
 use super::chunk::Chunk;
-use super::cr::{AltCompletion, Completion};
+use super::cr::{AbruptCompletion, AltCompletion, Completion, CompletionInfo};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
@@ -434,6 +434,57 @@ impl Agent {
                     let value = get_value(self, reference);
                     self.execution_context_stack[index].stack.push(value.map(SuperValue::from));
                 }
+                Insn::JumpIfAbrupt => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    if self.execution_context_stack[index].stack[stack_idx].is_err() {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
+                Insn::UpdateEmpty => {
+                    let newer = self.execution_context_stack[index].stack.pop().unwrap();
+                    let older = self.execution_context_stack[index].stack.pop().unwrap();
+                    let is_empty = match &newer {
+                        Ok(SuperValue::Value(ECMAScriptValue::Empty)) => true,
+                        Ok(_) => false,
+                        Err(AbruptCompletion::Break(CompletionInfo { value: None, .. }))
+                        | Err(AbruptCompletion::Return(CompletionInfo { value: None, .. }))
+                        | Err(AbruptCompletion::Continue(CompletionInfo { value: None, .. }))
+                        | Err(AbruptCompletion::Throw(CompletionInfo { value: None, .. })) => true,
+                        _ => false,
+                    };
+                    if !is_empty {
+                        self.execution_context_stack[index].stack.push(newer);
+                    } else {
+                        let old_value = match older {
+                            Ok(x) => x,
+                            Err(AbruptCompletion::Break(CompletionInfo { value: Some(x), .. })) => SuperValue::from(x),
+                            Err(AbruptCompletion::Return(CompletionInfo { value: Some(x), .. })) => SuperValue::from(x),
+                            Err(AbruptCompletion::Continue(CompletionInfo { value: Some(x), .. })) => SuperValue::from(x),
+                            Err(AbruptCompletion::Throw(CompletionInfo { value: Some(x), .. })) => SuperValue::from(x),
+                            _ => SuperValue::from(ECMAScriptValue::Empty),
+                        };
+                        fn a(sv: SuperValue) -> Option<ECMAScriptValue> {
+                            match sv {
+                                SuperValue::Value(e) => Some(e),
+                                SuperValue::Reference(_) => None,
+                            }
+                        }
+                        let replacement = match newer {
+                            Ok(_) => Ok(old_value),
+                            Err(AbruptCompletion::Break(CompletionInfo { value: _, target: t })) => Err(AbruptCompletion::Break(CompletionInfo { value: a(old_value), target: t })),
+                            Err(AbruptCompletion::Return(CompletionInfo { value: _, target: t })) => Err(AbruptCompletion::Return(CompletionInfo { value: a(old_value), target: t })),
+                            Err(AbruptCompletion::Continue(CompletionInfo { value: _, target: t })) => Err(AbruptCompletion::Continue(CompletionInfo { value: a(old_value), target: t })),
+                            Err(AbruptCompletion::Throw(CompletionInfo { value: _, target: t })) => Err(AbruptCompletion::Throw(CompletionInfo { value: a(old_value), target: t })),
+                        };
+                        self.execution_context_stack[index].stack.push(replacement);
+                    }
+                }
             }
         }
         self.execution_context_stack[index]
@@ -490,6 +541,9 @@ pub fn parse_script(agent: &mut Agent, source_text: &str, realm: Rc<RefCell<Real
         ParsedText::Script(script) => {
             let mut chunk = Chunk::new("top level script");
             script.compile(&mut chunk).unwrap();
+            for line in chunk.disassemble() {
+                println!("{line}");
+            }
             Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk) })
         }
     }

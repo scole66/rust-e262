@@ -54,6 +54,16 @@ impl Chunk {
         self.opcodes.push(arg);
     }
 
+    pub fn op_jump(&mut self, opcode: Insn) -> usize {
+        self.opcodes.push(opcode.into());
+        self.opcodes.push(0);
+        self.opcodes.len() - 1
+    }
+
+    pub fn fixup(&mut self, mark: usize) {
+        self.opcodes[mark] = (self.opcodes.len() - mark - 1) as u16;
+    }
+
     pub fn disassemble(&self) -> Vec<String> {
         let mut idx = 0;
         let mut result = vec![];
@@ -65,20 +75,25 @@ impl Chunk {
                 Insn::String => {
                     let arg = self.opcodes[idx] as usize;
                     idx += 1;
-                    result.push(format!("    {:<10}{} ({})", insn, arg, self.strings[arg]));
+                    result.push(format!("    {:<20}{} ({})", insn, arg, self.strings[arg]));
                 }
                 Insn::Float => {
                     let arg = self.opcodes[idx] as usize;
                     idx += 1;
-                    result.push(format!("    {:<10}{} ({})", insn, arg, self.floats[arg]));
+                    result.push(format!("    {:<20}{} ({})", insn, arg, self.floats[arg]));
                 }
                 Insn::Bigint => {
                     let arg = self.opcodes[idx] as usize;
                     idx += 1;
-                    result.push(format!("    {:<10}{} ({})", insn, arg, self.bigints[arg]));
+                    result.push(format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]));
                 }
-                Insn::Resolve | Insn::StrictResolve | Insn::This | Insn::Null | Insn::True | Insn::False | Insn::GetValue => {
+                Insn::Resolve | Insn::StrictResolve | Insn::This | Insn::Null | Insn::True | Insn::False | Insn::GetValue | Insn::UpdateEmpty => {
                     result.push(format!("    {insn}"));
+                }
+                Insn::JumpIfAbrupt => {
+                    let arg = self.opcodes[idx] as i16;
+                    idx += 1;
+                    result.push(format!("    {:<20}{}", insn, arg));
                 }
             }
         }

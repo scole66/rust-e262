@@ -7,7 +7,7 @@ use super::object::{
     PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
-use super::values::{to_string, ECMAScriptValue, PropertyKey};
+use super::values::{ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};

@@ -128,6 +128,8 @@ fn ecmascript_value_from() {
     assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_i64))));
     let v = ECMAScriptValue::from(-1152921504606846976_i64);
     assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1152921504606846976_i64))));
+    let v = ECMAScriptValue::from(Rc::new(BigInt::from(789999999999999999999999_i128)));
+    assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789999999999999999999999_i128))));
     let v = ECMAScriptValue::from(vec!['a' as u16, 'b' as u16, 'c' as u16]);
     assert_eq!(v, ECMAScriptValue::String(JSString::from("abc")));
     let v = ECMAScriptValue::from(&JSString::from("blue"));
@@ -231,6 +233,7 @@ fn ecmascript_value_concise() {
     define_property_or_throw(&mut agent, &obj, PropertyKey::from("Symbol"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() }).unwrap();
     let propobj = &agent.intrinsic(IntrinsicId::Boolean);
     define_property_or_throw(&mut agent, &obj, PropertyKey::from("Object"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() }).unwrap();
+    define_property_or_throw(&mut agent, &obj, PropertyKey::from("empty"), PotentialPropertyDescriptor::new().value(ECMAScriptValue::Empty)).unwrap();
 
     assert_ne!(format!("{:?}", obj), "");
 }
@@ -748,6 +751,12 @@ fn to_string_11() {
     let result = to_string(&mut agent, ECMAScriptValue::from(BigInt::from(789123))).unwrap();
     assert_eq!(result, "789123");
 }
+#[test]
+fn to_string_12() {
+    let mut agent = test_agent();
+    let result = to_string(&mut agent, ECMAScriptValue::Empty).unwrap();
+    assert_eq!(result, "[empty]");
+}
 
 #[test]
 fn to_object_01() {
@@ -1152,22 +1161,17 @@ mod to_property_key {
     }
 }
 
-mod to_length {
-    use super::*;
-    use test_case::test_case;
+#[test_case(|_| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
+#[test_case(|_| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
+#[test_case(|_| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
+#[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
+#[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
+#[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
+fn to_length(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
+    let mut agent = test_agent();
+    let arg = make_arg(&mut agent);
 
-    #[test_case(|_| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
-    #[test_case(|_| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
-    #[test_case(|_| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-    #[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
-    #[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
-    #[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
-    fn f(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
-        let mut agent = test_agent();
-        let arg = make_arg(&mut agent);
-
-        to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
-    }
+    super::to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
 }
 
 mod canonical_numeric_index_string {

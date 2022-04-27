@@ -17,6 +17,8 @@ pub enum Insn {
     Float,
     Bigint,
     GetValue,
+    JumpIfAbrupt,
+    UpdateEmpty,
 }
 
 impl fmt::Display for Insn {
@@ -32,6 +34,8 @@ impl fmt::Display for Insn {
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
+            Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
+            Insn::UpdateEmpty => "UPDATE_EMPTY",
         })
     }
 }
