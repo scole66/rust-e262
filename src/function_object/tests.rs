@@ -37,3 +37,24 @@ mod arguments {
         assert_eq!(rest, &[&ECMAScriptValue::from(1), &ECMAScriptValue::from(2), &ECMAScriptValue::from(3)]);
     }
 }
+
+use crate::parser::testhelp::Maker;
+use crate::tests::test_agent;
+
+mod function_declaration {
+    use super::*;
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn instantiate_function_object() {
+        let fd = Maker::new("function a(){}").function_declaration();
+        let mut agent = test_agent();
+        let global_env = {
+            let realm_rc = agent.current_realm_record().unwrap();
+            let realm = realm_rc.borrow();
+            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
+        };
+
+        fd.instantiate_function_object(&mut agent, global_env, None);
+    }
+
+}
