@@ -130,7 +130,7 @@ impl StatementList {
                 let mark = chunk.op_jump(Insn::JumpIfAbrupt);
                 sli.compile(chunk, strict)?;
                 chunk.op(Insn::UpdateEmpty);
-                chunk.fixup(mark);
+                chunk.fixup(mark)?;
                 Ok(())
             }
         }

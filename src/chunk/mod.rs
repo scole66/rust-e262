@@ -60,8 +60,15 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
-    pub fn fixup(&mut self, mark: usize) {
-        self.opcodes[mark] = (self.opcodes.len() - mark - 1) as u16;
+    pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
+        let len = self.opcodes.len();
+        let offset = if len >= mark + 1 {
+            i16::try_from(len - mark - 1)?
+        } else {
+            - i16::try_from(mark + 1 - len)?
+        };
+        self.opcodes[mark] = offset as u16;
+        Ok(())
     }
 
     pub fn disassemble(&self) -> Vec<String> {
