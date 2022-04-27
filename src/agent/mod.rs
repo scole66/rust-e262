@@ -1,9 +1,10 @@
 use super::chunk::Chunk;
 use super::cr::{AltCompletion, Completion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
-use super::errors::{create_syntax_error, create_type_error};
+use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
+use super::opcodes::Insn;
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;
@@ -14,6 +15,7 @@ use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
+use super::reference::{get_value, SuperValue};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
@@ -357,18 +359,93 @@ impl Agent {
         self.set_default_global_bindings();
     }
 
-    #[allow(unused_variables)]
     pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion {
-        //let ec = {
-        //    let oec = self.running_execution_context_mut();
-        //    if oec.is_none() {
-        //        return Err(create_type_error(self, "No active execution context"));
-        //    }
-        //    oec.unwrap()
-        //};
-        //ec.prepare_for_execution(chunk);
-        //ec.execute(self)
-        todo!()
+        let ec_idx = match self.execution_context_stack.len() {
+            0 => return Err(create_type_error(self, "No active execution context")),
+            n => n - 1,
+        };
+
+        self.prepare_for_execution(ec_idx, chunk);
+        self.execute(ec_idx)
+
+        //todo!()
+    }
+
+    pub fn prepare_for_execution(&mut self, index: usize, chunk: Rc<Chunk>) {
+        self.execution_context_stack[index].stack = vec![];
+        self.execution_context_stack[index].chunk = Some(chunk);
+        self.execution_context_stack[index].pc = 0;
+    }
+
+    pub fn execute(&mut self, index: usize) -> Completion {
+        let chunk = match self.execution_context_stack[index].chunk.clone() {
+            Some(r) => Ok(r),
+            None => Err(create_type_error(self, "No compiled units!")),
+        }?;
+        //let chunk = self.execution_context_stack[index].chunk.as_ref().ok_or_else(|| create_type_error(self, "No compiled units!"))?;
+        while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+            let icode = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // in range due to while condition
+            let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
+            self.execution_context_stack[index].pc += 1;
+            match instruction {
+                Insn::String => {
+                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let string = &chunk.strings[string_index as usize];
+                    self.execution_context_stack[index].stack.push(Ok(string.into()));
+                }
+                Insn::Null => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Null.into())),
+                Insn::True => self.execution_context_stack[index].stack.push(Ok(true.into())),
+                Insn::False => self.execution_context_stack[index].stack.push(Ok(false.into())),
+                Insn::This => {
+                    let this_resolved = self.resolve_this_binding().map(SuperValue::from);
+                    self.execution_context_stack[index].stack.push(this_resolved);
+                }
+                Insn::Resolve => {
+                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                        SuperValue::Value(ECMAScriptValue::String(s)) => s,
+                        _ => unreachable!(),
+                    };
+                    let resolved = self.resolve_binding(&name, None, false);
+                    self.execution_context_stack[index].stack.push(resolved);
+                }
+                Insn::StrictResolve => {
+                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                        SuperValue::Value(ECMAScriptValue::String(s)) => s,
+                        _ => unreachable!(),
+                    };
+                    let resolved = self.resolve_binding(&name, None, true);
+                    self.execution_context_stack[index].stack.push(resolved);
+                }
+                Insn::Float => {
+                    let float_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
+                    self.execution_context_stack[index].pc += 1;
+                    let number = chunk.floats[float_index as usize];
+                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                }
+                Insn::Bigint => {
+                    let bigint_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
+                    self.execution_context_stack[index].pc += 1;
+                    let number = Rc::clone(&chunk.bigints[bigint_index as usize]);
+                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                }
+                Insn::GetValue => {
+                    let reference = self.execution_context_stack[index].stack.pop().unwrap();
+                    let value = get_value(self, reference);
+                    self.execution_context_stack[index].stack.push(value.map(SuperValue::from));
+                }
+            }
+        }
+        self.execution_context_stack[index]
+            .stack
+            .pop()
+            .map(|svr| {
+                svr.map(|sv| match sv {
+                    SuperValue::Reference(_) => ECMAScriptValue::Empty,
+                    SuperValue::Value(v) => v,
+                })
+            })
+            .unwrap_or(Ok(ECMAScriptValue::Empty))
     }
 }
 
@@ -574,7 +651,11 @@ pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMASc
     let realm = agent.current_realm_record().unwrap();
     let x = parse_script(agent, source_text, realm).map_err(|_| "errors happened during compilation".to_string())?;
 
-    script_evaluation(agent, x).map_err(|_| "errors happend during evaluation".to_string())
+    let result = script_evaluation(agent, x);
+    match result {
+        Ok(val) => Ok(val),
+        Err(ac) => Err(unwind_any_error(agent, ac)),
+    }
 }
 
 #[cfg(test)]

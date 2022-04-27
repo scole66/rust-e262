@@ -2,10 +2,11 @@ use super::*;
 use crate::agent::WksId;
 use crate::arrays::array_create;
 use crate::errors::create_type_error;
+use crate::errors::unwind_any_error;
 use crate::function_object::create_builtin_function;
 use crate::object::{create_data_property, define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::IntrinsicId;
-use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_any_error, unwind_type_error};
+use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_type_error};
 use ahash::RandomState;
 use num::bigint::BigInt;
 use std::cmp::Ordering;
@@ -841,7 +842,7 @@ enum FauxKind {
     Error,
 }
 fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Object {
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
@@ -880,7 +881,7 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
 }
 fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     // valueOf returns 123456; tostring is a getter that errors
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
@@ -907,7 +908,7 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     target
 }
 fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
     let mut connect = |name| {
@@ -1049,7 +1050,7 @@ fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
     }
 }
 fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) -> Object {
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
@@ -1078,7 +1079,7 @@ fn to_primitive_uses_exotics() {
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
 fn exotic_returns_object(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
     Ok(ECMAScriptValue::from(target))
@@ -1107,7 +1108,7 @@ fn to_primitive_exotic_throws() {
 #[test]
 fn to_primitive_exotic_getter_throws() {
     let mut agent = test_agent();
-    let realm = agent.running_execution_context().unwrap().realm.clone();
+    let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(&mut agent, Some(object_prototype), &[]);

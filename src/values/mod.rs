@@ -172,6 +172,11 @@ impl From<BigInt> for ECMAScriptValue {
         Self::BigInt(Rc::new(source))
     }
 }
+impl From<Rc<BigInt>> for ECMAScriptValue {
+    fn from(src: Rc<BigInt>) -> Self {
+        Self::BigInt(src)
+    }
+}
 
 impl From<Symbol> for ECMAScriptValue {
     fn from(source: Symbol) -> Self {

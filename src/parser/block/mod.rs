@@ -516,13 +516,6 @@ impl StatementList {
         }
     }
 
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            StatementList::Item(sli) => sli.compile(chunk, strict),
-            StatementList::List(sl, sli) => todo!(),
-        }
-    }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///

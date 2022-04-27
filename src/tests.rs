@@ -82,23 +82,12 @@ pub fn unwind_error_object(agent: &mut Agent, kind: &str, err: Object) -> String
     }
 }
 
-pub fn unwind_any_error_value(agent: &mut Agent, err: ECMAScriptValue) -> String {
-    to_string(agent, err).unwrap().into()
-}
-
 pub fn unwind_error(agent: &mut Agent, kind: &str, completion: AbruptCompletion) -> String {
     assert!(matches!(completion, AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(_)), target: None })));
     if let AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(err)), target: None }) = completion {
         unwind_error_object(agent, kind, err)
     } else {
         unreachable!()
-    }
-}
-
-pub fn unwind_any_error(agent: &mut Agent, completion: AbruptCompletion) -> String {
-    match completion {
-        AbruptCompletion::Throw(CompletionInfo { value: Some(err), target: None }) => unwind_any_error_value(agent, err),
-        _ => panic!("Improper completion for error: {:?}", completion),
     }
 }
 

@@ -1,7 +1,8 @@
 use super::*;
+use crate::errors::unwind_any_error;
 use crate::function_object::create_builtin_function;
 use crate::strings::JSString;
-use crate::tests::{printer_validate, test_agent, unwind_any_error, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
+use crate::tests::{printer_validate, test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
 use crate::values::to_object;
 use std::io::Write;
 

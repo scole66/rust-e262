@@ -11,7 +11,6 @@ use super::method_definitions::MethodDefinition;
 use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
 use crate::chunk::Chunk;
-use crate::opcodes::Insn;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use crate::values::number_to_string;
 use anyhow;
@@ -426,26 +425,6 @@ impl PrimaryExpression {
             | AsyncGenerator(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(strict),
             Parenthesized(expr) => expr.assignment_target_type(strict),
-        }
-    }
-
-    /// Generate the code for PrimaryExpression
-    ///
-    /// References from ECMA-262:
-    /// * [Evaluation of the `this` keyword](https://tc39.es/ecma262/#sec-this-keyword-runtime-semantics-evaluation)
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            PrimaryExpression::IdentifierReference(id) => id.compile(chunk, strict),
-            PrimaryExpression::This => {
-                // Runtime Semantics: Evaluation
-                //  PrimaryExpression : this
-                //      1. Return ? ResolveThisBinding().
-                chunk.op(Insn::This);
-                Ok(())
-            }
-            PrimaryExpression::Literal(lit) => lit.compile(chunk),
-            PrimaryExpression::Parenthesized(exp) => exp.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }
@@ -1305,7 +1284,7 @@ impl LiteralPropertyName {
             Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
-            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
+            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(Rc::new(b)))), after_tok)),
             _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
         }
     }
@@ -1969,7 +1948,7 @@ impl ObjectLiteral {
 #[derive(Debug, PartialEq)]
 pub enum Numeric {
     Number(f64),
-    BigInt(BigInt),
+    BigInt(Rc<BigInt>),
 }
 
 impl fmt::Display for Numeric {
@@ -2002,7 +1981,7 @@ pub enum LiteralKind {
 }
 #[derive(Debug)]
 pub struct Literal {
-    kind: LiteralKind,
+    pub kind: LiteralKind,
 }
 
 impl fmt::Display for Literal {
@@ -2056,7 +2035,7 @@ impl Literal {
             Token::Identifier(id) if id.matches(Keyword::True) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner)),
             Token::Identifier(id) if id.matches(Keyword::False) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner)),
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
-            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
+            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
         }
@@ -2102,46 +2081,6 @@ impl Literal {
         //        }
         //    }
         //}
-    }
-
-    /// Generate the code for Literal
-    ///
-    /// See [Evaluation for Literal](https://tc39.es/ecma262/#sec-literals-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
-        match &self.kind {
-            LiteralKind::NullLiteral => {
-                // Literal : NullLiteral
-                //  1. Return null.
-                chunk.op(Insn::Null);
-            }
-            LiteralKind::BooleanLiteral(is_true) => {
-                // Literal : BooleanLiteral
-                //  1. If BooleanLiteral is the token false, return false.
-                //  2. If BooleanLiteral is the token true, return true.
-                chunk.op(if *is_true { Insn::True } else { Insn::False });
-            }
-            LiteralKind::StringLiteral(s) => {
-                // Literal : StringLiteral
-                //  1. Return the SV of StringLiteral as defined in [12.8.4.2](https://tc39.es/ecma262/#sec-static-semantics-sv).
-                let idx = chunk.add_to_string_pool(s.value.clone())?;
-                chunk.op_plus_arg(Insn::String, idx);
-            }
-            LiteralKind::NumericLiteral(numeric) => {
-                // Literal : NumericLiteral
-                //  1. Return the NumericValue of NumericLiteral as defined in [12.8.3.3](https://tc39.es/ecma262/#sec-numericvalue).
-                match numeric {
-                    Numeric::Number(n) => {
-                        let idx = chunk.add_to_float_pool(*n)?;
-                        chunk.op_plus_arg(Insn::Float, idx);
-                    }
-                    Numeric::BigInt(bi) => {
-                        let idx = chunk.add_to_bigint_pool(bi.clone())?;
-                        chunk.op_plus_arg(Insn::Bigint, idx);
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 }
 

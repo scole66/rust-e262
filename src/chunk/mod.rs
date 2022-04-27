@@ -2,6 +2,7 @@ use crate::opcodes::{Insn, Opcode};
 use crate::strings::JSString;
 use anyhow::anyhow;
 use num::bigint::BigInt;
+use std::rc::Rc;
 
 /// A compilation unit
 #[derive(Debug, Default)]
@@ -10,7 +11,7 @@ pub struct Chunk {
     pub strings: Vec<JSString>,
     pub opcodes: Vec<Opcode>,
     pub floats: Vec<f64>,
-    pub bigints: Vec<BigInt>,
+    pub bigints: Vec<Rc<BigInt>>,
 }
 
 impl Chunk {
@@ -26,7 +27,7 @@ impl Chunk {
         Self::add_to_pool(&mut self.floats, n, "floats")
     }
 
-    pub fn add_to_bigint_pool(&mut self, n: BigInt) -> anyhow::Result<u16> {
+    pub fn add_to_bigint_pool(&mut self, n: Rc<BigInt>) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.bigints, n, "big ints")
     }
 

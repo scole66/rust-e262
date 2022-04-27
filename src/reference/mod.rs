@@ -6,6 +6,7 @@ use super::execution_context::get_global_object;
 use super::object::{private_get, private_set, set};
 use super::strings::JSString;
 use super::values::{to_object, ECMAScriptValue, PrivateName, PropertyKey, Symbol};
+use num::BigInt;
 use std::convert::{TryFrom, TryInto};
 use std::rc::Rc;
 
@@ -220,6 +221,11 @@ impl From<JSString> for SuperValue {
 }
 impl From<&JSString> for SuperValue {
     fn from(src: &JSString) -> Self {
+        Self::Value(ECMAScriptValue::from(src))
+    }
+}
+impl From<Rc<BigInt>> for SuperValue {
+    fn from(src: Rc<BigInt>) -> Self {
         Self::Value(ECMAScriptValue::from(src))
     }
 }

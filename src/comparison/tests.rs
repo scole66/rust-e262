@@ -1,7 +1,8 @@
 use super::*;
 use crate::agent::WksId;
+use crate::errors::unwind_any_error;
 use crate::object::ordinary_object_create;
-use crate::tests::{test_agent, unwind_any_error};
+use crate::tests::test_agent;
 use num::bigint::BigInt;
 
 #[test]
