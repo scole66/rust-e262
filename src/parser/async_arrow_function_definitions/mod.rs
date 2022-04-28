@@ -1,7 +1,3 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::arrow_function_definitions::{ArrowFormalParameters, ExpressionBody};
 use super::async_function_definitions::AsyncFunctionBody;
 use super::identifiers::BindingIdentifier;
@@ -9,6 +5,9 @@ use super::left_hand_side_expressions::{Arguments, MemberExpression};
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AsyncArrowFunction[In, Yield, Await] :
 //      async [no LineTerminator here] AsyncArrowBindingIdentifier[?Yield] [no LineTerminator here] => AsyncConciseBody[?In]
