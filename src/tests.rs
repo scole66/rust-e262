@@ -494,8 +494,8 @@ pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
     Err(create_type_error(agent, "Test Sentinel"))
 }
 
-use crate::realm::{create_realm, Realm};
 use crate::object::define_property_or_throw;
+use crate::realm::{create_realm, Realm};
 
 pub fn create_named_realm(agent: &mut Agent, name: &str) -> Rc<RefCell<Realm>> {
     let r = create_realm(agent);
