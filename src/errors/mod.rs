@@ -452,10 +452,12 @@ pub fn provision_uri_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm
     realm.borrow_mut().intrinsics.uri_error_prototype = prototype;
 }
 
+/// Transform an ECMAScript Error object into a Rust string
 pub fn unwind_any_error_value(agent: &mut Agent, err: ECMAScriptValue) -> String {
     to_string(agent, err).unwrap().into()
 }
 
+/// Transform an ECMAScript Throw Completion into a Rust string
 pub fn unwind_any_error(agent: &mut Agent, completion: AbruptCompletion) -> String {
     match completion {
         AbruptCompletion::Throw(CompletionInfo { value: Some(err), target: None }) => unwind_any_error_value(agent, err),

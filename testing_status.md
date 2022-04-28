@@ -2,16 +2,16 @@
 
 Files in the commit chain:
 
-| File path | Test Completion State | Functions to Test |
-| --- | --- | --- |
+| File path | Test Completion State | doc-comments added | Functions to Test |
+| --- | --- | --- | --- |
 | agent
 | arrays
 | chunk
 | compiler
 | environment_record
-| errors
+| errors | ok | ok | `unwind_any_error_value`, `unwind_any_error`
 | execution_context
-| function_object | | `FunctionDeclaration::instantiate_function_object`, `GeneratorDeclaration::instantiate_function_object`, `AsyncFunctionDeclaration::instantiate_function_object`, `AsyncGeneratorDeclaration::instantiate_function_object`
+| function_object | ok || `FunctionDeclaration::instantiate_function_object`, `GeneratorDeclaration::instantiate_function_object`, `AsyncFunctionDeclaration::instantiate_function_object`, `AsyncGeneratorDeclaration::instantiate_function_object`
 | object | ok
 | opcodes
 | parser/additive_operators

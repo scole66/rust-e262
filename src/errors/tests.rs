@@ -3,6 +3,7 @@ use crate::object::{call, construct, get, has_own_property, AccessorProperty, Pr
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
 use crate::values::{to_object, Symbol};
+use test_case::test_case;
 
 #[test]
 fn create_native_error_object_01() {
@@ -713,4 +714,21 @@ fn test_type_error_constructor() {
 #[test]
 fn test_uri_error_constructor() {
     test_error_constructor(IntrinsicId::URIError, IntrinsicId::URIErrorPrototype, "URIError");
+}
+
+#[test_case(|a: &mut Agent| create_type_error_object(a, "message 1") => "TypeError: message 1"; "type error")]
+#[test_case(|a: &mut Agent| create_syntax_error_object(a, "message 2") => "SyntaxError: message 2"; "syntax error")]
+fn unwind_any_error_value(maker: fn(&mut Agent) -> Object) -> String {
+    let mut agent = test_agent();
+    let errobj = maker(&mut agent);
+    super::unwind_any_error_value(&mut agent, ECMAScriptValue::from(errobj))
+}
+
+#[test_case(|a: &mut Agent| create_type_error(a, "blue") => "TypeError: blue"; "type error")]
+#[test_case(|a: &mut Agent| create_syntax_error(a, "ouch") => "SyntaxError: ouch"; "syntax error")]
+#[test_case(|_: &mut Agent| AbruptCompletion::Break(CompletionInfo{value: None, target: None}) => panics "Improper completion for error: "; "not error")]
+fn unwind_any_error(maker: fn(&mut Agent) -> AbruptCompletion) -> String {
+    let mut agent = test_agent();
+    let completion = maker(&mut agent);
+    super::unwind_any_error(&mut agent, completion)
 }

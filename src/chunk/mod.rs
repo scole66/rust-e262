@@ -62,11 +62,7 @@ impl Chunk {
 
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
-        let offset = if len >= mark + 1 {
-            i16::try_from(len - mark - 1)?
-        } else {
-            - i16::try_from(mark + 1 - len)?
-        };
+        let offset = if len >= mark + 1 { i16::try_from(len - mark - 1)? } else { -i16::try_from(mark + 1 - len)? };
         self.opcodes[mark] = offset as u16;
         Ok(())
     }
