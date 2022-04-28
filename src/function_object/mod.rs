@@ -509,7 +509,7 @@ pub fn create_builtin_function(
     prototype: Option<Object>,
     prefix: Option<JSString>,
 ) -> Object {
-    let realm_to_use = realm.unwrap_or_else(|| agent.current_realm_record().unwrap().clone());
+    let realm_to_use = realm.unwrap_or_else(|| agent.current_realm_record().unwrap());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
     let func = BuiltInFunctionObject::object(agent, Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
     set_function_length(agent, &func, length);

@@ -409,7 +409,7 @@ mod put_value {
         let value = ECMAScriptValue::from("Test Value for Unresolvable, non-strict writes");
         let reference = Reference::new(Base::Unresolvable, "blue", false, None);
         put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
-        let global = get_global_object(&mut agent).unwrap();
+        let global = get_global_object(&agent).unwrap();
         let from_global = get(&mut agent, &global, &PropertyKey::from("blue")).unwrap();
         assert_eq!(from_global, value);
     }
@@ -419,7 +419,7 @@ mod put_value {
         let value = ECMAScriptValue::from("Test Value");
         let reference = Reference::new(Base::Unresolvable, "thrower", false, None);
         let thrower = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError));
-        let global = get_global_object(&mut agent).unwrap();
+        let global = get_global_object(&agent).unwrap();
         define_property_or_throw(
             &mut agent,
             &global,

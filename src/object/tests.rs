@@ -2322,7 +2322,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(TestObject::object(agent, &[FunctionId::GetOwnProperty(Some(PropertyKey::from(name)))]))
     }
     fn create_getter_error(agent: &mut Agent, name: &str) -> ECMAScriptValue {
-        let realm = agent.current_realm_record().unwrap().clone();
+        let realm = agent.current_realm_record().unwrap();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(agent, Some(object_prototype), &[]);
         let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);

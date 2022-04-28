@@ -88,7 +88,7 @@ mod constructor {
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
         let realm = a.current_realm_record().unwrap();
-        a.push_execution_context(ExecutionContext::new(Some(obj.clone()), realm, None));
+        a.push_execution_context(ExecutionContext::new(Some(obj), realm, None));
         Some(ordinary_object_create(a, None, &[]))
     }, &[ECMAScriptValue::from(12)] => "[object Object]"; "unrelated new target")]
     #[test_case(|_| None, &[ECMAScriptValue::Null] => "[object Object]"; "null value")]

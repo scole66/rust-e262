@@ -45,7 +45,7 @@ fn agent_pop_execution_context() {
     agent.initialize_host_defined_realm();
     let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, realm_ref.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
     agent.push_execution_context(test_ec);
     // now pop it.
     agent.pop_execution_context();
