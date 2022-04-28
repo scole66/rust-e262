@@ -69,6 +69,8 @@ fn intrinsics_debug() {
 fn intrinsics_get() {
     let agent = test_agent();
     let intrinsics = &agent.running_execution_context().unwrap().realm.borrow().intrinsics;
+    assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
+    assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
     assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Error), intrinsics.error);
