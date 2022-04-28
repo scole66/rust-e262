@@ -68,7 +68,9 @@ fn intrinsics_debug() {
 #[test]
 fn intrinsics_get() {
     let agent = test_agent();
-    let intrinsics = &agent.running_execution_context().unwrap().realm.borrow().intrinsics;
+    let realm_ptr = agent.current_realm_record().unwrap();
+    let realm = realm_ptr.borrow();
+    let intrinsics = &realm.intrinsics;
     assert_eq!(intrinsics.get(IntrinsicId::Array), intrinsics.array);
     assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
     assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
@@ -98,7 +100,9 @@ fn intrinsics_get() {
 #[test]
 fn realm_debug() {
     let agent = test_agent();
-    assert_ne!(format!("{:?}", agent.running_execution_context().unwrap()), "");
+    let realm_ptr = agent.current_realm_record().unwrap();
+    let realm = realm_ptr.borrow();
+    assert_ne!(format!("{:?}", realm), "");
 }
 
 #[test]

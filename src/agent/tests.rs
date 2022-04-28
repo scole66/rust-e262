@@ -39,59 +39,17 @@ fn agent_new() {
 }
 
 #[test]
-fn agent_running_execution_context() {
-    let mut agent = Agent::new();
-
-    let r1 = agent.running_execution_context();
-    assert!(r1.is_none());
-
-    agent.initialize_host_defined_realm();
-
-    let r2 = agent.running_execution_context().unwrap();
-    // the initial context has no "script_or_module" value...
-    assert!(r2.script_or_module.is_none());
-
-    // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
-    agent.push_execution_context(test_ec);
-
-    // Then get it back and check its script_or_module to ensure we got the new one.
-    let r3 = agent.running_execution_context().unwrap();
-    assert!(r3.script_or_module.is_some());
-}
-#[test]
-fn agent_running_execution_context_mut() {
-    let mut agent = Agent::new();
-
-    let r1 = agent.running_execution_context_mut();
-    assert!(r1.is_none());
-
-    agent.initialize_host_defined_realm();
-
-    let r2 = agent.running_execution_context_mut().unwrap();
-    // the initial context has no "script_or_module" value...
-    assert!(r2.script_or_module.is_none());
-
-    // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
-    agent.push_execution_context(test_ec);
-
-    // Then get it back and check its script_or_module to ensure we got the new one.
-    let r3 = agent.running_execution_context_mut().unwrap();
-    assert!(r3.script_or_module.is_some());
-}
-#[test]
 fn agent_pop_execution_context() {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm();
-    let r1 = agent.running_execution_context().unwrap();
+    let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, r1.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let test_ec = ExecutionContext::new(None, realm_ref.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
     agent.push_execution_context(test_ec);
     // now pop it.
     agent.pop_execution_context();
     // And verify the one on top has no script_or_module value
-    let r = agent.running_execution_context().unwrap();
+    let r = &agent.execution_context_stack[agent.execution_context_stack.len() - 1];
     assert!(r.script_or_module.is_none());
 }
 #[test]
@@ -106,9 +64,11 @@ fn agent_active_function_object() {
     let afo = agent.active_function_object();
     assert!(afo.is_none());
 
-    // Just randomly assign a function object to the data, for this test.
+    // Create a new EC that _does_ have a function object; push it, and then check the active function.
     let fo = agent.intrinsic(IntrinsicId::ThrowTypeError);
-    agent.running_execution_context_mut().unwrap().function = Some(fo.clone());
+    let realm = agent.current_realm_record().unwrap();
+    let function_ec = ExecutionContext::new(Some(fo.clone()), realm, None);
+    agent.push_execution_context(function_ec);
 
     let afo = agent.active_function_object().unwrap();
     assert_eq!(afo, fo);

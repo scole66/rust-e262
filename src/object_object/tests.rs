@@ -1,6 +1,7 @@
 use super::*;
 use crate::cr::AltCompletion;
 use crate::errors::{create_type_error, create_type_error_object};
+use crate::execution_context::ExecutionContext;
 use crate::object::{
     create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject, PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
 };
@@ -80,19 +81,22 @@ mod constructor {
     #[test_case(|a| Some(ordinary_object_create(a, None, &[])), &[ECMAScriptValue::from(10)] => "10"; "new target but no active function")]
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
-        a.running_execution_context_mut().unwrap().function = Some(obj.clone());
+        let realm = a.current_realm_record().unwrap();
+        a.push_execution_context(ExecutionContext::new(Some(obj.clone()), realm, None));
         Some(obj)
     }, &[ECMAScriptValue::from(11)] => "11"; "related new target")]
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
-        a.running_execution_context_mut().unwrap().function = Some(obj);
+        let realm = a.current_realm_record().unwrap();
+        a.push_execution_context(ExecutionContext::new(Some(obj.clone()), realm, None));
         Some(ordinary_object_create(a, None, &[]))
     }, &[ECMAScriptValue::from(12)] => "[object Object]"; "unrelated new target")]
     #[test_case(|_| None, &[ECMAScriptValue::Null] => "[object Object]"; "null value")]
     #[test_case(|_| None, &[ECMAScriptValue::Undefined] => "[object Object]"; "undefined value")]
     #[test_case(|a| {
         let obj = ordinary_object_create(a, None, &[]);
-        a.running_execution_context_mut().unwrap().function = Some(obj);
+        let realm = a.current_realm_record().unwrap();
+        a.push_execution_context(ExecutionContext::new(Some(obj), realm, None));
         let nt = TestObject::object(a, &[FunctionId::Get(None)]);
         Some(nt)
     }, &[] => "[[Get]] called on TestObject"; "ordinary_create_from_constructor throws")]
@@ -413,7 +417,7 @@ mod constructor {
                 0.0,
                 "toString".into(),
                 BUILTIN_FUNCTION_SLOTS,
-                Some(agent.running_execution_context().unwrap().realm.clone()),
+                agent.current_realm_record(),
                 Some(agent.intrinsic(IntrinsicId::FunctionPrototype)),
                 None,
             );
