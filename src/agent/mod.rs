@@ -182,7 +182,7 @@ impl Agent {
         // realm.[[GlobalEnv]].[[GlobalThisValue]].
         //
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
-        let gtv = { self.current_realm_record().unwrap().borrow().global_env.as_ref().unwrap().get_this_binding() };
+        let gtv = self.current_realm_record().unwrap().borrow().global_env.as_ref().unwrap().get_this_binding();
         global_data!("globalThis", gtv, true, false, true);
 
         // Infinity

@@ -1,6 +1,7 @@
 use super::*;
 use crate::execution_context::{ScriptOrModule, ScriptRecord};
 use crate::tests::test_agent;
+use crate::tests::{create_named_realm, get_realm_name};
 use ahash::AHashSet;
 
 #[test]
@@ -155,5 +156,36 @@ fn wks_descriptions() {
     for (id, expected) in symbols.iter().zip(descriptions) {
         let desc = agent.wks(*id).description().unwrap();
         assert_eq!(desc, JSString::from(expected));
+    }
+}
+
+mod current_realm_record {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let a = Agent::new();
+        let realm = a.current_realm_record();
+
+        assert!(realm.is_none());
+    }
+    #[test]
+    fn stacked() {
+        let mut a = Agent::new();
+        let first_realm = create_named_realm(&mut a, "first");
+        let first_context = ExecutionContext::new(None, first_realm, None);
+        a.push_execution_context(first_context);
+
+        let second_realm = create_named_realm(&mut a, "second");
+        let second_context = ExecutionContext::new(None, second_realm, None);
+        a.push_execution_context(second_context);
+
+        let current = a.current_realm_record().unwrap();
+        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "second");
+
+        a.pop_execution_context();
+
+        let current = a.current_realm_record().unwrap();
+        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "first");
     }
 }
