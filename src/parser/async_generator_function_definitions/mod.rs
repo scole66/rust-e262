@@ -1,7 +1,3 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::class_definitions::ClassElementName;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
@@ -9,6 +5,9 @@ use super::parameter_lists::{FormalParameters, UniqueFormalParameters};
 use super::scanner::Scanner;
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AsyncGeneratorMethod[Yield, Await] :
 //      async [no LineTerminator here] * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
