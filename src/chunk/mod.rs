@@ -1,4 +1,4 @@
-use crate::opcodes::{Insn, Opcode};
+use crate::compiler::{Insn, Opcode};
 use crate::strings::JSString;
 use anyhow::anyhow;
 use num::bigint::BigInt;

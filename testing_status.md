@@ -5,18 +5,14 @@ Files in the commit chain:
 | File path | Test Completion State | doc-comments added | Functions to Test |
 | --- | --- | --- | --- |
 | agent
-| arrays
+| arrays| ok | ok 
 | chunk
 | compiler
 | environment_record
 | errors | ok | ok | `unwind_any_error_value`, `unwind_any_error`
 | execution_context
 | function_object | ok || `FunctionDeclaration::instantiate_function_object`, `GeneratorDeclaration::instantiate_function_object`, `AsyncFunctionDeclaration::instantiate_function_object`, `AsyncGeneratorDeclaration::instantiate_function_object`
-| object | ok
-| opcodes
-| parser/additive_operators
-| parser/assignment_operators
-| parser/binary_bitwise_operators
+| object | ok | ok
 | parser/binary_logical_operators
 | parser/bitwise_shift_operators
 | parser/block

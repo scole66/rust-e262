@@ -23,7 +23,6 @@ mod function_object;
 mod number_object;
 mod object;
 mod object_object;
-mod opcodes;
 mod parser;
 mod prettyprint;
 mod realm;

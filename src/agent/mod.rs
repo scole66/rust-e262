@@ -1,10 +1,10 @@
 use super::chunk::Chunk;
+use super::compiler::Insn;
 use super::cr::{AbruptCompletion, AltCompletion, Completion, CompletionInfo};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
-use super::opcodes::Insn;
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;

@@ -1,10 +1,51 @@
 use super::chunk::Chunk;
-use super::opcodes::*;
 use super::parser::additive_operators::*;
 use super::parser::assignment_operators::*;
+use super::parser::binary_bitwise_operators::*;
 use super::parser::block::*;
 use super::parser::identifiers::*;
 use super::parser::primary_expressions::*;
+use num_enum::IntoPrimitive;
+use num_enum::TryFromPrimitive;
+use std::fmt;
+
+pub type Opcode = u16;
+
+#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u16)]
+pub enum Insn {
+    String,
+    Resolve,
+    StrictResolve,
+    This,
+    Null,
+    True,
+    False,
+    Float,
+    Bigint,
+    GetValue,
+    JumpIfAbrupt,
+    UpdateEmpty,
+}
+
+impl fmt::Display for Insn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.pad(match self {
+            Insn::String => "STRING",
+            Insn::Resolve => "RESOLVE",
+            Insn::StrictResolve => "STRICT_RESOLVE",
+            Insn::This => "THIS",
+            Insn::Null => "NULL",
+            Insn::True => "TRUE",
+            Insn::False => "FALSE",
+            Insn::Float => "FLOAT",
+            Insn::Bigint => "BIGINT",
+            Insn::GetValue => "GET_VALUE",
+            Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
+            Insn::UpdateEmpty => "UPDATE_EMPTY",
+        })
+    }
+}
 
 impl AdditiveExpression {
     #[allow(unused_variables)]
@@ -117,6 +158,33 @@ impl Literal {
             }
         }
         Ok(())
+    }
+}
+
+impl BitwiseANDExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl BitwiseXORExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl BitwiseORExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict),
+            _ => todo!(),
+        }
     }
 }
 

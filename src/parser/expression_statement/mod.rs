@@ -2,7 +2,7 @@ use super::comma_operator::Expression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
 use crate::chunk::Chunk;
-use crate::opcodes::Insn;
+use crate::compiler::Insn;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use anyhow;
 use std::fmt;
