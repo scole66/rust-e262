@@ -1,11 +1,10 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::multiplicative_operators::MultiplicativeExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AdditiveExpression[Yield, Await] :
 //      MultiplicativeExpression[?Yield, ?Await]

@@ -4,9 +4,12 @@ use crate::values::number_to_string;
 use lazy_static::lazy_static;
 use num::bigint::BigInt;
 use regex::Regex;
+use std::char;
+use std::cmp::max;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt;
+use std::str;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ScanGoal {
@@ -670,9 +673,6 @@ fn unicode_escape_sequence(scanner: &Scanner, source: &str) -> Option<Scanner> {
     }
 }
 
-use std::char;
-use std::str;
-
 fn ues_char_value(source: &str) -> char {
     // We already know this is a valid Unicode Escape Sequence, so there's a lot of checking we don't do.
     let bytes = source.as_bytes();
@@ -1172,8 +1172,6 @@ fn match_char(scanner: &Scanner, source: &str, ch: char) -> Option<Scanner> {
         _ => None,
     }
 }
-
-use std::cmp::max;
 
 fn radix_digits<F>(scanner: &Scanner, source: &str, sep: bool, validator: F) -> Option<Scanner>
 where

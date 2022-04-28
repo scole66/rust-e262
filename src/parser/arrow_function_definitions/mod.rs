@@ -1,7 +1,3 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::assignment_operators::AssignmentExpression;
 use super::function_definitions::FunctionBody;
 use super::identifiers::BindingIdentifier;
@@ -10,6 +6,9 @@ use super::primary_expressions::CoverParenthesizedExpressionAndArrowParameterLis
 use super::scanner::{Punctuator, ScanGoal, Scanner};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // ArrowFunction[In, Yield, Await] :
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]

@@ -1,11 +1,10 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::equality_operators::EqualityExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // BitwiseANDExpression[In, Yield, Await] :
 //      EqualityExpression[?In, ?Yield, ?Await]

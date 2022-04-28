@@ -1,7 +1,3 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::arrow_function_definitions::ArrowFunction;
 use super::async_arrow_function_definitions::AsyncArrowFunction;
 use super::conditional_operator::ConditionalExpression;
@@ -10,6 +6,9 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // AssignmentExpression[In, Yield, Await] :
 //      ConditionalExpression[?In, ?Yield, ?Await]

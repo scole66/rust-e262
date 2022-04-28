@@ -1,13 +1,12 @@
+use super::method_definitions::MethodType;
+use super::scanner::Scanner;
+use super::*;
+use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use ahash::AHashMap;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::rc::Rc;
-
-use super::method_definitions::MethodType;
-use super::scanner::Scanner;
-use super::*;
-use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 
 // ClassDeclaration[Yield, Await, Default] :
 //      class BindingIdentifier[?Yield, ?Await] ClassTail[?Yield, ?Await]

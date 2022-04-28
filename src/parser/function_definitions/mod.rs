@@ -1,13 +1,12 @@
-use std::fmt;
-use std::io::Result as IoResult;
-use std::io::Write;
-
 use super::block::StatementList;
 use super::identifiers::BindingIdentifier;
 use super::parameter_lists::FormalParameters;
 use super::scanner::{Keyword, Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
+use std::fmt;
+use std::io::Result as IoResult;
+use std::io::Write;
 
 // FunctionDeclaration[Yield, Await, Default] :
 //      function BindingIdentifier[?Yield, ?Await] ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
