@@ -437,13 +437,10 @@ impl CallableObject for BuiltInFunctionObject {
     //          | suspended and retained by an accessible generator object for later resumption.
     fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion {
         assert_eq!(self.id(), self_object.o.id());
-        let caller_context = agent.running_execution_context_mut().unwrap();
-        caller_context.suspend();
         let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
         let result = (self.builtin_data.borrow().steps)(agent, this_argument.clone(), None, arguments_list);
         agent.pop_execution_context();
-        agent.running_execution_context_mut().unwrap().resume();
 
         result
     }
@@ -461,13 +458,10 @@ impl ConstructableObject for BuiltInFunctionObject {
     //     newTarget provides the NewTarget value.
     fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion {
         assert_eq!(self.id(), self_object.o.id());
-        let caller_context = agent.running_execution_context_mut().unwrap();
-        caller_context.suspend();
         let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
         let result = (self.builtin_data.borrow().steps)(agent, ECMAScriptValue::Undefined, Some(new_target), arguments_list);
         agent.pop_execution_context();
-        agent.running_execution_context_mut().unwrap().resume();
 
         result
     }
@@ -515,7 +509,7 @@ pub fn create_builtin_function(
     prototype: Option<Object>,
     prefix: Option<JSString>,
 ) -> Object {
-    let realm_to_use = realm.unwrap_or_else(|| agent.running_execution_context().unwrap().realm.clone());
+    let realm_to_use = realm.unwrap_or_else(|| agent.current_realm_record().unwrap());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
     let func = BuiltInFunctionObject::object(agent, Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
     set_function_length(agent, &func, length);

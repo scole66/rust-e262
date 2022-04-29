@@ -1,9 +1,10 @@
 use super::environment_record::GlobalEnvironmentRecord;
 use super::execution_context::{get_global_object, ExecutionContext};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
-use super::realm::{create_realm, IntrinsicId};
+use super::realm::{create_realm, IntrinsicId, Realm};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // Agents
@@ -27,7 +28,7 @@ use std::rc::Rc;
 pub struct Agent {
     execution_context_stack: Vec<ExecutionContext>,
     pub symbols: WellKnownSymbols,
-    pub obj_id: usize,
+    obj_id: usize,
     pub symbol_id: usize,
 }
 
@@ -56,25 +57,11 @@ impl Agent {
         }
     }
 
-    pub fn running_execution_context(&self) -> Option<&ExecutionContext> {
-        let len = self.execution_context_stack.len();
-        if len > 0 {
-            Some(&self.execution_context_stack[len - 1])
-        } else {
-            None
+    pub fn active_function_object(&self) -> Option<Object> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].function.clone(),
         }
-    }
-    pub fn running_execution_context_mut(&mut self) -> Option<&mut ExecutionContext> {
-        let len = self.execution_context_stack.len();
-        if len > 0 {
-            Some(&mut self.execution_context_stack[len - 1])
-        } else {
-            None
-        }
-    }
-
-    pub fn active_function_object(&mut self) -> Option<Object> {
-        self.running_execution_context().and_then(|ec| ec.function.as_ref().cloned())
     }
 
     pub fn next_object_id(&mut self) -> usize {
@@ -118,8 +105,17 @@ impl Agent {
         .clone()
     }
 
+    pub fn current_realm_record(&self) -> Option<Rc<RefCell<Realm>>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => Some(self.execution_context_stack[n - 1].realm.clone()),
+        }
+    }
+
     pub fn intrinsic(&self, id: IntrinsicId) -> Object {
-        self.running_execution_context().unwrap().realm.borrow().intrinsics.get(id)
+        let realm_ref = self.current_realm_record().unwrap();
+        let realm = realm_ref.borrow();
+        realm.intrinsics.get(id)
     }
 
     // SetRealmGlobalObject ( realmRec, globalObj, thisValue )
@@ -142,11 +138,12 @@ impl Agent {
             ordinary_object_create(self, Some(object_proto), &[])
         });
         let tv = this_value.unwrap_or_else(|| go.clone());
-        let mut realm = self.running_execution_context().unwrap().realm.borrow_mut();
+        let realm_ref = self.current_realm_record().unwrap();
+        let mut realm = realm_ref.borrow_mut();
 
         realm.global_object = Some(go.clone());
         let new_global_env = GlobalEnvironmentRecord::new(go, tv);
-        realm.global_env = Some(new_global_env);
+        realm.global_env = Some(Rc::new(new_global_env));
     }
 
     // SetDefaultGlobalBindings ( realmRec )
@@ -185,10 +182,7 @@ impl Agent {
         // realm.[[GlobalEnv]].[[GlobalThisValue]].
         //
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
-        let gtv = {
-            let global_env = &self.running_execution_context().unwrap().realm.borrow().global_env;
-            global_env.as_ref().unwrap().get_this_binding()
-        };
+        let gtv = self.current_realm_record().unwrap().borrow().global_env.as_ref().unwrap().get_this_binding();
         global_data!("globalThis", gtv, true, false, true);
 
         // Infinity

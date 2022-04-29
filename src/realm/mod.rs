@@ -269,7 +269,7 @@ pub struct Realm {
     // testing, only one realm is ever made, so it's not a huge issue.)
     pub intrinsics: Intrinsics,
     pub global_object: Option<Object>,
-    pub global_env: Option<GlobalEnvironmentRecord>,
+    pub global_env: Option<Rc<GlobalEnvironmentRecord>>,
     // TemplateMap: later, when needed
 }
 
