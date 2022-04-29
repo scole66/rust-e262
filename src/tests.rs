@@ -7,7 +7,7 @@ use super::object::{
     PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
-use super::values::{ECMAScriptValue, PropertyKey};
+use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
@@ -481,4 +481,20 @@ impl AdaptableObject {
 // error
 pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
     Err(create_type_error(agent, "Test Sentinel"))
+}
+
+use crate::object::define_property_or_throw;
+use crate::realm::{create_realm, Realm};
+
+pub fn create_named_realm(agent: &mut Agent, name: &str) -> Rc<RefCell<Realm>> {
+    let r = create_realm(agent);
+    let op = r.borrow().intrinsics.get(IntrinsicId::ObjectPrototype);
+    define_property_or_throw(agent, &op, "name", PotentialPropertyDescriptor::new().value(name).writable(false).enumerable(false).configurable(false)).unwrap();
+
+    r
+}
+pub fn get_realm_name(agent: &mut Agent, realm: &Realm) -> String {
+    let op = realm.intrinsics.get(IntrinsicId::ObjectPrototype);
+    let name = get(agent, &op, &"name".into()).unwrap();
+    to_string(agent, name).unwrap().into()
 }

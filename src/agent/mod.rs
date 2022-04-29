@@ -72,23 +72,6 @@ impl Agent {
         }
     }
 
-    //pub fn running_execution_context(&self) -> Option<&ExecutionContext> {
-    //    let len = self.execution_context_stack.len();
-    //    if len > 0 {
-    //        Some(&self.execution_context_stack[len - 1])
-    //    } else {
-    //        None
-    //    }
-    //}
-    //pub fn running_execution_context_mut(&mut self) -> Option<&mut ExecutionContext> {
-    //    let len = self.execution_context_stack.len();
-    //    if len > 0 {
-    //        Some(&mut self.execution_context_stack[len - 1])
-    //    } else {
-    //        None
-    //    }
-    //}
-
     pub fn active_function_object(&self) -> Option<Object> {
         match self.execution_context_stack.len() {
             0 => None,
@@ -222,12 +205,9 @@ impl Agent {
         //
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
         let gtv = {
-            let global_env = {
-                let realm_ref = self.current_realm_record().unwrap();
-                let realm = realm_ref.borrow();
-                realm.global_env.as_ref().unwrap().clone()
-            };
-            global_env.get_this_binding(self).unwrap()
+            let rc_realm = self.current_realm_record().unwrap();
+            let realm_ref = rc_realm.borrow();
+            realm_ref.global_env.as_ref().unwrap().get_this_binding(self).unwrap()
         };
         global_data!("globalThis", gtv, true, false, true);
 

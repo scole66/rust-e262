@@ -1,5 +1,7 @@
 use super::*;
+use crate::parser::testhelp::Maker;
 use crate::tests::test_agent;
+use crate::tests::{create_named_realm, get_realm_name};
 use ahash::AHashSet;
 
 #[test]
@@ -37,62 +39,21 @@ fn agent_new() {
     assert_eq!(agent.symbol_id, num_symbols + 1);
 }
 
-//#[test]
-//fn agent_running_execution_context() {
-//    let mut agent = Agent::new();
-//
-//    let r1 = agent.running_execution_context();
-//    assert!(r1.is_none());
-//
-//    agent.initialize_host_defined_realm();
-//
-//    let r2 = agent.running_execution_context().unwrap();
-//    // the initial context has no "script_or_module" value...
-//    assert!(r2.script_or_module.is_none());
-//
-//    // build a new EC, and add it to the EC stack
-//    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r2.realm.clone())))));
-//    agent.push_execution_context(test_ec);
-//
-//    // Then get it back and check its script_or_module to ensure we got the new one.
-//    let r3 = agent.running_execution_context().unwrap();
-//    assert!(r3.script_or_module.is_some());
-//}
-//#[test]
-//fn agent_running_execution_context_mut() {
-//    let mut agent = Agent::new();
-//
-//    let r1 = agent.running_execution_context_mut();
-//    assert!(r1.is_none());
-//
-//    agent.initialize_host_defined_realm();
-//
-//    let r2 = agent.running_execution_context_mut().unwrap();
-//    // the initial context has no "script_or_module" value...
-//    assert!(r2.script_or_module.is_none());
-//
-//    // build a new EC, and add it to the EC stack
-//    let test_ec = ExecutionContext::new(None, r2.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r2.realm.clone())))));
-//    agent.push_execution_context(test_ec);
-//
-//    // Then get it back and check its script_or_module to ensure we got the new one.
-//    let r3 = agent.running_execution_context_mut().unwrap();
-//    assert!(r3.script_or_module.is_some());
-//}
-//#[test]
-//fn agent_pop_execution_context() {
-//    let mut agent = Agent::new();
-//    agent.initialize_host_defined_realm();
-//    let r1 = agent.running_execution_context().unwrap();
-//    // build a new EC, and add it to the EC stack
-//    let test_ec = ExecutionContext::new(None, r1.realm.clone(), Some(ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(r1.realm.clone())))));
-//    agent.push_execution_context(test_ec);
-//    // now pop it.
-//    agent.pop_execution_context();
-//    // And verify the one on top has no script_or_module value
-//    let r = agent.running_execution_context().unwrap();
-//    assert!(r.script_or_module.is_none());
-//}
+#[test]
+fn agent_pop_execution_context() {
+    let mut agent = Agent::new();
+    agent.initialize_host_defined_realm();
+    let realm_ref = agent.current_realm_record().unwrap();
+    // build a new EC, and add it to the EC stack
+    let sr = ScriptRecord { realm: realm_ref.clone(), ecmascript_code: Maker::new("").script(), compiled: Rc::new(Chunk::new("test")) };
+    let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
+    agent.push_execution_context(test_ec);
+    // now pop it.
+    agent.pop_execution_context();
+    // And verify the one on top has no script_or_module value
+    let r = &agent.execution_context_stack[agent.execution_context_stack.len() - 1];
+    assert!(r.script_or_module.is_none());
+}
 #[test]
 fn agent_active_function_object() {
     let mut agent = Agent::new();
@@ -196,5 +157,36 @@ fn wks_descriptions() {
     for (id, expected) in symbols.iter().zip(descriptions) {
         let desc = agent.wks(*id).description().unwrap();
         assert_eq!(desc, JSString::from(expected));
+    }
+}
+
+mod current_realm_record {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let a = Agent::new();
+        let realm = a.current_realm_record();
+
+        assert!(realm.is_none());
+    }
+    #[test]
+    fn stacked() {
+        let mut a = Agent::new();
+        let first_realm = create_named_realm(&mut a, "first");
+        let first_context = ExecutionContext::new(None, first_realm, None);
+        a.push_execution_context(first_context);
+
+        let second_realm = create_named_realm(&mut a, "second");
+        let second_context = ExecutionContext::new(None, second_realm, None);
+        a.push_execution_context(second_context);
+
+        let current = a.current_realm_record().unwrap();
+        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "second");
+
+        a.pop_execution_context();
+
+        let current = a.current_realm_record().unwrap();
+        assert_eq!(get_realm_name(&mut a, &*current.borrow()), "first");
     }
 }
