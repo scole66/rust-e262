@@ -2,9 +2,21 @@ use super::chunk::Chunk;
 use super::parser::additive_operators::*;
 use super::parser::assignment_operators::*;
 use super::parser::binary_bitwise_operators::*;
+use super::parser::binary_logical_operators::*;
+use super::parser::bitwise_shift_operators::*;
 use super::parser::block::*;
+use super::parser::comma_operator::*;
+use super::parser::conditional_operator::*;
+use super::parser::equality_operators::*;
+use super::parser::exponentiation_operator::*;
+use super::parser::expression_statement::*;
 use super::parser::identifiers::*;
+use super::parser::left_hand_side_expressions::*;
+use super::parser::multiplicative_operators::*;
 use super::parser::primary_expressions::*;
+use super::parser::relational_operators::*;
+use super::parser::unary_operators::*;
+use super::parser::update_expressions::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
@@ -44,26 +56,6 @@ impl fmt::Display for Insn {
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
         })
-    }
-}
-
-impl AdditiveExpression {
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
-            _ => todo!(),
-        }
-    }
-}
-
-impl AssignmentExpression {
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict),
-            _ => todo!(),
-        }
     }
 }
 
@@ -161,6 +153,105 @@ impl Literal {
     }
 }
 
+impl MemberExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(pe) => pe.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl NewExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(me) => me.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl LeftHandSideExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            LeftHandSideExpression::New(ne) => ne.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl UpdateExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl UnaryExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl ExponentiationExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl MultiplicativeExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl AdditiveExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl ShiftExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            ShiftExpression::AdditiveExpression(ae) => ae.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl RelationalExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl EqualityExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            EqualityExpression::RelationalExpression(re) => re.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
 impl BitwiseANDExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match self {
@@ -185,6 +276,70 @@ impl BitwiseORExpression {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict),
             _ => todo!(),
         }
+    }
+}
+
+impl LogicalANDExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl LogicalORExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl ShortCircuitExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl ConditionalExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl AssignmentExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl Expression {
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            Expression::FallThru(ae) => ae.compile(chunk, strict),
+            Expression::Comma(e, ae) => todo!(),
+        }
+    }
+}
+
+impl ExpressionStatement {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        let ExpressionStatement::Expression(node) = self;
+        node.compile(chunk, strict)?;
+        chunk.op(Insn::GetValue);
+        Ok(())
     }
 }
 

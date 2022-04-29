@@ -2,9 +2,7 @@ use super::assignment_operators::AssignmentExpression;
 use super::binary_logical_operators::ShortCircuitExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -160,14 +158,6 @@ impl ConditionalExpression {
         match &self {
             ConditionalExpression::Conditional(_, _, _) => ATTKind::Invalid,
             ConditionalExpression::FallThru(node) => node.assignment_target_type(strict),
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }

@@ -1,9 +1,7 @@
 use super::binary_bitwise_operators::BitwiseORExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -153,14 +151,6 @@ impl LogicalANDExpression {
             LogicalANDExpression::BitwiseORExpression(node) => node.assignment_target_type(strict),
         }
     }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict),
-            _ => todo!(),
-        }
-    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -306,14 +296,6 @@ impl LogicalORExpression {
         match &self {
             LogicalORExpression::LogicalOR(_, _) => ATTKind::Invalid,
             LogicalORExpression::LogicalANDExpression(node) => node.assignment_target_type(strict),
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }
@@ -639,14 +621,6 @@ impl ShortCircuitExpression {
         match &self {
             ShortCircuitExpression::CoalesceExpression(_) => ATTKind::Invalid,
             ShortCircuitExpression::LogicalORExpression(node) => node.assignment_target_type(strict),
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }

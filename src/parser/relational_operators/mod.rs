@@ -1,9 +1,7 @@
 use super::bitwise_shift_operators::ShiftExpression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -259,14 +257,6 @@ impl RelationalExpression {
         match self {
             RelationalExpression::ShiftExpression(se) => se.assignment_target_type(strict),
             _ => ATTKind::Invalid,
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }

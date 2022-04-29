@@ -1,9 +1,7 @@
 use super::additive_operators::AdditiveExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -175,14 +173,6 @@ impl ShiftExpression {
         match self {
             ShiftExpression::AdditiveExpression(child) => child.assignment_target_type(strict),
             _ => ATTKind::Invalid,
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            ShiftExpression::AdditiveExpression(ae) => ae.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }

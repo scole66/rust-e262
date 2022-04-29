@@ -2,9 +2,7 @@ use super::left_hand_side_expressions::LeftHandSideExpression;
 use super::scanner::{Punctuator, ScanGoal, Scanner, StringToken};
 use super::unary_operators::UnaryExpression;
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -227,14 +225,6 @@ impl UpdateExpression {
         match self {
             UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(strict),
             UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
-        }
-    }
-
-    #[allow(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        match self {
-            UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict),
-            _ => todo!(),
         }
     }
 }

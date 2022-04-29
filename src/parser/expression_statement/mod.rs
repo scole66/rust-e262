@@ -1,10 +1,7 @@
 use super::comma_operator::Expression;
 use super::scanner::{scan_token, Keyword, Punctuator, ScanGoal, Scanner, StringToken, Token};
 use super::*;
-use crate::chunk::Chunk;
-use crate::compiler::Insn;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use anyhow;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -115,13 +112,6 @@ impl ExpressionStatement {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let ExpressionStatement::Expression(node) = self;
         node.early_errors(agent, errs, strict);
-    }
-
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        let ExpressionStatement::Expression(node) = self;
-        node.compile(chunk, strict)?;
-        chunk.op(Insn::GetValue);
-        Ok(())
     }
 }
 
