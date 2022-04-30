@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AltCompletion, Completion};
+use super::cr::Completion;
 use super::environment_record::EnvironmentRecord;
 use super::execution_context::ExecutionContext;
 use super::object::{
@@ -68,11 +68,11 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
 }
 
 pub trait CallableObject: ObjectInterface {
-    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion;
+    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue>;
 }
 
 pub trait ConstructableObject: CallableObject {
-    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion;
+    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion<ECMAScriptValue>;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -96,43 +96,43 @@ impl ObjectInterface for FunctionObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
-    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
-    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(agent, self))
     }
 }
 
 impl CallableObject for FunctionObject {
-    fn call(&self, _agent: &mut Agent, _self_object: &Object, _this_argument: &ECMAScriptValue, _arguments_list: &[ECMAScriptValue]) -> Completion {
+    fn call(&self, _agent: &mut Agent, _self_object: &Object, _this_argument: &ECMAScriptValue, _arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         todo!()
     }
 }
@@ -273,7 +273,7 @@ impl From<JSString> for FunctionName {
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+    pub steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     pub is_constructor: bool,
 }
 
@@ -287,7 +287,7 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Self {
         Self { realm, initial_name, steps, is_constructor }
@@ -319,7 +319,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Rc<Self> {
         Rc::new(Self {
@@ -334,7 +334,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+        steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         is_constructor: bool,
     ) -> Object {
         Object { o: Self::new(agent, prototype, extensible, realm, initial_name, steps, is_constructor) }
@@ -376,37 +376,37 @@ impl ObjectInterface for BuiltInFunctionObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
-    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
-    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(agent, self))
     }
 }
@@ -435,7 +435,7 @@ impl CallableObject for BuiltInFunctionObject {
     //
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
-    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion {
+    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         assert_eq!(self.id(), self_object.o.id());
         let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
@@ -456,7 +456,7 @@ impl ConstructableObject for BuiltInFunctionObject {
     // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
-    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion {
+    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion<ECMAScriptValue> {
         assert_eq!(self.id(), self_object.o.id());
         let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
@@ -500,7 +500,7 @@ impl ConstructableObject for BuiltInFunctionObject {
 #[allow(clippy::too_many_arguments)]
 pub fn create_builtin_function(
     agent: &mut Agent,
-    behavior: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion,
+    behavior: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     is_constructor: bool,
     length: f64,
     name: PropertyKey,

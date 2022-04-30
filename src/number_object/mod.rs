@@ -1,6 +1,6 @@
 use super::agent::Agent;
 use super::comparison::is_integral_number;
-use super::cr::{AltCompletion, Completion};
+use super::cr::Completion;
 use super::dtoa_r::{dtoa, dtoa_fixed, dtoa_precise};
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::{create_builtin_function, Arguments};
@@ -48,7 +48,7 @@ impl ObjectInterface for NumberObject {
         true
     }
 
-    fn get_prototype_of(&self, _agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, _agent: &mut Agent) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
 
@@ -58,7 +58,7 @@ impl ObjectInterface for NumberObject {
     // the following steps when called:
     //
     //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, _agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self, obj))
     }
 
@@ -68,7 +68,7 @@ impl ObjectInterface for NumberObject {
     // when called:
     //
     //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_is_extensible(self))
     }
 
@@ -78,7 +78,7 @@ impl ObjectInterface for NumberObject {
     // steps when called:
     //
     //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self, _agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, _agent: &mut Agent) -> Completion<bool> {
         Ok(ordinary_prevent_extensions(self))
     }
 
@@ -88,7 +88,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
 
@@ -98,7 +98,7 @@ impl ObjectInterface for NumberObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -108,7 +108,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_has_property(agent, self, key)
     }
 
@@ -118,7 +118,7 @@ impl ObjectInterface for NumberObject {
     // ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
 
@@ -128,7 +128,7 @@ impl ObjectInterface for NumberObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -138,7 +138,7 @@ impl ObjectInterface for NumberObject {
     // following steps when called:
     //
     //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         ordinary_delete(agent, self, key)
     }
 
@@ -148,7 +148,7 @@ impl ObjectInterface for NumberObject {
     // steps when called:
     //
     // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(agent, self))
     }
 }
@@ -362,7 +362,7 @@ pub fn create_number_object(agent: &mut Agent, n: f64) -> Object {
 //      4. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%Number.prototype%", « [[NumberData]] »).
 //      5. Set O.[[NumberData]] to n.
 //      6. Return O.
-fn number_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let n = if args.count() >= 1 {
         let value = args.next_arg();
@@ -392,7 +392,7 @@ fn number_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
 //      1. If Type(number) is not Number, return false.
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
-fn number_is_finite(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_finite(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
@@ -406,7 +406,7 @@ fn number_is_finite(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_targe
 // When Number.isInteger is called with one argument number, the following steps are taken:
 //
 //      1. Return ! IsIntegralNumber(number).
-fn number_is_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(is_integral_number(&number)))
@@ -422,7 +422,7 @@ fn number_is_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_targ
 //
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
-fn number_is_nan(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_nan(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
@@ -438,7 +438,7 @@ fn number_is_nan(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: 
 //      1. If ! IsIntegralNumber(number) is true, then
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
-fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let number = args.next_arg();
     Ok(ECMAScriptValue::from(match number {
@@ -458,7 +458,7 @@ fn number_is_safe_integer(_agent: &mut Agent, _this_value: ECMAScriptValue, _new
 //
 // The phrase “this Number value” within the specification of a method refers to the result returned by calling the
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
-fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<f64> {
+fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> Completion<f64> {
     match value {
         ECMAScriptValue::Number(x) => Ok(x),
         ECMAScriptValue::Object(o) if o.o.is_number_object() => {
@@ -528,7 +528,7 @@ fn this_number_value(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion
 //             small as possible. If there are multiple possibilities for n, choose the value of n for which 𝔽(n × 10e
 //             - f) is closest in value to 𝔽(x). If there are two such possible values of n, choose the one that is
 //             even.
-fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let fraction_digits = args.next_arg();
 
@@ -633,7 +633,7 @@ fn number_prototype_to_exponential(agent: &mut Agent, this_value: ECMAScriptValu
 //                  (1000000000000000128).toString() returns "1000000000000000100", while
 //                  (1000000000000000128).toFixed(0) returns "1000000000000000128".
 //
-fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let fraction_digits = args.next_arg();
     let value = this_number_value(agent, this_value)?;
@@ -704,7 +704,7 @@ fn number_prototype_to_fixed(agent: &mut Agent, this_value: ECMAScriptValue, _ne
 //
 // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
 // that do not include ECMA-402 support must not use those parameter positions for anything else.
-fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     number_prototype_to_string(agent, this_value, new_target, &[]) // Don't send the args along, because reserved1 & 2 are not meaningful
 }
 
@@ -756,7 +756,7 @@ fn number_prototype_to_locale_string(agent: &mut Agent, this_value: ECMAScriptVa
 //      a. Set m to the string-concatenation of the code unit 0x0030 (DIGIT ZERO), the code unit 0x002E (FULL STOP),
 //         -(e + 1) occurrences of the code unit 0x0030 (DIGIT ZERO), and the String m.
 //  14. Return the string-concatenation of s and m.
-fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_precision(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let precision = args.next_arg();
     let value = this_number_value(agent, this_value)?;
@@ -992,7 +992,7 @@ pub fn double_to_radix_string(val: f64, radix: i32) -> String {
 // object. Therefore, it cannot be transferred to other kinds of objects for use as a method.
 //
 // The "length" property of the toString method is 1𝔽.
-fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let radix = args.next_arg();
     let x = this_number_value(agent, this_value)?;
@@ -1011,7 +1011,7 @@ fn number_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _n
 
 // Number.prototype.valueOf ( )
 //  1. Return ? thisNumberValue(this value).
-fn number_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+fn number_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     this_number_value(agent, this_value).map(ECMAScriptValue::Number)
 }
 

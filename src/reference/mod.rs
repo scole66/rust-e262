@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AltCompletion, Completion};
+use super::cr::{Completion, FullCompletion, NormalCompletion};
 use super::environment_record::EnvironmentRecord;
 use super::errors::{create_reference_error, create_type_error};
 use super::execution_context::get_global_object;
@@ -41,14 +41,25 @@ use std::rc::Rc;
 // |                    |                              | Reference Record was created.                                 |
 // +--------------------+------------------------------+---------------------------------------------------------------+
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Base {
     Unresolvable,
     Environment(Rc<dyn EnvironmentRecord>),
     Value(ECMAScriptValue),
 }
 
-#[derive(Debug, PartialEq)]
+impl PartialEq for Base {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Environment(left), Self::Environment(right)) => Rc::ptr_eq(left, right),
+            (Self::Value(left), Self::Value(right)) => left == right,
+            (Self::Unresolvable, Self::Unresolvable) => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum ReferencedName {
     String(JSString),
     Symbol(Symbol),
@@ -100,7 +111,7 @@ impl TryFrom<ReferencedName> for JSString {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Reference {
     pub base: Base,
     pub referenced_name: ReferencedName,
@@ -208,11 +219,11 @@ impl From<Reference> for SuperValue {
         Self::Reference(src)
     }
 }
-pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> Completion {
+pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
     let v = v_completion?;
     match v {
-        SuperValue::Value(val) => Ok(val),
-        SuperValue::Reference(reference) => match &reference.base {
+        NormalCompletion::Value(val) => Ok(val),
+        NormalCompletion::Reference(reference) => match &reference.base {
             Base::Value(val) => {
                 let base_obj = to_object(agent, val.clone())?;
                 match &reference.referenced_name {
@@ -226,6 +237,7 @@ pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> 
             Base::Unresolvable => Err(create_reference_error(agent, "Unresolvable Reference")),
             Base::Environment(env) => env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict),
         },
+        NormalCompletion::Empty => Err(create_reference_error(agent, "Unresolvable Reference")),
     }
 }
 
@@ -255,12 +267,12 @@ pub fn get_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>) -> 
 // NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
+pub fn put_value(agent: &mut Agent, v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
-        SuperValue::Value(_) => Err(create_reference_error(agent, "Invalid Reference")),
-        SuperValue::Reference(r) => match &r.base {
+        NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error(agent, "Invalid Reference")),
+        NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {
                 if r.strict {
                     Err(create_reference_error(agent, "Unknown reference"))
@@ -303,11 +315,11 @@ pub fn put_value(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_c
 //  5. Let base be V.[[Base]].
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
-pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: AltCompletion<SuperValue>, w_completion: Completion) -> AltCompletion<()> {
+pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
-        SuperValue::Reference(reference) => match &reference.base {
+        NormalCompletion::Reference(reference) => match &reference.base {
             Base::Environment(base) => base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w),
             _ => unreachable!(),
         },

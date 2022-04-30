@@ -387,7 +387,7 @@ pub fn add_restricted_function_properties(agent: &mut Agent, f: &Object, realm: 
 //
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
-fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+fn throw_type_error(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     Err(create_type_error(agent, "Generic TypeError"))
 }
 

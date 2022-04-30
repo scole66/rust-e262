@@ -307,7 +307,7 @@ mod get_value {
     fn simple_value() {
         let mut agent = test_agent();
         let val = ECMAScriptValue::from("a value");
-        let result = get_value(&mut agent, Ok(SuperValue::from(val))).unwrap();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(val))).unwrap();
         assert_eq!(result, ECMAScriptValue::from("a value"));
     }
 
@@ -315,7 +315,7 @@ mod get_value {
     fn unresolvable() {
         let mut agent = test_agent();
         let badref = Reference::new(Base::Unresolvable, "no_ref", true, None);
-        let result = get_value(&mut agent, Ok(SuperValue::from(badref))).unwrap_err();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(badref))).unwrap_err();
         assert_eq!(unwind_reference_error(&mut agent, result), "Unresolvable Reference");
     }
     #[test]
@@ -328,14 +328,14 @@ mod get_value {
         define_property_or_throw(&mut agent, &normal_object, PropertyKey::from("test_value"), descriptor).unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), "test_value", true, None);
 
-        let result = get_value(&mut agent, Ok(SuperValue::from(reference))).unwrap();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(reference))).unwrap();
         assert_eq!(result, value);
     }
     #[test]
     fn to_object_err() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "test_value", true, None);
-        let result = get_value(&mut agent, Ok(SuperValue::from(reference))).unwrap_err();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(reference))).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, result), "Undefined and null cannot be converted to objects");
     }
     #[test]
@@ -347,7 +347,7 @@ mod get_value {
         let value = ECMAScriptValue::from("test value for private identifier");
         private_field_add(&mut agent, &normal_object, pn.clone(), value.clone()).unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), pn, true, None);
-        let result = get_value(&mut agent, Ok(SuperValue::from(reference))).unwrap();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(reference))).unwrap();
         assert_eq!(result, value);
     }
     #[test]
@@ -362,7 +362,7 @@ mod get_value {
         env.initialize_binding(&mut agent, &JSString::from("test_var"), value.clone()).unwrap();
         let reference = Reference::new(Base::Environment(Rc::new(env)), "test_var", true, None);
 
-        let result = get_value(&mut agent, Ok(SuperValue::from(reference))).unwrap();
+        let result = get_value(&mut agent, Ok(NormalCompletion::from(reference))).unwrap();
         assert_eq!(result, value);
     }
 }
@@ -385,14 +385,14 @@ mod put_value {
         let mut agent = test_agent();
         let v = ECMAScriptValue::Undefined;
         let w = create_type_error(&mut agent, "Error in W");
-        let result = put_value(&mut agent, Ok(SuperValue::from(v)), Err(w)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(v)), Err(w)).unwrap_err();
 
         assert_eq!(unwind_type_error(&mut agent, result), "Error in W");
     }
     #[test]
     fn bad_lhs() {
         let mut agent = test_agent();
-        let result = put_value(&mut agent, Ok(SuperValue::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined)).unwrap_err();
 
         assert_eq!(unwind_reference_error(&mut agent, result), "Invalid Reference");
     }
@@ -400,7 +400,7 @@ mod put_value {
     fn unresolvable_strict() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Unresolvable, "blue", true, None);
-        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap_err();
         assert_eq!(unwind_reference_error(&mut agent, result), "Unknown reference");
     }
     #[test]
@@ -408,7 +408,7 @@ mod put_value {
         let mut agent = test_agent();
         let value = ECMAScriptValue::from("Test Value for Unresolvable, non-strict writes");
         let reference = Reference::new(Base::Unresolvable, "blue", false, None);
-        put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
+        put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
         let global = get_global_object(&agent).unwrap();
         let from_global = get(&mut agent, &global, &PropertyKey::from("blue")).unwrap();
         assert_eq!(from_global, value);
@@ -428,7 +428,7 @@ mod put_value {
         )
         .unwrap();
 
-        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value)).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
     }
     #[test]
@@ -441,7 +441,7 @@ mod put_value {
         private_field_add(&mut agent, &normal_object, pn.clone(), ECMAScriptValue::Undefined).unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), pn.clone(), true, None);
 
-        put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
+        put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_private = private_get(&mut agent, &normal_object, &pn).unwrap();
         assert_eq!(from_private, value);
@@ -451,7 +451,7 @@ mod put_value {
     fn bad_value() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "test", true, None);
-        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Null)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Null)).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, result), "Undefined and null cannot be converted to objects");
     }
     #[test]
@@ -463,7 +463,7 @@ mod put_value {
         let key = PropertyKey::from("phrase");
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), true, None);
 
-        put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
+        put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_object = get(&mut agent, &normal_object, &key).unwrap();
         assert_eq!(from_object, value);
@@ -485,7 +485,7 @@ mod put_value {
         )
         .unwrap();
 
-        let result = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value)).unwrap_err();
+        let result = put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value)).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
     }
     #[test_case(false => Ok(()); "non-strict")]
@@ -505,7 +505,7 @@ mod put_value {
         .unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), strict, None);
 
-        let r = put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value)).map_err(|ac| unwind_type_error(&mut agent, ac));
+        let r = put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value)).map_err(|ac| unwind_type_error(&mut agent, ac));
 
         let from_obj = get(&mut agent, &normal_object, &key).unwrap();
         assert_eq!(from_obj, ECMAScriptValue::Undefined);
@@ -522,7 +522,7 @@ mod put_value {
         der.initialize_binding(&mut agent, &key, ECMAScriptValue::Undefined).unwrap();
         let reference = Reference::new(Base::Environment(der.clone()), key.clone(), true, None);
 
-        put_value(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
+        put_value(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_env = der.get_binding_value(&mut agent, &key, true).unwrap();
         assert_eq!(from_env, value);
@@ -546,7 +546,7 @@ mod initialize_referenced_binding {
         let mut agent = test_agent();
         let v = ECMAScriptValue::Undefined;
         let w = create_type_error(&mut agent, "Error in W");
-        let result = initialize_referenced_binding(&mut agent, Ok(SuperValue::from(v)), Err(w)).unwrap_err();
+        let result = initialize_referenced_binding(&mut agent, Ok(NormalCompletion::from(v)), Err(w)).unwrap_err();
 
         assert_eq!(unwind_type_error(&mut agent, result), "Error in W");
     }
@@ -559,7 +559,7 @@ mod initialize_referenced_binding {
         let reference = Reference::new(Base::Environment(env.clone()), key.clone(), true, None);
         let value = ECMAScriptValue::from("There was so much to read, for one thing,");
 
-        initialize_referenced_binding(&mut agent, Ok(SuperValue::from(reference)), Ok(value.clone())).unwrap();
+        initialize_referenced_binding(&mut agent, Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_env = env.get_binding_value(&mut agent, &key, true).unwrap();
         assert_eq!(from_env, value);
@@ -569,19 +569,19 @@ mod initialize_referenced_binding {
     fn value_ref() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "phrase", true, None);
-        initialize_referenced_binding(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
+        initialize_referenced_binding(&mut agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
     }
     #[test]
     #[should_panic(expected = "unreachable code")]
     fn unresolveable_ref() {
         let mut agent = test_agent();
         let reference = Reference::new(Base::Unresolvable, "phrase", true, None);
-        initialize_referenced_binding(&mut agent, Ok(SuperValue::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
+        initialize_referenced_binding(&mut agent, Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::Undefined)).unwrap();
     }
     #[test]
     #[should_panic(expected = "unreachable code")]
     fn value() {
         let mut agent = test_agent();
-        initialize_referenced_binding(&mut agent, Ok(SuperValue::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined)).unwrap();
+        initialize_referenced_binding(&mut agent, Ok(NormalCompletion::from(ECMAScriptValue::Undefined)), Ok(ECMAScriptValue::Undefined)).unwrap();
     }
 }

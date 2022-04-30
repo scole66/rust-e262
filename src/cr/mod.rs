@@ -3,49 +3,47 @@ use crate::strings::JSString;
 use crate::values::ECMAScriptValue;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CompletionInfo {
-    pub value: Option<ECMAScriptValue>,
-    pub target: Option<JSString>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AbruptCompletion {
-    Break(CompletionInfo),
-    Continue(CompletionInfo),
-    Return(CompletionInfo),
-    Throw(CompletionInfo),
-}
-
-pub type Completion = Result<ECMAScriptValue, AbruptCompletion>;
-pub type AltCompletion<T> = Result<T, AbruptCompletion>;
-
 pub enum NormalCompletion {
     Empty,
     Value(ECMAScriptValue),
     Reference(Box<Reference>),
 }
-pub enum AbruptCompletion2 {
+#[derive(Clone, Debug, PartialEq)]
+pub enum AbruptCompletion {
     Break { value: Option<ECMAScriptValue>, target: Option<JSString> },
     Continue { value: Option<ECMAScriptValue>, target: Option<JSString> },
     Return { value: ECMAScriptValue },
     Throw { value: ECMAScriptValue },
 }
 
-pub type Completion2 = Result<NormalCompletion, AbruptCompletion2>;
+pub type Completion<T> = Result<T, AbruptCompletion>;
+pub type FullCompletion = Completion<NormalCompletion>;
 
-pub fn update_empty(completion_record: Completion2, old_value: Option<ECMAScriptValue>) -> Completion2 {
+impl From<ECMAScriptValue> for NormalCompletion {
+    fn from(src: ECMAScriptValue) -> Self {
+        Self::Value(src)
+    }
+}
+
+impl From<Reference> for NormalCompletion {
+    fn from(src: Reference) -> Self {
+        Self::Reference(Box::new(src))
+    }
+}
+
+pub fn update_empty(completion_record: FullCompletion, old_value: Option<ECMAScriptValue>) -> FullCompletion {
     match completion_record {
         Ok(NormalCompletion::Empty) => match old_value {
             None => Ok(NormalCompletion::Empty),
             Some(v) => Ok(NormalCompletion::Value(v)),
         },
         Ok(_)
-        | Err(AbruptCompletion2::Return { .. })
-        | Err(AbruptCompletion2::Throw { .. })
-        | Err(AbruptCompletion2::Break { value: Some(_), .. })
-        | Err(AbruptCompletion2::Continue { value: Some(_), .. }) => completion_record,
-        Err(AbruptCompletion2::Break { value: None, target }) => Err(AbruptCompletion2::Break { value: old_value, target }),
-        Err(AbruptCompletion2::Continue { value: None, target }) => Err(AbruptCompletion2::Continue { value: old_value, target }),
+        | Err(AbruptCompletion::Return { .. })
+        | Err(AbruptCompletion::Throw { .. })
+        | Err(AbruptCompletion::Break { value: Some(_), .. })
+        | Err(AbruptCompletion::Continue { value: Some(_), .. }) => completion_record,
+        Err(AbruptCompletion::Break { value: None, target }) => Err(AbruptCompletion::Break { value: old_value, target }),
+        Err(AbruptCompletion::Continue { value: None, target }) => Err(AbruptCompletion::Continue { value: old_value, target }),
     }
 }
 

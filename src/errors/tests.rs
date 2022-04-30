@@ -36,10 +36,8 @@ fn create_type_error_01() {
     let mut agent = test_agent();
 
     let result = create_type_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
@@ -65,10 +63,8 @@ fn create_eval_error_01() {
     let mut agent = test_agent();
 
     let result = create_eval_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
@@ -94,10 +90,8 @@ fn create_reference_error_01() {
     let mut agent = test_agent();
 
     let result = create_reference_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
@@ -123,10 +117,8 @@ fn create_range_error_01() {
     let mut agent = test_agent();
 
     let result = create_range_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
@@ -152,10 +144,8 @@ fn create_syntax_error_01() {
     let mut agent = test_agent();
 
     let result = create_syntax_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
@@ -181,10 +171,8 @@ fn create_uri_error_01() {
     let mut agent = test_agent();
 
     let result = create_uri_error(&mut agent, "A");
-    assert!(matches!(result, AbruptCompletion::Throw(_)));
-    if let AbruptCompletion::Throw(ci) = result {
-        assert!(ci.target.is_none());
-        let objval = ci.value.unwrap();
+    assert!(matches!(result, AbruptCompletion::Throw { .. }));
+    if let AbruptCompletion::Throw { value: objval } = result {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());

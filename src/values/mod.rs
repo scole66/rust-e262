@@ -1,7 +1,7 @@
 use super::agent::{Agent, WksId};
 use super::bigint_object::create_bigint_object;
 use super::boolean_object::create_boolean_object;
-use super::cr::{AltCompletion, Completion};
+use super::cr::Completion;
 use super::dtoa_r::dtoa;
 use super::errors::{create_range_error, create_type_error};
 use super::number_object::create_number_object;
@@ -72,7 +72,7 @@ impl ECMAScriptValue {
     //      b. Let target be argument.[[ProxyTarget]].
     //      c. Return ? IsArray(target).
     //  4. Return false.
-    pub fn is_array(&self, agent: &mut Agent) -> AltCompletion<bool> {
+    pub fn is_array(&self, agent: &mut Agent) -> Completion<bool> {
         match self {
             ECMAScriptValue::Object(obj) => obj.is_array(agent),
             _ => Ok(false),
@@ -514,7 +514,7 @@ pub enum ConversionHint {
     String,
     Number,
 }
-pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHint) -> Completion {
+pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
     let method_names = match hint {
         ConversionHint::String => vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")],
         ConversionHint::Number => vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")],
@@ -557,7 +557,7 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
 //          objects may over-ride this behaviour by defining a @@toPrimitive method. Of the objects defined in this
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
-pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion {
+pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
         let exotic_to_prim = get_method(agent, &input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
@@ -629,7 +629,7 @@ pub enum Numeric {
     Number(f64),
     BigInt(Rc<BigInt>),
 }
-pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Numeric> {
+pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> Completion<Numeric> {
     let prim_value = to_primitive(agent, value, Some(ConversionHint::Number))?;
     if let ECMAScriptValue::BigInt(bi) = prim_value {
         Ok(Numeric::BigInt(bi))
@@ -665,7 +665,7 @@ pub fn to_numeric(agent: &mut Agent, value: ECMAScriptValue) -> AltCompletion<Nu
 // |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
 // |               |     2. Return ? ToNumber(primValue).                              |
 // +---------------+-------------------------------------------------------------------+
-pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> Completion<f64> {
     match value.into() {
         ECMAScriptValue::Undefined => Ok(f64::NAN),
         ECMAScriptValue::Null => Ok(0_f64),
@@ -731,7 +731,7 @@ fn string_to_number(string: JSString) -> f64 {
 //  5. Let integer be floor(abs(ℝ(number))).
 //  6. If number < +0𝔽, set integer to -integer.
 //  7. Return integer.
-pub fn to_integer_or_infinity(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+pub fn to_integer_or_infinity(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     let number = to_number(agent, argument)?;
     if number.is_nan() || number == 0.0 {
         Ok(0.0)
@@ -765,7 +765,7 @@ pub fn to_integer_or_infinity(agent: &mut Agent, argument: impl Into<ECMAScriptV
 //      | * ToInt32(ToUint32(x)) is the same value as ToInt32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToInt32 maps -0𝔽 to +0𝔽.
-fn to_core_int(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+fn to_core_int(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     Ok({
         let number = to_number(agent, argument)?;
         if !number.is_finite() || number == 0.0 {
@@ -776,7 +776,7 @@ fn to_core_int(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptVal
         }
     })
 }
-fn to_core_signed(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> AltCompletion<f64> {
+fn to_core_signed(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     Ok({
         let intval = to_core_int(agent, modulo, argument)?;
         if intval >= modulo / 2.0 {
@@ -786,7 +786,7 @@ fn to_core_signed(agent: &mut Agent, modulo: f64, argument: impl Into<ECMAScript
         }
     })
 }
-pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i32> {
+pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i32> {
     Ok(to_core_signed(agent, 4294967296.0, argument)? as i32)
 }
 
@@ -809,7 +809,7 @@ pub fn to_int32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltC
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
-pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u32> {
+pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u32> {
     Ok(to_core_int(agent, 4294967296.0, argument)? as u32)
 }
 
@@ -823,7 +823,7 @@ pub fn to_uint32(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Alt
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
-pub fn to_int16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i16> {
+pub fn to_int16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i16> {
     Ok(to_core_signed(agent, 65536.0, argument)? as i16)
 }
 
@@ -842,7 +842,7 @@ pub fn to_int16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltC
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
-pub fn to_uint16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u16> {
+pub fn to_uint16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u16> {
     Ok(to_core_int(agent, 65536.0, argument)? as u16)
 }
 
@@ -856,7 +856,7 @@ pub fn to_uint16(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Alt
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
-pub fn to_int8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i8> {
+pub fn to_int8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i8> {
     Ok(to_core_signed(agent, 256.0, argument)? as i8)
 }
 
@@ -870,7 +870,7 @@ pub fn to_int8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCo
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
-pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<u8> {
+pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<u8> {
     Ok(to_core_int(agent, 256.0, argument)? as u8)
 }
 
@@ -902,7 +902,7 @@ pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltC
 // |               |      1. Let primValue be ? ToPrimitive(argument, string). |
 // |               |      2. Return ? ToString(primValue).                     |
 // +---------------+-----------------------------------------------------------+
-pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompletion<JSString> {
+pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
     match val.into() {
         ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
         ECMAScriptValue::Null => Ok(JSString::from("null")),
@@ -940,7 +940,7 @@ pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompl
 // | BigInt        | Return a new BigInt object whose [[BigIntData]] internal slot is set to argument.   |
 // | Object        | Return argument.                                                                    |
 // +---------------+-------------------------------------------------------------------------------------+
-pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompletion<Object> {
+pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completion<Object> {
     match val.into() {
         ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
@@ -961,7 +961,7 @@ pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> AltCompl
 //  2. If Type(key) is Symbol, then
 //      a. Return key.
 //  3. Return ! ToString(key).
-pub fn to_property_key(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompletion<PropertyKey> {
+pub fn to_property_key(agent: &mut Agent, argument: ECMAScriptValue) -> Completion<PropertyKey> {
     let key = to_primitive(agent, argument, Some(ConversionHint::String))?;
     match key {
         ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
@@ -977,7 +977,7 @@ pub fn to_property_key(agent: &mut Agent, argument: ECMAScriptValue) -> AltCompl
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-pub fn to_length(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> AltCompletion<i64> {
+pub fn to_length(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let len = to_integer_or_infinity(agent, argument)?;
     Ok(len.clamp(0.0, 2_i64.pow(53) as f64 - 1.0) as i64)
 }
@@ -1022,7 +1022,7 @@ pub fn canonical_numeric_index_string(agent: &mut Agent, argument: JSString) -> 
 //      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
 //      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
 //      e. Return integer.
-pub fn to_index(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> AltCompletion<i64> {
+pub fn to_index(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     let value = value.into();
     if value == ECMAScriptValue::Undefined {
         Ok(0)
