@@ -56,7 +56,7 @@ impl PartialEq for Base {
                 let left = &**left as *const dyn EnvironmentRecord as *const u8;
                 let right = &**right as *const dyn EnvironmentRecord as *const u8;
                 std::ptr::eq(left, right)
-            },
+            }
             (Self::Value(left), Self::Value(right)) => left == right,
             (Self::Unresolvable, Self::Unresolvable) => true,
             _ => false,
