@@ -51,7 +51,12 @@ pub enum Base {
 impl PartialEq for Base {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Environment(left), Self::Environment(right)) => Rc::ptr_eq(left, right),
+            (Self::Environment(left), Self::Environment(right)) => {
+                //Rc::ptr_eq(left, right) <<-- Can't do this because fat pointers aren't comparable. Convert to thin pointers to the allocated memory instead.
+                let left = &**left as *const dyn EnvironmentRecord as *const u8;
+                let right = &**right as *const dyn EnvironmentRecord as *const u8;
+                std::ptr::eq(left, right)
+            },
             (Self::Value(left), Self::Value(right)) => left == right,
             (Self::Unresolvable, Self::Unresolvable) => true,
             _ => false,

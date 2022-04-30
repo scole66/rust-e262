@@ -17,13 +17,14 @@ mod base {
     #[test_case(Base::Unresolvable => Base::Unresolvable; "unresolvable")]
     #[test_case(Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
     fn clone(b: Base) -> Base {
+        #[allow(clippy::redundant_clone)]
         b.clone()
     }
 
     #[test]
     fn clone_with_environment() {
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
-        let base = Base::Environment(env.clone());
+        let base = Base::Environment(env);
         let duplicate = base.clone();
         assert_eq!(&base, &duplicate);
     }
@@ -33,8 +34,8 @@ mod base {
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
         let other_env = Rc::new(DeclarativeEnvironmentRecord::new(None));
         let base = Base::Environment(env.clone());
-        let should_be_equal = Base::Environment(env.clone());
-        let shouldnt_be_equal = Base::Environment(other_env.clone());
+        let should_be_equal = Base::Environment(env);
+        let shouldnt_be_equal = Base::Environment(other_env);
         assert!(base == should_be_equal);
         assert!(base != shouldnt_be_equal);
     }
@@ -60,6 +61,7 @@ mod referenced_name {
 
     #[test_case(ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
     fn clone(rn: ReferencedName) -> ReferencedName {
+        #[allow(clippy::redundant_clone)]
         rn.clone()
     }
 
