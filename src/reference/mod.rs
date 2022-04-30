@@ -204,21 +204,6 @@ impl Reference {
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
 //          object.
-#[derive(Debug)]
-pub enum SuperValue {
-    Value(ECMAScriptValue),
-    Reference(Reference),
-}
-impl From<ECMAScriptValue> for SuperValue {
-    fn from(src: ECMAScriptValue) -> Self {
-        Self::Value(src)
-    }
-}
-impl From<Reference> for SuperValue {
-    fn from(src: Reference) -> Self {
-        Self::Reference(src)
-    }
-}
 pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
     let v = v_completion?;
     match v {

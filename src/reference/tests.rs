@@ -7,21 +7,60 @@ use crate::values::{PrivateName, PropertyKey};
 
 mod base {
     use super::*;
+    use test_case::test_case;
+
+    #[test_case(Base::Value(ECMAScriptValue::from(33)) => with |s| assert_ne!(s, ""); "value")]
+    fn debug(b: Base) -> String {
+        format!("{:?}", b)
+    }
+
+    #[test_case(Base::Unresolvable => Base::Unresolvable; "unresolvable")]
+    #[test_case(Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
+    fn clone(b: Base) -> Base {
+        b.clone()
+    }
 
     #[test]
-    fn debug() {
-        let b = Base::Value(ECMAScriptValue::from(33));
-        assert_ne!(format!("{:?}", b), "");
+    fn clone_with_environment() {
+        let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let base = Base::Environment(env.clone());
+        let duplicate = base.clone();
+        assert_eq!(&base, &duplicate);
+    }
+
+    #[test]
+    fn eq_with_environment() {
+        let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let other_env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let base = Base::Environment(env.clone());
+        let should_be_equal = Base::Environment(env.clone());
+        let shouldnt_be_equal = Base::Environment(other_env.clone());
+        assert!(base == should_be_equal);
+        assert!(base != shouldnt_be_equal);
+    }
+
+    #[test_case(Base::Unresolvable, Base::Unresolvable => true; "unresolvable match")]
+    #[test_case(Base::Value(10.into()), Base::Value(10.into()) => true; "value match")]
+    #[test_case(Base::Value(10.into()), Base::Value(false.into()) => false; "value mismatch")]
+    #[test_case(Base::Unresolvable, Base::Value("blue".into()) => false; "base type mismatch")]
+    fn eq(left: Base, right: Base) -> bool {
+        left == right
     }
 }
 
 mod referenced_name {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn debug() {
         let rn = ReferencedName::String(JSString::from("apple"));
         assert_ne!(format!("{:?}", rn), "");
+    }
+
+    #[test_case(ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
+    fn clone(rn: ReferencedName) -> ReferencedName {
+        rn.clone()
     }
 
     mod partial_eq {
@@ -161,12 +200,40 @@ mod reference {
     }
 
     #[test]
-    fn new() {
-        let r = Reference::new(Base::Unresolvable, JSString::from("anobject"), false, Some(ECMAScriptValue::from(999)));
-        assert!(matches!(r.base, Base::Unresolvable));
-        assert_eq!(r.referenced_name, ReferencedName::from("anobject"));
-        assert_eq!(r.strict, false);
-        assert_eq!(r.this_value, Some(ECMAScriptValue::from(999)));
+    fn clone() {
+        let r = Reference { base: Base::Unresolvable, referenced_name: ReferencedName::String(JSString::from("name")), strict: false, this_value: None };
+        let r2 = r.clone();
+        assert_eq!(r, r2);
+    }
+
+    #[test]
+    fn eq() {
+        let r1 = Reference { base: Base::Unresolvable, referenced_name: ReferencedName::String(JSString::from("name")), strict: false, this_value: None };
+        let r2 = Reference { base: Base::Value(true.into()), referenced_name: ReferencedName::String(JSString::from("name")), strict: false, this_value: None };
+        let r3 = r1.clone();
+
+        assert!(r1 == r3);
+        assert!(r1 != r2);
+    }
+
+    mod new {
+        use super::*;
+        #[test]
+        fn string() {
+            let r = Reference::new(Base::Unresolvable, JSString::from("anobject"), false, Some(ECMAScriptValue::from(999)));
+            assert!(matches!(r.base, Base::Unresolvable));
+            assert_eq!(r.referenced_name, ReferencedName::from("anobject"));
+            assert_eq!(r.strict, false);
+            assert_eq!(r.this_value, Some(ECMAScriptValue::from(999)));
+        }
+        #[test]
+        fn key() {
+            let r = Reference::new(Base::Unresolvable, PropertyKey::from("anobject"), false, Some(ECMAScriptValue::from(999)));
+            assert!(matches!(r.base, Base::Unresolvable));
+            assert_eq!(r.referenced_name, ReferencedName::from("anobject"));
+            assert_eq!(r.strict, false);
+            assert_eq!(r.this_value, Some(ECMAScriptValue::from(999)));
+        }
     }
 
     mod is_property_reference {
@@ -255,43 +322,6 @@ mod reference {
     }
 }
 
-mod super_value {
-    use super::*;
-
-    #[test]
-    fn debug() {
-        let sv = SuperValue::Value(ECMAScriptValue::from(10));
-        assert_ne!(format!("{:?}", sv), "");
-    }
-
-    mod from {
-        use super::*;
-        #[test]
-        fn value() {
-            let v = ECMAScriptValue::from("blue");
-            let sv = SuperValue::from(v);
-            match sv {
-                SuperValue::Value(vv) => assert_eq!(vv, ECMAScriptValue::from("blue")),
-                SuperValue::Reference(_) => unreachable!(),
-            }
-        }
-        #[test]
-        fn reference() {
-            let r = Reference::new(Base::Unresolvable, "blue", false, None);
-            let sv = SuperValue::from(r);
-            match sv {
-                SuperValue::Value(_) => unreachable!(),
-                SuperValue::Reference(r) => {
-                    assert!(matches!(r.base, Base::Unresolvable));
-                    assert_eq!(r.referenced_name, ReferencedName::String(JSString::from("blue")));
-                    assert_eq!(r.strict, false);
-                    assert_eq!(r.this_value, None);
-                }
-            }
-        }
-    }
-}
-
 mod get_value {
     use super::*;
 
@@ -316,6 +346,13 @@ mod get_value {
         let mut agent = test_agent();
         let badref = Reference::new(Base::Unresolvable, "no_ref", true, None);
         let result = get_value(&mut agent, Ok(NormalCompletion::from(badref))).unwrap_err();
+        assert_eq!(unwind_reference_error(&mut agent, result), "Unresolvable Reference");
+    }
+    #[test]
+    fn empty() {
+        let mut agent = test_agent();
+        let val = Ok(NormalCompletion::Empty);
+        let result = get_value(&mut agent, val).unwrap_err();
         assert_eq!(unwind_reference_error(&mut agent, result), "Unresolvable Reference");
     }
     #[test]

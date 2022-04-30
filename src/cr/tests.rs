@@ -1,5 +1,6 @@
 use super::*;
 use crate::reference::Base;
+use test_case::test_case;
 
 mod normal_completion {
     use super::*;
@@ -81,4 +82,17 @@ mod abrupt_completion {
         assert_eq!(c1 != c2, true);
         assert_eq!(c1 != c3, false);
     }
+}
+
+#[test_case(Ok(NormalCompletion::Empty), None => Ok(NormalCompletion::Empty); "empties all over")]
+#[test_case(Ok(NormalCompletion::Empty), Some(3.into()) => Ok(NormalCompletion::Value(3.into())); "old: 3, new: empty")]
+#[test_case(Ok(NormalCompletion::Value("bob".into())), Some(3.into()) => Ok(NormalCompletion::Value("bob".into())); "old: 3, new: bob")]
+#[test_case(Err(AbruptCompletion::Return{value: 1.into()}), Some(3.into()) => Err(AbruptCompletion::Return{value: 1.into()}); "Err return")]
+#[test_case(Err(AbruptCompletion::Throw{value: 1.into()}), Some(3.into()) => Err(AbruptCompletion::Throw{value: 1.into()}); "Err throw")]
+#[test_case(Err(AbruptCompletion::Break{value: Some(1.into()), target: Some("lbl".into())}), Some(3.into()) => Err(AbruptCompletion::Break{value: Some(1.into()), target: Some("lbl".into())}); "Err break with value")]
+#[test_case(Err(AbruptCompletion::Break{value: None, target: Some("xyz".into())}), Some(3.into()) => Err(AbruptCompletion::Break{value: Some(3.into()), target: Some("xyz".into())}); "Err break no value")]
+#[test_case(Err(AbruptCompletion::Continue{value: Some(1.into()), target: Some("lbl".into())}), Some(3.into()) => Err(AbruptCompletion::Continue{value: Some(1.into()), target: Some("lbl".into())}); "Err Continue with value")]
+#[test_case(Err(AbruptCompletion::Continue{value: None, target: Some("xyz".into())}), Some(3.into()) => Err(AbruptCompletion::Continue{value: Some(3.into()), target: Some("xyz".into())}); "Err Continue no value")]
+fn update_empty(new: FullCompletion, old: Option<ECMAScriptValue>) -> FullCompletion {
+    super::update_empty(new, old)
 }

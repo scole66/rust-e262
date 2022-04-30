@@ -2,7 +2,7 @@ use super::agent::Agent;
 use super::arrays::{array_create, ArrayObject};
 use super::boolean_object::{BooleanObject, BooleanObjectInterface};
 use super::comparison::is_extensible;
-use super::cr::{ Completion};
+use super::cr::Completion;
 use super::errors::create_type_error;
 use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
