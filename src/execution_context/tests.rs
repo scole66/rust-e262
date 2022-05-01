@@ -2,7 +2,7 @@ use super::*;
 use crate::environment_record::DeclarativeEnvironmentRecord;
 use crate::errors::unwind_any_error;
 use crate::object::{get, ordinary_object_create};
-use crate::reference::{Base, Reference};
+use crate::reference::ReferencedName;
 use crate::tests::test_agent;
 use crate::values::{to_object, to_string};
 use test_case::test_case;
@@ -156,8 +156,16 @@ mod agent {
         assert_eq!(repr.to_string(), "present");
     }
 
-    #[test_case("debug_token", |_| None, false => Ok(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) ; "maybe?")]
-    fn resolve_binding(name: &str, env_maker: fn(&mut Agent) -> Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> Result<Box<Reference>, String> {
+    #[test_case("debug_token", |_| None, false => Ok(("Environment(GlobalEnvironmentRecord(realm-global))".to_string(), ReferencedName::from("debug_token"), false, None)) ; "global ref")]
+    #[test_case("notPresent", |_| None, true => Ok(("Unresolvable".to_string(), ReferencedName::from("notPresent"), true, None)); "unresolvable")]
+    #[test_case("marker", |a| {
+        let outer = a.current_lexical_environment().unwrap();
+        let env = DeclarativeEnvironmentRecord::new(Some(outer), "test-decl-env");
+        env.create_mutable_binding(a, "marker".into(), false).unwrap();
+        env.initialize_binding(a, &"marker".into(), ECMAScriptValue::from(100)).unwrap();
+        Some(Rc::new(env) as Rc<dyn EnvironmentRecord>)
+    }, false => Ok(("Environment(DeclarativeEnvironmentRecord(test-decl-env))".to_string(), ReferencedName::from("marker"), false, None)); "Other env")]
+    fn resolve_binding(name: &str, env_maker: fn(&mut Agent) -> Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> Result<(String, ReferencedName, bool, Option<ECMAScriptValue>), String> {
         let mut agent = test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
@@ -169,14 +177,9 @@ mod agent {
         let env = env_maker(&mut agent);
         let result = agent.resolve_binding(&name.into(), env, strict);
 
-        println!("Ordinary Debug Output");
-        println!("{:?}", result);
-        println!("Alternative Debug Output");
-        println!("{:#?}", result);
-
         result.map_err(|err| unwind_any_error(&mut agent, err)).and_then(|nc| match nc {
             NormalCompletion::Empty | NormalCompletion::Value(_) => Err("improper completion".to_string()),
-            NormalCompletion::Reference(r) => Ok(r),
+            NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }
 }
