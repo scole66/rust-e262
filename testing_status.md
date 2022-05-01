@@ -7,7 +7,7 @@ Files in the commit chain:
 | agent
 | chunk
 | compiler
-| cr
+| cr | ok | ok |
 | environment_record
 | errors | ok | ok | `unwind_any_error_value`, `unwind_any_error`
 | execution_context
