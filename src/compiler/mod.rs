@@ -15,6 +15,8 @@ use super::parser::left_hand_side_expressions::*;
 use super::parser::multiplicative_operators::*;
 use super::parser::primary_expressions::*;
 use super::parser::relational_operators::*;
+use super::parser::scripts::*;
+use super::parser::statements_and_declarations::*;
 use super::parser::unary_operators::*;
 use super::parser::update_expressions::*;
 use num_enum::IntoPrimitive;
@@ -150,6 +152,23 @@ impl Literal {
             }
         }
         Ok(())
+    }
+}
+
+impl ParenthesizedExpression {
+    /// Generate the code for ParenthesizedExpression
+    ///
+    /// See [Evaluation for Grouping Operator](https://tc39.es/ecma262/#sec-grouping-operator-runtime-semantics-evaluation) from ECMA-262.
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        // Runtime Semantics: Evaluation
+        //  ParenthesizedExpression : ( Expression )
+        //      1. Return the result of evaluating Expression. This may be of type Reference.
+        //
+        // NOTE | This algorithm does not apply GetValue to the result of evaluating Expression. The principal
+        //      | motivation for this is so that operators such as delete and typeof may be applied to parenthesized
+        //      | expressions.
+        let ParenthesizedExpression::Expression(e) = self;
+        e.compile(chunk, strict)
     }
 }
 
@@ -357,5 +376,40 @@ impl StatementList {
                 Ok(())
             }
         }
+    }
+}
+
+impl StatementListItem {
+    #[allow(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            StatementListItem::Statement(stmt) => stmt.compile(chunk, strict),
+            StatementListItem::Declaration(decl) => todo!(),
+        }
+    }
+}
+
+impl Statement {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            Statement::Expression(exp) => exp.compile(chunk, strict),
+            _ => todo!(),
+        }
+    }
+}
+
+impl Script {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
+        match &self.0 {
+            None => Ok(()),
+            Some(sb) => sb.compile(chunk),
+        }
+    }
+}
+
+impl ScriptBody {
+    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
+        let strict = self.contains_use_strict();
+        self.statement_list.compile(chunk, strict)
     }
 }

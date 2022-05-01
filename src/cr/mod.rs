@@ -40,7 +40,7 @@ impl TryFrom<NormalCompletion> for ECMAScriptValue {
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
         match src {
             NormalCompletion::Value(v) => Ok(v),
-            NormalCompletion::Reference(_) | NormalCompletion::Empty => Err(anyhow!("Not a language value!"))
+            NormalCompletion::Reference(_) | NormalCompletion::Empty => Err(anyhow!("Not a language value!")),
         }
     }
 }
@@ -51,7 +51,7 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
         match src {
             NormalCompletion::Value(v) => Ok(Some(v)),
             NormalCompletion::Empty => Ok(None),
-            NormalCompletion::Reference(_)  => Err(anyhow!("Not a language value!"))
+            NormalCompletion::Reference(_) => Err(anyhow!("Not a language value!")),
         }
     }
 }

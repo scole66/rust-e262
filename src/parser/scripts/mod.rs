@@ -8,10 +8,8 @@ use super::iteration_statements::ForBinding;
 use super::scanner::{Scanner, StringToken};
 use super::statements_and_declarations::{DeclPart, HoistableDeclPart};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{prettypad, PrettyPrint, Spot};
 use ahash::AHashSet;
-use anyhow;
 use std::fmt;
 use std::hash::Hash;
 use std::io::Result as IoResult;
@@ -163,6 +161,7 @@ impl Script {
             Some(sb) => sb.lexically_declared_names(),
         }
     }
+
     /// Return a list of the var delcared names for this script.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
@@ -170,13 +169,6 @@ impl Script {
         match &self.0 {
             None => vec![],
             Some(sb) => sb.var_declared_names(),
-        }
-    }
-
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
-        match &self.0 {
-            None => Ok(()),
-            Some(sb) => sb.compile(chunk),
         }
     }
 
@@ -211,8 +203,8 @@ impl Script {
 //      StatementList[~Yield, ~Await, ~Return]
 #[derive(Debug)]
 pub struct ScriptBody {
-    statement_list: Rc<StatementList>,
-    direct: bool,
+    pub statement_list: Rc<StatementList>,
+    pub direct: bool,
 }
 
 impl fmt::Display for ScriptBody {
@@ -301,11 +293,6 @@ impl ScriptBody {
         let prologue = self.directive_prologue();
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
-    }
-
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<()> {
-        let strict = self.contains_use_strict();
-        self.statement_list.compile(chunk, strict)
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.

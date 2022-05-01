@@ -10,10 +10,8 @@ use super::identifiers::{BindingIdentifier, IdentifierReference};
 use super::method_definitions::MethodDefinition;
 use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
-use crate::chunk::Chunk;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use crate::values::number_to_string;
-use anyhow;
 use num::bigint::BigInt;
 use std::fmt;
 use std::io::Result as IoResult;
@@ -2802,21 +2800,6 @@ impl ParenthesizedExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         let ParenthesizedExpression::Expression(e) = self;
         e.assignment_target_type(strict)
-    }
-
-    /// Generate the code for ParenthesizedExpression
-    ///
-    /// See [Evaluation for Grouping Operator](https://tc39.es/ecma262/#sec-grouping-operator-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
-        // Runtime Semantics: Evaluation
-        //  ParenthesizedExpression : ( Expression )
-        //      1. Return the result of evaluating Expression. This may be of type Reference.
-        //
-        // NOTE | This algorithm does not apply GetValue to the result of evaluating Expression. The principal
-        //      | motivation for this is so that operators such as delete and typeof may be applied to parenthesized
-        //      | expressions.
-        let ParenthesizedExpression::Expression(e) = self;
-        e.compile(chunk, strict)
     }
 }
 
