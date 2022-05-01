@@ -142,7 +142,7 @@ impl Agent {
         let mut realm = realm_ref.borrow_mut();
 
         realm.global_object = Some(go.clone());
-        let new_global_env = GlobalEnvironmentRecord::new(go, tv);
+        let new_global_env = GlobalEnvironmentRecord::new(go, tv, "realm-global");
         realm.global_env = Some(Rc::new(new_global_env));
     }
 

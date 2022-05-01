@@ -134,8 +134,7 @@ fn ecmascript_value_from() {
 }
 #[test]
 fn ecmascript_value_from_object_ref() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
+    let mut agent = test_agent();
     let o = ordinary_object_create(&mut agent, None, &[]);
 
     let val = ECMAScriptValue::from(&o);
@@ -145,8 +144,7 @@ fn ecmascript_value_from_object_ref() {
 }
 #[test]
 fn ecmascript_value_from_object() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
+    let mut agent = test_agent();
     let o = ordinary_object_create(&mut agent, None, &[]);
     let orig_id = o.o.id();
 
@@ -199,8 +197,7 @@ fn ecmascript_value_is_bigint() {
 }
 #[test]
 fn ecmascript_value_is_object() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
+    let mut agent = test_agent();
     let o = ordinary_object_create(&mut agent, None, &[]);
     assert_eq!(ECMAScriptValue::Undefined.is_object(), false);
     assert_eq!(ECMAScriptValue::from(o).is_object(), true);

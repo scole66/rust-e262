@@ -10,7 +10,7 @@ use super::values::{to_boolean, ECMAScriptValue, PrivateName, PropertyKey};
 use ahash::{AHashSet, RandomState};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::rc::Rc;
 
 // Environment Records
@@ -177,10 +177,21 @@ struct Binding {
     mutability: Mutability,
 }
 
-#[derive(Debug)]
 pub struct DeclarativeEnvironmentRecord {
     bindings: RefCell<HashMap<JSString, Binding, RandomState>>,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
+    name: String,
+}
+
+impl fmt::Debug for DeclarativeEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("DeclarativeEnvironmentRecord").field("bindings", &self.bindings).field("outer_env", &self.outer_env).field("name", &self.name).finish()
+        } else {
+            let name = &self.name;
+            write!(f, "DeclarativeEnvironmentRecord({name})")
+        }
+    }
 }
 
 impl EnvironmentRecord for DeclarativeEnvironmentRecord {
@@ -388,8 +399,8 @@ impl DeclarativeEnvironmentRecord {
     //  1. Let env be a new declarative Environment Record containing no bindings.
     //  2. Set env.[[OuterEnv]] to E.
     //  3. Return env.
-    pub fn new(env: Option<Rc<dyn EnvironmentRecord>>) -> Self {
-        DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: env }
+    pub fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
+        DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: env, name: name.into() }
     }
 }
 
@@ -421,11 +432,27 @@ impl DeclarativeEnvironmentRecord {
 //
 // The behaviour of the concrete specification methods for object Environment Records is defined by the following
 // algorithms.
-#[derive(Debug)]
 pub struct ObjectEnvironmentRecord {
     binding_object: Object,
     is_with_environment: bool,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
+    name: String,
+}
+
+impl fmt::Debug for ObjectEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("ObjectEnvironmentRecord")
+                .field("binding_object", &self.binding_object)
+                .field("is_with_environment", &self.is_with_environment)
+                .field("outer_env", &self.outer_env)
+                .field("name", &self.name)
+                .finish()
+        } else {
+            let name = &self.name;
+            write!(f, "ObjectEnvironmentRecord({name})")
+        }
+    }
 }
 
 impl EnvironmentRecord for ObjectEnvironmentRecord {
@@ -625,8 +652,8 @@ impl ObjectEnvironmentRecord {
     //  3. Set env.[[IsWithEnvironment]] to W.
     //  4. Set env.[[OuterEnv]] to E.
     //  5. Return env.
-    pub fn new(binding_object: Object, is_with_environment: bool, outer_env: Option<Rc<dyn EnvironmentRecord>>) -> Self {
-        ObjectEnvironmentRecord { binding_object, is_with_environment, outer_env }
+    pub fn new(binding_object: Object, is_with_environment: bool, outer_env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
+        ObjectEnvironmentRecord { binding_object, is_with_environment, outer_env, name: name.into() }
     }
 }
 
@@ -663,13 +690,31 @@ pub enum BindingStatus {
     Uninitialized,
 }
 
-#[derive(Debug)]
 pub struct FunctionEnvironmentRecord {
     base: DeclarativeEnvironmentRecord,
     this_value: ECMAScriptValue,
     this_binding_status: BindingStatus,
     function_object: Object,
     new_target: Option<Object>,
+    name: String,
+}
+
+impl fmt::Debug for FunctionEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("FunctionEnvironmentRecord")
+                .field("base", &self.base)
+                .field("this_value", &self.this_value)
+                .field("this_binding_status", &self.this_binding_status)
+                .field("function_object", &self.function_object)
+                .field("new_target", &self.new_target)
+                .field("name", &self.name)
+                .finish()
+        } else {
+            let name = &self.name;
+            write!(f, "FunctionEnvironmentRecord({name})")
+        }
+    }
 }
 
 impl EnvironmentRecord for FunctionEnvironmentRecord {
@@ -821,17 +866,19 @@ impl FunctionEnvironmentRecord {
     //  7. Set env.[[NewTarget]] to newTarget.
     //  8. Set env.[[OuterEnv]] to F.[[Environment]].
     //  9. Return env.
-    pub fn new(f: Object, new_target: Option<Object>) -> Self {
+    pub fn new(f: Object, new_target: Option<Object>, name: impl Into<String>) -> Self {
         let fo = f.o.to_function_obj().unwrap();
         let tbs = if fo.function_data().borrow().this_mode == ThisMode::Lexical { BindingStatus::Lexical } else { BindingStatus::Uninitialized };
         let outer = Some(fo.function_data().borrow().environment.clone());
+        let name = name.into();
 
         FunctionEnvironmentRecord {
-            base: DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: outer },
+            base: DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: outer, name: format!("{name}-inner") },
             this_value: ECMAScriptValue::Undefined,
             this_binding_status: tbs,
             function_object: f,
             new_target,
+            name,
         }
     }
 }
@@ -883,12 +930,29 @@ impl FunctionEnvironmentRecord {
 // |                       | String      | AsyncFunctionDeclaration, AsyncGeneratorDeclaration, and                    |
 // |                       |             | VariableDeclaration declarations in global code for the associated realm.   |
 // +-----------------------+-------------+-----------------------------------------------------------------------------+
-#[derive(Debug)]
 pub struct GlobalEnvironmentRecord {
     object_record: ObjectEnvironmentRecord,
     global_this_value: Object,
     declarative_record: DeclarativeEnvironmentRecord,
     var_names: RefCell<AHashSet<JSString>>,
+    name: String,
+}
+
+impl fmt::Debug for GlobalEnvironmentRecord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("GlobalEnvironmentRecord")
+                .field("object_record", &self.object_record)
+                .field("global_this_value", &self.global_this_value)
+                .field("declarative_record", &self.declarative_record)
+                .field("var_names", &self.var_names)
+                .field("name", &self.name)
+                .finish()
+        } else {
+            let name = &self.name;
+            write!(f, "GlobalEnvironmentRecord({name})")
+        }
+    }
 }
 
 // Table 22: Additional Methods of Global Environment Records
@@ -1309,10 +1373,11 @@ impl GlobalEnvironmentRecord {
     //      7. Set env.[[VarNames]] to a new empty List.
     //      8. Set env.[[OuterEnv]] to null.
     //      9. Return env.
-    pub fn new(global: Object, this_value: Object) -> Self {
-        let obj_rec = ObjectEnvironmentRecord::new(global, false, None);
-        let dcl_rec = DeclarativeEnvironmentRecord::new(None);
-        Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default() }
+    pub fn new(global: Object, this_value: Object, name: impl Into<String>) -> Self {
+        let name = name.into();
+        let obj_rec = ObjectEnvironmentRecord::new(global, false, None, format!("{name}-obj"));
+        let dcl_rec = DeclarativeEnvironmentRecord::new(None, format!("{name}-dcl"));
+        Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default(), name }
     }
 }
 
