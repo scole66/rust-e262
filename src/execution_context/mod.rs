@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::chunk::Chunk;
 use super::cr::{Completion, FullCompletion, NormalCompletion};
-use super::environment_record::get_identifier_reference;
+use super::environment_record::{get_identifier_reference, EnvironmentRecord, PrivateEnvironmentRecord};
 use super::object::Object;
 use super::parser::scripts::Script;
 use super::realm::Realm;
@@ -32,8 +32,6 @@ pub enum ScriptOrModule {
     Script(Rc<ScriptRecord>),
     Module(Rc<ModuleRecord>),
 }
-
-use super::environment_record::{EnvironmentRecord, PrivateEnvironmentRecord};
 
 #[derive(Debug)]
 pub struct ExecutionContext {
@@ -120,7 +118,23 @@ impl Agent {
         env_rec.get_this_binding(self)
     }
 
+    /// Constructs a Reference for the given name (and, potentially, environment)
+    ///
+    /// See [ResolveBinding](https://tc39.es/ecma262/#sec-resolvebinding) in ECMA-262.
     pub fn resolve_binding(&mut self, name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> FullCompletion {
+        // ResolveBinding ( name [ , env ] )
+        // The abstract operation ResolveBinding takes argument name (a String) and optional argument env (an
+        // Environment Record or undefined) and returns either a normal completion containing a Reference Record or an
+        // abrupt completion. It is used to determine the binding of name. env can be used to explicitly provide the
+        // Environment Record that is to be searched for the binding. It performs the following steps when called:
+        //
+        //  1. If env is not present or if env is undefined, then
+        //      a. Set env to the running execution context's LexicalEnvironment.
+        //  2. Assert: env is an Environment Record.
+        //  3. If the source text matched by the syntactic production that is being evaluated is contained in strict
+        //     mode code, let strict be true; else let strict be false.
+        //  4. Return ? GetIdentifierReference(env, name, strict).
+        // NOTE |   The result of ResolveBinding is always a Reference Record whose [[ReferencedName]] field is name.
         let env = match env {
             Some(e) => Some(e),
             None => self.current_lexical_environment(),
@@ -128,3 +142,6 @@ impl Agent {
         get_identifier_reference(self, env, name.clone(), strict).map(NormalCompletion::from)
     }
 }
+
+#[cfg(test)]
+mod tests;

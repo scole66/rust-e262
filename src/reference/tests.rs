@@ -24,7 +24,7 @@ mod base {
 
     #[test]
     fn clone_with_environment() {
-        let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let base = Base::Environment(env);
         let duplicate = base.clone();
         assert_eq!(&base, &duplicate);
@@ -32,8 +32,8 @@ mod base {
 
     #[test]
     fn eq_with_environment() {
-        let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
-        let other_env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
+        let other_env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let base = Base::Environment(env.clone());
         let should_be_equal = Base::Environment(env);
         let shouldnt_be_equal = Base::Environment(other_env);
@@ -320,7 +320,7 @@ mod reference {
         #[test]
         #[should_panic(expected = "unreachable code")]
         fn environment() {
-            Reference::new(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None))), "blurp", true, None).get_this_value();
+            Reference::new(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))), "blurp", true, None).get_this_value();
         }
     }
 }
@@ -396,7 +396,7 @@ mod get_value {
         let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let global = ordinary_object_create(&mut agent, Some(object_proto), &[]);
         let this_obj = global.clone();
-        let env = GlobalEnvironmentRecord::new(global, this_obj);
+        let env = GlobalEnvironmentRecord::new(global, this_obj, "test-global");
         let value = ECMAScriptValue::from("sentinel string for environment test");
         env.create_immutable_binding(&mut agent, JSString::from("test_var"), true).unwrap();
         env.initialize_binding(&mut agent, &JSString::from("test_var"), value.clone()).unwrap();
@@ -556,7 +556,7 @@ mod put_value {
     fn environment() {
         let mut agent = test_agent();
         let value = ECMAScriptValue::from("he told me, “just remember that all the people in this world haven’t had the advantages that you’ve had.”");
-        let der = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let der = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let key = JSString::from("env_test");
         der.create_mutable_binding(&mut agent, key.clone(), true).unwrap();
         der.initialize_binding(&mut agent, &key, ECMAScriptValue::Undefined).unwrap();
@@ -594,7 +594,7 @@ mod initialize_referenced_binding {
     fn happy() {
         let mut agent = test_agent();
         let key = JSString::from("variable");
-        let env = Rc::new(DeclarativeEnvironmentRecord::new(None));
+        let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         env.create_mutable_binding(&mut agent, key.clone(), true).unwrap();
         let reference = Reference::new(Base::Environment(env.clone()), key.clone(), true, None);
         let value = ECMAScriptValue::from("There was so much to read, for one thing,");

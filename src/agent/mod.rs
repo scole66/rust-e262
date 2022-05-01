@@ -164,7 +164,7 @@ impl Agent {
         let mut realm = realm_ref.borrow_mut();
 
         realm.global_object = Some(go.clone());
-        let new_global_env = GlobalEnvironmentRecord::new(go, tv);
+        let new_global_env = GlobalEnvironmentRecord::new(go, tv, "realm-global");
         realm.global_env = Some(Rc::new(new_global_env));
     }
 
@@ -331,12 +331,27 @@ impl Agent {
     //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
     //  11. Create any host-defined global object properties on globalObj.
     //  12. Return NormalCompletion(empty).
-    pub fn initialize_host_defined_realm(&mut self) {
+    pub fn initialize_host_defined_realm(&mut self, install_test_hooks: bool) {
         let realm = create_realm(self);
         let new_context = ExecutionContext::new(None, realm, None);
         self.push_execution_context(new_context);
         self.set_realm_global_object(None, None);
         self.set_default_global_bindings();
+        if install_test_hooks {
+            let global = get_global_object(self).unwrap();
+            macro_rules! global_data {
+                ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+                    define_property_or_throw(
+                        self,
+                        &global,
+                        $name,
+                        PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+                    )
+                    .unwrap();
+                };
+            }
+            global_data!("debug_token", "present", true, true, true);
+        }
     }
 
     pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion<ECMAScriptValue> {

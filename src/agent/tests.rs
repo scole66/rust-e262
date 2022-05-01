@@ -42,7 +42,7 @@ fn agent_new() {
 #[test]
 fn agent_pop_execution_context() {
     let mut agent = Agent::new();
-    agent.initialize_host_defined_realm();
+    agent.initialize_host_defined_realm(true);
     let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
     let sr = ScriptRecord { realm: realm_ref.clone(), ecmascript_code: Maker::new("").script(), compiled: Rc::new(Chunk::new("test")) };
@@ -61,7 +61,7 @@ fn agent_active_function_object() {
     let afo = agent.active_function_object();
     assert!(afo.is_none());
 
-    agent.initialize_host_defined_realm();
+    agent.initialize_host_defined_realm(true);
     // Now there's an execution context, but still no active function, so this should still be None.
     let afo = agent.active_function_object();
     assert!(afo.is_none());

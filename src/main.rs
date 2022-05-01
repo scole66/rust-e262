@@ -47,7 +47,7 @@ struct VM {
 impl VM {
     fn new() -> VM {
         let mut agent = Agent::new();
-        agent.initialize_host_defined_realm();
+        agent.initialize_host_defined_realm(false);
         VM { agent }
     }
 
