@@ -881,7 +881,7 @@ impl FunctionEnvironmentRecord {
             this_binding_status: tbs,
             function_object: f,
             new_target,
-            name: name,
+            name,
         }
     }
 }
