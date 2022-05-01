@@ -246,7 +246,7 @@ mod array_object {
         use super::*;
         use test_case::test_case;
 
-        fn value_just_once(agent: &mut Agent, this_value: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion {
+        fn value_just_once(agent: &mut Agent, this_value: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             // The value 320 the first time, errors thrown all other times.
             let this: Object = this_value.try_into().unwrap();
             let previous = get(agent, &this, &"has_already_run".into()).unwrap();
@@ -671,7 +671,7 @@ fn defaults() {
 #[test_case(super::array_prototype_to_string => panics; "array_prototype_to_string")]
 #[test_case(super::array_prototype_unshift => panics; "array_prototype_unshift")]
 #[test_case(super::array_prototype_values => panics; "array_prototype_values")]
-fn todo(f: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion) {
+fn todo(f: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     let mut agent = test_agent();
     f(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap();
 }

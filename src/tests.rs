@@ -1,5 +1,5 @@
 use super::agent::Agent;
-use super::cr::{AbruptCompletion, AltCompletion, Completion, CompletionInfo};
+use super::cr::{AbruptCompletion, Completion};
 use super::errors::create_type_error;
 use super::object::{
     get, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible,
@@ -83,8 +83,8 @@ pub fn unwind_error_object(agent: &mut Agent, kind: &str, err: Object) -> String
 }
 
 pub fn unwind_error(agent: &mut Agent, kind: &str, completion: AbruptCompletion) -> String {
-    assert!(matches!(completion, AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(_)), target: None })));
-    if let AbruptCompletion::Throw(CompletionInfo { value: Some(ECMAScriptValue::Object(err)), target: None }) = completion {
+    assert!(matches!(completion, AbruptCompletion::Throw { value: ECMAScriptValue::Object(_) }));
+    if let AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } = completion {
         unwind_error_object(agent, kind, err)
     } else {
         unreachable!()
@@ -164,77 +164,77 @@ impl ObjectInterface for TestObject {
         self.common.borrow().objid
     }
 
-    fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, agent: &mut Agent) -> Completion<Option<Object>> {
         if self.get_prototype_of_throws {
             Err(create_type_error(agent, "[[GetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_get_prototype_of(self))
         }
     }
-    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
         if self.set_prototype_of_throws {
             Err(create_type_error(agent, "[[SetPrototypeOf]] called on TestObject"))
         } else {
             Ok(ordinary_set_prototype_of(self, obj))
         }
     }
-    fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self, agent: &mut Agent) -> Completion<bool> {
         if self.is_extensible_throws {
             Err(create_type_error(agent, "[[IsExtensible]] called on TestObject"))
         } else {
             Ok(ordinary_is_extensible(self))
         }
     }
-    fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, agent: &mut Agent) -> Completion<bool> {
         if self.prevent_extensions_throws {
             Err(create_type_error(agent, "[[PreventExtensions]] called on TestObject"))
         } else {
             Ok(ordinary_prevent_extensions(self))
         }
     }
-    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         if self.get_own_property_throws.0 && self.get_own_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error(agent, "[[GetOwnProperty]] called on TestObject"))
         } else {
             Ok(ordinary_get_own_property(self, key))
         }
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         if self.define_own_property_throws.0 && self.define_own_property_throws.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error(agent, "[[DefineOwnProperty]] called on TestObject"))
         } else {
             ordinary_define_own_property(agent, self, key, desc)
         }
     }
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         if self.has_property_throws.0 && self.has_property_throws.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error(agent, "[[HasProperty]] called on TestObject"))
         } else {
             ordinary_has_property(agent, self, key)
         }
     }
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         if self.get_throws.0 && self.get_throws.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error(agent, "[[Get]] called on TestObject"))
         } else {
             ordinary_get(agent, self, key, receiver)
         }
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         if self.set_throws.0 && self.set_throws.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error(agent, "[[Set]] called on TestObject"))
         } else {
             ordinary_set(agent, self, key, value, receiver)
         }
     }
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         if self.delete_throws.0 && self.delete_throws.1.as_ref().map_or(true, |k| *k == *key) {
             Err(create_type_error(agent, "[[Delete]] called on TestObject"))
         } else {
             ordinary_delete(agent, self, key)
         }
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         if self.own_property_keys_throws {
             Err(create_type_error(agent, "[[OwnPropertyKeys]] called on TestObject"))
         } else {
@@ -307,17 +307,17 @@ impl TestObject {
     }
 }
 
-type GetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<Option<Object>>;
-type SetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject, obj: Option<Object>) -> AltCompletion<bool>;
-type IsExtensibleFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<bool>;
-type PreventExtensionsFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<bool>;
-type GetOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>>;
-type DefineOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool>;
-type HasPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<bool>;
-type GetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion;
-type SetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool>;
-type DeleteFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<bool>;
-type OwnPropertyKeysFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>>;
+type GetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<Option<Object>>;
+type SetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject, obj: Option<Object>) -> Completion<bool>;
+type IsExtensibleFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<bool>;
+type PreventExtensionsFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<bool>;
+type GetOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>>;
+type DefineOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>;
+type HasPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<bool>;
+type GetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>;
+type SetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>;
+type DeleteFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<bool>;
+type OwnPropertyKeysFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<Vec<PropertyKey>>;
 
 pub struct AdaptableObject {
     common: RefCell<CommonObjectData>,
@@ -371,68 +371,68 @@ impl ObjectInterface for AdaptableObject {
         self.common.borrow().objid
     }
 
-    fn get_prototype_of(&self, agent: &mut Agent) -> AltCompletion<Option<Object>> {
+    fn get_prototype_of(&self, agent: &mut Agent) -> Completion<Option<Object>> {
         match &self.get_prototype_of_override {
             Some(func) => func(agent, self),
             None => Ok(ordinary_get_prototype_of(self)),
         }
     }
 
-    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> AltCompletion<bool> {
+    fn set_prototype_of(&self, agent: &mut Agent, obj: Option<Object>) -> Completion<bool> {
         match &self.set_prototype_of_override {
             Some(func) => func(agent, self, obj),
             None => Ok(ordinary_set_prototype_of(self, obj)),
         }
     }
-    fn is_extensible(&self, agent: &mut Agent) -> AltCompletion<bool> {
+    fn is_extensible(&self, agent: &mut Agent) -> Completion<bool> {
         match &self.is_extensible_override {
             Some(func) => func(agent, self),
             None => Ok(ordinary_is_extensible(self)),
         }
     }
-    fn prevent_extensions(&self, agent: &mut Agent) -> AltCompletion<bool> {
+    fn prevent_extensions(&self, agent: &mut Agent) -> Completion<bool> {
         match &self.prevent_extensions_override {
             Some(func) => func(agent, self),
             None => Ok(ordinary_prevent_extensions(self)),
         }
     }
-    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         match &self.get_own_property_override {
             Some(func) => func(agent, self, key),
             None => Ok(ordinary_get_own_property(self, key)),
         }
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> AltCompletion<bool> {
+    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         match &self.define_own_property_override {
             Some(func) => func(agent, self, key, desc),
             None => ordinary_define_own_property(agent, self, key, desc),
         }
     }
-    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         match &self.has_property_override {
             Some(func) => func(agent, self, key),
             None => ordinary_has_property(agent, self, key),
         }
     }
-    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion {
+    fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         match &self.get_override {
             Some(func) => func(agent, self, key, receiver),
             None => ordinary_get(agent, self, key, receiver),
         }
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> AltCompletion<bool> {
+    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
         match &self.set_override {
             Some(func) => func(agent, self, key, value, receiver),
             None => ordinary_set(agent, self, key, value, receiver),
         }
     }
-    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> AltCompletion<bool> {
+    fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
         match &self.delete_override {
             Some(func) => func(agent, self, key),
             None => ordinary_delete(agent, self, key),
         }
     }
-    fn own_property_keys(&self, agent: &mut Agent) -> AltCompletion<Vec<PropertyKey>> {
+    fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>> {
         match &self.own_property_keys_override {
             Some(func) => func(agent, self),
             None => Ok(ordinary_own_property_keys(agent, self)),
@@ -479,7 +479,7 @@ impl AdaptableObject {
 }
 
 // error
-pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 

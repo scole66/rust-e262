@@ -1,12 +1,12 @@
 use super::agent::Agent;
 use super::chunk::Chunk;
-use super::cr::{AltCompletion, Completion};
+use super::cr::{Completion, FullCompletion, NormalCompletion};
 use super::environment_record::get_identifier_reference;
 use super::object::Object;
 use super::parser::scripts::Script;
 use super::realm::Realm;
-use super::reference::SuperValue;
 use super::strings::JSString;
+use super::values::ECMAScriptValue;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -47,7 +47,7 @@ pub struct ExecutionContext {
     pub private_environment: Option<Rc<PrivateEnvironmentRecord>>,
 
     // code evaluation state
-    pub stack: Vec<AltCompletion<SuperValue>>,
+    pub stack: Vec<FullCompletion>,
     pub chunk: Option<Rc<Chunk>>, // This might change. It might be easier to have an empty chunk than a None.
     pub pc: usize,
 }
@@ -107,7 +107,7 @@ impl Agent {
     /// Determine the binding of the "this" keyword (and return it)
     ///
     /// See [ResolveThisBinding](https://tc39.es/ecma262/#sec-resolvethisbinding) in ECMA-262.
-    pub fn resolve_this_binding(&mut self) -> Completion {
+    pub fn resolve_this_binding(&mut self) -> Completion<ECMAScriptValue> {
         // ResolveThisBinding ( )
         //
         // The abstract operation ResolveThisBinding takes no arguments and returns either a normal completion containing an
@@ -120,11 +120,11 @@ impl Agent {
         env_rec.get_this_binding(self)
     }
 
-    pub fn resolve_binding(&mut self, name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> AltCompletion<SuperValue> {
+    pub fn resolve_binding(&mut self, name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> FullCompletion {
         let env = match env {
             Some(e) => Some(e),
             None => self.current_lexical_environment(),
         };
-        get_identifier_reference(self, env, name.clone(), strict).map(SuperValue::from)
+        get_identifier_reference(self, env, name.clone(), strict).map(NormalCompletion::from)
     }
 }

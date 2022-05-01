@@ -1076,7 +1076,7 @@ fn ordinary_get_04() {
     let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap();
     assert_eq!(result, ECMAScriptValue::from(0));
 }
-fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     // This is a getter; it is essentially:
     // function() { return this.result; }
     let obj = to_object(agent, this_value)?;
@@ -1294,7 +1294,7 @@ fn ordinary_set_with_own_descriptor_09() {
     let item = get(&mut agent, &obj, &key).unwrap();
     assert_eq!(item, value);
 }
-fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion {
+fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
     // This is a setter; it is essentially:
     // function(val) { this.value = val; }
     let obj = to_object(agent, this_value)?;
@@ -2292,7 +2292,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
 
-    fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion {
+    fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Err(create_type_error(agent, "Test Sentinel"))
     }
 
@@ -2444,7 +2444,7 @@ mod enumerable_own_property_names {
         .unwrap();
         obj
     }
-    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         if this.something.get() == 0 {
             this.something.set(1);
             Ok(ordinary_get_own_property(this, key))
@@ -2462,7 +2462,7 @@ mod enumerable_own_property_names {
         create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
         obj
     }
-    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys(agent: &mut Agent) -> Object {
@@ -2546,7 +2546,7 @@ mod set_integrity_level {
         create_data_property_or_throw(agent, &obj, "property", 99.0).unwrap();
         obj
     }
-    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         if this.something.get() == 0 {
             this.something.set(1);
             Ok(ordinary_get_own_property(this, key))
@@ -2559,7 +2559,7 @@ mod set_integrity_level {
         create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
         obj
     }
-    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+    fn lying_ownprops(_: &mut Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys(agent: &mut Agent) -> Object {

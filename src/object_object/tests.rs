@@ -1,7 +1,6 @@
 use super::*;
-use crate::cr::AltCompletion;
-use crate::errors::unwind_any_error;
-use crate::errors::{create_type_error, create_type_error_object};
+use crate::cr::Completion;
+use crate::errors::{create_type_error, create_type_error_object, unwind_any_error};
 use crate::execution_context::ExecutionContext;
 use crate::object::{
     create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject, PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
@@ -118,7 +117,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        fn fake_keys(_agent: &mut Agent, _this: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+        fn fake_keys(_agent: &mut Agent, _this: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("once"), PropertyKey::from("twice")])
         }
 
@@ -180,10 +179,10 @@ mod constructor {
         fn own_property_keys_throws(agent: &mut Agent) -> ECMAScriptValue {
             ECMAScriptValue::from(TestObject::object(agent, &[FunctionId::OwnPropertyKeys]))
         }
-        fn own_prop_keys(_: &mut Agent, _: &AdaptableObject) -> AltCompletion<Vec<PropertyKey>> {
+        fn own_prop_keys(_: &mut Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("prop")])
         }
-        fn get_own_prop_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        fn get_own_prop_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             Err(create_type_error(agent, "Test Sentinel"))
         }
         fn get_own_property_throws(agent: &mut Agent) -> ECMAScriptValue {
@@ -200,7 +199,7 @@ mod constructor {
             create_data_property_or_throw(agent, &obj, "something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
-        fn get_own_prop_ok(_: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> AltCompletion<Option<PropertyDescriptor>> {
+        fn get_own_prop_ok(_: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             Ok(Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(22), writable: true }),
                 enumerable: true,
@@ -208,7 +207,7 @@ mod constructor {
                 ..Default::default()
             }))
         }
-        fn get_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey, _: &ECMAScriptValue) -> Completion {
+        fn get_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey, _: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
             Err(create_type_error(agent, "[[Get]] throws from AdaptableObject"))
         }
         fn get_throws(agent: &mut Agent) -> ECMAScriptValue {
@@ -406,7 +405,7 @@ mod constructor {
         fn plain_obj(agent: &mut Agent) -> ECMAScriptValue {
             ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
         }
-        fn faux_errors(agent: &mut Agent, _: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion {
+        fn faux_errors(agent: &mut Agent, _: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Err(create_type_error(agent, "Test Sentinel"))
         }
         fn make_bad_property_key(agent: &mut Agent) -> ECMAScriptValue {
