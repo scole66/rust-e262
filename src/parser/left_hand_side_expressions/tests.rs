@@ -2408,4 +2408,30 @@ mod left_hand_side_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).left_hand_side_expression().assignment_target_type(strict)
     }
+
+    #[test_case("idref" => true; "Id Ref")]
+    #[test_case("this" => false; "this kwd")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("[10, 11, 12]" => false; "array literal")]
+    #[test_case("{ a: 12 }" => false; "object literal")]
+    #[test_case("function a(){}" => false; "function expression")]
+    #[test_case("function *a(){}" => false; "generator expression")]
+    #[test_case("async function () {}" => false; "async func expr")]
+    #[test_case("async function *(){}" => false; "async gen expr")]
+    #[test_case("/abcd/" => false; "regex literal")]
+    #[test_case("`template`" => false; "template literal")]
+    #[test_case("(id)" => false; "parentheszied expr")]
+    #[test_case("a[0]" => false; "expression member access")]
+    #[test_case("a.a" => false; "name member access")]
+    #[test_case("a`${b}`" => false; "tagged template")]
+    #[test_case("super.a" => false; "super prop")]
+    #[test_case("new.target" => false; "meta prop")]
+    #[test_case("new a()" => false; "new expr")]
+    #[test_case("a.#b" => false; "private member access")]
+    #[test_case("new a" => false; "other new expr")]
+    #[test_case("a()" => false; "call")]
+    #[test_case("a?.b" => false; "optional")]
+    fn is_identifier_ref(src: &str) -> bool {
+        Maker::new(src).left_hand_side_expression().is_identifier_ref()
+    }
 }
