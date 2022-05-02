@@ -128,7 +128,6 @@ pub fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
 pub fn test_agent() -> Agent {
     let mut agent = Agent::new();
     agent.initialize_host_defined_realm(true);
-
     agent
 }
 
