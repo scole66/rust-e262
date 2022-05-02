@@ -130,18 +130,6 @@ impl IsFunctionDefinition for PrimaryExpression {
         }
     }
 }
-
-impl IsIdentifierReference for PrimaryExpression {
-    fn is_identifier_reference(&self) -> bool {
-        use PrimaryExpression::*;
-        match self {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_)
-            | AsyncFunction(_) | AsyncGenerator(_) => false,
-            IdentifierReference(_) => true,
-        }
-    }
-}
-
 pub trait ToPrimaryExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression;
     fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
@@ -424,6 +412,13 @@ impl PrimaryExpression {
             IdentifierReference(id) => id.assignment_target_type(strict),
             Parenthesized(expr) => expr.assignment_target_type(strict),
         }
+    }
+
+    /// True if this production winds up being an IdentifierRef
+    ///
+    /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
+    pub fn is_identifier_ref(&self) -> bool {
+        matches!(self, PrimaryExpression::IdentifierReference(_))
     }
 }
 
