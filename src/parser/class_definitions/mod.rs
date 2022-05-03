@@ -250,6 +250,10 @@ impl ClassExpression {
         }
         self.tail.early_errors(agent, errs, true);
     }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
+    }
 }
 
 // ClassTail[Yield, Await] :

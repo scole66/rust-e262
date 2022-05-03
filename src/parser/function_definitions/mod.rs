@@ -264,6 +264,10 @@ impl FunctionExpression {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
+    }
 }
 
 // FunctionBody[Yield, Await] :

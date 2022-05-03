@@ -388,6 +388,28 @@ impl AssignmentExpression {
             AssignmentExpression::FallThru(node) => node.assignment_target_type(strict),
         }
     }
+
+    /// Determine if this parse node is an anonymous function
+    ///
+    /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
+    pub fn is_anonymous_function_definition(&self) -> bool {
+        self.is_function_definition() && !self.is_named_function()
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Assignment(..)
+            | AssignmentExpression::OpAssignment(..)
+            | AssignmentExpression::LandAssignment(..)
+            | AssignmentExpression::LorAssignment(..)
+            | AssignmentExpression::CoalAssignment(..)
+            | AssignmentExpression::Destructuring(..)
+            | AssignmentExpression::Arrow(..)
+            | AssignmentExpression::AsyncArrow(..) => false,
+            AssignmentExpression::FallThru(node) => node.is_named_function(),
+        }
+    }
 }
 
 // AssignmentOperator : one of

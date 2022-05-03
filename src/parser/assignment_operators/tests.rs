@@ -415,6 +415,61 @@ mod assignment_expression {
     fn contains_arguments(src: &str) -> bool {
         AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("function blue(){}" => false; "named function")]
+    #[test_case("function (){}" => true; "anonymous function")]
+    #[test_case("function *a(){}" => false; "named generator")]
+    #[test_case("function *(){}" => true; "anonymous generator")]
+    #[test_case("async function blue(){}" => false; "async named function")]
+    #[test_case("async function (){}" => true; "async anonymous function")]
+    #[test_case("async function *a(){}" => false; "async named generator")]
+    #[test_case("async function *(){}" => true; "async anonymous generator")]
+    #[test_case("class {}" => true; "anonymous class")]
+    #[test_case("class a{}" => false; "named class")]
+    #[test_case("x => x*2" => true; "arrow function")]
+    #[test_case("async x => x + 3" => true; "async arrow function")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("(function *(){})" => true; "parenthesized function expr")]
+    fn is_anonymous_function_definition(src: &str) -> bool {
+        Maker::new(src).assignment_expression().is_anonymous_function_definition()
+    }
+
+    #[test_case("function blue(){}" => true; "named function")]
+    #[test_case("function (){}" => false; "anonymous function")]
+    #[test_case("function *a(){}" => true; "named generator")]
+    #[test_case("function *(){}" => false; "anonymous generator")]
+    #[test_case("async function blue(){}" => true; "async named function")]
+    #[test_case("async function (){}" => false; "async anonymous function")]
+    #[test_case("async function *a(){}" => true; "async named generator")]
+    #[test_case("async function *(){}" => false; "async anonymous generator")]
+    #[test_case("class {}" => false; "anonymous class")]
+    #[test_case("class a{}" => true; "named class")]
+    #[test_case("x => x*2" => false; "arrow function")]
+    #[test_case("async x => x + 3" => false; "async arrow function")]
+    #[test_case("10" => false; "literal")]
+    #[test_case("(function *(){})" => false; "parenthesized function expr")]
+    #[test_case("a+b" => false; "additive")]
+    #[test_case("a^b" => false; "bitwise xor")]
+    #[test_case("a&b" => false; "bitwise and")]
+    #[test_case("a|b" => false; "bitwise or")]
+    #[test_case("a??b" => false; "coalesce")]
+    #[test_case("a||b" => false; "logical or")]
+    #[test_case("a&&b" => false; "logical and")]
+    #[test_case("a<<b" => false; "shift expr")]
+    #[test_case("(a,b)" => false; "comma")]
+    #[test_case("a==b" => false; "equality")]
+    #[test_case("a**b" => false; "exponent")]
+    #[test_case("a.b" => false; "member")]
+    #[test_case("a()" => false; "call")]
+    #[test_case("new a" => false; "new expr")]
+    #[test_case("a*b" => false; "multiplicative")]
+    #[test_case("a<b" => false; "relational")]
+    #[test_case("-a" => false; "unary expr")]
+    #[test_case("a++" => false; "update expr")]
+    #[test_case("a?b:c" => false; "conditional")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).assignment_expression().is_named_function()
+    }
 }
 
 mod assignment_operator {

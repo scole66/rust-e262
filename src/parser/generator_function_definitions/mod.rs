@@ -415,6 +415,10 @@ impl GeneratorExpression {
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
+    }
 }
 
 // GeneratorBody :
