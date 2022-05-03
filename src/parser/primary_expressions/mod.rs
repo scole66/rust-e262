@@ -420,6 +420,18 @@ impl PrimaryExpression {
     pub fn is_identifier_ref(&self) -> bool {
         matches!(self, PrimaryExpression::IdentifierReference(_))
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            PrimaryExpression::Function(node) => node.is_named_function(),
+            PrimaryExpression::Class(node) => node.is_named_function(),
+            PrimaryExpression::Generator(node) => node.is_named_function(),
+            PrimaryExpression::AsyncFunction(node) => node.is_named_function(),
+            PrimaryExpression::AsyncGenerator(node) => node.is_named_function(),
+            PrimaryExpression::Parenthesized(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1065,6 +1077,14 @@ impl Initializer {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let Initializer::AssignmentExpression(node) = self;
         node.early_errors(agent, errs, strict);
+    }
+
+    /// Determine if this parse node is an anonymous function
+    ///
+    /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
+    pub fn is_anonymous_function_definition(&self) -> bool {
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.is_anonymous_function_definition()
     }
 }
 
@@ -2795,6 +2815,11 @@ impl ParenthesizedExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         let ParenthesizedExpression::Expression(e) = self;
         e.assignment_target_type(strict)
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.is_named_function()
     }
 }
 

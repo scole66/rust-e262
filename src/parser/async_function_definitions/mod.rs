@@ -370,6 +370,10 @@ impl AsyncFunctionExpression {
         self.params.early_errors(agent, errs, strict_function, duplicates_checked);
         self.body.early_errors(agent, errs, strict_function);
     }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
+    }
 }
 
 // AsyncMethod[Yield, Await] :

@@ -388,6 +388,13 @@ impl MemberExpression {
             | MemberExpressionKind::PrivateId(..) => false,
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -1111,6 +1118,13 @@ impl NewExpression {
             NewExpressionKind::MemberExpression(x) => x.is_identifier_ref(),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1772,6 +1786,13 @@ impl LeftHandSideExpression {
         match self {
             LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => false,
             LeftHandSideExpression::New(x) => x.is_identifier_ref(),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            LeftHandSideExpression::New(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

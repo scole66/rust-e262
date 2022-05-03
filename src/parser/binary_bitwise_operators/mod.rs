@@ -151,6 +151,13 @@ impl BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(..) => ATTKind::Invalid,
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.is_named_function(),
+            BitwiseANDExpression::BitwiseAND(..) => false,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -296,6 +303,13 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(strict),
             BitwiseXORExpression::BitwiseXOR(..) => ATTKind::Invalid,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            BitwiseXORExpression::BitwiseXOR(..) => false,
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.is_named_function(),
         }
     }
 }
@@ -454,6 +468,13 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
             _ => ATTKind::Invalid,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            BitwiseORExpression::BitwiseOR(..) => false,
+            BitwiseORExpression::BitwiseXORExpression(node) => node.is_named_function(),
         }
     }
 }

@@ -160,6 +160,13 @@ impl ConditionalExpression {
             ConditionalExpression::FallThru(node) => node.assignment_target_type(strict),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            ConditionalExpression::Conditional(..) => false,
+            ConditionalExpression::FallThru(node) => node.is_named_function(),
+        }
+    }
 }
 
 #[cfg(test)]
