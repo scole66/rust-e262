@@ -15,7 +15,7 @@ use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::get_value;
+use super::reference::{get_value, put_value};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
@@ -428,6 +428,12 @@ impl Agent {
                     let value = get_value(self, reference);
                     self.execution_context_stack[index].stack.push(value.map(NormalCompletion::from));
                 }
+                Insn::PutValue => {
+                    let w = self.execution_context_stack[index].stack.pop().unwrap();
+                    let v = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = put_value(self, v, w.map(|v| v.try_into().unwrap()));
+                    self.execution_context_stack[index].stack.push(result.map(NormalCompletion::from));
+                }
                 Insn::JumpIfAbrupt => {
                     let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
                     self.execution_context_stack[index].pc += 1;
@@ -444,6 +450,15 @@ impl Agent {
                     let newer = self.execution_context_stack[index].stack.pop().unwrap();
                     let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into().unwrap();
                     self.execution_context_stack[index].stack.push(update_empty(newer, older));
+                }
+                Insn::Pop2Push3 => {
+                    // Stack: top lower ====> top lower top
+                    let top = self.execution_context_stack[index].stack.pop().unwrap();
+                    let lower = self.execution_context_stack[index].stack.pop().unwrap();
+                    let bottom = top.clone();
+                    self.execution_context_stack[index].stack.push(bottom);
+                    self.execution_context_stack[index].stack.push(lower);
+                    self.execution_context_stack[index].stack.push(top);
                 }
             }
         }

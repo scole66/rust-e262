@@ -35,6 +35,12 @@ impl From<Reference> for NormalCompletion {
     }
 }
 
+impl From<()> for NormalCompletion {
+    fn from(_: ()) -> Self {
+        Self::Empty
+    }
+}
+
 impl TryFrom<NormalCompletion> for ECMAScriptValue {
     type Error = anyhow::Error;
     fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {

@@ -38,8 +38,10 @@ pub enum Insn {
     Float,
     Bigint,
     GetValue,
+    PutValue,
     JumpIfAbrupt,
     UpdateEmpty,
+    Pop2Push3,
 }
 
 impl fmt::Display for Insn {
@@ -55,8 +57,10 @@ impl fmt::Display for Insn {
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
+            Insn::PutValue => "PUT_VALUE",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
+            Insn::Pop2Push3 => "POP2_PUSH3",
         })
     }
 }
@@ -335,9 +339,54 @@ impl ConditionalExpression {
 }
 
 impl AssignmentExpression {
+    #[allow(unused_assignments)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match self {
             AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict),
+            AssignmentExpression::Assignment(lhse, ae) => {
+                // Runtime Semantics: Evaluation
+                //  AssignmentExpression : LeftHandSideExpression = AssignmentExpression
+                //      a. Let lref be the result of evaluating LeftHandSideExpression.
+                //      b. ReturnIfAbrupt(lref).
+                //      c. If IsAnonymousFunctionDefinition(AssignmentExpression) and IsIdentifierRef of LeftHandSideExpression are both true, then
+                //          i. Let rval be ? NamedEvaluation of AssignmentExpression with argument lref.[[ReferencedName]].
+                //      d. Else,
+                //          i. Let rref be the result of evaluating AssignmentExpression.
+                //          ii. Let rval be ? GetValue(rref).
+                //      e. Perform ? PutValue(lref, rval).
+                //      f. Return rval.
+                lhse.compile(chunk, strict)?;
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                // Stack:
+                //   lref
+                let mut mark2 = None;
+                if ae.is_anonymous_function_definition() && lhse.is_identifier_ref() {
+                    todo!()
+                } else {
+                    ae.compile(chunk, strict)?;
+                    // Stack:
+                    //   rref lref
+                    chunk.op(Insn::GetValue);
+                    mark2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                // Stack:
+                //   rval lref
+                chunk.op(Insn::Pop2Push3);
+                // Stack:
+                //   rval lref rval
+                chunk.op(Insn::PutValue);
+                // Stack:
+                //   emptyval rval
+                chunk.op(Insn::UpdateEmpty);
+                // Stack:
+                //   rval
+
+                chunk.fixup(mark)?;
+                if let Some(m) = mark2 {
+                    chunk.fixup(m)?;
+                }
+                Ok(())
+            }
             _ => todo!(),
         }
     }
