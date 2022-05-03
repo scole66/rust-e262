@@ -338,6 +338,10 @@ impl AsyncGeneratorExpression {
     pub fn early_errors(&self, _agent: &mut Agent, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    pub fn is_named_function(&self) -> bool {
+        self.ident.is_some()
+    }
 }
 
 // AsyncGeneratorBody :

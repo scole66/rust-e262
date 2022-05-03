@@ -187,6 +187,13 @@ impl EqualityExpression {
             _ => ATTKind::Invalid,
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

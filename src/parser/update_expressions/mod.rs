@@ -227,6 +227,13 @@ impl UpdateExpression {
             UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            UpdateExpression::LeftHandSideExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -513,16 +513,8 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait HasName {
-    fn has_name(&self) -> bool;
-}
-
 pub trait IsFunctionDefinition {
     fn is_function_definition(&self) -> bool;
-}
-
-pub trait IsIdentifierReference {
-    fn is_identifier_reference(&self) -> bool;
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]

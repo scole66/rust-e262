@@ -130,18 +130,6 @@ impl IsFunctionDefinition for PrimaryExpression {
         }
     }
 }
-
-impl IsIdentifierReference for PrimaryExpression {
-    fn is_identifier_reference(&self) -> bool {
-        use PrimaryExpression::*;
-        match self {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | Parenthesized(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_)
-            | AsyncFunction(_) | AsyncGenerator(_) => false,
-            IdentifierReference(_) => true,
-        }
-    }
-}
-
 pub trait ToPrimaryExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression;
     fn to_primary_expression_result(node: Rc<Self>, scanner: Scanner) -> ParseResult<PrimaryExpression> {
@@ -423,6 +411,25 @@ impl PrimaryExpression {
             | AsyncGenerator(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(strict),
             Parenthesized(expr) => expr.assignment_target_type(strict),
+        }
+    }
+
+    /// True if this production winds up being an IdentifierRef
+    ///
+    /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
+    pub fn is_identifier_ref(&self) -> bool {
+        matches!(self, PrimaryExpression::IdentifierReference(_))
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            PrimaryExpression::Function(node) => node.is_named_function(),
+            PrimaryExpression::Class(node) => node.is_named_function(),
+            PrimaryExpression::Generator(node) => node.is_named_function(),
+            PrimaryExpression::AsyncFunction(node) => node.is_named_function(),
+            PrimaryExpression::AsyncGenerator(node) => node.is_named_function(),
+            PrimaryExpression::Parenthesized(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }
@@ -1070,6 +1077,14 @@ impl Initializer {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         let Initializer::AssignmentExpression(node) = self;
         node.early_errors(agent, errs, strict);
+    }
+
+    /// Determine if this parse node is an anonymous function
+    ///
+    /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
+    pub fn is_anonymous_function_definition(&self) -> bool {
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.is_anonymous_function_definition()
     }
 }
 
@@ -2800,6 +2815,11 @@ impl ParenthesizedExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         let ParenthesizedExpression::Expression(e) = self;
         e.assignment_target_type(strict)
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        let ParenthesizedExpression::Expression(e) = self;
+        e.is_named_function()
     }
 }
 

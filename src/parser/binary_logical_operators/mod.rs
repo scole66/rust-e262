@@ -151,6 +151,13 @@ impl LogicalANDExpression {
             LogicalANDExpression::BitwiseORExpression(node) => node.assignment_target_type(strict),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            LogicalANDExpression::LogicalAND(..) => false,
+            LogicalANDExpression::BitwiseORExpression(node) => node.is_named_function(),
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -296,6 +303,13 @@ impl LogicalORExpression {
         match &self {
             LogicalORExpression::LogicalOR(_, _) => ATTKind::Invalid,
             LogicalORExpression::LogicalANDExpression(node) => node.assignment_target_type(strict),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            LogicalORExpression::LogicalOR(..) => false,
+            LogicalORExpression::LogicalANDExpression(node) => node.is_named_function(),
         }
     }
 }
@@ -621,6 +635,13 @@ impl ShortCircuitExpression {
         match &self {
             ShortCircuitExpression::CoalesceExpression(_) => ATTKind::Invalid,
             ShortCircuitExpression::LogicalORExpression(node) => node.assignment_target_type(strict),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            ShortCircuitExpression::CoalesceExpression(_) => false,
+            ShortCircuitExpression::LogicalORExpression(node) => node.is_named_function(),
         }
     }
 }

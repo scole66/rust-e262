@@ -152,6 +152,13 @@ impl ExponentiationExpression {
             ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

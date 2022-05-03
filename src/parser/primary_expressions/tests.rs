@@ -46,7 +46,6 @@ fn primary_expression_test_idref() {
     chk_scan(&scanner, 4);
     assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference(_)));
     assert_eq!(boxed_pe.is_function_definition(), false);
-    assert_eq!(boxed_pe.is_identifier_reference(), true);
 }
 #[test]
 fn primary_expression_test_literal() {
@@ -54,7 +53,6 @@ fn primary_expression_test_literal() {
     chk_scan(&scanner, 3);
     assert!(matches!(*node, PrimaryExpression::Literal(_)));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_this() {
@@ -62,7 +60,6 @@ fn primary_expression_test_this() {
     chk_scan(&scanner, 4);
     assert!(matches!(*node, PrimaryExpression::This));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_arraylit() {
@@ -70,7 +67,6 @@ fn primary_expression_test_arraylit() {
     chk_scan(&scanner, 2);
     assert!(matches!(*node, PrimaryExpression::ArrayLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_objlit() {
@@ -78,7 +74,6 @@ fn primary_expression_test_objlit() {
     chk_scan(&scanner, 2);
     assert!(matches!(*node, PrimaryExpression::ObjectLiteral(_)));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_group() {
@@ -86,7 +81,6 @@ fn primary_expression_test_group() {
     chk_scan(&scanner, 3);
     assert!(matches!(*node, PrimaryExpression::Parenthesized(_)));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_func() {
@@ -94,7 +88,6 @@ fn primary_expression_test_func() {
     chk_scan(&scanner, 14);
     assert!(matches!(*node, PrimaryExpression::Function(..)));
     assert_eq!(node.is_function_definition(), true);
-    assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
     concise_check(&*node, "FunctionExpression: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
 }
@@ -104,7 +97,6 @@ fn primary_expression_test_generator() {
     chk_scan(&scanner, 18);
     assert!(matches!(*node, PrimaryExpression::Generator(..)));
     assert_eq!(node.is_function_definition(), true);
-    assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -118,7 +110,6 @@ fn primary_expression_test_async_generator() {
     chk_scan(&scanner, 24);
     assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
     assert_eq!(node.is_function_definition(), true);
-    assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -143,7 +134,6 @@ fn primary_expression_test_async_function() {
     chk_scan(&scanner, 23);
     assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
     assert_eq!(node.is_function_definition(), true);
-    assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
     concise_check(
         &*node,
@@ -157,7 +147,6 @@ fn primary_expression_test_regexp() {
     chk_scan(&scanner, 6);
     assert!(matches!(*node, PrimaryExpression::RegularExpression(..)));
     assert_eq!(node.is_function_definition(), false);
-    assert_eq!(node.is_identifier_reference(), false);
 }
 #[test]
 fn primary_expression_test_class_expression() {
@@ -165,7 +154,6 @@ fn primary_expression_test_class_expression() {
     chk_scan(&scanner, 7);
     assert!(matches!(*node, PrimaryExpression::Class(..)));
     assert_eq!(node.is_function_definition(), true);
-    assert_eq!(node.is_identifier_reference(), false);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
 }

@@ -372,6 +372,29 @@ impl MemberExpression {
             MemberExpressionKind::NewArguments(..) => ATTKind::Invalid,
         }
     }
+
+    /// True if this production winds up being an IdentifierRef
+    ///
+    /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
+    pub fn is_identifier_ref(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(x) => x.is_identifier_ref(),
+            MemberExpressionKind::Expression(..)
+            | MemberExpressionKind::IdentifierName(..)
+            | MemberExpressionKind::TemplateLiteral(..)
+            | MemberExpressionKind::SuperProperty(..)
+            | MemberExpressionKind::MetaProperty(..)
+            | MemberExpressionKind::NewArguments(..)
+            | MemberExpressionKind::PrivateId(..) => false,
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match &self.kind {
+            MemberExpressionKind::PrimaryExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -1085,6 +1108,23 @@ impl NewExpression {
             NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
         }
     }
+
+    /// True if this production winds up being an IdentifierRef
+    ///
+    /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
+    pub fn is_identifier_ref(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::NewExpression(_) => false,
+            NewExpressionKind::MemberExpression(x) => x.is_identifier_ref(),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match &self.kind {
+            NewExpressionKind::MemberExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1736,6 +1776,23 @@ impl LeftHandSideExpression {
             LeftHandSideExpression::New(boxed) => boxed.assignment_target_type(strict),
             LeftHandSideExpression::Call(boxed) => boxed.assignment_target_type(),
             LeftHandSideExpression::Optional(_) => ATTKind::Invalid,
+        }
+    }
+
+    /// True if this production winds up being an IdentifierRef
+    ///
+    /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
+    pub fn is_identifier_ref(&self) -> bool {
+        match self {
+            LeftHandSideExpression::Call(_) | LeftHandSideExpression::Optional(_) => false,
+            LeftHandSideExpression::New(x) => x.is_identifier_ref(),
+        }
+    }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            LeftHandSideExpression::New(node) => node.is_named_function(),
+            _ => false,
         }
     }
 }

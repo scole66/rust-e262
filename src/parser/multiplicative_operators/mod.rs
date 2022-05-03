@@ -204,6 +204,13 @@ impl MultiplicativeExpression {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(strict),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

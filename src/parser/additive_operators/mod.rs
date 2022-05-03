@@ -166,6 +166,13 @@ impl AdditiveExpression {
             AdditiveExpression::MultiplicativeExpression(me) => me.assignment_target_type(strict),
         }
     }
+
+    pub fn is_named_function(&self) -> bool {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(node) => node.is_named_function(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
