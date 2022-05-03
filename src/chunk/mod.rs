@@ -62,7 +62,10 @@ impl Chunk {
 
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
-        let offset = if len > mark { i16::try_from(len - mark - 1)? } else { -i16::try_from(mark + 1 - len)? };
+        if mark >= len {
+            anyhow::bail!("Fixup location out of range");
+        }
+        let offset = i16::try_from(len - mark - 1)?;
         self.opcodes[mark] = offset as u16;
         Ok(())
     }
@@ -105,27 +108,4 @@ impl Chunk {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::parser::testhelp::Maker;
-    use test_case::test_case;
-
-    #[test_case("Boolean")]
-    #[test_case("67.2")]
-    #[test_case("'Thanksgiving'")]
-    #[test_case("null")]
-    #[test_case("true")]
-    #[test_case("false")]
-    #[test_case("34791057890163987078960471890743891203561n")]
-    #[test_case("(undefined)")]
-    #[test_case("a+b" => panics "not yet implemented")]
-    fn compile_an_expression(src: &str) {
-        let node = Maker::new(src).script();
-        let mut my_chunk = Chunk::new("test chunk");
-        node.compile(&mut my_chunk).unwrap();
-
-        for line in my_chunk.disassemble() {
-            println!("{line}");
-        }
-    }
-}
+mod tests;
