@@ -25,7 +25,7 @@ use std::fmt;
 
 pub type Opcode = u16;
 
-#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Insn {
     String,
@@ -412,7 +412,6 @@ impl ExpressionStatement {
 }
 
 impl StatementList {
-    #[allow(unused_variables)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match self {
             StatementList::Item(sli) => sli.compile(chunk, strict),
@@ -462,3 +461,6 @@ impl ScriptBody {
         self.statement_list.compile(chunk, strict)
     }
 }
+
+#[cfg(test)]
+mod tests;
