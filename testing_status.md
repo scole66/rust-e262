@@ -5,8 +5,8 @@ Files in the commit chain:
 | File path | Test Completion State | doc-comments added | Functions to Test |
 | --- | --- | --- | --- |
 | agent
-| chunk
-| compiler
+| chunk | ok |
+| compiler | ok |
 | cr | ok | ok |
 | environment_record
 | errors | ok | ok | `unwind_any_error_value`, `unwind_any_error`
