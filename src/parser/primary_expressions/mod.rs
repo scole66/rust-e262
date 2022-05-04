@@ -1297,7 +1297,7 @@ impl LiteralPropertyName {
             Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
-            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(b))), after_tok)),
+            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(Rc::new(b)))), after_tok)),
             _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
         }
     }
@@ -1961,7 +1961,7 @@ impl ObjectLiteral {
 #[derive(Debug, PartialEq)]
 pub enum Numeric {
     Number(f64),
-    BigInt(BigInt),
+    BigInt(Rc<BigInt>),
 }
 
 impl fmt::Display for Numeric {
@@ -1994,7 +1994,7 @@ pub enum LiteralKind {
 }
 #[derive(Debug)]
 pub struct Literal {
-    kind: LiteralKind,
+    pub kind: LiteralKind,
 }
 
 impl fmt::Display for Literal {
@@ -2048,7 +2048,7 @@ impl Literal {
             Token::Identifier(id) if id.matches(Keyword::True) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner)),
             Token::Identifier(id) if id.matches(Keyword::False) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner)),
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
-            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(bi)) }), newscanner)),
+            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
         }

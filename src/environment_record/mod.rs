@@ -124,6 +124,9 @@ pub trait EnvironmentRecord: Debug {
     fn has_super_binding(&self) -> bool;
     fn with_base_object(&self) -> Option<Object>;
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>>;
+    fn get_this_binding(&self, _agent: &mut Agent) -> Completion<ECMAScriptValue> {
+        unreachable!()
+    }
 }
 
 // Declarative Environment Records
@@ -774,6 +777,22 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
         self.base.outer_env.as_ref().cloned()
     }
+
+    // GetThisBinding ( )
+    //
+    // The GetThisBinding concrete method of a function Environment Record envRec takes no arguments. It performs the
+    // following steps when called:
+    //
+    //  1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
+    //  2. If envRec.[[ThisBindingStatus]] is uninitialized, throw a ReferenceError exception.
+    //  3. Return envRec.[[ThisValue]].
+    fn get_this_binding(&self, agent: &mut Agent) -> Completion<ECMAScriptValue> {
+        if self.this_binding_status == BindingStatus::Uninitialized {
+            Err(create_reference_error(agent, "This binding uninitialized"))
+        } else {
+            Ok(self.this_value.clone())
+        }
+    }
 }
 
 // In addition, function Environment Records support the methods listed in Table 20:
@@ -815,22 +834,6 @@ impl FunctionEnvironmentRecord {
             self.this_value = val.clone();
             self.this_binding_status = BindingStatus::Initialized;
             Ok(val)
-        }
-    }
-
-    // GetThisBinding ( )
-    //
-    // The GetThisBinding concrete method of a function Environment Record envRec takes no arguments. It performs the
-    // following steps when called:
-    //
-    //  1. Assert: envRec.[[ThisBindingStatus]] is not lexical.
-    //  2. If envRec.[[ThisBindingStatus]] is uninitialized, throw a ReferenceError exception.
-    //  3. Return envRec.[[ThisValue]].
-    pub fn get_this_binding(&self, agent: &mut Agent) -> Completion<ECMAScriptValue> {
-        if self.this_binding_status == BindingStatus::Uninitialized {
-            Err(create_reference_error(agent, "This binding uninitialized"))
-        } else {
-            Ok(self.this_value.clone())
         }
     }
 
@@ -1184,19 +1187,19 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
         None
     }
-}
 
-impl GlobalEnvironmentRecord {
     // GetThisBinding ( )
     //
     // The GetThisBinding concrete method of a global Environment Record envRec takes no arguments. It performs the
     // following steps when called:
     //
     //  1. Return envRec.[[GlobalThisValue]].
-    pub fn get_this_binding(&self) -> Object {
-        self.global_this_value.clone()
+    fn get_this_binding(&self, _: &mut Agent) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::from(self.global_this_value.clone()))
     }
+}
 
+impl GlobalEnvironmentRecord {
     // HasVarDeclaration ( N )
     //
     // The HasVarDeclaration concrete method of a global Environment Record envRec takes argument N (a String). It

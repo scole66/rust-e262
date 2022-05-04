@@ -43,7 +43,7 @@ pub enum MemberExpressionKind {
 
 #[derive(Debug)]
 pub struct MemberExpression {
-    kind: MemberExpressionKind,
+    pub kind: MemberExpressionKind,
 }
 
 impl fmt::Display for MemberExpression {
@@ -971,7 +971,7 @@ pub enum NewExpressionKind {
 
 #[derive(Debug)]
 pub struct NewExpression {
-    kind: NewExpressionKind,
+    pub kind: NewExpressionKind,
 }
 
 impl fmt::Display for NewExpression {

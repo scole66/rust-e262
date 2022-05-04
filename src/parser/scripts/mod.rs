@@ -18,7 +18,7 @@ use std::io::Write;
 // Script :
 //      ScriptBody opt
 #[derive(Debug)]
-pub struct Script(Option<Rc<ScriptBody>>);
+pub struct Script(pub Option<Rc<ScriptBody>>);
 
 impl fmt::Display for Script {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -203,8 +203,8 @@ impl Script {
 //      StatementList[~Yield, ~Await, ~Return]
 #[derive(Debug)]
 pub struct ScriptBody {
-    statement_list: Rc<StatementList>,
-    direct: bool,
+    pub statement_list: Rc<StatementList>,
+    pub direct: bool,
 }
 
 impl fmt::Display for ScriptBody {

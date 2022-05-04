@@ -1,6 +1,7 @@
 use crate::reference::Reference;
 use crate::strings::JSString;
 use crate::values::ECMAScriptValue;
+use anyhow::anyhow;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NormalCompletion {
@@ -19,15 +20,45 @@ pub enum AbruptCompletion {
 pub type Completion<T> = Result<T, AbruptCompletion>;
 pub type FullCompletion = Completion<NormalCompletion>;
 
-impl From<ECMAScriptValue> for NormalCompletion {
-    fn from(src: ECMAScriptValue) -> Self {
-        Self::Value(src)
+impl<T> From<T> for NormalCompletion
+where
+    T: Into<ECMAScriptValue>,
+{
+    fn from(src: T) -> Self {
+        Self::Value(src.into())
     }
 }
 
 impl From<Reference> for NormalCompletion {
     fn from(src: Reference) -> Self {
         Self::Reference(Box::new(src))
+    }
+}
+
+impl From<()> for NormalCompletion {
+    fn from(_: ()) -> Self {
+        Self::Empty
+    }
+}
+
+impl TryFrom<NormalCompletion> for ECMAScriptValue {
+    type Error = anyhow::Error;
+    fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
+        match src {
+            NormalCompletion::Value(v) => Ok(v),
+            NormalCompletion::Reference(_) | NormalCompletion::Empty => Err(anyhow!("Not a language value!")),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
+    type Error = anyhow::Error;
+    fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
+        match src {
+            NormalCompletion::Value(v) => Ok(Some(v)),
+            NormalCompletion::Empty => Ok(None),
+            NormalCompletion::Reference(_) => Err(anyhow!("Not a language value!")),
+        }
     }
 }
 

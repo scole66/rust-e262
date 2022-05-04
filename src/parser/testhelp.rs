@@ -32,7 +32,7 @@ use left_hand_side_expressions::{
 use method_definitions::MethodDefinition;
 use multiplicative_operators::MultiplicativeExpression;
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
-use primary_expressions::{ParenthesizedExpression, PrimaryExpression};
+use primary_expressions::{Literal, ParenthesizedExpression, PrimaryExpression};
 use relational_operators::RelationalExpression;
 use return_statement::ReturnStatement;
 use scripts::{Script, ScriptBody};
@@ -511,6 +511,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`LexicalDeclaration`] parse node.
     pub fn lexical_declaration(self) -> Rc<LexicalDeclaration> {
         LexicalDeclaration::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`Literal`] parse node.
+    pub fn literal(self) -> Rc<Literal> {
+        Literal::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`LogicalANDExpression`] parse node.
     pub fn logical_and_expression(self) -> Rc<LogicalANDExpression> {

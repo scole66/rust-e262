@@ -170,6 +170,11 @@ impl From<BigInt> for ECMAScriptValue {
         Self::BigInt(Rc::new(source))
     }
 }
+impl From<Rc<BigInt>> for ECMAScriptValue {
+    fn from(src: Rc<BigInt>) -> Self {
+        Self::BigInt(src)
+    }
+}
 
 impl From<Symbol> for ECMAScriptValue {
     fn from(source: Symbol) -> Self {
@@ -601,8 +606,7 @@ pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: O
 impl From<ECMAScriptValue> for bool {
     fn from(val: ECMAScriptValue) -> bool {
         match val {
-            ECMAScriptValue::Undefined => false,
-            ECMAScriptValue::Null => false,
+            ECMAScriptValue::Undefined | ECMAScriptValue::Null => false,
             ECMAScriptValue::Boolean(b) => b,
             ECMAScriptValue::Number(num) => !(num.is_nan() || num == 0.0),
             ECMAScriptValue::String(s) => s.len() > 0,

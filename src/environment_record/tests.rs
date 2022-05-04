@@ -1412,10 +1412,10 @@ mod global_environment_record {
         let ger = GlobalEnvironmentRecord::new(global_object, this_object.clone(), "test");
 
         // Exercise function
-        let result = ger.get_this_binding();
+        let result = ger.get_this_binding(&mut agent).unwrap();
 
         // Validate
-        assert_eq!(result, this_object);
+        assert_eq!(result, ECMAScriptValue::from(this_object));
     }
 
     #[test_case("varstyle" => true; "var")]

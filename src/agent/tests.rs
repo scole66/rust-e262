@@ -1,5 +1,5 @@
 use super::*;
-use crate::execution_context::{ScriptOrModule, ScriptRecord};
+use crate::parser::testhelp::Maker;
 use crate::tests::test_agent;
 use crate::tests::{create_named_realm, get_realm_name};
 use ahash::AHashSet;
@@ -45,7 +45,8 @@ fn agent_pop_execution_context() {
     agent.initialize_host_defined_realm(true);
     let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
-    let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(ScriptRecord {}))));
+    let sr = ScriptRecord { realm: realm_ref.clone(), ecmascript_code: Maker::new("").script(), compiled: Rc::new(Chunk::new("test")) };
+    let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
     agent.push_execution_context(test_ec);
     // now pop it.
     agent.pop_execution_context();

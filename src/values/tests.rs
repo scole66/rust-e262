@@ -2,10 +2,11 @@ use super::*;
 use crate::agent::WksId;
 use crate::arrays::array_create;
 use crate::errors::create_type_error;
+use crate::errors::unwind_any_error;
 use crate::function_object::create_builtin_function;
 use crate::object::{create_data_property, define_property_or_throw, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
 use crate::realm::IntrinsicId;
-use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_any_error, unwind_type_error};
+use crate::tests::{calculate_hash, printer_validate, test_agent, unwind_type_error};
 use ahash::RandomState;
 use num::bigint::BigInt;
 use std::cmp::Ordering;
@@ -127,6 +128,8 @@ fn ecmascript_value_from() {
     assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(1152921504606846976_i64))));
     let v = ECMAScriptValue::from(-1152921504606846976_i64);
     assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(-1152921504606846976_i64))));
+    let v = ECMAScriptValue::from(Rc::new(BigInt::from(789999999999999999999999_i128)));
+    assert_eq!(v, ECMAScriptValue::BigInt(Rc::new(BigInt::from(789999999999999999999999_i128))));
     let v = ECMAScriptValue::from(vec!['a' as u16, 'b' as u16, 'c' as u16]);
     assert_eq!(v, ECMAScriptValue::String(JSString::from("abc")));
     let v = ECMAScriptValue::from(&JSString::from("blue"));
@@ -1148,22 +1151,17 @@ mod to_property_key {
     }
 }
 
-mod to_length {
-    use super::*;
-    use test_case::test_case;
+#[test_case(|_| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
+#[test_case(|_| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
+#[test_case(|_| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
+#[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
+#[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
+#[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
+fn to_length(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
+    let mut agent = test_agent();
+    let arg = make_arg(&mut agent);
 
-    #[test_case(|_| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
-    #[test_case(|_| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
-    #[test_case(|_| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-    #[test_case(|_| ECMAScriptValue::from(9007199254740991.0) => Ok(9007199254740991); "top edge")]
-    #[test_case(|_| ECMAScriptValue::from(9007199254740992.0) => Ok(9007199254740991); "over")]
-    #[test_case(|a| ECMAScriptValue::from(Symbol::new(a, Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
-    fn f(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<i64, String> {
-        let mut agent = test_agent();
-        let arg = make_arg(&mut agent);
-
-        to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
-    }
+    super::to_length(&mut agent, arg).map_err(|e| unwind_type_error(&mut agent, e))
 }
 
 mod canonical_numeric_index_string {

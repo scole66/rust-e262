@@ -1,9 +1,24 @@
-use super::environment_record::GlobalEnvironmentRecord;
-use super::execution_context::{get_global_object, ExecutionContext};
+use super::chunk::Chunk;
+use super::compiler::Insn;
+use super::cr::{update_empty, Completion, NormalCompletion};
+use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
+use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
+use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
+use super::parser::async_function_definitions::AsyncFunctionDeclaration;
+use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
+use super::parser::class_definitions::ClassDeclaration;
+use super::parser::declarations_and_variables::LexicalDeclaration;
+use super::parser::function_definitions::FunctionDeclaration;
+use super::parser::generator_function_definitions::GeneratorDeclaration;
+use super::parser::scripts::{Script, VarScopeDecl};
+use super::parser::statements_and_declarations::DeclPart;
+use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
+use super::reference::{get_value, put_value};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
+use anyhow::anyhow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -65,9 +80,9 @@ impl Agent {
     }
 
     pub fn next_object_id(&mut self) -> usize {
-        assert!(self.obj_id < usize::MAX);
         let result = self.obj_id;
-        self.obj_id += 1;
+        assert!(result < usize::MAX);
+        self.obj_id = result + 1;
         result
     }
 
@@ -109,6 +124,13 @@ impl Agent {
         match self.execution_context_stack.len() {
             0 => None,
             n => Some(self.execution_context_stack[n - 1].realm.clone()),
+        }
+    }
+
+    pub fn current_lexical_environment(&self) -> Option<Rc<dyn EnvironmentRecord>> {
+        match self.execution_context_stack.len() {
+            0 => None,
+            n => self.execution_context_stack[n - 1].lexical_environment.clone(),
         }
     }
 
@@ -182,7 +204,11 @@ impl Agent {
         // realm.[[GlobalEnv]].[[GlobalThisValue]].
         //
         // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
-        let gtv = self.current_realm_record().unwrap().borrow().global_env.as_ref().unwrap().get_this_binding();
+        let gtv = {
+            let rc_realm = self.current_realm_record().unwrap();
+            let realm_ref = rc_realm.borrow();
+            realm_ref.global_env.as_ref().unwrap().get_this_binding(self).unwrap()
+        };
         global_data!("globalThis", gtv, true, false, true);
 
         // Infinity
@@ -327,6 +353,126 @@ impl Agent {
             global_data!("debug_token", "present", true, true, true);
         }
     }
+
+    pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion<ECMAScriptValue> {
+        let ec_idx = match self.execution_context_stack.len() {
+            0 => return Err(create_type_error(self, "No active execution context")),
+            n => n - 1,
+        };
+
+        self.prepare_for_execution(ec_idx, chunk);
+        self.execute(ec_idx)
+
+        //todo!()
+    }
+
+    pub fn prepare_for_execution(&mut self, index: usize, chunk: Rc<Chunk>) {
+        self.execution_context_stack[index].stack = vec![];
+        self.execution_context_stack[index].chunk = Some(chunk);
+        self.execution_context_stack[index].pc = 0;
+    }
+
+    pub fn execute(&mut self, index: usize) -> Completion<ECMAScriptValue> {
+        let chunk = match self.execution_context_stack[index].chunk.clone() {
+            Some(r) => Ok(r),
+            None => Err(create_type_error(self, "No compiled units!")),
+        }?;
+        while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+            let icode = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // in range due to while condition
+            let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
+            self.execution_context_stack[index].pc += 1;
+            match instruction {
+                Insn::String => {
+                    let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
+                    self.execution_context_stack[index].pc += 1;
+                    let string = &chunk.strings[string_index as usize];
+                    self.execution_context_stack[index].stack.push(Ok(string.into()));
+                }
+                Insn::Null => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Null.into())),
+                Insn::True => self.execution_context_stack[index].stack.push(Ok(true.into())),
+                Insn::False => self.execution_context_stack[index].stack.push(Ok(false.into())),
+                Insn::This => {
+                    let this_resolved = self.resolve_this_binding().map(NormalCompletion::from);
+                    self.execution_context_stack[index].stack.push(this_resolved);
+                }
+                Insn::Resolve => {
+                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                        NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
+                        _ => unreachable!(),
+                    };
+                    let resolved = self.resolve_binding(&name, None, false);
+                    self.execution_context_stack[index].stack.push(resolved);
+                }
+                Insn::StrictResolve => {
+                    let name = match self.execution_context_stack[index].stack.pop().unwrap().unwrap() {
+                        NormalCompletion::Value(ECMAScriptValue::String(s)) => s,
+                        _ => unreachable!(),
+                    };
+                    let resolved = self.resolve_binding(&name, None, true);
+                    self.execution_context_stack[index].stack.push(resolved);
+                }
+                Insn::Float => {
+                    let float_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
+                    self.execution_context_stack[index].pc += 1;
+                    let number = chunk.floats[float_index as usize];
+                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                }
+                Insn::Bigint => {
+                    let bigint_index = chunk.opcodes[self.execution_context_stack[index].pc as usize];
+                    self.execution_context_stack[index].pc += 1;
+                    let number = Rc::clone(&chunk.bigints[bigint_index as usize]);
+                    self.execution_context_stack[index].stack.push(Ok(number.into()));
+                }
+                Insn::GetValue => {
+                    let reference = self.execution_context_stack[index].stack.pop().unwrap();
+                    let value = get_value(self, reference);
+                    self.execution_context_stack[index].stack.push(value.map(NormalCompletion::from));
+                }
+                Insn::PutValue => {
+                    let w = self.execution_context_stack[index].stack.pop().unwrap();
+                    let v = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = put_value(self, v, w.map(|v| v.try_into().unwrap()));
+                    self.execution_context_stack[index].stack.push(result.map(NormalCompletion::from));
+                }
+                Insn::JumpIfAbrupt => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    if self.execution_context_stack[index].stack[stack_idx].is_err() {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
+                Insn::UpdateEmpty => {
+                    let newer = self.execution_context_stack[index].stack.pop().unwrap();
+                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into().unwrap();
+                    self.execution_context_stack[index].stack.push(update_empty(newer, older));
+                }
+                Insn::Pop2Push3 => {
+                    // Stack: top lower ====> top lower top
+                    let top = self.execution_context_stack[index].stack.pop().unwrap();
+                    let lower = self.execution_context_stack[index].stack.pop().unwrap();
+                    let bottom = top.clone();
+                    self.execution_context_stack[index].stack.push(bottom);
+                    self.execution_context_stack[index].stack.push(lower);
+                    self.execution_context_stack[index].stack.push(top);
+                }
+            }
+        }
+        self.execution_context_stack[index]
+            .stack
+            .pop()
+            .map(|svr| {
+                svr.map(|sv| match sv {
+                    NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
+                    NormalCompletion::Value(v) => v,
+                })
+            })
+            .unwrap_or(Ok(ECMAScriptValue::Undefined))
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -361,6 +507,183 @@ pub struct WellKnownSymbols {
     pub to_primitive_: Symbol,
     pub to_string_tag_: Symbol,
     pub unscopables_: Symbol,
+}
+
+pub fn parse_script(agent: &mut Agent, source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
+    let script = parse_text(agent, source_text, ParseGoal::Script);
+    match script {
+        ParsedText::Errors(errs) => Err(errs),
+        ParsedText::Script(script) => {
+            let mut chunk = Chunk::new("top level script");
+            script.compile(&mut chunk).unwrap();
+            for line in chunk.disassemble() {
+                println!("{line}");
+            }
+            Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk) })
+        }
+    }
+}
+
+enum TopLevelLexDecl {
+    Class(Rc<ClassDeclaration>),
+    Lex(Rc<LexicalDeclaration>),
+}
+impl TryFrom<DeclPart> for TopLevelLexDecl {
+    type Error = anyhow::Error;
+    fn try_from(src: DeclPart) -> anyhow::Result<Self> {
+        match src {
+            DeclPart::ClassDeclaration(cd) => Ok(Self::Class(cd)),
+            DeclPart::LexicalDeclaration(ld) => Ok(Self::Lex(ld)),
+            _ => Err(anyhow!("Not a top-level lexical decl")),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+enum TopLevelFcnDef {
+    Function(Rc<FunctionDeclaration>),
+    Generator(Rc<GeneratorDeclaration>),
+    AsyncFun(Rc<AsyncFunctionDeclaration>),
+    AsyncGen(Rc<AsyncGeneratorDeclaration>),
+}
+impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
+    type Error = anyhow::Error;
+    fn try_from(src: VarScopeDecl) -> anyhow::Result<Self> {
+        match src {
+            VarScopeDecl::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
+            VarScopeDecl::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
+            VarScopeDecl::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
+            VarScopeDecl::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
+            _ => Err(anyhow!("Not a top-level function def")),
+        }
+    }
+}
+
+pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, env: Rc<GlobalEnvironmentRecord>) -> Completion<()> {
+    let lex_names = script.lexically_declared_names();
+    let var_names = script.var_declared_names();
+    for name in lex_names {
+        if env.has_var_declaration(&name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+        if env.has_lexical_declaration(agent, &name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+        let has_restricted_global = env.has_restricted_global_property(agent, &name)?;
+        if has_restricted_global {
+            return Err(create_syntax_error(agent, format!("{name} is restricted and may not be used")));
+        }
+    }
+    for name in var_names {
+        if env.has_lexical_declaration(agent, &name) {
+            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+        }
+    }
+    let var_declarations = script.var_scoped_declarations();
+    let mut functions_to_initialize = vec![];
+    let mut declared_function_names = vec![];
+    for d in var_declarations
+        .iter()
+        .rev()
+        .filter(|pn| {
+            matches!(
+                pn,
+                VarScopeDecl::FunctionDeclaration(_) | VarScopeDecl::GeneratorDeclaration(_) | VarScopeDecl::AsyncFunctionDeclaration(_) | VarScopeDecl::AsyncGeneratorDeclaration(_)
+            )
+        })
+        .cloned()
+        .map(|decl| TopLevelFcnDef::try_from(decl).unwrap())
+    {
+        let func_name = match &d {
+            TopLevelFcnDef::Function(fd) => fd.bound_names()[0].clone(),
+            TopLevelFcnDef::Generator(gd) => gd.bound_names()[0].clone(),
+            TopLevelFcnDef::AsyncFun(afd) => afd.bound_names()[0].clone(),
+            TopLevelFcnDef::AsyncGen(agd) => agd.bound_names()[0].clone(),
+        };
+        if !declared_function_names.contains(&func_name) {
+            let fn_definable = env.can_declare_global_function(agent, &func_name)?;
+            if !fn_definable {
+                return Err(create_type_error(agent, format!("Cannot create global function {func_name}")));
+            }
+            declared_function_names.push(func_name);
+            functions_to_initialize.insert(0, d);
+        }
+    }
+    let mut declared_var_names = vec![];
+    for d in var_declarations.into_iter().filter(|pn| matches!(pn, VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_))) {
+        for vn in match d {
+            VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
+            VarScopeDecl::ForBinding(fb) => fb.bound_names(),
+            VarScopeDecl::BindingIdentifier(bi) => bi.bound_names(),
+            _ => unreachable!(),
+        } {
+            if !declared_function_names.contains(&vn) {
+                let vn_definable = env.can_declare_global_var(agent, &vn)?;
+                if !vn_definable {
+                    return Err(create_type_error(agent, format!("Cannot create global variable {vn}")));
+                }
+                if !declared_var_names.contains(&vn) {
+                    declared_var_names.push(vn);
+                }
+            }
+        }
+    }
+    let lex_declarations = script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
+    let private_env = None;
+    for d in lex_declarations {
+        let (names, is_constant) = match &d {
+            TopLevelLexDecl::Class(cd) => (cd.bound_names(), false),
+            TopLevelLexDecl::Lex(ld) => (ld.bound_names(), ld.is_constant_declaration()),
+        };
+        for dn in names {
+            if is_constant {
+                env.create_immutable_binding(agent, dn, true)?;
+            } else {
+                env.create_mutable_binding(agent, dn, false)?;
+            }
+        }
+    }
+    for f in functions_to_initialize {
+        let (name, func_obj) = match f {
+            TopLevelFcnDef::Function(fd) => (fd.bound_names()[0].clone(), fd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
+            TopLevelFcnDef::Generator(gd) => (gd.bound_names()[0].clone(), gd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
+            TopLevelFcnDef::AsyncFun(afd) => (afd.bound_names()[0].clone(), afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
+            TopLevelFcnDef::AsyncGen(agd) => (agd.bound_names()[0].clone(), agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
+        };
+        env.create_global_function_binding(agent, name, func_obj, false)?;
+    }
+    for vn in declared_var_names {
+        env.create_global_var_binding(agent, vn, false)?;
+    }
+
+    Ok(())
+}
+
+pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMAScriptValue> {
+    let global_env = sr.realm.borrow().global_env.clone();
+    let mut script_context = ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
+    script_context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+    script_context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+
+    agent.push_execution_context(script_context);
+
+    let script = sr.ecmascript_code.clone();
+
+    let result = global_declaration_instantiation(agent, script, global_env.unwrap()).and_then(|_| agent.evaluate(sr.compiled));
+
+    agent.pop_execution_context();
+
+    result
+}
+
+pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, String> {
+    let realm = agent.current_realm_record().unwrap();
+    let x = parse_script(agent, source_text, realm).map_err(|_| "errors happened during compilation".to_string())?;
+
+    let result = script_evaluation(agent, x);
+    match result {
+        Ok(val) => Ok(val),
+        Err(ac) => Err(unwind_any_error(agent, ac)),
+    }
 }
 
 #[cfg(test)]

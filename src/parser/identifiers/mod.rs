@@ -182,7 +182,7 @@ impl Identifier {
 //      [~Await]await
 
 #[derive(Debug)]
-enum IdentifierReferenceKind {
+pub enum IdentifierReferenceKind {
     Identifier(Rc<Identifier>),
     Yield,
     Await,
@@ -190,7 +190,7 @@ enum IdentifierReferenceKind {
 
 #[derive(Debug)]
 pub struct IdentifierReference {
-    kind: IdentifierReferenceKind,
+    pub kind: IdentifierReferenceKind,
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,

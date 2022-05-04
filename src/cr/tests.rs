@@ -33,8 +33,28 @@ mod normal_completion {
 
     #[test_case(ECMAScriptValue::from(true) => NormalCompletion::Value(ECMAScriptValue::from(true)); "value")]
     #[test_case(Reference::new(Base::Unresolvable, "fantastico", false, None) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "fantastico", false, None))); "reference")]
+    #[test_case(true => NormalCompletion::Value(ECMAScriptValue::from(true)); "from bool")]
     fn from(value: impl Into<NormalCompletion>) -> NormalCompletion {
         value.into()
+    }
+
+    mod try_from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "empty")]
+        #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "fantastico", false, None))) => Err("Not a language value!".to_string()); "reference")]
+        #[test_case(NormalCompletion::from("blue") => Ok(ECMAScriptValue::from("blue")); "value")]
+        fn value(n: NormalCompletion) -> Result<ECMAScriptValue, String> {
+            n.try_into().map_err(|a: anyhow::Error| a.to_string())
+        }
+
+        #[test_case(NormalCompletion::Empty => Ok(None); "empty")]
+        #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "fantastico", false, None))) => Err("Not a language value!".to_string()); "reference")]
+        #[test_case(NormalCompletion::from("blue") => Ok(Some(ECMAScriptValue::from("blue"))); "value")]
+        fn opt_value(n: NormalCompletion) -> Result<Option<ECMAScriptValue>, String> {
+            n.try_into().map_err(|a: anyhow::Error| a.to_string())
+        }
     }
 }
 

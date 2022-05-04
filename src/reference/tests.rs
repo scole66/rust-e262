@@ -4,6 +4,7 @@ use crate::object::{define_property_or_throw, get, ordinary_object_create, priva
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error};
 use crate::values::{PrivateName, PropertyKey};
+use std::rc::Rc;
 
 mod base {
     use super::*;
