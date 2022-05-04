@@ -19,6 +19,7 @@ use super::parser::scripts::*;
 use super::parser::statements_and_declarations::*;
 use super::parser::unary_operators::*;
 use super::parser::update_expressions::*;
+use super::scanner::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
@@ -42,6 +43,8 @@ pub enum Insn {
     JumpIfAbrupt,
     UpdateEmpty,
     Pop2Push3,
+    Ref,
+    StrictRef,
 }
 
 impl fmt::Display for Insn {
@@ -61,6 +64,8 @@ impl fmt::Display for Insn {
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Pop2Push3 => "POP2_PUSH3",
+            Insn::Ref => "REF",
+            Insn::StrictRef => "STRICT_REF",
         })
     }
 }
@@ -177,9 +182,28 @@ impl ParenthesizedExpression {
 }
 
 impl MemberExpression {
+    /// See [EvaluatePropertyAccessWithIdentifierKey ](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
+    fn evaluate_property_access_with_identifier_key(chunk: &mut Chunk, identifier_name: &IdentifierData, strict: bool) -> anyhow::Result<()> {
+        // Stack: base ...
+        let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
+        chunk.op_plus_arg(Insn::String, idx);
+        // Stack: name base ...
+        chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+        // Stack: ref
+        Ok(())
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match &self.kind {
             MemberExpressionKind::PrimaryExpression(pe) => pe.compile(chunk, strict),
+            MemberExpressionKind::IdentifierName(me, id) => {
+                me.compile(chunk, strict)?;
+                chunk.op(Insn::GetValue);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                chunk.fixup(mark)?;
+                Ok(())
+            }
             _ => todo!(),
         }
     }

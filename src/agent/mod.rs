@@ -15,11 +15,13 @@ use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::{get_value, put_value};
+use super::reference::{get_value, put_value, Base, Reference};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
 use std::cell::RefCell;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 // Agents
@@ -459,6 +461,25 @@ impl Agent {
                     self.execution_context_stack[index].stack.push(bottom);
                     self.execution_context_stack[index].stack.push(lower);
                     self.execution_context_stack[index].stack.push(top);
+                }
+                Insn::Ref | Insn::StrictRef => {
+                    let strict = instruction == Insn::StrictRef;
+                    // Stack: name base ...
+                    let name = {
+                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let value: Result<JSString, _> = result.unwrap().try_into();
+                        value.unwrap()
+                    };
+                    // Stack: base ...
+                    let base = {
+                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        result.unwrap()
+                    };
+                    // Stack: ...
+                    let reference = Reference::new(Base::Value(base), name, strict, None);
+                    let result = Ok(NormalCompletion::from(reference));
+                    self.execution_context_stack[index].stack.push(result);
+                    // Stack: ref ...
                 }
             }
         }

@@ -93,7 +93,18 @@ impl Chunk {
                     idx += 1;
                     result.push(format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]));
                 }
-                Insn::Resolve | Insn::StrictResolve | Insn::This | Insn::Null | Insn::True | Insn::False | Insn::GetValue | Insn::PutValue | Insn::UpdateEmpty | Insn::Pop2Push3 => {
+                Insn::Ref
+                | Insn::StrictRef
+                | Insn::Resolve
+                | Insn::StrictResolve
+                | Insn::This
+                | Insn::Null
+                | Insn::True
+                | Insn::False
+                | Insn::GetValue
+                | Insn::PutValue
+                | Insn::UpdateEmpty
+                | Insn::Pop2Push3 => {
                     result.push(format!("    {insn}"));
                 }
                 Insn::JumpIfAbrupt => {
