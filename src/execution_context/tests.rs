@@ -88,7 +88,7 @@ fn get_global_object(maker: fn() -> Agent) -> Option<String> {
     let maybe_obj = super::get_global_object(&agent);
 
     maybe_obj.map(|obj| {
-        let val = get(&mut agent, &obj, &"debug_token".into()).unwrap_or_else(|_|"missing".into());
+        let val = get(&mut agent, &obj, &"debug_token".into()).unwrap_or_else(|_| "missing".into());
         to_string(&mut agent, val).unwrap().to_string()
     })
 }
