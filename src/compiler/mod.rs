@@ -357,29 +357,23 @@ impl AssignmentExpression {
                 //      f. Return rval.
                 lhse.compile(chunk, strict)?;
                 let mark = chunk.op_jump(Insn::JumpIfAbrupt);
-                // Stack:
-                //   lref
+                // Stack: lref ...
                 let mut mark2 = None;
                 if ae.is_anonymous_function_definition() && lhse.is_identifier_ref() {
                     todo!()
                 } else {
                     ae.compile(chunk, strict)?;
-                    // Stack:
-                    //   rref lref
+                    // Stack: rref lref ...
                     chunk.op(Insn::GetValue);
                     mark2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
                 }
-                // Stack:
-                //   rval lref
+                // Stack: rval lref ...
                 chunk.op(Insn::Pop2Push3);
-                // Stack:
-                //   rval lref rval
+                // Stack: rval lref rval ...
                 chunk.op(Insn::PutValue);
-                // Stack:
-                //   emptyval rval
+                // Stack: empty rval ...
                 chunk.op(Insn::UpdateEmpty);
-                // Stack:
-                //   rval
+                // Stack: rval ...
 
                 chunk.fixup(mark)?;
                 if let Some(m) = mark2 {
