@@ -81,14 +81,14 @@ mod execution_context {
     }
 }
 
-#[test_case(|| Agent::new() => None; "empty agent")]
-#[test_case(|| test_agent() => Some("present".to_string()); "has global")]
+#[test_case(Agent::new => None; "empty agent")]
+#[test_case(test_agent => Some("present".to_string()); "has global")]
 fn get_global_object(maker: fn() -> Agent) -> Option<String> {
     let mut agent = maker();
     let maybe_obj = super::get_global_object(&agent);
 
     maybe_obj.map(|obj| {
-        let val = get(&mut agent, &obj, &"debug_token".into()).unwrap_or("missing".into());
+        let val = get(&mut agent, &obj, &"debug_token".into()).unwrap_or_else(|_|"missing".into());
         to_string(&mut agent, val).unwrap().to_string()
     })
 }
@@ -110,7 +110,7 @@ mod agent {
             let global_env = realm.borrow().global_env.clone();
             let mut script_context = ExecutionContext::new(None, Rc::clone(&realm), None);
             script_context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
-            script_context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
+            script_context.variable_environment = global_env.map(|g| g as Rc<dyn EnvironmentRecord>);
             agent.push_execution_context(script_context);
 
             let env = agent.get_this_environment();

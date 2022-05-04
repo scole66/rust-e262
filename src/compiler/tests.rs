@@ -53,6 +53,7 @@ mod insn {
     }
 
     #[test]
+    #[allow(clippy::clone_on_copy)]
     fn clone() {
         let insn = Insn::String;
         let i2 = insn.clone();
@@ -594,7 +595,7 @@ mod statement_list {
             for _ in 0..32768 {
                 source.push_str("true;");
             }
-            source.push_str("}");
+            source.push('}');
             let node = Maker::new(source.as_str()).statement_list();
             let mut c = Chunk::new("x");
             assert_eq!(node.compile(&mut c, true).unwrap_err().to_string(), "too far");
