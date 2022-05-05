@@ -223,7 +223,23 @@ mod member_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a.b", true => panics "not yet implemented"; "member exp")]
+    #[test_case("a.b", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "STRICT_REF"
+    ]); "member property; strict")]
+    #[test_case("a.b", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "REF"
+    ]); "member property; non-strict")]
+    #[test_case("a[b]", true => panics "not yet implemented"; "member exp")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).member_expression();
         let mut c = Chunk::new("x");

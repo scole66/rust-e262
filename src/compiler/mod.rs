@@ -40,8 +40,12 @@ pub enum Insn {
     Bigint,
     GetValue,
     PutValue,
+    Jump,
     JumpIfAbrupt,
+    JumpIfNormal,
     UpdateEmpty,
+    Swap,
+    Pop,
     Pop2Push3,
     Ref,
     StrictRef,
@@ -61,8 +65,12 @@ impl fmt::Display for Insn {
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
             Insn::PutValue => "PUT_VALUE",
+            Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
+            Insn::JumpIfNormal => "JUMP_IF_NORMAL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
+            Insn::Swap => "SWAP",
+            Insn::Pop => "POP",
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
@@ -389,7 +397,14 @@ impl AssignmentExpression {
                     ae.compile(chunk, strict)?;
                     // Stack: rref lref ...
                     chunk.op(Insn::GetValue);
-                    mark2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    // (haven't jumped) Stack: err lref
+                    chunk.op(Insn::Swap);
+                    // Stack: lref err
+                    chunk.op(Insn::Pop);
+                    // Stack: err
+                    mark2 = Some(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(close)?;
                 }
                 // Stack: rval lref ...
                 chunk.op(Insn::Pop2Push3);

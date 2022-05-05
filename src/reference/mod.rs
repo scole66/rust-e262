@@ -7,6 +7,7 @@ use super::object::{private_get, private_set, set};
 use super::strings::JSString;
 use super::values::{to_object, ECMAScriptValue, PrivateName, PropertyKey, Symbol};
 use std::convert::{TryFrom, TryInto};
+use std::fmt;
 use std::rc::Rc;
 
 // The Reference Record Specification Type
@@ -48,6 +49,16 @@ pub enum Base {
     Value(ECMAScriptValue),
 }
 
+impl fmt::Display for Base {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Base::Unresolvable => write!(f, "unresolvable"),
+            Base::Value(v) => write!(f, "{v}"),
+            Base::Environment(e) => write!(f, "{:?}", e),
+        }
+    }
+}
+
 impl PartialEq for Base {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -69,6 +80,15 @@ pub enum ReferencedName {
     String(JSString),
     Symbol(Symbol),
     PrivateName(PrivateName),
+}
+impl fmt::Display for ReferencedName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReferencedName::String(s) => write!(f, "{s}"),
+            ReferencedName::Symbol(sym) => write!(f, "{sym}"),
+            ReferencedName::PrivateName(p) => write!(f, "{p}"),
+        }
+    }
 }
 impl<T> From<T> for ReferencedName
 where

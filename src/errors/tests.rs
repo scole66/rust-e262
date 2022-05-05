@@ -1,4 +1,5 @@
 use super::*;
+use crate::cr::NormalCompletion;
 use crate::object::{call, construct, get, has_own_property, AccessorProperty, PropertyKind};
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error};
@@ -714,7 +715,7 @@ fn unwind_any_error_value(maker: fn(&mut Agent) -> Object) -> String {
 
 #[test_case(|a: &mut Agent| create_type_error(a, "blue") => "TypeError: blue"; "type error")]
 #[test_case(|a: &mut Agent| create_syntax_error(a, "ouch") => "SyntaxError: ouch"; "syntax error")]
-#[test_case(|_: &mut Agent| AbruptCompletion::Break{value: None, target: None} => panics "Improper completion for error: "; "not error")]
+#[test_case(|_: &mut Agent| AbruptCompletion::Break{value: NormalCompletion::Empty, target: None} => panics "Improper completion for error: "; "not error")]
 fn unwind_any_error(maker: fn(&mut Agent) -> AbruptCompletion) -> String {
     let mut agent = test_agent();
     let completion = maker(&mut agent);

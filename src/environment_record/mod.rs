@@ -7,9 +7,8 @@ use super::object::{define_property_or_throw, get, has_own_property, has_propert
 use super::reference::{Base, Reference};
 use super::strings::JSString;
 use super::values::{to_boolean, ECMAScriptValue, PrivateName, PropertyKey};
-use ahash::{AHashSet, RandomState};
+use ahash::{AHashMap, AHashSet, RandomState};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
@@ -181,7 +180,7 @@ struct Binding {
 }
 
 pub struct DeclarativeEnvironmentRecord {
-    bindings: RefCell<HashMap<JSString, Binding, RandomState>>,
+    bindings: RefCell<AHashMap<JSString, Binding, RandomState>>,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
     name: String,
 }
