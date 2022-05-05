@@ -512,10 +512,13 @@ mod assignment_expression {
     #[test_case("a=6", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 8",
+        "JUMP_IF_ABRUPT 12",
         "FLOAT 0 (6)",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 3",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"
