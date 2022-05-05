@@ -491,7 +491,7 @@ impl Agent {
                 }
                 Insn::UpdateEmpty => {
                     let newer = self.execution_context_stack[index].stack.pop().unwrap();
-                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into().unwrap();
+                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
                     self.execution_context_stack[index].stack.push(update_empty(newer, older));
                 }
                 Insn::Pop2Push3 => {

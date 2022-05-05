@@ -384,6 +384,7 @@ mod private_element_kind {
         assert_ne!(format!("{:?}", pek), "");
     }
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn clone() {
         let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
         let pek2 = pek.clone();
