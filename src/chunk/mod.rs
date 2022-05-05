@@ -91,10 +91,13 @@ impl Chunk {
             | Insn::StrictRef
             | Insn::Resolve
             | Insn::StrictResolve
+            | Insn::InitializeReferencedBinding
             | Insn::This
             | Insn::Null
+            | Insn::Undefined
             | Insn::True
             | Insn::False
+            | Insn::Empty
             | Insn::GetValue
             | Insn::PutValue
             | Insn::UpdateEmpty
