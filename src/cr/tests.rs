@@ -63,7 +63,7 @@ mod abrupt_completion {
 
     #[test]
     fn clone() {
-        let value = Some(ECMAScriptValue::Number(10.0));
+        let value = NormalCompletion::from(ECMAScriptValue::Number(10.0));
         let target = Some(JSString::from("outer"));
         let first = AbruptCompletion::Break { value, target };
         let second = first.clone();
@@ -79,7 +79,7 @@ mod abrupt_completion {
     #[test]
     fn debug() {
         // Just for coverage. Essentially, assert that we don't panic.
-        let value = Some(ECMAScriptValue::Number(10.0));
+        let value = NormalCompletion::from(ECMAScriptValue::Number(10.0));
         let target = Some(JSString::from("outer"));
         let first = AbruptCompletion::Break { value, target };
         assert_ne!(format!("{:?}", first), "");
@@ -105,15 +105,15 @@ mod abrupt_completion {
     }
 }
 
-#[test_case(Ok(NormalCompletion::Empty), None => Ok(NormalCompletion::Empty); "empties all over")]
-#[test_case(Ok(NormalCompletion::Empty), Some(3.into()) => Ok(NormalCompletion::Value(3.into())); "old: 3, new: empty")]
-#[test_case(Ok(NormalCompletion::Value("bob".into())), Some(3.into()) => Ok(NormalCompletion::Value("bob".into())); "old: 3, new: bob")]
-#[test_case(Err(AbruptCompletion::Return{value: 1.into()}), Some(3.into()) => Err(AbruptCompletion::Return{value: 1.into()}); "Err return")]
-#[test_case(Err(AbruptCompletion::Throw{value: 1.into()}), Some(3.into()) => Err(AbruptCompletion::Throw{value: 1.into()}); "Err throw")]
-#[test_case(Err(AbruptCompletion::Break{value: Some(1.into()), target: Some("lbl".into())}), Some(3.into()) => Err(AbruptCompletion::Break{value: Some(1.into()), target: Some("lbl".into())}); "Err break with value")]
-#[test_case(Err(AbruptCompletion::Break{value: None, target: Some("xyz".into())}), Some(3.into()) => Err(AbruptCompletion::Break{value: Some(3.into()), target: Some("xyz".into())}); "Err break no value")]
-#[test_case(Err(AbruptCompletion::Continue{value: Some(1.into()), target: Some("lbl".into())}), Some(3.into()) => Err(AbruptCompletion::Continue{value: Some(1.into()), target: Some("lbl".into())}); "Err Continue with value")]
-#[test_case(Err(AbruptCompletion::Continue{value: None, target: Some("xyz".into())}), Some(3.into()) => Err(AbruptCompletion::Continue{value: Some(3.into()), target: Some("xyz".into())}); "Err Continue no value")]
-fn update_empty(new: FullCompletion, old: Option<ECMAScriptValue>) -> FullCompletion {
+#[test_case(Ok(NormalCompletion::Empty), NormalCompletion::Empty => Ok(NormalCompletion::Empty); "empties all over")]
+#[test_case(Ok(NormalCompletion::Empty), ECMAScriptValue::from(3).into() => Ok(NormalCompletion::Value(3.into())); "old: 3, new: empty")]
+#[test_case(Ok(NormalCompletion::Value("bob".into())), ECMAScriptValue::from(3).into() => Ok(NormalCompletion::Value("bob".into())); "old: 3, new: bob")]
+#[test_case(Err(AbruptCompletion::Return{value: 1.into()}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Return{value: 1.into()}); "Err return")]
+#[test_case(Err(AbruptCompletion::Throw{value: 1.into()}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Throw{value: 1.into()}); "Err throw")]
+#[test_case(Err(AbruptCompletion::Break{value: NormalCompletion::from(ECMAScriptValue::from(1)), target: Some("lbl".into())}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Break{value: NormalCompletion::from(ECMAScriptValue::from(1)), target: Some("lbl".into())}); "Err break with value")]
+#[test_case(Err(AbruptCompletion::Break{value: NormalCompletion::Empty, target: Some("xyz".into())}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Break{value: NormalCompletion::from(ECMAScriptValue::from(3)), target: Some("xyz".into())}); "Err break no value")]
+#[test_case(Err(AbruptCompletion::Continue{value: NormalCompletion::from(ECMAScriptValue::from(1)), target: Some("lbl".into())}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Continue{value: NormalCompletion::from(ECMAScriptValue::from(1)), target: Some("lbl".into())}); "Err Continue with value")]
+#[test_case(Err(AbruptCompletion::Continue{value: NormalCompletion::Empty, target: Some("xyz".into())}), ECMAScriptValue::from(3).into() => Err(AbruptCompletion::Continue{value: NormalCompletion::from(ECMAScriptValue::from(3)), target: Some("xyz".into())}); "Err Continue no value")]
+fn update_empty(new: FullCompletion, old: NormalCompletion) -> FullCompletion {
     super::update_empty(new, old)
 }

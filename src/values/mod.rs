@@ -32,6 +32,22 @@ pub enum ECMAScriptValue {
     Object(Object),
 }
 
+impl fmt::Display for ECMAScriptValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ECMAScriptValue::Undefined => write!(f, "undefined"),
+            ECMAScriptValue::Null => write!(f, "null"),
+            ECMAScriptValue::Boolean(true) => write!(f, "true"),
+            ECMAScriptValue::Boolean(false) => write!(f, "false"),
+            ECMAScriptValue::String(s) => write!(f, "{s}"),
+            ECMAScriptValue::Number(n) => write!(f, "{n}"),
+            ECMAScriptValue::BigInt(bi) => write!(f, "{bi}n"),
+            ECMAScriptValue::Symbol(s) => write!(f, "{s}"),
+            ECMAScriptValue::Object(o) => write!(f, "{o}"),
+        }
+    }
+}
+
 impl ECMAScriptValue {
     pub fn is_object(&self) -> bool {
         matches!(self, ECMAScriptValue::Object(_))
@@ -367,6 +383,11 @@ type PNId = IdT<PN>;
 pub struct PrivateName {
     pub description: JSString,
     id: PNId,
+}
+impl fmt::Display for PrivateName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PN[{}]", self.description)
+    }
 }
 impl PartialEq for PrivateName {
     fn eq(&self, other: &Self) -> bool {

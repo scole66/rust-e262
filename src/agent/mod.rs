@@ -15,11 +15,14 @@ use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::{get_value, put_value};
+use super::reference::{get_value, put_value, Base, Reference};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
+use itertools::Itertools;
 use std::cell::RefCell;
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::rc::Rc;
 
 // Agents
@@ -378,6 +381,25 @@ impl Agent {
             None => Err(create_type_error(self, "No compiled units!")),
         }?;
         while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+            /* Diagnostics */
+            print!("Stack: [ ");
+            print!(
+                "{}",
+                self.execution_context_stack[index]
+                    .stack
+                    .iter()
+                    .rev()
+                    .map(|fc| match fc {
+                        Ok(nc) => format!("{nc}"),
+                        Err(ac) => format!("{ac}"),
+                    })
+                    .join(" ] [ ")
+            );
+            println!(" ]");
+            let (_, repr) = chunk.insn_repr_at(self.execution_context_stack[index].pc as usize);
+            println!("{:04}{}", self.execution_context_stack[index].pc, repr);
+
+            /* Real work */
             let icode = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // in range due to while condition
             let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
             self.execution_context_stack[index].pc += 1;
@@ -446,9 +468,30 @@ impl Agent {
                         }
                     }
                 }
+                Insn::JumpIfNormal => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    let stack_idx = self.execution_context_stack[index].stack.len() - 1;
+                    if self.execution_context_stack[index].stack[stack_idx].is_ok() {
+                        if jump >= 0 {
+                            self.execution_context_stack[index].pc += jump as usize;
+                        } else {
+                            self.execution_context_stack[index].pc -= (-jump) as usize;
+                        }
+                    }
+                }
+                Insn::Jump => {
+                    let jump = chunk.opcodes[self.execution_context_stack[index].pc as usize] as i16;
+                    self.execution_context_stack[index].pc += 1;
+                    if jump >= 0 {
+                        self.execution_context_stack[index].pc += jump as usize;
+                    } else {
+                        self.execution_context_stack[index].pc -= (-jump) as usize;
+                    }
+                }
                 Insn::UpdateEmpty => {
                     let newer = self.execution_context_stack[index].stack.pop().unwrap();
-                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into().unwrap();
+                    let older = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
                     self.execution_context_stack[index].stack.push(update_empty(newer, older));
                 }
                 Insn::Pop2Push3 => {
@@ -459,6 +502,35 @@ impl Agent {
                     self.execution_context_stack[index].stack.push(bottom);
                     self.execution_context_stack[index].stack.push(lower);
                     self.execution_context_stack[index].stack.push(top);
+                }
+                Insn::Ref | Insn::StrictRef => {
+                    let strict = instruction == Insn::StrictRef;
+                    // Stack: name base ...
+                    let name = {
+                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let value: Result<JSString, _> = result.unwrap().try_into();
+                        value.unwrap()
+                    };
+                    // Stack: base ...
+                    let base = {
+                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        result.unwrap()
+                    };
+                    // Stack: ...
+                    let reference = Reference::new(Base::Value(base), name, strict, None);
+                    let result = Ok(NormalCompletion::from(reference));
+                    self.execution_context_stack[index].stack.push(result);
+                    // Stack: ref ...
+                }
+                Insn::Pop => {
+                    let stack_size = self.execution_context_stack[index].stack.len();
+                    assert!(stack_size > 0);
+                    self.execution_context_stack[index].stack.truncate(stack_size - 1);
+                }
+                Insn::Swap => {
+                    let stack_size = self.execution_context_stack[index].stack.len();
+                    assert!(stack_size >= 2);
+                    self.execution_context_stack[index].stack.swap(stack_size - 1, stack_size - 2);
                 }
             }
         }

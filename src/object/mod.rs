@@ -1277,6 +1277,12 @@ impl<'a> From<&'a Object> for &'a dyn ObjectInterface {
     }
 }
 
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.concise(f)
+    }
+}
+
 impl Object {
     fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
         Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, ORDINARY_OBJECT_SLOTS)) }) }

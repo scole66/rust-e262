@@ -1,3 +1,6 @@
+use crate::values::*;
+use anyhow::anyhow;
+use std::convert::TryFrom;
 use std::fmt;
 use std::ops::Index;
 use std::rc::Rc;
@@ -76,6 +79,16 @@ impl From<JSString> for String {
 impl From<JSString> for Vec<u16> {
     fn from(source: JSString) -> Self {
         source.s.to_vec()
+    }
+}
+
+impl TryFrom<ECMAScriptValue> for JSString {
+    type Error = anyhow::Error;
+    fn try_from(src: ECMAScriptValue) -> Result<JSString, Self::Error> {
+        match src {
+            ECMAScriptValue::String(s) => Ok(s),
+            _ => Err(anyhow!("Not a string value")),
+        }
     }
 }
 
@@ -203,6 +216,10 @@ fn string_to_code_points(string: &JSString) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ahash::AHasher;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use test_case::test_case;
 
     #[test]
     fn from_u16_test_01() {
@@ -351,5 +368,47 @@ mod tests {
         let result = string_to_code_points(&mystr);
         let expected = vec![0, 0x10000, 0xde00, 0xd900, 0xe2, 0xd902];
         assert!(result == expected);
+    }
+
+    #[test]
+    fn string_to_vec16() {
+        let src = JSString::from("blue");
+        let result = Vec::<u16>::from(src);
+        assert_eq!(result, &[98, 108, 117, 101]);
+    }
+
+    #[test]
+    fn string_from_vec8() {
+        let src: Vec<u8> = vec![98, 108, 117, 101];
+        let result = JSString::from(src);
+        assert_eq!(result, "blue");
+    }
+
+    #[test_case(73.into() => Err("Not a string value".to_string()); "not a string")]
+    #[test_case("a string".into() => Ok("a string".to_string()); "a string")]
+    fn try_from_value(val: ECMAScriptValue) -> Result<String, String> {
+        JSString::try_from(val).map(String::from).map_err(|e| e.to_string())
+    }
+
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = AHasher::new_with_keys(1234, 5678);
+        t.hash(&mut s);
+        s.finish()
+    }
+    #[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
+    #[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
+    fn hash_ahash(a: JSString, b: JSString) -> bool {
+        calculate_hash(&a) == calculate_hash(&b)
+    }
+
+    fn calculate_def_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
+    #[test_case(JSString::from("a"), JSString::from("b") => false; "not equal")]
+    #[test_case(JSString::from("a"), JSString::from("a") => true; "equal")]
+    fn hash_defhash(a: JSString, b: JSString) -> bool {
+        calculate_def_hash(&a) == calculate_def_hash(&b)
     }
 }

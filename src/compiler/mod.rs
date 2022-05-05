@@ -19,6 +19,7 @@ use super::parser::scripts::*;
 use super::parser::statements_and_declarations::*;
 use super::parser::unary_operators::*;
 use super::parser::update_expressions::*;
+use super::scanner::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
@@ -39,9 +40,15 @@ pub enum Insn {
     Bigint,
     GetValue,
     PutValue,
+    Jump,
     JumpIfAbrupt,
+    JumpIfNormal,
     UpdateEmpty,
+    Swap,
+    Pop,
     Pop2Push3,
+    Ref,
+    StrictRef,
 }
 
 impl fmt::Display for Insn {
@@ -58,9 +65,15 @@ impl fmt::Display for Insn {
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
             Insn::PutValue => "PUT_VALUE",
+            Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
+            Insn::JumpIfNormal => "JUMP_IF_NORMAL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
+            Insn::Swap => "SWAP",
+            Insn::Pop => "POP",
             Insn::Pop2Push3 => "POP2_PUSH3",
+            Insn::Ref => "REF",
+            Insn::StrictRef => "STRICT_REF",
         })
     }
 }
@@ -177,9 +190,28 @@ impl ParenthesizedExpression {
 }
 
 impl MemberExpression {
+    /// See [EvaluatePropertyAccessWithIdentifierKey ](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
+    fn evaluate_property_access_with_identifier_key(chunk: &mut Chunk, identifier_name: &IdentifierData, strict: bool) -> anyhow::Result<()> {
+        // Stack: base ...
+        let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
+        chunk.op_plus_arg(Insn::String, idx);
+        // Stack: name base ...
+        chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+        // Stack: ref
+        Ok(())
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match &self.kind {
             MemberExpressionKind::PrimaryExpression(pe) => pe.compile(chunk, strict),
+            MemberExpressionKind::IdentifierName(me, id) => {
+                me.compile(chunk, strict)?;
+                chunk.op(Insn::GetValue);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                chunk.fixup(mark)?;
+                Ok(())
+            }
             _ => todo!(),
         }
     }
@@ -365,7 +397,14 @@ impl AssignmentExpression {
                     ae.compile(chunk, strict)?;
                     // Stack: rref lref ...
                     chunk.op(Insn::GetValue);
-                    mark2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    // (haven't jumped) Stack: err lref
+                    chunk.op(Insn::Swap);
+                    // Stack: lref err
+                    chunk.op(Insn::Pop);
+                    // Stack: err
+                    mark2 = Some(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(close)?;
                 }
                 // Stack: rval lref ...
                 chunk.op(Insn::Pop2Push3);

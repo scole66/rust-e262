@@ -375,6 +375,26 @@ mod private_name {
     }
 }
 
+mod private_element_kind {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
+        assert_ne!(format!("{:?}", pek), "");
+    }
+    #[test]
+    #[allow(clippy::redundant_clone)]
+    fn clone() {
+        let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
+        let pek2 = pek.clone();
+        assert!(matches!(pek2, PrivateElementKind::Field { value: _ }));
+        if let PrivateElementKind::Field { value } = pek2 {
+            assert_eq!(*value.borrow(), ECMAScriptValue::from("a"));
+        }
+    }
+}
+
 mod private_element {
     use super::*;
 

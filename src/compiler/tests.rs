@@ -223,7 +223,23 @@ mod member_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a.b", true => panics "not yet implemented"; "member exp")]
+    #[test_case("a.b", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "STRICT_REF"
+    ]); "member property; strict")]
+    #[test_case("a.b", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 3",
+        "STRING 1 (b)",
+        "REF"
+    ]); "member property; non-strict")]
+    #[test_case("a[b]", true => panics "not yet implemented"; "member exp")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).member_expression();
         let mut c = Chunk::new("x");
@@ -496,10 +512,13 @@ mod assignment_expression {
     #[test_case("a=6", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 8",
+        "JUMP_IF_ABRUPT 12",
         "FLOAT 0 (6)",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 3",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 3",
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"

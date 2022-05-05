@@ -70,38 +70,52 @@ impl Chunk {
         Ok(())
     }
 
+    pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
+        let mut idx = starting_idx;
+        let insn = Insn::try_from(self.opcodes[idx]).unwrap();
+        idx += 1;
+        match insn {
+            Insn::String => {
+                let arg = self.opcodes[idx] as usize;
+                (2, format!("    {:<20}{} ({})", insn, arg, self.strings[arg]))
+            }
+            Insn::Float => {
+                let arg = self.opcodes[idx] as usize;
+                (2, format!("    {:<20}{} ({})", insn, arg, self.floats[arg]))
+            }
+            Insn::Bigint => {
+                let arg = self.opcodes[idx] as usize;
+                (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
+            }
+            Insn::Ref
+            | Insn::StrictRef
+            | Insn::Resolve
+            | Insn::StrictResolve
+            | Insn::This
+            | Insn::Null
+            | Insn::True
+            | Insn::False
+            | Insn::GetValue
+            | Insn::PutValue
+            | Insn::UpdateEmpty
+            | Insn::Swap
+            | Insn::Pop
+            | Insn::Pop2Push3 => (1, format!("    {insn}")),
+            Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
+                let arg = self.opcodes[idx] as i16;
+                (2, format!("    {:<20}{}", insn, arg))
+            }
+        }
+    }
+
     pub fn disassemble(&self) -> Vec<String> {
         let mut idx = 0;
         let mut result = vec![];
         result.push(format!("====== {} ======", self.name));
         while idx < self.opcodes.len() {
-            let insn = Insn::try_from(self.opcodes[idx]).unwrap();
-            idx += 1;
-            match insn {
-                Insn::String => {
-                    let arg = self.opcodes[idx] as usize;
-                    idx += 1;
-                    result.push(format!("    {:<20}{} ({})", insn, arg, self.strings[arg]));
-                }
-                Insn::Float => {
-                    let arg = self.opcodes[idx] as usize;
-                    idx += 1;
-                    result.push(format!("    {:<20}{} ({})", insn, arg, self.floats[arg]));
-                }
-                Insn::Bigint => {
-                    let arg = self.opcodes[idx] as usize;
-                    idx += 1;
-                    result.push(format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]));
-                }
-                Insn::Resolve | Insn::StrictResolve | Insn::This | Insn::Null | Insn::True | Insn::False | Insn::GetValue | Insn::PutValue | Insn::UpdateEmpty | Insn::Pop2Push3 => {
-                    result.push(format!("    {insn}"));
-                }
-                Insn::JumpIfAbrupt => {
-                    let arg = self.opcodes[idx] as i16;
-                    idx += 1;
-                    result.push(format!("    {:<20}{}", insn, arg));
-                }
-            }
+            let (inc, repr) = self.insn_repr_at(idx);
+            idx += inc;
+            result.push(repr);
         }
         result
     }
