@@ -10,6 +10,7 @@ use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
 use super::values::{is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
+use anyhow::anyhow;
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fmt::{self, Debug};
@@ -1250,12 +1251,12 @@ impl PartialEq for Object {
 }
 
 impl TryFrom<ECMAScriptValue> for Object {
-    type Error = &'static str;
+    type Error = anyhow::Error;
     fn try_from(source: ECMAScriptValue) -> Result<Self, Self::Error> {
         if let ECMAScriptValue::Object(o) = source {
             Ok(o)
         } else {
-            Err("Only object values may be converted to true objects")
+            Err(anyhow!("Only object values may be converted to true objects"))
         }
     }
 }
@@ -2182,6 +2183,26 @@ pub fn private_set(agent: &mut Agent, obj: &Object, pn: &PrivateName, v: ECMAScr
             }
         },
     }
+}
+
+/// Copy enumerable data properties from a source to a target, potentially excluding some
+///
+/// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
+pub fn copy_data_properties(agent: &mut Agent, target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+    if !(source.is_undefined() || source.is_null()) {
+        let from = to_object(agent, source).unwrap();
+        let keys = from.o.own_property_keys(agent)?;
+        for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
+            let desc = from.o.get_own_property(agent, next_key)?;
+            if let Some(desc) = desc {
+                if desc.enumerable {
+                    let prop_value = get(agent, &from, next_key)?;
+                    create_data_property_or_throw(agent, target, next_key.clone(), prop_value).unwrap();
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

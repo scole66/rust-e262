@@ -1,6 +1,3 @@
-use crate::values::*;
-use anyhow::anyhow;
-use std::convert::TryFrom;
 use std::fmt;
 use std::ops::Index;
 use std::rc::Rc;
@@ -79,16 +76,6 @@ impl From<JSString> for String {
 impl From<JSString> for Vec<u16> {
     fn from(source: JSString) -> Self {
         source.s.to_vec()
-    }
-}
-
-impl TryFrom<ECMAScriptValue> for JSString {
-    type Error = anyhow::Error;
-    fn try_from(src: ECMAScriptValue) -> Result<JSString, Self::Error> {
-        match src {
-            ECMAScriptValue::String(s) => Ok(s),
-            _ => Err(anyhow!("Not a string value")),
-        }
     }
 }
 
@@ -216,6 +203,7 @@ fn string_to_code_points(string: &JSString) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::values::*;
     use ahash::AHasher;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -384,7 +372,7 @@ mod tests {
         assert_eq!(result, "blue");
     }
 
-    #[test_case(73.into() => Err("Not a string value".to_string()); "not a string")]
+    //#[test_case(73.into() => Err("Not a string value".to_string()); "not a string")]
     #[test_case("a string".into() => Ok("a string".to_string()); "a string")]
     fn try_from_value(val: ECMAScriptValue) -> Result<String, String> {
         JSString::try_from(val).map(String::from).map_err(|e| e.to_string())

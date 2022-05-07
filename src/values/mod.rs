@@ -9,6 +9,7 @@ use super::object::{call, get, get_method, to_callable, to_constructor, Object};
 use super::string_object::create_string_object;
 use super::strings::JSString;
 use super::symbol_object::create_symbol_object;
+use anyhow::anyhow;
 use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
 use regex::Regex;
@@ -128,14 +129,37 @@ impl From<&JSString> for ECMAScriptValue {
     }
 }
 
-impl<T> From<T> for ECMAScriptValue
-where
-    T: Into<JSString>,
-{
-    fn from(source: T) -> Self {
+impl From<JSString> for ECMAScriptValue {
+    fn from(source: JSString) -> Self {
+        Self::String(source)
+    }
+}
+
+impl From<&str> for ECMAScriptValue {
+    fn from(source: &str) -> Self {
         Self::String(source.into())
     }
 }
+
+impl From<String> for ECMAScriptValue {
+    fn from(source: String) -> Self {
+        Self::String(source.into())
+    }
+}
+
+impl From<Vec<u16>> for ECMAScriptValue {
+    fn from(source: Vec<u16>) -> Self {
+        Self::String(source.into())
+    }
+}
+//impl<T> From<T> for ECMAScriptValue
+//where
+//    T: Into<JSString>,
+//{
+//    fn from(source: T) -> Self {
+//        Self::String(source.into())
+//    }
+//}
 
 impl From<bool> for ECMAScriptValue {
     fn from(source: bool) -> Self {
@@ -189,6 +213,24 @@ impl From<BigInt> for ECMAScriptValue {
 impl From<Rc<BigInt>> for ECMAScriptValue {
     fn from(src: Rc<BigInt>) -> Self {
         Self::BigInt(src)
+    }
+}
+
+impl From<Numeric> for ECMAScriptValue {
+    fn from(src: Numeric) -> Self {
+        match src {
+            Numeric::Number(n) => n.into(),
+            Numeric::BigInt(n) => n.into(),
+        }
+    }
+}
+
+impl From<&Numeric> for ECMAScriptValue {
+    fn from(src: &Numeric) -> Self {
+        match src {
+            Numeric::Number(n) => ECMAScriptValue::from(*n),
+            Numeric::BigInt(n) => Rc::clone(n).into(),
+        }
     }
 }
 
@@ -273,21 +315,43 @@ impl From<PropertyKey> for ECMAScriptValue {
 }
 
 impl TryFrom<PropertyKey> for JSString {
-    type Error = &'static str;
+    type Error = anyhow::Error;
     fn try_from(key: PropertyKey) -> Result<Self, Self::Error> {
         match key {
             PropertyKey::String(s) => Ok(s),
-            PropertyKey::Symbol(_) => Err("Expected String-valued property key"),
+            PropertyKey::Symbol(_) => Err(anyhow!("Expected String-valued property key")),
         }
     }
 }
 
 impl TryFrom<&PropertyKey> for JSString {
-    type Error = &'static str;
+    type Error = anyhow::Error;
     fn try_from(key: &PropertyKey) -> Result<Self, Self::Error> {
         match key {
             PropertyKey::String(s) => Ok(s.clone()),
-            PropertyKey::Symbol(_) => Err("Expected String-valued property key"),
+            PropertyKey::Symbol(_) => Err(anyhow!("Expected String-valued property key")),
+        }
+    }
+}
+
+impl TryFrom<ECMAScriptValue> for PropertyKey {
+    type Error = anyhow::Error;
+    fn try_from(key: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match key {
+            ECMAScriptValue::String(s) => Ok(PropertyKey::String(s)),
+            ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::Symbol(sym)),
+            _ => Err(anyhow!("Bad type for property key")),
+        }
+    }
+}
+
+impl TryFrom<ECMAScriptValue> for Option<Object> {
+    type Error = anyhow::Error;
+    fn try_from(val: ECMAScriptValue) -> anyhow::Result<Self> {
+        match val {
+            ECMAScriptValue::Object(o) => Ok(Some(o)),
+            ECMAScriptValue::Null => Ok(None),
+            _ => Err(anyhow!("Bad type for Object/null")),
         }
     }
 }
@@ -928,21 +992,31 @@ pub fn to_uint8(agent: &mut Agent, argument: impl Into<ECMAScriptValue>) -> Comp
 // |               |      2. Return ? ToString(primValue).                     |
 // +---------------+-----------------------------------------------------------+
 pub fn to_string(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completion<JSString> {
-    match val.into() {
-        ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
-        ECMAScriptValue::Null => Ok(JSString::from("null")),
-        ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
-        ECMAScriptValue::Number(n) => {
-            let mut s = Vec::new();
-            number_to_string(&mut s, n).unwrap();
-            Ok(JSString::from(s))
-        }
-        ECMAScriptValue::String(s) => Ok(s),
-        ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbols may not be converted to strings")),
-        ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
-        ECMAScriptValue::Object(o) => {
-            let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::String))?;
-            to_string(agent, prim_value)
+    let val = val.into();
+    if val.is_object() {
+        let prim_value = to_primitive(agent, val, Some(ConversionHint::String))?;
+        to_string(agent, prim_value)
+    } else {
+        JSString::try_from(val).map_err(|e| create_type_error(agent, e.to_string()))
+    }
+}
+
+impl TryFrom<ECMAScriptValue> for JSString {
+    type Error = anyhow::Error;
+    fn try_from(val: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match val {
+            ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
+            ECMAScriptValue::Null => Ok(JSString::from("null")),
+            ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
+            ECMAScriptValue::String(s) => Ok(s),
+            ECMAScriptValue::Number(n) => {
+                let mut s = Vec::new();
+                number_to_string(&mut s, n).unwrap();
+                Ok(JSString::from(s))
+            }
+            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(format!("{}", bi))),
+            ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
+            ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
         }
     }
 }

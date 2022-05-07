@@ -92,6 +92,10 @@ impl Chunk {
             | Insn::Resolve
             | Insn::StrictResolve
             | Insn::InitializeReferencedBinding
+            | Insn::CreateDataProperty
+            | Insn::SetPrototype
+            | Insn::ToPropertyKey
+            | Insn::CopyDataProps
             | Insn::This
             | Insn::Null
             | Insn::Undefined
@@ -103,7 +107,8 @@ impl Chunk {
             | Insn::UpdateEmpty
             | Insn::Swap
             | Insn::Pop
-            | Insn::Pop2Push3 => (1, format!("    {insn}")),
+            | Insn::Pop2Push3
+            | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {:<20}{}", insn, arg))

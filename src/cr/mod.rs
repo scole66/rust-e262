@@ -1,6 +1,7 @@
+use crate::object::Object;
 use crate::reference::Reference;
 use crate::strings::JSString;
-use crate::values::ECMAScriptValue;
+use crate::values::{ECMAScriptValue, PropertyKey};
 use anyhow::anyhow;
 use std::fmt;
 
@@ -86,6 +87,24 @@ impl TryFrom<NormalCompletion> for Option<ECMAScriptValue> {
             NormalCompletion::Empty => Ok(None),
             NormalCompletion::Reference(_) => Err(anyhow!("Not a language value!")),
         }
+    }
+}
+
+impl TryFrom<NormalCompletion> for Object {
+    type Error = anyhow::Error;
+    fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
+        let v: ECMAScriptValue = src.try_into()?;
+        let o: Object = v.try_into()?;
+        Ok(o)
+    }
+}
+
+impl TryFrom<NormalCompletion> for PropertyKey {
+    type Error = anyhow::Error;
+    fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
+        let v: ECMAScriptValue = src.try_into()?;
+        let key: PropertyKey = v.try_into()?;
+        Ok(key)
     }
 }
 
