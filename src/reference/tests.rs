@@ -48,6 +48,13 @@ mod base {
     fn eq(left: Base, right: Base) -> bool {
         left == right
     }
+
+    #[test_case(Base::Unresolvable => "unresolvable"; "unresolvable")]
+    #[test_case(Base::Value(10.into()) => "10"; "value")]
+    #[test_case(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))) => "DeclarativeEnvironmentRecord(test)"; "environment")]
+    fn display(b: Base) -> String {
+        format!("{b}")
+    }
 }
 
 mod referenced_name {
@@ -189,6 +196,26 @@ mod referenced_name {
                 let err = PropertyKey::try_from(rn).unwrap_err();
                 assert_eq!(err, "invalid property key");
             }
+        }
+    }
+
+    mod display {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(ReferencedName::from("string") => "string"; "string")]
+        #[test_case(ReferencedName::PrivateName(PrivateName::new("blue")) => "PN[blue]"; "private")]
+        fn not_symbol(rn: ReferencedName) -> String {
+            format!("{rn}")
+        }
+
+        #[test]
+        fn symbol() {
+            let mut agent = test_agent();
+            let sym = Symbol::new(&mut agent, Some("symbol-test".into()));
+            let rn = ReferencedName::from(sym);
+            let result = format!("{rn}");
+            assert_eq!(result, "Symbol(symbol-test)");
         }
     }
 }
