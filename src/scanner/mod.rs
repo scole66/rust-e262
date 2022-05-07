@@ -1746,8 +1746,8 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('"') => single_char('"', 0x22, &scanner),
         Some('\'') => single_char('\'', 0x27, &scanner),
         Some('\\') => single_char('\\', 0x5c, &scanner),
-        Some('0') if !chars.peek().map_or(false, |c| c.is_digit(10)) => single_char('0', 0, &scanner),
-        Some(c) if c.is_digit(10) => {
+        Some('0') if !chars.peek().map_or(false, |c| c.is_ascii_digit()) => single_char('0', 0, &scanner),
+        Some(c) if c.is_ascii_digit() => {
             (None, utf16_encode_code_point(CharVal::from(c)), Scanner { line: scanner.line, column: scanner.column + 1, start_idx: scanner.start_idx + c.len_utf8() }, 1)
         }
         Some('x') => template_hex_digits(&mut chars, 'x' as u16, THDCount::try_from(2).unwrap(), &scanner),
