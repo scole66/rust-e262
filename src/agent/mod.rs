@@ -15,7 +15,7 @@ use super::parser::scripts::{Script, VarScopeDecl};
 use super::parser::statements_and_declarations::DeclPart;
 use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
-use super::reference::{get_value, put_value, Base, Reference};
+use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
 use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
 use anyhow::anyhow;
@@ -413,6 +413,8 @@ impl Agent {
                 Insn::Null => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Null.into())),
                 Insn::True => self.execution_context_stack[index].stack.push(Ok(true.into())),
                 Insn::False => self.execution_context_stack[index].stack.push(Ok(false.into())),
+                Insn::Empty => self.execution_context_stack[index].stack.push(Ok(NormalCompletion::Empty)),
+                Insn::Undefined => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Undefined.into())),
                 Insn::This => {
                     let this_resolved = self.resolve_this_binding().map(NormalCompletion::from);
                     self.execution_context_stack[index].stack.push(this_resolved);
@@ -531,6 +533,14 @@ impl Agent {
                     let stack_size = self.execution_context_stack[index].stack.len();
                     assert!(stack_size >= 2);
                     self.execution_context_stack[index].stack.swap(stack_size - 1, stack_size - 2);
+                }
+                Insn::InitializeReferencedBinding => {
+                    let stack_size = self.execution_context_stack[index].stack.len();
+                    assert!(stack_size >= 2);
+                    let value = self.execution_context_stack[index].stack.pop().unwrap();
+                    let lhs = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap())).map(NormalCompletion::from);
+                    self.execution_context_stack[index].stack.push(result);
                 }
             }
         }

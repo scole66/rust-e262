@@ -7,6 +7,7 @@ use super::parser::bitwise_shift_operators::*;
 use super::parser::block::*;
 use super::parser::comma_operator::*;
 use super::parser::conditional_operator::*;
+use super::parser::declarations_and_variables::*;
 use super::parser::equality_operators::*;
 use super::parser::exponentiation_operator::*;
 use super::parser::expression_statement::*;
@@ -34,8 +35,10 @@ pub enum Insn {
     StrictResolve,
     This,
     Null,
+    Undefined,
     True,
     False,
+    Empty,
     Float,
     Bigint,
     GetValue,
@@ -49,6 +52,7 @@ pub enum Insn {
     Pop2Push3,
     Ref,
     StrictRef,
+    InitializeReferencedBinding,
 }
 
 impl fmt::Display for Insn {
@@ -59,8 +63,10 @@ impl fmt::Display for Insn {
             Insn::StrictResolve => "STRICT_RESOLVE",
             Insn::This => "THIS",
             Insn::Null => "NULL",
+            Insn::Undefined => "UNDEFINED",
             Insn::True => "TRUE",
             Insn::False => "FALSE",
+            Insn::Empty => "EMPTY",
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
@@ -74,6 +80,7 @@ impl fmt::Display for Insn {
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
+            Insn::InitializeReferencedBinding => "IRB",
         })
     }
 }
@@ -461,11 +468,10 @@ impl StatementList {
 }
 
 impl StatementListItem {
-    #[allow(unused_variables)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
         match self {
             StatementListItem::Statement(stmt) => stmt.compile(chunk, strict),
-            StatementListItem::Declaration(decl) => todo!(),
+            StatementListItem::Declaration(decl) => decl.compile(chunk, strict),
         }
     }
 }
@@ -476,6 +482,98 @@ impl Statement {
             Statement::Expression(exp) => exp.compile(chunk, strict),
             _ => todo!(),
         }
+    }
+}
+
+impl Declaration {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            Declaration::Class(_) => todo!(),
+            Declaration::Hoistable(_) => todo!(),
+            Declaration::Lexical(lex) => lex.compile(chunk, strict),
+        }
+    }
+}
+
+impl LexicalDeclaration {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        let LexicalDeclaration::List(_, bi) = self;
+        bi.compile(chunk, strict)?;
+        let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Pop);
+        chunk.op(Insn::Empty);
+        chunk.fixup(mark)?;
+        Ok(())
+    }
+}
+
+impl BindingList {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            BindingList::Item(item) => item.compile(chunk, strict),
+            BindingList::List(lst, item) => {
+                lst.compile(chunk, strict)?;
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                item.compile(chunk, strict)?;
+                chunk.fixup(mark)?;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl LexicalBinding {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        match self {
+            LexicalBinding::Identifier(bi, init) => {
+                let id = chunk.add_to_string_pool(bi.string_value())?;
+                chunk.op_plus_arg(Insn::String, id);
+                // Stack: name ...
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                // Stack: lhs ...
+                let exit_tgt = match init {
+                    None => {
+                        chunk.op(Insn::Undefined);
+                        None
+                    }
+                    Some(izer) => {
+                        if izer.is_anonymous_function_definition() {
+                            todo!();
+                        } else {
+                            izer.compile(chunk, strict)?;
+                            // Stack: rref lhs ...
+                            chunk.op(Insn::GetValue);
+                            // Stack: value lhs ...
+                            let normal = chunk.op_jump(Insn::JumpIfNormal);
+                            // Stack: err lhs ...
+                            chunk.op(Insn::Swap);
+                            // Stack: lhs err ...
+                            chunk.op(Insn::Pop);
+                            // Stack: err ...
+                            let exit_tgt = Some(chunk.op_jump(Insn::Jump));
+                            chunk.fixup(normal)?;
+                            exit_tgt
+                        }
+                    }
+                };
+                // Stack: value lhs ...
+                chunk.op(Insn::InitializeReferencedBinding);
+                // Stack: empty ...
+                if let Some(mark) = exit_tgt {
+                    chunk.fixup(mark)?;
+                }
+                Ok(())
+            }
+            LexicalBinding::Pattern(_, _) => todo!(),
+        }
+    }
+}
+
+impl Initializer {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<()> {
+        let Initializer::AssignmentExpression(ae) = self;
+        ae.compile(chunk, strict)
     }
 }
 
