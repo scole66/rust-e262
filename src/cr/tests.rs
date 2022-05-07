@@ -105,6 +105,7 @@ mod normal_completion {
 
 mod abrupt_completion {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn clone() {
@@ -147,6 +148,20 @@ mod abrupt_completion {
 
         assert_eq!(c1 != c2, true);
         assert_eq!(c1 != c3, false);
+    }
+
+    #[test_case(AbruptCompletion::Return{value: 67.into()} => "Return{67}"; "abrupt return")]
+    #[test_case(AbruptCompletion::Throw{value: 99.into()} => "Throw{99}"; "abrupt throw")]
+    #[test_case(AbruptCompletion::Break{value: ().into(), target: None} => "Break{}"; "break with no data")]
+    #[test_case(AbruptCompletion::Break{value: ().into(), target: Some("tgt".into())} => "Break{T:tgt}"; "break with target")]
+    #[test_case(AbruptCompletion::Break{value: 102.into(), target: None} => "Break{V:102}"; "break with value")]
+    #[test_case(AbruptCompletion::Break{value: 10.into(), target: Some("xx".into())} => "Break{V:10,T:xx}"; "break with value and target")]
+    #[test_case(AbruptCompletion::Continue{value: ().into(), target: None} => "Continue{}"; "Continue with no data")]
+    #[test_case(AbruptCompletion::Continue{value: ().into(), target: Some("tgt".into())} => "Continue{T:tgt}"; "Continue with target")]
+    #[test_case(AbruptCompletion::Continue{value: 102.into(), target: None} => "Continue{V:102}"; "Continue with value")]
+    #[test_case(AbruptCompletion::Continue{value: 10.into(), target: Some("xx".into())} => "Continue{V:10,T:xx}"; "Continue with value and target")]
+    fn display(ac: AbruptCompletion) -> String {
+        format!("{ac}")
     }
 }
 
