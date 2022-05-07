@@ -646,7 +646,24 @@ mod statement_list_item {
         "RESOLVE",
         "GET_VALUE",
     ]); "non-strict stmt")]
-    #[test_case("let a;", true => panics "not yet implemented"; "decl")]
+    #[test_case("let a;", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+    ]); "strict decl")]
+    #[test_case("let a;", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "UNDEFINED",
+        "IRB",
+        "JUMP_IF_ABRUPT 2",
+        "POP",
+        "EMPTY",
+    ]); "non-strict decl")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement_list_item();
         let mut c = Chunk::new("x");

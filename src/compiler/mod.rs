@@ -844,7 +844,7 @@ impl LexicalBinding {
                 let id = chunk.add_to_string_pool(bi.string_value())?;
                 chunk.op_plus_arg(Insn::String, id);
                 // Stack: name ...
-                chunk.op(if strict { Insn::Resolve } else { Insn::StrictResolve });
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
                 // Stack: lhs ...
                 let exit_tgt = match init {
                     None => {
