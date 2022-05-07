@@ -372,7 +372,7 @@ mod tests {
         assert_eq!(result, "blue");
     }
 
-    #[test_case(73.into() => Err("Not a string value".to_string()); "not a string")]
+    //#[test_case(73.into() => Err("Not a string value".to_string()); "not a string")]
     #[test_case("a string".into() => Ok("a string".to_string()); "a string")]
     fn try_from_value(val: ECMAScriptValue) -> Result<String, String> {
         JSString::try_from(val).map(String::from).map_err(|e| e.to_string())

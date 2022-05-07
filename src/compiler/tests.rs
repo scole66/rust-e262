@@ -512,17 +512,21 @@ mod assignment_expression {
     #[test_case("a=6", true => svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 12",
+        "JUMP_IF_ABRUPT 5",
         "FLOAT 0 (6)",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
-        "JUMP 3",
         "POP2_PUSH3",
         "PUT_VALUE",
         "UPDATE_EMPTY"
-    ]); "assignment expr")]
+    ]); "strict assignment expr")]
+    #[test_case("a=6", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (6)",
+        "POP2_PUSH3",
+        "PUT_VALUE",
+        "UPDATE_EMPTY"
+    ]); "non-strict assignment expr")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).assignment_expression();
         let mut c = Chunk::new("x");
@@ -724,8 +728,6 @@ mod script_body {
     ]); "stmt")]
     #[test_case("'use strict'; a;" => svec(&[
         "STRING 0 (use strict)",
-        "GET_VALUE",
-        "JUMP_IF_ABRUPT 5",
         "STRING 1 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
