@@ -11,8 +11,7 @@ use super::method_definitions::MethodDefinition;
 use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
-use crate::values::number_to_string;
-use num::bigint::BigInt;
+use crate::values::{number_to_string, Numeric};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -1958,11 +1957,6 @@ impl ObjectLiteral {
 //      BooleanLiteral
 //      NumericLiteral
 //      StringLiteral
-#[derive(Debug, PartialEq)]
-pub enum Numeric {
-    Number(f64),
-    BigInt(Rc<BigInt>),
-}
 
 impl fmt::Display for Numeric {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

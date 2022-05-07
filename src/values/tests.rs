@@ -501,11 +501,11 @@ fn property_key_try_from() {
     let pk = PropertyKey::from("key");
     assert_eq!(JSString::try_from(pk).unwrap(), "key");
     let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    assert_eq!(JSString::try_from(pk).unwrap_err(), "Expected String-valued property key");
+    assert_eq!(JSString::try_from(pk).unwrap_err().to_string(), "Expected String-valued property key");
     let pk = PropertyKey::from("key");
     assert_eq!(JSString::try_from(&pk).unwrap(), "key");
     let pk = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    assert_eq!(JSString::try_from(&pk).unwrap_err(), "Expected String-valued property key");
+    assert_eq!(JSString::try_from(&pk).unwrap_err().to_string(), "Expected String-valued property key");
 }
 #[test_case(|_| PropertyKey::from("alice"), |_| ECMAScriptValue::from("alice"); "string")]
 #[test_case(|a| PropertyKey::from(a.wks(WksId::ToPrimitive)), |a| ECMAScriptValue::from(a.wks(WksId::ToPrimitive)); "symbol")]

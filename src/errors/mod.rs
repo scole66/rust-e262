@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 fn create_native_error_object(agent: &mut Agent, message: impl Into<JSString>, error_constructor: Object, proto_id: IntrinsicId) -> Object {
     let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
-    let desc = PotentialPropertyDescriptor::new().value(message).writable(true).enumerable(false).configurable(true);
+    let desc = PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(agent, &o, "message", desc).unwrap();
     o
 }

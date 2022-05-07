@@ -1,10 +1,12 @@
+use crate::object::create_data_property_or_throw;
+
 use super::chunk::Chunk;
 use super::compiler::Insn;
 use super::cr::{update_empty, Completion, NormalCompletion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
-use super::object::{define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
+use super::object::{copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;
@@ -17,7 +19,7 @@ use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
-use super::values::{ECMAScriptValue, Symbol, SymbolInternals};
+use super::values::{to_property_key, ECMAScriptValue, PropertyKey, Symbol, SymbolInternals};
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::cell::RefCell;
@@ -541,6 +543,51 @@ impl Agent {
                     let lhs = self.execution_context_stack[index].stack.pop().unwrap();
                     let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap())).map(NormalCompletion::from);
                     self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::Object => {
+                    let obj_proto = self.intrinsic(IntrinsicId::ObjectPrototype);
+                    let o = ordinary_object_create(self, Some(obj_proto), &[]);
+                    self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::from(o).into()));
+                }
+                Insn::CreateDataProperty => {
+                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_name = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let obj = Object::try_from(nc_obj).unwrap();
+                    let name = PropertyKey::try_from(nc_name).unwrap();
+                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
+                    create_data_property_or_throw(self, &obj, name, value).unwrap();
+                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+                }
+                Insn::SetPrototype => {
+                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let obj = Object::try_from(nc_obj).unwrap();
+                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
+                    let val_obj_res: anyhow::Result<Option<Object>> = value.try_into();
+                    if let Ok(new_proto) = val_obj_res {
+                        obj.o.set_prototype_of(self, new_proto).unwrap();
+                    }
+                    self.execution_context_stack[index].stack.push(Ok(NormalCompletion::from(obj)));
+                }
+                Insn::ToPropertyKey => {
+                    let nc_name = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let value_name = ECMAScriptValue::try_from(nc_name).unwrap();
+                    let key = to_property_key(self, value_name);
+                    let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
+                    self.execution_context_stack[index].stack.push(fc);
+                }
+                Insn::CopyDataProps => {
+                    let nc_value = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let nc_obj = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let obj = Object::try_from(nc_obj).unwrap();
+                    let value = ECMAScriptValue::try_from(nc_value).unwrap();
+                    let result = copy_data_properties(self, &obj, value, &[]);
+                    let fc = match result {
+                        Ok(_) => Ok(NormalCompletion::from(obj)),
+                        Err(e) => Err(e),
+                    };
+                    self.execution_context_stack[index].stack.push(fc);
                 }
             }
         }
