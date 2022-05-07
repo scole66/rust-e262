@@ -213,7 +213,7 @@ mod referenced_name {
         fn symbol() {
             let mut agent = test_agent();
             let sym = Symbol::new(&mut agent, Some("symbol-test".into()));
-            let rn = ReferencedName::from(sym.clone());
+            let rn = ReferencedName::from(sym);
             let result = format!("{rn}");
             assert_eq!(result, "Symbol(symbol-test)");
         }
