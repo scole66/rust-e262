@@ -55,6 +55,51 @@ mod normal_completion {
         fn opt_value(n: NormalCompletion) -> Result<Option<ECMAScriptValue>, String> {
             n.try_into().map_err(|a: anyhow::Error| a.to_string())
         }
+
+        #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "empty")]
+        #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => Err("Not a language value!".to_string()); "reference")]
+        #[test_case(NormalCompletion::from(103) => Err("Bad type for property key".to_string()); "value, but not key")]
+        #[test_case(NormalCompletion::from("key") => Ok(PropertyKey::from("key")); "key")]
+        fn property_key(n: NormalCompletion) -> Result<PropertyKey, String> {
+            n.try_into().map_err(|e: anyhow::Error| e.to_string())
+        }
+
+        mod object {
+            use super::*;
+            use crate::object::ordinary_object_create;
+            use crate::tests::test_agent;
+            use test_case::test_case;
+
+            #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "empty")]
+            #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => Err("Not a language value!".to_string()); "reference")]
+            #[test_case(NormalCompletion::from(103) => Err("Only object values may be converted to true objects".to_string()); "value, but not object")]
+            fn not(n: NormalCompletion) -> Result<Object, String> {
+                n.try_into().map_err(|e: anyhow::Error| e.to_string())
+            }
+
+            #[test]
+            fn actual() {
+                let mut agent = test_agent();
+                let obj = ordinary_object_create(&mut agent, None, &[]);
+                let val = ECMAScriptValue::from(obj.clone());
+                let nc = NormalCompletion::from(val);
+                let extracted: Object = nc.try_into().unwrap();
+                assert_eq!(obj, extracted);
+            }
+        }
+    }
+
+    #[test_case(() => NormalCompletion::Empty; "unit")]
+    fn into(src: impl Into<NormalCompletion>) -> NormalCompletion {
+        src.into()
+    }
+
+    #[test_case(NormalCompletion::Empty => "[empty]"; "empty")]
+    #[test_case(NormalCompletion::from(103) => "103"; "value")]
+    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => "Ref(unresolvable->a)"; "non-strict reference")]
+    #[test_case(NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
+    fn display(n: NormalCompletion) -> String {
+        format!("{n}")
     }
 }
 
