@@ -504,7 +504,12 @@ impl MemberExpression {
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: status.can_be_reference })
             }
-            _ => todo!(),
+            MemberExpressionKind::Expression(_, _) => todo!(),
+            MemberExpressionKind::TemplateLiteral(_, _) => todo!(),
+            MemberExpressionKind::SuperProperty(_) => todo!(),
+            MemberExpressionKind::MetaProperty(_) => todo!(),
+            MemberExpressionKind::NewArguments(_, _) => todo!(),
+            MemberExpressionKind::PrivateId(_, _) => todo!(),
         }
     }
 }

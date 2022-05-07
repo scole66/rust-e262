@@ -688,6 +688,7 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
 }
 
 pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, env: Rc<GlobalEnvironmentRecord>) -> Completion<()> {
+    println!("Creating Globals...");
     let lex_names = script.lexically_declared_names();
     let var_names = script.var_declared_names();
     for name in lex_names {
@@ -765,8 +766,10 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
         };
         for dn in names {
             if is_constant {
+                println!("   immutable: {dn}");
                 env.create_immutable_binding(agent, dn, true)?;
             } else {
+                println!("   mutable:   {dn}");
                 env.create_mutable_binding(agent, dn, false)?;
             }
         }
@@ -778,11 +781,14 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
             TopLevelFcnDef::AsyncFun(afd) => (afd.bound_names()[0].clone(), afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
             TopLevelFcnDef::AsyncGen(agd) => (agd.bound_names()[0].clone(), agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
         };
+        println!("   function:  {name}");
         env.create_global_function_binding(agent, name, func_obj, false)?;
     }
     for vn in declared_var_names {
+        println!("   var:       {vn}");
         env.create_global_var_binding(agent, vn, false)?;
     }
+    println!("..done");
 
     Ok(())
 }
