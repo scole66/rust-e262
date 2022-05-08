@@ -728,6 +728,23 @@ where
     }
 }
 
+pub fn get_agentless(o: &Object, p: &PropertyKey) -> Option<ECMAScriptValue> {
+    let desc = ordinary_get_own_property(o, p);
+    match desc {
+        None => {
+            let parent = ordinary_get_prototype_of(o);
+            match parent {
+                None => None,
+                Some(parent) => get_agentless(&parent, p),
+            }
+        }
+        Some(desc) => match desc.property {
+            PropertyKind::Data(data_fields) => Some(data_fields.value),
+            PropertyKind::Accessor(_) => None,
+        },
+    }
+}
+
 // OrdinarySet ( O, P, V, Receiver )
 //
 // The abstract operation OrdinarySet takes arguments O (an Object), P (a property key), V (an ECMAScript language

@@ -2,9 +2,9 @@ use super::agent::Agent;
 use super::cr::{AbruptCompletion, Completion};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
-    define_property_or_throw, get, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of,
-    ordinary_has_property, ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of,
-    CommonObjectData, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
+    define_property_or_throw, get, get_agentless, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
+    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set,
+    ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::realm::Realm;
@@ -468,6 +468,20 @@ pub fn unwind_any_error(agent: &mut Agent, completion: AbruptCompletion) -> Stri
     match completion {
         AbruptCompletion::Throw { value: err } => unwind_any_error_value(agent, err),
         _ => panic!("Improper completion for error: {:?}", completion),
+    }
+}
+
+pub fn unwind_any_error_object(o: &Object) -> String {
+    let name_prop = get_agentless(o, &PropertyKey::from("name")).unwrap_or(ECMAScriptValue::Undefined);
+    let name = if name_prop.is_undefined() { String::from("Error") } else { name_prop.to_string() };
+    let msg_prop = get_agentless(o, &PropertyKey::from("message")).unwrap_or(ECMAScriptValue::Undefined);
+    let msg = if msg_prop.is_undefined() { String::from("") } else { msg_prop.to_string() };
+    if name.is_empty() {
+        msg
+    } else if msg.is_empty() {
+        name
+    } else {
+        format!("{name}: {msg}")
     }
 }
 

@@ -1,10 +1,8 @@
-use crate::object::create_data_property_or_throw;
-
 use super::chunk::Chunk;
 use super::compiler::Insn;
-use super::cr::{update_empty, Completion, NormalCompletion};
+use super::cr::{update_empty, AbruptCompletion, Completion, NormalCompletion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
-use super::errors::{create_syntax_error, create_type_error, unwind_any_error};
+use super::errors::{create_syntax_error, create_type_error, unwind_any_error_object};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
@@ -20,11 +18,14 @@ use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
 use super::values::{to_numeric, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
+use crate::object::create_data_property_or_throw;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::error;
+use std::fmt;
 use std::rc::Rc;
 
 // Agents
@@ -841,14 +842,47 @@ pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMA
     result
 }
 
-pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, String> {
+#[derive(Debug)]
+pub enum ProcessError {
+    RuntimeError { error: ECMAScriptValue },
+    CompileErrors { values: Vec<Object> },
+    InternalError { reason: String },
+}
+
+impl error::Error for ProcessError {}
+
+impl fmt::Display for ProcessError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ProcessError::RuntimeError { error } => {
+                if let ECMAScriptValue::Object(o) = error {
+                    if o.o.is_error_object() {
+                        return write!(f, "Thrown: {}", unwind_any_error_object(o));
+                    }
+                }
+                write!(f, "Thrown: {error}")
+            }
+            ProcessError::CompileErrors { values } => {
+                writeln!(f, "During compilation:")?;
+                for err_obj in values {
+                    writeln!(f, "{}", unwind_any_error_object(err_obj))?;
+                }
+                Ok(())
+            }
+            ProcessError::InternalError { reason } => write!(f, "{reason}"),
+        }
+    }
+}
+
+pub fn process_ecmascript(agent: &mut Agent, source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
     let realm = agent.current_realm_record().unwrap();
-    let x = parse_script(agent, source_text, realm).map_err(|_| "errors happened during compilation".to_string())?;
+    let x = parse_script(agent, source_text, realm).map_err(|errs| ProcessError::CompileErrors { values: errs })?;
 
     let result = script_evaluation(agent, x);
     match result {
         Ok(val) => Ok(val),
-        Err(ac) => Err(unwind_any_error(agent, ac)),
+        Err(AbruptCompletion::Throw { value }) => Err(ProcessError::RuntimeError { error: value }),
+        Err(_) => Err(ProcessError::InternalError { reason: "Impossible completion returned".to_string() }),
     }
 }
 
