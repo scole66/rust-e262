@@ -277,7 +277,7 @@ pub fn error_prototype_tostring(agent: &mut Agent, this_value: ECMAScriptValue, 
         } else if msg.len() == 0 {
             Ok(ECMAScriptValue::from(name))
         } else {
-            Ok(ECMAScriptValue::from(format!("{}: {}", name, msg)))
+            Ok(ECMAScriptValue::from(name.concat(": ").concat(msg)))
         }
     } else {
         Err(create_type_error(agent, "Error.prototype.toString called with non-object this value"))

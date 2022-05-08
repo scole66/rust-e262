@@ -21,6 +21,14 @@ impl JSString {
     pub fn len(&self) -> usize {
         self.s.len()
     }
+
+    pub fn concat(&self, s: impl Into<JSString>) -> JSString {
+        let tail = s.into();
+        let mut new_vec = Vec::with_capacity(self.len() + tail.len());
+        new_vec.extend(self.s.iter());
+        new_vec.extend(tail.s.iter());
+        JSString { s: Rc::new(new_vec) }
+    }
 }
 
 impl From<Vec<u16>> for JSString {
@@ -69,6 +77,12 @@ impl fmt::Debug for JSString {
 
 impl From<JSString> for String {
     fn from(source: JSString) -> Self {
+        String::from_utf16_lossy(&source.s)
+    }
+}
+
+impl From<&JSString> for String {
+    fn from(source: &JSString) -> Self {
         String::from_utf16_lossy(&source.s)
     }
 }
