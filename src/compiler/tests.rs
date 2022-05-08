@@ -360,10 +360,10 @@ mod update_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY",
     ]); "post-decrement, non-strict")]
-    #[test_case("++a", true => panics "not yet implemented"; "pre-increment, strict")]
-    #[test_case("++a", false => panics "not yet implemented"; "pre-increment, non-strict")]
-    #[test_case("--a", true => panics "not yet implemented"; "pre-decrement, strict")]
-    #[test_case("--a", false => panics "not yet implemented"; "pre-decrement, non-strict")]
+    #[test_case("++a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_INCREMENT"]); "pre-increment, strict")]
+    #[test_case("++a", false => svec(&["STRING 0 (a)", "RESOLVE", "PRE_INCREMENT"]); "pre-increment, non-strict")]
+    #[test_case("--a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "PRE_DECREMENT"]); "pre-decrement, strict")]
+    #[test_case("--a", false => svec(&["STRING 0 (a)", "RESOLVE", "PRE_DECREMENT"]); "pre-decrement, non-strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).update_expression();
         let mut c = Chunk::new("x");
