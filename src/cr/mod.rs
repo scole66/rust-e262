@@ -15,7 +15,7 @@ impl fmt::Display for NormalCompletion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             NormalCompletion::Empty => write!(f, "[empty]"),
-            NormalCompletion::Value(v) => write!(f, "{v}"),
+            NormalCompletion::Value(v) => v.concise(f),
             NormalCompletion::Reference(r) => write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name),
         }
     }

@@ -100,11 +100,11 @@ impl ECMAScriptValue {
         match self {
             ECMAScriptValue::Undefined => write!(f, "undefined"),
             ECMAScriptValue::Null => write!(f, "null"),
-            ECMAScriptValue::Boolean(x) => write!(f, "{}", x),
-            ECMAScriptValue::String(s) => write!(f, "{:?}", format!("{}", s)),
-            ECMAScriptValue::Number(n) => write!(f, "{:?}", n),
-            ECMAScriptValue::BigInt(b) => write!(f, "{:?}", b),
-            ECMAScriptValue::Symbol(sym) => write!(f, "{}", sym),
+            ECMAScriptValue::Boolean(x) => write!(f, "{x}"),
+            ECMAScriptValue::String(s) => write!(f, "{:?}", s.to_string()),
+            ECMAScriptValue::Number(n) => write!(f, "{n}"),
+            ECMAScriptValue::BigInt(b) => write!(f, "{b}"),
+            ECMAScriptValue::Symbol(sym) => write!(f, "{sym}"),
             ECMAScriptValue::Object(o) => o.concise(f),
         }
     }
