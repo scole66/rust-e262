@@ -1,6 +1,6 @@
 use super::chunk::Chunk;
 use super::compiler::Insn;
-use super::cr::{update_empty, AbruptCompletion, Completion, NormalCompletion};
+use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::{create_syntax_error, create_type_error, unwind_any_error_object};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
@@ -624,6 +624,16 @@ impl Agent {
                     let fc = Ok(NormalCompletion::from(result_val));
                     self.execution_context_stack[index].stack.push(fc);
                 }
+                Insn::PreIncrement => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.prefix_increment(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::PreDecrement => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.prefix_decrement(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -636,6 +646,28 @@ impl Agent {
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
+    }
+
+    fn prefix_increment(&mut self, expr: FullCompletion) -> FullCompletion {
+        let value = get_value(self, expr.clone())?;
+        let old_value = to_numeric(self, value)?;
+        let new_value: ECMAScriptValue = match old_value {
+            Numeric::Number(n) => (n + 1.0).into(),
+            Numeric::BigInt(bi) => ECMAScriptValue::from(&*bi + 1),
+        };
+        put_value(self, expr, Ok(new_value.clone()))?;
+        Ok(NormalCompletion::from(new_value))
+    }
+
+    fn prefix_decrement(&mut self, expr: FullCompletion) -> FullCompletion {
+        let value = get_value(self, expr.clone())?;
+        let old_value = to_numeric(self, value)?;
+        let new_value: ECMAScriptValue = match old_value {
+            Numeric::Number(n) => (n - 1.0).into(),
+            Numeric::BigInt(bi) => ECMAScriptValue::from(&*bi - 1),
+        };
+        put_value(self, expr, Ok(new_value.clone()))?;
+        Ok(NormalCompletion::from(new_value))
     }
 }
 
