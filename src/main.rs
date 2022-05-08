@@ -33,7 +33,7 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use agent::Agent;
+use agent::{Agent, process_ecmascript};
 use parser::{parse_text, ParseGoal, ParsedText};
 use prettyprint::PrettyPrint;
 use values::to_string;
@@ -96,8 +96,6 @@ fn repl(vm: &mut VM) {
         }
     }
 }
-
-use crate::agent::process_ecmascript;
 
 fn run_file(vm: &mut VM, fname: &str) {
     println!("Running from the file {}", fname);
