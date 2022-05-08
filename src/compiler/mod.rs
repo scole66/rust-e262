@@ -65,6 +65,8 @@ pub enum Insn {
     ToNumeric,
     Increment,
     Decrement,
+    PreIncrement,
+    PreDecrement,
 }
 
 impl fmt::Display for Insn {
@@ -102,6 +104,8 @@ impl fmt::Display for Insn {
             Insn::ToNumeric => "TO_NUMERIC",
             Insn::Increment => "INCREMENT",
             Insn::Decrement => "DECREMENT",
+            Insn::PreDecrement => "PRE_DECREMENT",
+            Insn::PreIncrement => "PRE_INCREMENT",
         })
     }
 }
@@ -546,7 +550,8 @@ impl UpdateExpression {
         // Stack: ...
         let status = exp.compile(chunk, strict)?;
         assert!(status.can_be_reference); // Early errors eliminate non-refs
-                                          // Stack: lref/err1 ...
+
+        // Stack: lref/err1 ...
         chunk.op(Insn::Dup);
         // Stack: lref/err1 lref/err1 ...
         chunk.op(Insn::GetValue);
@@ -585,13 +590,21 @@ impl UpdateExpression {
         Ok(CompilerStatusFlags::new().abrupt())
     }
 
+    fn pre_op(chunk: &mut Chunk, strict: bool, exp: &Rc<UnaryExpression>, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+        // Stack: ...
+        exp.compile(chunk, strict)?;
+        // Stack: exp/err
+        chunk.op(insn);
+        Ok(CompilerStatusFlags::new().abrupt())
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict),
             UpdateExpression::PostIncrement(exp) => Self::post_op(chunk, strict, exp, Insn::Increment),
             UpdateExpression::PostDecrement(exp) => Self::post_op(chunk, strict, exp, Insn::Decrement),
-            UpdateExpression::PreIncrement(_) => todo!(),
-            UpdateExpression::PreDecrement(_) => todo!(),
+            UpdateExpression::PreIncrement(exp) => Self::pre_op(chunk, strict, exp, Insn::PreIncrement),
+            UpdateExpression::PreDecrement(exp) => Self::pre_op(chunk, strict, exp, Insn::PreDecrement),
         }
     }
 }
