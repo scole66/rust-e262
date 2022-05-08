@@ -26,6 +26,7 @@ use super::values::*;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
+use std::rc::Rc;
 
 pub type Opcode = u16;
 
@@ -52,6 +53,7 @@ pub enum Insn {
     Swap,
     Pop,
     Pop2Push3,
+    Dup,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -60,6 +62,9 @@ pub enum Insn {
     SetPrototype,
     ToPropertyKey,
     CopyDataProps,
+    ToNumeric,
+    Increment,
+    Decrement,
 }
 
 impl fmt::Display for Insn {
@@ -85,6 +90,7 @@ impl fmt::Display for Insn {
             Insn::Swap => "SWAP",
             Insn::Pop => "POP",
             Insn::Pop2Push3 => "POP2_PUSH3",
+            Insn::Dup => "DUP",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -93,6 +99,9 @@ impl fmt::Display for Insn {
             Insn::SetPrototype => "SET_PROTO",
             Insn::ToPropertyKey => "TO_KEY",
             Insn::CopyDataProps => "COPY_DATA_PROPS",
+            Insn::ToNumeric => "TO_NUMERIC",
+            Insn::Increment => "INCREMENT",
+            Insn::Decrement => "DECREMENT",
         })
     }
 }
@@ -533,10 +542,56 @@ impl LeftHandSideExpression {
 }
 
 impl UpdateExpression {
+    fn post_op(chunk: &mut Chunk, strict: bool, exp: &Rc<LeftHandSideExpression>, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+        // Stack: ...
+        let status = exp.compile(chunk, strict)?;
+        assert!(status.can_be_reference); // Early errors eliminate non-refs
+                                          // Stack: lref/err1 ...
+        chunk.op(Insn::Dup);
+        // Stack: lref/err1 lref/err1 ...
+        chunk.op(Insn::GetValue);
+        // Stack: lval/err1/2 lref/err1
+        let mark = chunk.op_jump(Insn::JumpIfNormal);
+        // Stack: err1/2 lref/err1 ...
+        chunk.op(Insn::Swap);
+        // Stack: lref/err1 err1/2
+        chunk.op(Insn::Pop);
+        // Stack: err1/2 ...
+        let exit1 = chunk.op_jump(Insn::Jump);
+        chunk.fixup(mark)?;
+        // Stack: lval lref ...
+        chunk.op(Insn::ToNumeric);
+        let mark = chunk.op_jump(Insn::JumpIfNormal);
+        // Stack: err lref ...
+        chunk.op(Insn::Swap);
+        // Stack: lref err ...
+        chunk.op(Insn::Pop);
+        // Stack: err ...
+        let exit2 = chunk.op_jump(Insn::Jump);
+        chunk.fixup(mark)?;
+        // Stack: oldValue lref ...
+        chunk.op(Insn::Pop2Push3);
+        // Stack: oldValue lref oldValue ...
+        chunk.op(insn);
+        // Stack: newValue lref oldValue ...
+        chunk.op(Insn::PutValue);
+        // Stack: [empty]/err oldValue ...
+        chunk.op(Insn::UpdateEmpty);
+        // Stack: oldValue/err ...
+
+        chunk.fixup(exit1)?;
+        chunk.fixup(exit2)?;
+
+        Ok(CompilerStatusFlags::new().abrupt())
+    }
+
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict),
-            _ => todo!(),
+            UpdateExpression::PostIncrement(exp) => Self::post_op(chunk, strict, exp, Insn::Increment),
+            UpdateExpression::PostDecrement(exp) => Self::post_op(chunk, strict, exp, Insn::Decrement),
+            UpdateExpression::PreIncrement(_) => todo!(),
+            UpdateExpression::PreDecrement(_) => todo!(),
         }
     }
 }

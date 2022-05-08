@@ -103,7 +103,7 @@ impl ECMAScriptValue {
             ECMAScriptValue::Boolean(x) => write!(f, "{x}"),
             ECMAScriptValue::String(s) => write!(f, "{:?}", s.to_string()),
             ECMAScriptValue::Number(n) => write!(f, "{n}"),
-            ECMAScriptValue::BigInt(b) => write!(f, "{b}"),
+            ECMAScriptValue::BigInt(b) => write!(f, "{b}n"),
             ECMAScriptValue::Symbol(sym) => write!(f, "{sym}"),
             ECMAScriptValue::Object(o) => o.concise(f),
         }
@@ -152,14 +152,6 @@ impl From<Vec<u16>> for ECMAScriptValue {
         Self::String(source.into())
     }
 }
-//impl<T> From<T> for ECMAScriptValue
-//where
-//    T: Into<JSString>,
-//{
-//    fn from(source: T) -> Self {
-//        Self::String(source.into())
-//    }
-//}
 
 impl From<bool> for ECMAScriptValue {
     fn from(source: bool) -> Self {
@@ -237,6 +229,17 @@ impl From<&Numeric> for ECMAScriptValue {
 impl From<Symbol> for ECMAScriptValue {
     fn from(source: Symbol) -> Self {
         Self::Symbol(source)
+    }
+}
+
+impl TryFrom<ECMAScriptValue> for Numeric {
+    type Error = anyhow::Error;
+    fn try_from(src: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match src {
+            ECMAScriptValue::Number(n) => Ok(Numeric::Number(n)),
+            ECMAScriptValue::BigInt(bi) => Ok(Numeric::BigInt(bi)),
+            _ => Err(anyhow!("Value not numeric")),
+        }
     }
 }
 

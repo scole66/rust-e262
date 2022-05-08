@@ -284,7 +284,86 @@ mod update_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a++", true => panics "not yet implemented"; "update expr")]
+    #[test_case("a++", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 11",
+        "TO_NUMERIC",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 4",
+        "POP2_PUSH3",
+        "INCREMENT",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+    ]); "post-increment, strict")]
+    #[test_case("a++", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 11",
+        "TO_NUMERIC",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 4",
+        "POP2_PUSH3",
+        "INCREMENT",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+    ]); "post-increment, non-strict")]
+    #[test_case("a--", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 11",
+        "TO_NUMERIC",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 4",
+        "POP2_PUSH3",
+        "DECREMENT",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+    ]); "post-decrement, strict")]
+    #[test_case("a--", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 11",
+        "TO_NUMERIC",
+        "JUMP_IF_NORMAL 4",
+        "SWAP",
+        "POP",
+        "JUMP 4",
+        "POP2_PUSH3",
+        "DECREMENT",
+        "PUT_VALUE",
+        "UPDATE_EMPTY",
+    ]); "post-decrement, non-strict")]
+    #[test_case("++a", true => panics "not yet implemented"; "pre-increment, strict")]
+    #[test_case("++a", false => panics "not yet implemented"; "pre-increment, non-strict")]
+    #[test_case("--a", true => panics "not yet implemented"; "pre-decrement, strict")]
+    #[test_case("--a", false => panics "not yet implemented"; "pre-decrement, non-strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).update_expression();
         let mut c = Chunk::new("x");

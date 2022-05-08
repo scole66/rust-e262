@@ -19,7 +19,7 @@ use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
-use super::values::{to_property_key, ECMAScriptValue, PropertyKey, Symbol, SymbolInternals};
+use super::values::{to_numeric, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::cell::RefCell;
@@ -587,6 +587,37 @@ impl Agent {
                         Ok(_) => Ok(NormalCompletion::from(obj)),
                         Err(e) => Err(e),
                     };
+                    self.execution_context_stack[index].stack.push(fc);
+                }
+                Insn::Dup => {
+                    let idx = self.execution_context_stack[index].stack.len() - 1;
+                    let fc = self.execution_context_stack[index].stack[idx].clone();
+                    self.execution_context_stack[index].stack.push(fc);
+                }
+                Insn::ToNumeric => {
+                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let val: ECMAScriptValue = nc_val.try_into().unwrap();
+                    let result = to_numeric(self, val).map(NormalCompletion::from);
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::Increment => {
+                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let num: Numeric = nc_val.try_into().unwrap();
+                    let result_val: ECMAScriptValue = match num {
+                        Numeric::Number(n) => (n + 1.0).into(),
+                        Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi + 1)),
+                    };
+                    let fc = Ok(NormalCompletion::from(result_val));
+                    self.execution_context_stack[index].stack.push(fc);
+                }
+                Insn::Decrement => {
+                    let nc_val = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let num: Numeric = nc_val.try_into().unwrap();
+                    let result_val: ECMAScriptValue = match num {
+                        Numeric::Number(n) => (n - 1.0).into(),
+                        Numeric::BigInt(bi) => ECMAScriptValue::BigInt(Rc::new(&*bi - 1)),
+                    };
+                    let fc = Ok(NormalCompletion::from(result_val));
                     self.execution_context_stack[index].stack.push(fc);
                 }
             }

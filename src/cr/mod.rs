@@ -1,7 +1,7 @@
 use crate::object::Object;
 use crate::reference::Reference;
 use crate::strings::JSString;
-use crate::values::{ECMAScriptValue, PropertyKey};
+use crate::values::{ECMAScriptValue, Numeric, PropertyKey};
 use anyhow::anyhow;
 use std::fmt;
 
@@ -105,6 +105,15 @@ impl TryFrom<NormalCompletion> for PropertyKey {
         let v: ECMAScriptValue = src.try_into()?;
         let key: PropertyKey = v.try_into()?;
         Ok(key)
+    }
+}
+
+impl TryFrom<NormalCompletion> for Numeric {
+    type Error = anyhow::Error;
+    fn try_from(src: NormalCompletion) -> anyhow::Result<Self> {
+        let v: ECMAScriptValue = src.try_into()?;
+        let numeric: Numeric = v.try_into()?;
+        Ok(numeric)
     }
 }
 
