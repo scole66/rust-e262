@@ -498,3 +498,5 @@ pub fn get_realm_name(agent: &mut Agent, realm: &Realm) -> String {
     let name = get(agent, &op, &"name".into()).unwrap();
     to_string(agent, name).unwrap().into()
 }
+
+mod integration;

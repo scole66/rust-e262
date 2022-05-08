@@ -367,8 +367,11 @@ impl Agent {
         };
 
         self.prepare_for_execution(ec_idx, chunk);
-        self.execute(ec_idx)
+        let result = self.execute(ec_idx);
 
+        assert!(self.execution_context_stack[ec_idx].stack.is_empty());
+
+        result
         //todo!()
     }
 
