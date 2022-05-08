@@ -33,7 +33,7 @@ mod strings;
 mod symbol_object;
 mod values;
 
-use agent::{Agent, process_ecmascript};
+use agent::{process_ecmascript, Agent};
 use parser::{parse_text, ParseGoal, ParsedText};
 use prettyprint::PrettyPrint;
 use values::to_string;
