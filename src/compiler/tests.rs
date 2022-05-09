@@ -378,7 +378,22 @@ mod unary_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("-a", true => panics "not yet implemented"; "unary expr")]
+    #[test_case("-a", true => panics "not yet implemented"; "negate; strict")]
+    #[test_case("-a", false => panics "not yet implemented"; "negate; non-strict")]
+    #[test_case("+a", true => panics "not yet implemented"; "tonumber; strict")]
+    #[test_case("+a", false => panics "not yet implemented"; "tonumber; non-strict")]
+    #[test_case("!a", true => panics "not yet implemented"; "not; strict")]
+    #[test_case("!a", false => panics "not yet implemented"; "not; non-strict")]
+    #[test_case("~a", true => panics "not yet implemented"; "complement; strict")]
+    #[test_case("~a", false => panics "not yet implemented"; "complement; non-strict")]
+    #[test_case("void a", true => panics "not yet implemented"; "void; strict")]
+    #[test_case("void a", false => panics "not yet implemented"; "void; non-strict")]
+    #[test_case("typeof a", true => panics "not yet implemented"; "typeof; strict")]
+    #[test_case("typeof a", false => panics "not yet implemented"; "typeof; non-strict")]
+    #[test_case("delete a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "DELETE"]); "delete; strict")]
+    #[test_case("delete a", false => svec(&["STRING 0 (a)", "RESOLVE", "DELETE"]); "delete; non-strict")]
+    #[test_case("await a", true => panics "not yet implemented"; "await; strict")]
+    #[test_case("await a", false => panics "not yet implemented"; "await; non-strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).unary_expression();
         let mut c = Chunk::new("x");

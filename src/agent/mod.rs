@@ -2,7 +2,7 @@ use super::chunk::Chunk;
 use super::compiler::Insn;
 use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
-use super::errors::{create_syntax_error, create_type_error, unwind_any_error_object};
+use super::errors::{create_reference_error, create_syntax_error, create_type_error, unwind_any_error_object};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
@@ -17,7 +17,7 @@ use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
-use super::values::{to_numeric, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
+use super::values::{to_numeric, to_object, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
 use crate::object::create_data_property_or_throw;
 use anyhow::anyhow;
 use itertools::Itertools;
@@ -634,6 +634,11 @@ impl Agent {
                     let result = self.prefix_decrement(fc);
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Delete => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.delete_ref(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -668,6 +673,32 @@ impl Agent {
         };
         put_value(self, expr, Ok(new_value.clone()))?;
         Ok(NormalCompletion::from(new_value))
+    }
+
+    fn delete_ref(&mut self, expr: FullCompletion) -> FullCompletion {
+        let reference = expr?;
+        match reference {
+            NormalCompletion::Empty | NormalCompletion::Value(_) => Ok(true.into()),
+            NormalCompletion::Reference(r) if r.is_unresolvable_reference() => Ok(true.into()),
+            NormalCompletion::Reference(r) if r.is_property_reference() => {
+                if r.is_super_reference() {
+                    Err(create_reference_error(self, "super properties not deletable"))
+                } else {
+                    let base_obj = to_object(self, ECMAScriptValue::try_from(r.base).unwrap())?;
+                    let delete_status = base_obj.o.delete(self, &r.referenced_name.try_into().unwrap())?;
+                    if !delete_status && r.strict {
+                        Err(create_type_error(self, "property not deletable"))
+                    } else {
+                        Ok(delete_status.into())
+                    }
+                }
+            }
+            NormalCompletion::Reference(r) => {
+                let base: Rc<dyn EnvironmentRecord> = r.base.try_into().unwrap();
+                let delete_status = base.delete_binding(self, &r.referenced_name.try_into().unwrap())?;
+                Ok(delete_status.into())
+            }
+        }
     }
 }
 

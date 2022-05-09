@@ -9,6 +9,7 @@ use super::values::{to_object, ECMAScriptValue, PrivateName, PropertyKey, Symbol
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::rc::Rc;
+use anyhow::anyhow;
 
 // The Reference Record Specification Type
 //
@@ -71,6 +72,26 @@ impl PartialEq for Base {
             (Self::Value(left), Self::Value(right)) => left == right,
             (Self::Unresolvable, Self::Unresolvable) => true,
             _ => false,
+        }
+    }
+}
+
+impl TryFrom<Base> for ECMAScriptValue {
+    type Error = anyhow::Error;
+    fn try_from(src: Base) -> Result<Self, Self::Error> {
+        match src {
+            Base::Value(v) => Ok(v),
+            _ => Err(anyhow!("Reference was not a Property Ref"))
+        }
+    }
+}
+
+impl TryFrom<Base> for Rc<dyn EnvironmentRecord> {
+    type Error = anyhow::Error;
+    fn try_from(src: Base) -> Result<Self, Self::Error > {
+        match src {
+            Base::Environment(x) => Ok(x),
+            _ => Err(anyhow!("Reference was not an environment ref"))
         }
     }
 }
