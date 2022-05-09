@@ -129,8 +129,7 @@ mod unary_expression {
         #[test_case("let h=9; delete h;" => ECMAScriptValue::from(false); "denied top-level delete")]
         fn normal(src: &str) -> ECMAScriptValue {
             let mut agent = test_agent();
-            let result = process_ecmascript(&mut agent, src).unwrap();
-            result
+            process_ecmascript(&mut agent, src).unwrap()
         }
         #[test_case("delete a.b;" => "Thrown: ReferenceError: Unresolvable Reference"; "error from expression")]
         #[test_case("'use strict'; delete Boolean.prototype" => "Thrown: TypeError: property not deletable"; "strict, not deletable")]
