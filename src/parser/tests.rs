@@ -11,6 +11,85 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
+mod pe_code {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(PECode::Generic => "error"; "generic")]
+    #[test_case(PECode::EoFExpected => "end-of-file expected"; "EoFExpected")]
+    #[test_case(PECode::ImproperNewline => "newline not allowed here"; "ImproperNewline")]
+    #[test_case(PECode::InvalidIdentifier => "not an identifier"; "InvalidIdentifier")]
+    #[test_case(PECode::KeywordExpected(Keyword::For) => "‘for’ expected"; "Keyword")]
+    #[test_case(PECode::KeywordUsedAsIdentifier(Keyword::Throw) => "‘throw’ is a reserved word and may not be used as an identifier"; "KeywordUsedAsIdentifier")]
+    #[test_case(PECode::OneOfKeywordExpected(vec![Keyword::Catch, Keyword::Throw, Keyword::Finally]) => "one of [‘catch’, ‘throw’, ‘finally’] expected"; "OneOfKeywordExpected")]
+    #[test_case(PECode::OneOfPunctuatorExpected(vec![Punctuator::Semicolon, Punctuator::Colon]) => "one of [‘;’, ‘:’] expected"; "OneOfPunctuatorExpected")]
+    #[test_case(PECode::PunctuatorExpected(Punctuator::Semicolon) => "‘;’ expected"; "PunctuatorExpected")]
+    #[test_case(PECode::AssignmentExpressionOrSpreadElementExpected => "AssignmentExpression or SpreadElement expected"; "AssignmentExpressionOrSpreadElementExpected")]
+    #[test_case(PECode::CommaLeftBracketElementListExpected => "‘,’, ‘]’, or an ElementList expected"; "CommaLeftBracketElementListExpected")]
+    #[test_case(PECode::IdentifierStringNumberExpected => "Identifier, String, or Number expected"; "IdentifierStringNumberExpected")]
+    #[test_case(PECode::ExpressionSpreadOrRPExpected => "Expression, spread pattern, or closing paren expected"; "ExpressionSpreadOrRPExpected")]
+    #[test_case(PECode::BindingIdOrPatternExpected => "BindingIdentifier or BindingPattern expected"; "BindingIdOrPatternExpected")]
+    #[test_case(PECode::NewOrMEExpected => "‘new’ or MemberExpression expected"; "NewOrMEExpected")]
+    #[test_case(PECode::ChainFailed => "‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"; "ChainFailed")]
+    #[test_case(PECode::IdOrFormalsExpected => "Identifier or Formal Parameters expected"; "IdOrFormalsExpected")]
+    #[test_case(PECode::ObjectAssignmentPatternEndFailure => "‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"; "ObjectAssignmentPatternEndFailure")]
+    #[test_case(PECode::ArrayAssignmentPatternEndFailure => "‘,’, ‘]’, or an AssignmentElementList expected"; "ArrayAssignmentPatternEndFailure")]
+    #[test_case(PECode::IdRefOrPropertyNameExpected => "IdentifierReference or PropertyName expected"; "IdRefOrPropertyNameExpected")]
+    #[test_case(PECode::InvalidCoalesceExpression => "Invalid Coalesce Expression"; "InvalidCoalesceExpression")]
+    #[test_case(PECode::ImproperExpression => "Improper Expression"; "ImproperExpression")]
+    #[test_case(PECode::DeclarationOrStatementExpected => "Declaration or Statement expected"; "DeclarationOrStatementExpected")]
+    #[test_case(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression) => "AssignmentExpression expected"; "ParseNodeExpected")]
+    #[test_case(PECode::OpenOrIdentExpected => "‘[’, ‘{’, or an identifier expected"; "OpenOrIdentExpected")]
+    #[test_case(PECode::ForStatementDefinitionError => "‘var’, LexicalDeclaration, or Expression expected"; "ForStatementDefinitionError")]
+    #[test_case(PECode::ForInOfDefinitionError => "‘let’, ‘var’, or a LeftHandSideExpression expected"; "ForInOfDefinitionError")]
+    #[test_case(PECode::CaseBlockCloseExpected => "‘}’, ‘case’, or ‘default’ expected"; "CaseBlockCloseExpected")]
+    #[test_case(PECode::TryBlockError => "Catch or Finally block expected"; "TryBlockError")]
+    fn display(code: PECode) -> String {
+        format!("{code}")
+    }
+
+    #[test_case(PECode::Generic => with |s| assert_ne!(s, ""); "generic")]
+    fn debug(code: PECode) -> String {
+        format!("{:?}", code)
+    }
+
+    #[test_case(PECode::Generic, PECode::Generic => true; "equal")]
+    #[test_case(PECode::TryBlockError, PECode::CaseBlockCloseExpected => false; "unequal")]
+    fn eq(left: PECode, right: PECode) -> bool {
+        left == right
+    }
+
+    #[test_case(PECode::Generic, PECode::Generic => false; "equal")]
+    #[test_case(PECode::TryBlockError, PECode::CaseBlockCloseExpected => true; "unequal")]
+    fn ne(left: PECode, right: PECode) -> bool {
+        left != right
+    }
+
+    #[test]
+    fn default() {
+        assert_eq!(PECode::default(), PECode::Generic)
+    }
+
+    #[test]
+    fn clone() {
+        let code_a = PECode::TryBlockError;
+        let code_b = code_a.clone();
+        assert_eq!(code_a, code_b);
+    }
+
+    #[test]
+    fn hash() {
+        let code_a = PECode::OneOfKeywordExpected(vec![Keyword::Of, Keyword::In]);
+        let code_b = PECode::Generic;
+
+        let hash_a = calculate_hash(&code_a);
+        let hash_b = calculate_hash(&code_b);
+
+        assert_ne!(hash_a, hash_b);
+        assert_eq!(hash_a, calculate_hash(&code_a));
+    }
+}
+
 #[test]
 fn parse_goal_01() {
     format!("{:?} {:?}", ParseGoal::Script, ParseGoal::Module);
