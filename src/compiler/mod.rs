@@ -619,7 +619,7 @@ impl UnaryExpression {
                 exp.compile(chunk, strict)?;
                 chunk.op(Insn::Delete);
                 Ok(CompilerStatusFlags::new().abrupt())
-            },
+            }
             UnaryExpression::Void(_) => todo!(),
             UnaryExpression::Typeof(_) => todo!(),
             UnaryExpression::NoOp(_) => todo!(),
