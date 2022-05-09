@@ -67,6 +67,7 @@ pub enum Insn {
     Decrement,
     PreIncrement,
     PreDecrement,
+    Delete,
 }
 
 impl fmt::Display for Insn {
@@ -106,6 +107,7 @@ impl fmt::Display for Insn {
             Insn::Decrement => "DECREMENT",
             Insn::PreDecrement => "PRE_DECREMENT",
             Insn::PreIncrement => "PRE_INCREMENT",
+            Insn::Delete => "DELETE",
         })
     }
 }
@@ -613,7 +615,18 @@ impl UnaryExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict),
-            _ => todo!(),
+            UnaryExpression::Delete(exp) => {
+                exp.compile(chunk, strict)?;
+                chunk.op(Insn::Delete);
+                Ok(CompilerStatusFlags::new().abrupt())
+            }
+            UnaryExpression::Void(_) => todo!(),
+            UnaryExpression::Typeof(_) => todo!(),
+            UnaryExpression::NoOp(_) => todo!(),
+            UnaryExpression::Negate(_) => todo!(),
+            UnaryExpression::Complement(_) => todo!(),
+            UnaryExpression::Not(_) => todo!(),
+            UnaryExpression::Await(_) => todo!(),
         }
     }
 }

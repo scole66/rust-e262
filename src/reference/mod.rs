@@ -6,6 +6,7 @@ use super::execution_context::get_global_object;
 use super::object::{private_get, private_set, set};
 use super::strings::JSString;
 use super::values::{to_object, ECMAScriptValue, PrivateName, PropertyKey, Symbol};
+use anyhow::anyhow;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::rc::Rc;
@@ -71,6 +72,26 @@ impl PartialEq for Base {
             (Self::Value(left), Self::Value(right)) => left == right,
             (Self::Unresolvable, Self::Unresolvable) => true,
             _ => false,
+        }
+    }
+}
+
+impl TryFrom<Base> for ECMAScriptValue {
+    type Error = anyhow::Error;
+    fn try_from(src: Base) -> Result<Self, Self::Error> {
+        match src {
+            Base::Value(v) => Ok(v),
+            _ => Err(anyhow!("Reference was not a Property Ref")),
+        }
+    }
+}
+
+impl TryFrom<Base> for Rc<dyn EnvironmentRecord> {
+    type Error = anyhow::Error;
+    fn try_from(src: Base) -> Result<Self, Self::Error> {
+        match src {
+            Base::Environment(x) => Ok(x),
+            _ => Err(anyhow!("Reference was not an environment ref")),
         }
     }
 }

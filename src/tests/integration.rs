@@ -114,3 +114,29 @@ mod update_expression {
         }
     }
 }
+
+mod unary_expression {
+    use super::*;
+
+    mod delete {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("delete 3;" => ECMAScriptValue::from(true); "non-reference")]
+        #[test_case("delete a;" => ECMAScriptValue::from(true); "non-strict unresolvable delete")]
+        #[test_case("delete Boolean.prototype;" => ECMAScriptValue::from(false); "non-strict non-configurable")]
+        #[test_case("let obj={a:1,b:2}; delete obj.b;" => ECMAScriptValue::from(true); "Legit delete")]
+        #[test_case("let h=9; delete h;" => ECMAScriptValue::from(false); "denied top-level delete")]
+        fn normal(src: &str) -> ECMAScriptValue {
+            let mut agent = test_agent();
+            process_ecmascript(&mut agent, src).unwrap()
+        }
+        #[test_case("delete a.b;" => "Thrown: ReferenceError: Unresolvable Reference"; "error from expression")]
+        #[test_case("'use strict'; delete Boolean.prototype" => "Thrown: TypeError: property not deletable"; "strict, not deletable")]
+        fn errors(src: &str) -> String {
+            let mut agent = test_agent();
+            let result = process_ecmascript(&mut agent, src).unwrap_err();
+            result.to_string()
+        }
+    }
+}
