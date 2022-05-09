@@ -55,6 +55,26 @@ mod base {
     fn display(b: Base) -> String {
         format!("{b}")
     }
+
+    mod try_from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(Base::Unresolvable => Err("Reference was not a Property Ref".to_string()); "unresolvable")]
+        #[test_case(Base::Value(10.into()) => Ok(ECMAScriptValue::from(10)); "value")]
+        #[test_case(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))) => Err("Reference was not a Property Ref".to_string()); "environment")]
+        fn value(b: Base) -> Result<ECMAScriptValue, String> {
+            ECMAScriptValue::try_from(b).map_err(|e| e.to_string())
+        }
+
+        #[test_case(Base::Unresolvable => Err("Reference was not an environment ref".to_string()); "unresolvable")]
+        #[test_case(Base::Value(true.into()) => Err("Reference was not an environment ref".to_string()); "value")]
+        #[test_case(Base::Environment(Rc::new(DeclarativeEnvironmentRecord::new(None, "test"))) => Ok("DeclarativeEnvironmentRecord(test)".to_string()); "environment")]
+        fn envrec(b: Base) -> Result<String, String> {
+            let result: Result<Rc<dyn EnvironmentRecord>, String> = b.try_into().map_err(|e: anyhow::Error| e.to_string());
+            result.map(|er| format!("{:?}", er))
+        }
+    }
 }
 
 mod referenced_name {
