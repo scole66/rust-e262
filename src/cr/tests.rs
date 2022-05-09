@@ -1,5 +1,9 @@
 use super::*;
+use crate::object::ordinary_object_create;
 use crate::reference::Base;
+use crate::tests::test_agent;
+use num::BigInt;
+use std::rc::Rc;
 use test_case::test_case;
 
 mod normal_completion {
@@ -31,11 +35,34 @@ mod normal_completion {
         format!("{:?}", nc)
     }
 
-    #[test_case(ECMAScriptValue::from(true) => NormalCompletion::Value(ECMAScriptValue::from(true)); "value")]
-    #[test_case(Reference::new(Base::Unresolvable, "fantastico", false, None) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "fantastico", false, None))); "reference")]
-    #[test_case(true => NormalCompletion::Value(ECMAScriptValue::from(true)); "from bool")]
-    fn from(value: impl Into<NormalCompletion>) -> NormalCompletion {
-        value.into()
+    mod from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(ECMAScriptValue::from(true) => NormalCompletion::Value(ECMAScriptValue::from(true)); "value")]
+        #[test_case(Reference::new(Base::Unresolvable, "fantastico", false, None) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "fantastico", false, None))); "reference")]
+        #[test_case(true => NormalCompletion::Value(ECMAScriptValue::from(true)); "from bool")]
+        #[test_case(JSString::from("a") => NormalCompletion::Value(ECMAScriptValue::from("a")); "jsstring")]
+        #[test_case(&JSString::from("a") => NormalCompletion::Value(ECMAScriptValue::from("a")); "jsstring ref")]
+        #[test_case(100.0 => NormalCompletion::Value(ECMAScriptValue::from(100)); "float")]
+        #[test_case(Rc::new(BigInt::from(12)) => NormalCompletion::Value(ECMAScriptValue::from(BigInt::from(12))); "bigint")]
+        #[test_case(Numeric::Number(7.0) => NormalCompletion::Value(ECMAScriptValue::from(7)); "numeric")]
+        fn simple(value: impl Into<NormalCompletion>) -> NormalCompletion {
+            value.into()
+        }
+
+        #[test]
+        fn object() {
+            let mut agent = test_agent();
+            let obj = ordinary_object_create(&mut agent, None, &[]);
+            let nc = NormalCompletion::from(obj.clone());
+
+            if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
+                assert_eq!(result, obj);
+            } else {
+                panic!("Improper NC construction")
+            }
+        }
     }
 
     mod try_from {
@@ -61,6 +88,14 @@ mod normal_completion {
         #[test_case(NormalCompletion::from(103) => Err("Bad type for property key".to_string()); "value, but not key")]
         #[test_case(NormalCompletion::from("key") => Ok(PropertyKey::from("key")); "key")]
         fn property_key(n: NormalCompletion) -> Result<PropertyKey, String> {
+            n.try_into().map_err(|e: anyhow::Error| e.to_string())
+        }
+
+        #[test_case(NormalCompletion::from(5) => Ok(Numeric::Number(5.0)); "from float")]
+        #[test_case(NormalCompletion::from(Rc::new(BigInt::from(999))) => Ok(Numeric::BigInt(Rc::new(BigInt::from(999)))); "bigint")]
+        #[test_case(NormalCompletion::Empty => Err("Not a language value!".to_string()); "not a value")]
+        #[test_case(NormalCompletion::from(true) => Err("Value not numeric".to_string()); "not numeric")]
+        fn numeric(n: NormalCompletion) -> Result<Numeric, String> {
             n.try_into().map_err(|e: anyhow::Error| e.to_string())
         }
 
