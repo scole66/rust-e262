@@ -499,4 +499,8 @@ pub fn get_realm_name(agent: &mut Agent, realm: &Realm) -> String {
     to_string(agent, name).unwrap().into()
 }
 
+pub fn serr<T>(msg: &str) -> Result<T, String> {
+    Err(msg.to_string())
+}
+
 mod integration;

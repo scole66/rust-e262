@@ -1,11 +1,8 @@
 use super::*;
 use crate::agent::*;
+use crate::tests::serr;
 use crate::values::*;
 use num::BigInt;
-
-fn serr(msg: &str) -> Result<ECMAScriptValue, String> {
-    Err(msg.to_string())
-}
 
 mod update_expression {
     use super::*;

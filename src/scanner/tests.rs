@@ -1,6 +1,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::clone_on_copy)]
 use super::*;
+use crate::tests::serr;
 use ahash::RandomState;
 use num::traits::Zero;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -1367,60 +1368,102 @@ fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-#[test]
-fn scanner_hash() {
-    let s1 = Scanner { line: 10, column: 50, start_idx: 49 };
-    let s2 = Scanner { line: 10, column: 50, start_idx: 49 };
-    let s3 = Scanner { line: 1, column: 1, start_idx: 0 };
 
-    let factory = RandomState::new();
+mod scanner {
+    use super::*;
 
-    assert_eq!(s1, s2);
-    assert_eq!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s2));
-    assert_ne!(s1, s3);
-    assert_ne!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s3));
-}
-#[test]
-fn scanner_debug() {
-    assert_ne!(format!("{:?}", Scanner::new()), "");
-}
-#[test]
-fn scanner_ne() {
-    let s1 = Scanner { line: 10, column: 50, start_idx: 49 };
-    let s2 = Scanner { line: 10, column: 50, start_idx: 49 };
-    let s3 = Scanner { line: 1, column: 1, start_idx: 0 };
+    #[test]
+    fn hash() {
+        let s1 = Scanner { line: 10, column: 50, start_idx: 49 };
+        let s2 = Scanner { line: 10, column: 50, start_idx: 49 };
+        let s3 = Scanner { line: 1, column: 1, start_idx: 0 };
 
-    assert_eq!(s1 != s2, false);
-    assert_eq!(s1 != s3, true);
-}
-#[test]
-#[allow(clippy::eq_op)]
-fn scanner_ordering() {
-    let line10col50 = Scanner { line: 10, column: 50, start_idx: 33 };
-    let line1col1 = Scanner { line: 1, column: 1, start_idx: 0 };
-    let line10col10 = Scanner { line: 10, column: 10, start_idx: 30 };
+        let factory = RandomState::new();
 
-    assert_eq!(line1col1 < line10col50, true);
-    assert_eq!(line10col50 < line1col1, false);
-    assert_eq!(line10col10 < line10col50, true);
-    assert_eq!(line10col50 < line10col10, false);
-    assert_eq!(line10col50 < line10col50, false);
-}
-#[test]
-fn scanner_clone() {
-    let s1 = Scanner { line: 10, column: 50, start_idx: 33 };
-    let s2 = s1.clone();
+        assert_eq!(s1, s2);
+        assert_eq!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s2));
+        assert_ne!(s1, s3);
+        assert_ne!(calculate_hash(&factory, &s1), calculate_hash(&factory, &s3));
+    }
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", Scanner::new()), "");
+    }
+    #[test]
+    fn ne() {
+        let s1 = Scanner { line: 10, column: 50, start_idx: 49 };
+        let s2 = Scanner { line: 10, column: 50, start_idx: 49 };
+        let s3 = Scanner { line: 1, column: 1, start_idx: 0 };
 
-    assert_eq!(s2, s1);
+        assert_eq!(s1 != s2, false);
+        assert_eq!(s1 != s3, true);
+    }
+    #[test]
+    #[allow(clippy::eq_op)]
+    fn ordering() {
+        let line10col50 = Scanner { line: 10, column: 50, start_idx: 33 };
+        let line1col1 = Scanner { line: 1, column: 1, start_idx: 0 };
+        let line10col10 = Scanner { line: 10, column: 10, start_idx: 30 };
+
+        assert_eq!(line1col1 < line10col50, true);
+        assert_eq!(line10col50 < line1col1, false);
+        assert_eq!(line10col10 < line10col50, true);
+        assert_eq!(line10col50 < line10col10, false);
+        assert_eq!(line10col50 < line10col50, false);
+    }
+    #[test]
+    fn clone() {
+        let s1 = Scanner { line: 10, column: 50, start_idx: 33 };
+        let s2 = s1.clone();
+
+        assert_eq!(s2, s1);
+    }
+
+    #[test]
+    fn default() {
+        let s = Scanner::default();
+        assert_eq!(s, Scanner { line: 1, column: 1, start_idx: 0 });
+    }
 }
 
-#[test]
-fn string_token_debug() {
-    assert_ne!(format!("{:?}", StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Double, raw: None }), "");
-}
-#[test]
-fn string_token_has_legacy_octal() {
-    assert!(!StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }.has_legacy_octal_escapes());
+mod string_token {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Double, raw: None }), "");
+    }
+    #[test]
+    fn has_legacy_octal() {
+        assert!(!StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }.has_legacy_octal_escapes());
+    }
+    #[test]
+    fn clone() {
+        let s1 = StringToken { value: "blue".into(), delimiter: StringDelimiter::Double, raw: None };
+        let s2 = s1.clone();
+
+        assert_eq!(s1, s2);
+    }
+
+    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => true; "equal")]
+    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => false; "unequal")]
+    fn eq(left: StringToken, right: StringToken) -> bool {
+        left == right
+    }
+
+    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None} => false; "equal")]
+    #[test_case(StringToken{value:"blue".into(), delimiter: StringDelimiter::Double, raw: None}, StringToken{value:"orange".into(), delimiter: StringDelimiter::Double, raw: None} => true; "unequal")]
+    fn ne(left: StringToken, right: StringToken) -> bool {
+        left != right
+    }
+
+    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Double, raw: None} => "\"blue\""; "double quotes")]
+    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: None} => "'blue'"; "single quotes")]
+    #[test_case(StringToken{value: "blue".into(), delimiter: StringDelimiter::Single, raw: Some("\\x62lue".into())} => "'\\x62lue'"; "single quotes; raw")]
+    fn display(st: StringToken) -> String {
+        format!("{st}")
+    }
 }
 
 #[test]
@@ -1472,72 +1515,93 @@ fn token_ne() {
     assert_eq!(t1 != t3, false);
 }
 
-#[test]
-fn keyword_clone() {
-    let k1 = Keyword::Debugger;
-    let k2 = k1.clone();
-    assert_eq!(k1, k2);
-}
-#[test]
-fn keyword_display() {
-    let pairs = vec![
-        (Keyword::Await, "await"),
-        (Keyword::Break, "break"),
-        (Keyword::Case, "case"),
-        (Keyword::Catch, "catch"),
-        (Keyword::Class, "class"),
-        (Keyword::Const, "const"),
-        (Keyword::Continue, "continue"),
-        (Keyword::Debugger, "debugger"),
-        (Keyword::Default, "default"),
-        (Keyword::Delete, "delete"),
-        (Keyword::Do, "do"),
-        (Keyword::Else, "else"),
-        (Keyword::Enum, "enum"),
-        (Keyword::Export, "export"),
-        (Keyword::Extends, "extends"),
-        (Keyword::False, "false"),
-        (Keyword::Finally, "finally"),
-        (Keyword::For, "for"),
-        (Keyword::Function, "function"),
-        (Keyword::If, "if"),
-        (Keyword::Import, "import"),
-        (Keyword::In, "in"),
-        (Keyword::Instanceof, "instanceof"),
-        (Keyword::New, "new"),
-        (Keyword::Null, "null"),
-        (Keyword::Return, "return"),
-        (Keyword::Super, "super"),
-        (Keyword::Switch, "switch"),
-        (Keyword::This, "this"),
-        (Keyword::Throw, "throw"),
-        (Keyword::True, "true"),
-        (Keyword::Try, "try"),
-        (Keyword::Typeof, "typeof"),
-        (Keyword::Var, "var"),
-        (Keyword::Void, "void"),
-        (Keyword::While, "while"),
-        (Keyword::With, "with"),
-        (Keyword::Yield, "yield"),
-        (Keyword::Let, "let"),
-        (Keyword::Static, "static"),
-        (Keyword::Implements, "implements"),
-        (Keyword::Interface, "interface"),
-        (Keyword::Package, "package"),
-        (Keyword::Private, "private"),
-        (Keyword::Protected, "protected"),
-        (Keyword::Public, "public"),
-        (Keyword::As, "as"),
-        (Keyword::Async, "async"),
-        (Keyword::From, "from"),
-        (Keyword::Get, "get"),
-        (Keyword::Of, "of"),
-        (Keyword::Set, "set"),
-        (Keyword::Target, "target"),
-        (Keyword::Meta, "meta"),
-    ];
-    for (kwd, display) in pairs {
-        assert_eq!(format!("{}", kwd), display);
+mod keyword {
+    use super::*;
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", Keyword::Debugger), "");
+    }
+
+    #[test]
+    fn clone() {
+        let k1 = Keyword::Debugger;
+        let k2 = k1.clone();
+        assert_eq!(k1, k2);
+    }
+    #[test]
+    fn display() {
+        let pairs = vec![
+            (Keyword::Await, "await"),
+            (Keyword::Break, "break"),
+            (Keyword::Case, "case"),
+            (Keyword::Catch, "catch"),
+            (Keyword::Class, "class"),
+            (Keyword::Const, "const"),
+            (Keyword::Continue, "continue"),
+            (Keyword::Debugger, "debugger"),
+            (Keyword::Default, "default"),
+            (Keyword::Delete, "delete"),
+            (Keyword::Do, "do"),
+            (Keyword::Else, "else"),
+            (Keyword::Enum, "enum"),
+            (Keyword::Export, "export"),
+            (Keyword::Extends, "extends"),
+            (Keyword::False, "false"),
+            (Keyword::Finally, "finally"),
+            (Keyword::For, "for"),
+            (Keyword::Function, "function"),
+            (Keyword::If, "if"),
+            (Keyword::Import, "import"),
+            (Keyword::In, "in"),
+            (Keyword::Instanceof, "instanceof"),
+            (Keyword::New, "new"),
+            (Keyword::Null, "null"),
+            (Keyword::Return, "return"),
+            (Keyword::Super, "super"),
+            (Keyword::Switch, "switch"),
+            (Keyword::This, "this"),
+            (Keyword::Throw, "throw"),
+            (Keyword::True, "true"),
+            (Keyword::Try, "try"),
+            (Keyword::Typeof, "typeof"),
+            (Keyword::Var, "var"),
+            (Keyword::Void, "void"),
+            (Keyword::While, "while"),
+            (Keyword::With, "with"),
+            (Keyword::Yield, "yield"),
+            (Keyword::Let, "let"),
+            (Keyword::Static, "static"),
+            (Keyword::Implements, "implements"),
+            (Keyword::Interface, "interface"),
+            (Keyword::Package, "package"),
+            (Keyword::Private, "private"),
+            (Keyword::Protected, "protected"),
+            (Keyword::Public, "public"),
+            (Keyword::As, "as"),
+            (Keyword::Async, "async"),
+            (Keyword::From, "from"),
+            (Keyword::Get, "get"),
+            (Keyword::Of, "of"),
+            (Keyword::Set, "set"),
+            (Keyword::Target, "target"),
+            (Keyword::Meta, "meta"),
+        ];
+        for (kwd, display) in pairs {
+            assert_eq!(format!("{}", kwd), display);
+        }
+    }
+
+    #[test]
+    fn hash() {
+        let k1 = Keyword::Target;
+        let k2 = Keyword::Get;
+        let k3 = Keyword::Target;
+
+        let factory = RandomState::new();
+
+        assert_eq!(calculate_hash(&factory, &k1), calculate_hash(&factory, &k3));
+        assert_ne!(calculate_hash(&factory, &k1), calculate_hash(&factory, &k2));
     }
 }
 
@@ -1563,18 +1627,46 @@ fn identifier_data_debug() {
     assert_ne!(format!("{:?}", IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch), line: 1, column: 1 }), "");
 }
 
-#[test]
-fn regular_expression_data_debug() {
-    assert_ne!(format!("{:?}", RegularExpressionData { body: String::from("abcd"), flags: String::from("g") }), "");
-}
-#[test]
-fn regular_expression_data_ne() {
-    let rd1 = RegularExpressionData { body: String::from("rust"), flags: String::from("") };
-    let rd2 = RegularExpressionData { body: String::from("rust"), flags: String::from("") };
-    let rd3 = RegularExpressionData { body: String::from("rust"), flags: String::from("g") };
+mod regular_expression_data {
+    use super::*;
+    use test_case::test_case;
 
-    assert_eq!(rd1 != rd2, false);
-    assert_eq!(rd1 != rd3, true);
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", RegularExpressionData { body: String::from("abcd"), flags: String::from("g") }), "");
+    }
+
+    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => true; "equal")]
+    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => false; "unequal")]
+    fn eq(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+        left == right
+    }
+
+    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("") } => false; "equal")]
+    #[test_case(RegularExpressionData { body: String::from("rust"), flags: String::from("") }, RegularExpressionData { body: String::from("rust"), flags: String::from("g") } => true; "unequal")]
+    fn ne(left: RegularExpressionData, right: RegularExpressionData) -> bool {
+        left != right
+    }
+
+    #[test_case(RegularExpressionData { body: "rust".into(), flags: "g".into() } => "/rust/g"; "with flags")]
+    #[test_case(RegularExpressionData { body: "rust".into(), flags: "".into() } => "/rust/"; "empty flags")]
+    #[test_case(RegularExpressionData { body: "".into(), flags: "g".into() } => "//g"; "empty expr")]
+    #[test_case(RegularExpressionData { body: "".into(), flags: "".into() } => "//"; "empty everything")]
+    fn display(red: RegularExpressionData) -> String {
+        format!("{red}")
+    }
+
+    #[test_case(RegularExpressionData{body:"anything".into(), flags:"gg".into()} => serr("Duplicate ‘g’ flag found in regex flags ‘gg’"); "duplicate g")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuy".into()} => Ok(()); "all opts, otherwise good")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"giimsuy".into()} => serr("Duplicate ‘i’ flag found in regex flags ‘giimsuy’"); "duplicate i")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimmsuy".into()} => serr("Duplicate ‘m’ flag found in regex flags ‘gimmsuy’"); "duplicate m")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimssuy".into()} => serr("Duplicate ‘s’ flag found in regex flags ‘gimssuy’"); "duplicate s")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuuy".into()} => serr("Duplicate ‘u’ flag found in regex flags ‘gimsuuy’"); "duplicate u")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyy".into()} => serr("Duplicate ‘y’ flag found in regex flags ‘gimsuyy’"); "duplicate y")]
+    #[test_case(RegularExpressionData{body:"".into(), flags:"gimsuyq".into()} => serr("Unknown regex flag ‘q’ in flags ‘gimsuyq’"); "unknown flag")]
+    fn validate_regular_expression_literal(red: RegularExpressionData) -> Result<(), String> {
+        red.validate_regular_expression_literal()
+    }
 }
 
 #[test]
