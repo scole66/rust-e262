@@ -687,4 +687,50 @@ mod location {
     fn ne(left: Location, right: Location) -> bool {
         left != right
     }
+
+    #[test]
+    fn clone() {
+        let loc = Location::from((99, 33));
+        let loc2 = loc.clone();
+        assert_eq!(loc, loc2);
+    }
+
+    #[test]
+    fn hash() {
+        let loc1 = Location::from((99, 33));
+        let loc2 = Location::from((100, 200));
+        let loc3 = Location::from((99, 33));
+
+        assert_eq!(calculate_hash(&loc1), calculate_hash(&loc3));
+        assert_ne!(calculate_hash(&loc2), calculate_hash(&loc3));
+    }
+
+    mod from {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(Scanner { line: 10, column: 6, start_idx: 50 } => Location { starting_line: 10, starting_column: 6, span: Span { starting_index: 50, length: 0 }}; "basic")]
+        fn scanner(s: Scanner) -> Location {
+            s.into()
+        }
+
+        #[test_case(&Scanner { line: 10, column: 6, start_idx: 50 } => Location { starting_line: 10, starting_column: 6, span: Span { starting_index: 50, length: 0 }}; "basic ref")]
+        fn refscanner(s: &Scanner) -> Location {
+            s.into()
+        }
+    }
+
+    #[test_case(Location::from(78), Location::from(78) => Some(Ordering::Equal); "equal")]
+    #[test_case(Location::from(78), Location::from(1) => Some(Ordering::Greater); "gt")]
+    #[test_case(Location::from(78), Location::from(99) => Some(Ordering::Less); "lt")]
+    fn partial_cmp(left: Location, right: Location) -> Option<Ordering> {
+        left.partial_cmp(&right)
+    }
+
+    #[test_case(Location::from(78), Location::from(78) => Ordering::Equal; "equal")]
+    #[test_case(Location::from(78), Location::from(1) => Ordering::Greater; "gt")]
+    #[test_case(Location::from(78), Location::from(99) => Ordering::Less; "lt")]
+    fn cmp(left: Location, right: Location) -> Ordering {
+        left.cmp(&right)
+    }
 }
