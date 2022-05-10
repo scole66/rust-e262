@@ -11,6 +11,30 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
+impl From<u32> for Location {
+    fn from(src: u32) -> Self {
+        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
+    }
+}
+impl From<(u32, u32)> for Location {
+    fn from(src: (u32, u32)) -> Self {
+        let (line, column) = src;
+        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
+        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
+        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
+        // do we know? Making lines really long helps that intuition make better tests.)
+        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
+    }
+}
+
+impl ParseError {
+    pub fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
+        let expected_loc = loc.into();
+        let spot = self.location.starting_column as i32 - expected_loc.starting_column as i32;
+        (self.code.clone(), spot)
+    }
+}
+
 mod pe_code {
     use super::*;
     use test_case::test_case;
@@ -554,4 +578,113 @@ fn parse_text_04() {
 fn duplicates(inputs: &[&str]) -> Vec<String> {
     let idents = inputs.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
     super::duplicates(&idents).into_iter().map(|s| format!("{}", s)).collect::<Vec<_>>()
+}
+
+mod parse_error {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(ParseError::new(PECode::Generic, 1) => with |s| assert_ne!(s, ""); "generic")]
+    #[test_case(ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::In, Keyword::Of]), 1) => with |s| assert_ne!(s, ""); "complex")]
+    fn debug(pe: ParseError) -> String {
+        format!("{:?}", pe)
+    }
+
+    #[test]
+    fn default() {
+        let pe = ParseError::default();
+
+        assert_eq!(pe.code, PECode::Generic);
+        assert_eq!(pe.location, Location::default());
+    }
+
+    #[test_case(ParseError::new(PECode::Generic, 7), ParseError::new(PECode::Generic, 7) => true; "equal")]
+    #[test_case(ParseError::new(PECode::Generic, 2), ParseError::new(PECode::EoFExpected, 9) => false; "unequal")]
+    fn eq(e1: ParseError, e2: ParseError) -> bool {
+        e1 == e2
+    }
+
+    #[test_case(ParseError::new(PECode::Generic, 7), ParseError::new(PECode::Generic, 7) => false; "equal")]
+    #[test_case(ParseError::new(PECode::Generic, 2), ParseError::new(PECode::EoFExpected, 9) => true; "unequal")]
+    fn ne(e1: ParseError, e2: ParseError) -> bool {
+        e1 != e2
+    }
+
+    #[test]
+    fn clone() {
+        let e1 = ParseError::new(PECode::Generic, 1);
+        let e2 = ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::For, Keyword::Const]), 1);
+
+        let e3 = e2.clone();
+        assert_eq!(e3, e2);
+        assert_ne!(e3, e1);
+    }
+
+    #[test_case(ParseError::new(PECode::Generic, 88) => "error"; "generic")]
+    fn display(err: ParseError) -> String {
+        format!("{err}")
+    }
+
+    mod new {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(PECode::Generic, (10, 20) => (PECode::Generic, Location::from((10, 20))); "pair")]
+        fn pair(code: PECode, loc: (u32, u32)) -> (PECode, Location) {
+            let pe = ParseError::new(code, loc);
+            (pe.code, pe.location)
+        }
+
+        #[test_case(PECode::Generic, Scanner::new() => (PECode::Generic, Location::from(Scanner::new())); "scanner")]
+        fn scanner(code: PECode, scanner: Scanner) -> (PECode, Location) {
+            let pe = ParseError::new(code, scanner);
+            (pe.code, pe.location)
+        }
+    }
+
+    #[test_case(ParseError::new(PECode::Generic, 77), ParseError::new(PECode::EoFExpected, 77) => Ordering::Equal; "equal")]
+    #[test_case(ParseError::new(PECode::Generic, 70), ParseError::new(PECode::EoFExpected, 77) => Ordering::Less; "less")]
+    #[test_case(ParseError::new(PECode::Generic, 767), ParseError::new(PECode::EoFExpected, 77) => Ordering::Greater; "greater")]
+    fn compare(e1: ParseError, e2: ParseError) -> Ordering {
+        ParseError::compare(&e1, &e2)
+    }
+
+    #[test_case(None, None => Ordering::Equal; "all none")]
+    #[test_case(None, Some(ParseError::new(PECode::Generic, 1)) => Ordering::Less; "None vs Item")]
+    #[test_case(Some(ParseError::new(PECode::Generic, 1)), None => Ordering::Greater; "Item vs None")]
+    #[test_case(Some(ParseError::new(PECode::Generic, 10)), Some(ParseError::new(PECode::Generic, 11)) => Ordering::Less; "Item vs Item")]
+    fn compare_option(e1: Option<ParseError>, e2: Option<ParseError>) -> Ordering {
+        ParseError::compare_option(&e1, &e2)
+    }
+}
+
+mod location {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn debug() {
+        let loc = Location::default();
+        assert_ne!(format!("{:?}", loc), "");
+    }
+
+    #[test]
+    fn default() {
+        let loc = Location::default();
+        assert_eq!(loc.starting_line, 1);
+        assert_eq!(loc.starting_column, 1);
+        assert_eq!(loc.span, Span::default());
+    }
+
+    #[test_case(Location::from(99), Location::from(99) => true; "equal")]
+    #[test_case(Location::from(10), Location::from(13) => false; "unequal")]
+    fn eq(left: Location, right: Location) -> bool {
+        left == right
+    }
+
+    #[test_case(Location::from(99), Location::from(99) => false; "equal")]
+    #[test_case(Location::from(10), Location::from(13) => true; "unequal")]
+    fn ne(left: Location, right: Location) -> bool {
+        left != right
+    }
 }
