@@ -343,24 +343,6 @@ impl From<&Scanner> for Location {
     }
 }
 
-#[cfg(test)]
-impl From<u32> for Location {
-    fn from(src: u32) -> Self {
-        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
-    }
-}
-#[cfg(test)]
-impl From<(u32, u32)> for Location {
-    fn from(src: (u32, u32)) -> Self {
-        let (line, column) = src;
-        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
-        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
-        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
-        // do we know? Making lines really long helps that intuition make better tests.)
-        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
-    }
-}
-
 impl From<Scanner> for Location {
     fn from(src: Scanner) -> Location {
         Location { starting_line: src.line, starting_column: src.column, span: Span { starting_index: src.start_idx, length: 0 } }
@@ -475,12 +457,6 @@ impl ParseError {
         let location_right = right.as_ref().map(|pe| &pe.location);
 
         location_left.cmp(&location_right)
-    }
-    #[cfg(test)]
-    pub fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
-        let expected_loc = loc.into();
-        let spot = self.location.starting_column as i32 - expected_loc.starting_column as i32;
-        (self.code.clone(), spot)
     }
 }
 
