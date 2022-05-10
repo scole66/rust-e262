@@ -734,3 +734,50 @@ mod location {
         left.cmp(&right)
     }
 }
+
+mod span {
+    use super::*;
+    use test_case::test_case;
+
+    #[test]
+    fn default() {
+        let span = Span::default();
+        assert_eq!(span.starting_index, 0);
+        assert_eq!(span.length, 0);
+    }
+
+    #[test]
+    fn debug() {
+        let span = Span::default();
+        assert_ne!(format!("{:?}", span), "");
+    }
+
+    #[test]
+    fn clone() {
+        let span1 = Span { starting_index: 10, length: 20 };
+        let span2 = span1.clone();
+        assert_eq!(span1, span2);
+    }
+
+    #[test]
+    fn hash() {
+        let span1 = Span { starting_index: 100, length: 32 };
+        let span2 = Span { starting_index: 101, length: 31 };
+        let span3 = Span { starting_index: 100, length: 32 };
+
+        assert_eq!(calculate_hash(&span1), calculate_hash(&span3));
+        assert_ne!(calculate_hash(&span2), calculate_hash(&span1));
+    }
+
+    #[test_case(Span{starting_index:100, length:32}, Span{starting_index:100, length:32} => true; "equal")]
+    #[test_case(Span{starting_index:100, length:32}, Span{starting_index:101, length:32} => false; "unequal")]
+    fn eq(left: Span, right: Span) -> bool {
+        left == right
+    }
+
+    #[test_case(Span{starting_index:100, length:32}, Span{starting_index:100, length:32} => false; "equal")]
+    #[test_case(Span{starting_index:100, length:32}, Span{starting_index:101, length:32} => true; "unequal")]
+    fn ne(left: Span, right: Span) -> bool {
+        left != right
+    }
+}
