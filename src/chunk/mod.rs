@@ -115,7 +115,8 @@ impl Chunk {
             | Insn::PreIncrement
             | Insn::PreDecrement
             | Insn::Delete
-            | Insn::Void| Insn::TypeOf
+            | Insn::Void
+            | Insn::TypeOf
             | Insn::Object => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt | Insn::Jump | Insn::JumpIfNormal => {
                 let arg = self.opcodes[idx] as i16;

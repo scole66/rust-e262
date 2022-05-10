@@ -633,7 +633,7 @@ impl UnaryExpression {
                 exp.compile(chunk, strict)?;
                 chunk.op(Insn::TypeOf);
                 Ok(CompilerStatusFlags::new().abrupt())
-            },
+            }
             UnaryExpression::NoOp(_) => todo!(),
             UnaryExpression::Negate(_) => todo!(),
             UnaryExpression::Complement(_) => todo!(),
