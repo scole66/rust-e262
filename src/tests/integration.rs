@@ -139,4 +139,22 @@ mod unary_expression {
             result.to_string()
         }
     }
+
+    mod void {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("void 3;" => ECMAScriptValue::Undefined; "simple")]
+        fn normal(src: &str) -> ECMAScriptValue {
+            let mut agent = test_agent();
+            process_ecmascript(&mut agent, src).unwrap()
+        }
+
+        #[test_case("void a;" => "Thrown: ReferenceError: Unresolvable Reference"; "err")]
+        fn error(src: &str) -> String {
+            let mut agent = test_agent();
+            let result = process_ecmascript(&mut agent, src).unwrap_err();
+            result.to_string()
+        }
+    }
 }

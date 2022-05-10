@@ -639,6 +639,11 @@ impl Agent {
                     let result = self.delete_ref(fc);
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Void => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.void_operator(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -699,6 +704,11 @@ impl Agent {
                 Ok(delete_status.into())
             }
         }
+    }
+
+    fn void_operator(&mut self, expr: FullCompletion) -> FullCompletion {
+        get_value(self, expr).map(NormalCompletion::from)?;
+        Ok(ECMAScriptValue::Undefined.into())
     }
 }
 
