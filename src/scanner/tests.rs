@@ -593,159 +593,173 @@ fn optional_chaining_test_04() {
     let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
     assert_eq!(result, (Token::Punctuator(Punctuator::Question), Scanner { line: 1, column: 2, start_idx: 1 }));
 }
-fn punct_check(inp: &str, tok: Token) {
-    let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
-    assert_eq!(result, (tok, Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }));
-}
-#[test]
-fn punctuator_validiation() {
-    punct_check("{", Token::Punctuator(Punctuator::LeftBrace));
-    punct_check("(", Token::Punctuator(Punctuator::LeftParen));
-    punct_check(")", Token::Punctuator(Punctuator::RightParen));
-    punct_check("[", Token::Punctuator(Punctuator::LeftBracket));
-    punct_check("]", Token::Punctuator(Punctuator::RightBracket));
-    punct_check(".", Token::Punctuator(Punctuator::Dot));
-    punct_check(";", Token::Punctuator(Punctuator::Semicolon));
-    punct_check(",", Token::Punctuator(Punctuator::Comma));
-    punct_check("<", Token::Punctuator(Punctuator::Lt));
-    punct_check(">", Token::Punctuator(Punctuator::Gt));
-    punct_check("=", Token::Punctuator(Punctuator::Eq));
-    punct_check("!", Token::Punctuator(Punctuator::Bang));
-    punct_check("+", Token::Punctuator(Punctuator::Plus));
-    punct_check("-", Token::Punctuator(Punctuator::Minus));
-    punct_check("*", Token::Punctuator(Punctuator::Star));
-    punct_check("&", Token::Punctuator(Punctuator::Amp));
-    punct_check("|", Token::Punctuator(Punctuator::Pipe));
-    punct_check("^", Token::Punctuator(Punctuator::Caret));
-    punct_check("~", Token::Punctuator(Punctuator::Tilde));
-    punct_check("?", Token::Punctuator(Punctuator::Question));
-    punct_check(":", Token::Punctuator(Punctuator::Colon));
-    punct_check("%", Token::Punctuator(Punctuator::Percent));
-    punct_check("...", Token::Punctuator(Punctuator::Ellipsis));
-    punct_check("<=", Token::Punctuator(Punctuator::LtEq));
-    punct_check("<<=", Token::Punctuator(Punctuator::LtLtEq));
-    punct_check("<<", Token::Punctuator(Punctuator::LtLt));
-    punct_check(">=", Token::Punctuator(Punctuator::GtEq));
-    punct_check(">>", Token::Punctuator(Punctuator::GtGt));
-    punct_check(">>>", Token::Punctuator(Punctuator::GtGtGt));
-    punct_check(">>>=", Token::Punctuator(Punctuator::GtGtGtEq));
-    punct_check(">>=", Token::Punctuator(Punctuator::GtGtEq));
-    punct_check("===", Token::Punctuator(Punctuator::EqEqEq));
-    punct_check("==", Token::Punctuator(Punctuator::EqEq));
-    punct_check("=>", Token::Punctuator(Punctuator::EqGt));
-    punct_check("!=", Token::Punctuator(Punctuator::BangEq));
-    punct_check("!==", Token::Punctuator(Punctuator::BangEqEq));
-    punct_check("+=", Token::Punctuator(Punctuator::PlusEq));
-    punct_check("++", Token::Punctuator(Punctuator::PlusPlus));
-    punct_check("-=", Token::Punctuator(Punctuator::MinusEq));
-    punct_check("--", Token::Punctuator(Punctuator::MinusMinus));
-    punct_check("**=", Token::Punctuator(Punctuator::StarStarEq));
-    punct_check("**", Token::Punctuator(Punctuator::StarStar));
-    punct_check("*=", Token::Punctuator(Punctuator::StarEq));
-    punct_check("%=", Token::Punctuator(Punctuator::PercentEq));
-    punct_check("&&=", Token::Punctuator(Punctuator::AmpAmpEq));
-    punct_check("&&", Token::Punctuator(Punctuator::AmpAmp));
-    punct_check("&=", Token::Punctuator(Punctuator::AmpEq));
-    punct_check("||=", Token::Punctuator(Punctuator::PipePipeEq));
-    punct_check("||", Token::Punctuator(Punctuator::PipePipe));
-    punct_check("|=", Token::Punctuator(Punctuator::PipeEq));
-    punct_check("^=", Token::Punctuator(Punctuator::CaretEq));
-    punct_check("??=", Token::Punctuator(Punctuator::QQEq));
-    punct_check("??", Token::Punctuator(Punctuator::QQ));
-}
+mod punctuator {
+    use super::*;
 
-fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
-    let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
-    assert_eq!(result, (tok, Scanner { line: 1, column: consumed + 1, start_idx: consumed as usize }));
-}
+    fn punct_check(inp: &str, tok: Token) {
+        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        assert_eq!(result, (tok, Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }));
+    }
+    #[test]
+    fn validiation() {
+        punct_check("{", Token::Punctuator(Punctuator::LeftBrace));
+        punct_check("(", Token::Punctuator(Punctuator::LeftParen));
+        punct_check(")", Token::Punctuator(Punctuator::RightParen));
+        punct_check("[", Token::Punctuator(Punctuator::LeftBracket));
+        punct_check("]", Token::Punctuator(Punctuator::RightBracket));
+        punct_check(".", Token::Punctuator(Punctuator::Dot));
+        punct_check(";", Token::Punctuator(Punctuator::Semicolon));
+        punct_check(",", Token::Punctuator(Punctuator::Comma));
+        punct_check("<", Token::Punctuator(Punctuator::Lt));
+        punct_check(">", Token::Punctuator(Punctuator::Gt));
+        punct_check("=", Token::Punctuator(Punctuator::Eq));
+        punct_check("!", Token::Punctuator(Punctuator::Bang));
+        punct_check("+", Token::Punctuator(Punctuator::Plus));
+        punct_check("-", Token::Punctuator(Punctuator::Minus));
+        punct_check("*", Token::Punctuator(Punctuator::Star));
+        punct_check("&", Token::Punctuator(Punctuator::Amp));
+        punct_check("|", Token::Punctuator(Punctuator::Pipe));
+        punct_check("^", Token::Punctuator(Punctuator::Caret));
+        punct_check("~", Token::Punctuator(Punctuator::Tilde));
+        punct_check("?", Token::Punctuator(Punctuator::Question));
+        punct_check(":", Token::Punctuator(Punctuator::Colon));
+        punct_check("%", Token::Punctuator(Punctuator::Percent));
+        punct_check("...", Token::Punctuator(Punctuator::Ellipsis));
+        punct_check("<=", Token::Punctuator(Punctuator::LtEq));
+        punct_check("<<=", Token::Punctuator(Punctuator::LtLtEq));
+        punct_check("<<", Token::Punctuator(Punctuator::LtLt));
+        punct_check(">=", Token::Punctuator(Punctuator::GtEq));
+        punct_check(">>", Token::Punctuator(Punctuator::GtGt));
+        punct_check(">>>", Token::Punctuator(Punctuator::GtGtGt));
+        punct_check(">>>=", Token::Punctuator(Punctuator::GtGtGtEq));
+        punct_check(">>=", Token::Punctuator(Punctuator::GtGtEq));
+        punct_check("===", Token::Punctuator(Punctuator::EqEqEq));
+        punct_check("==", Token::Punctuator(Punctuator::EqEq));
+        punct_check("=>", Token::Punctuator(Punctuator::EqGt));
+        punct_check("!=", Token::Punctuator(Punctuator::BangEq));
+        punct_check("!==", Token::Punctuator(Punctuator::BangEqEq));
+        punct_check("+=", Token::Punctuator(Punctuator::PlusEq));
+        punct_check("++", Token::Punctuator(Punctuator::PlusPlus));
+        punct_check("-=", Token::Punctuator(Punctuator::MinusEq));
+        punct_check("--", Token::Punctuator(Punctuator::MinusMinus));
+        punct_check("**=", Token::Punctuator(Punctuator::StarStarEq));
+        punct_check("**", Token::Punctuator(Punctuator::StarStar));
+        punct_check("*=", Token::Punctuator(Punctuator::StarEq));
+        punct_check("%=", Token::Punctuator(Punctuator::PercentEq));
+        punct_check("&&=", Token::Punctuator(Punctuator::AmpAmpEq));
+        punct_check("&&", Token::Punctuator(Punctuator::AmpAmp));
+        punct_check("&=", Token::Punctuator(Punctuator::AmpEq));
+        punct_check("||=", Token::Punctuator(Punctuator::PipePipeEq));
+        punct_check("||", Token::Punctuator(Punctuator::PipePipe));
+        punct_check("|=", Token::Punctuator(Punctuator::PipeEq));
+        punct_check("^=", Token::Punctuator(Punctuator::CaretEq));
+        punct_check("??=", Token::Punctuator(Punctuator::QQEq));
+        punct_check("??", Token::Punctuator(Punctuator::QQ));
+    }
 
-#[test]
-fn punctuator_shortscans() {
-    punct_chk2("..A", Token::Punctuator(Punctuator::Dot), 1);
-}
-#[test]
-fn punctuator_nomatch() {
-    let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-    let (token, scanner) = result;
-    assert!(matches!(token, Token::Error(_)));
-    assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
-}
-#[test]
-fn punctuator_display() {
-    let pairs = vec![
-        (Punctuator::LeftParen, "("),
-        (Punctuator::RightParen, ")"),
-        (Punctuator::LeftBrace, "{"),
-        (Punctuator::RightBrace, "}"),
-        (Punctuator::Dot, "."),
-        (Punctuator::Ellipsis, "..."),
-        (Punctuator::Comma, ","),
-        (Punctuator::Semicolon, ";"),
-        (Punctuator::LeftBracket, "["),
-        (Punctuator::RightBracket, "]"),
-        (Punctuator::Colon, ":"),
-        (Punctuator::Tilde, "~"),
-        (Punctuator::Minus, "-"),
-        (Punctuator::MinusMinus, "--"),
-        (Punctuator::MinusEq, "-="),
-        (Punctuator::Plus, "+"),
-        (Punctuator::PlusPlus, "++"),
-        (Punctuator::PlusEq, "+="),
-        (Punctuator::Slash, "/"),
-        (Punctuator::SlashEq, "/="),
-        (Punctuator::Star, "*"),
-        (Punctuator::StarEq, "*="),
-        (Punctuator::StarStar, "**"),
-        (Punctuator::StarStarEq, "**="),
-        (Punctuator::Amp, "&"),
-        (Punctuator::AmpAmp, "&&"),
-        (Punctuator::AmpAmpEq, "&&="),
-        (Punctuator::AmpEq, "&="),
-        (Punctuator::Lt, "<"),
-        (Punctuator::LtEq, "<="),
-        (Punctuator::LtLt, "<<"),
-        (Punctuator::LtLtEq, "<<="),
-        (Punctuator::Gt, ">"),
-        (Punctuator::GtEq, ">="),
-        (Punctuator::GtGt, ">>"),
-        (Punctuator::GtGtGt, ">>>"),
-        (Punctuator::GtGtEq, ">>="),
-        (Punctuator::GtGtGtEq, ">>>="),
-        (Punctuator::Eq, "="),
-        (Punctuator::EqGt, "=>"),
-        (Punctuator::EqEq, "=="),
-        (Punctuator::EqEqEq, "==="),
-        (Punctuator::Bang, "!"),
-        (Punctuator::BangEq, "!="),
-        (Punctuator::BangEqEq, "!=="),
-        (Punctuator::Percent, "%"),
-        (Punctuator::PercentEq, "%="),
-        (Punctuator::Pipe, "|"),
-        (Punctuator::PipePipe, "||"),
-        (Punctuator::PipePipeEq, "||="),
-        (Punctuator::PipeEq, "|="),
-        (Punctuator::Caret, "^"),
-        (Punctuator::CaretEq, "^="),
-        (Punctuator::Question, "?"),
-        (Punctuator::QDot, "?."),
-        (Punctuator::QQ, "??"),
-        (Punctuator::QQEq, "??="),
-    ];
-    for (p, display) in pairs {
-        assert_eq!(format!("{}", p), display);
+    fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
+        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        assert_eq!(result, (tok, Scanner { line: 1, column: consumed + 1, start_idx: consumed as usize }));
+    }
+
+    #[test]
+    fn shortscans() {
+        punct_chk2("..A", Token::Punctuator(Punctuator::Dot), 1);
+    }
+    #[test]
+    fn nomatch() {
+        let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
+        let (token, scanner) = result;
+        assert!(matches!(token, Token::Error(_)));
+        assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
+    }
+    #[test]
+    fn display() {
+        let pairs = vec![
+            (Punctuator::LeftParen, "("),
+            (Punctuator::RightParen, ")"),
+            (Punctuator::LeftBrace, "{"),
+            (Punctuator::RightBrace, "}"),
+            (Punctuator::Dot, "."),
+            (Punctuator::Ellipsis, "..."),
+            (Punctuator::Comma, ","),
+            (Punctuator::Semicolon, ";"),
+            (Punctuator::LeftBracket, "["),
+            (Punctuator::RightBracket, "]"),
+            (Punctuator::Colon, ":"),
+            (Punctuator::Tilde, "~"),
+            (Punctuator::Minus, "-"),
+            (Punctuator::MinusMinus, "--"),
+            (Punctuator::MinusEq, "-="),
+            (Punctuator::Plus, "+"),
+            (Punctuator::PlusPlus, "++"),
+            (Punctuator::PlusEq, "+="),
+            (Punctuator::Slash, "/"),
+            (Punctuator::SlashEq, "/="),
+            (Punctuator::Star, "*"),
+            (Punctuator::StarEq, "*="),
+            (Punctuator::StarStar, "**"),
+            (Punctuator::StarStarEq, "**="),
+            (Punctuator::Amp, "&"),
+            (Punctuator::AmpAmp, "&&"),
+            (Punctuator::AmpAmpEq, "&&="),
+            (Punctuator::AmpEq, "&="),
+            (Punctuator::Lt, "<"),
+            (Punctuator::LtEq, "<="),
+            (Punctuator::LtLt, "<<"),
+            (Punctuator::LtLtEq, "<<="),
+            (Punctuator::Gt, ">"),
+            (Punctuator::GtEq, ">="),
+            (Punctuator::GtGt, ">>"),
+            (Punctuator::GtGtGt, ">>>"),
+            (Punctuator::GtGtEq, ">>="),
+            (Punctuator::GtGtGtEq, ">>>="),
+            (Punctuator::Eq, "="),
+            (Punctuator::EqGt, "=>"),
+            (Punctuator::EqEq, "=="),
+            (Punctuator::EqEqEq, "==="),
+            (Punctuator::Bang, "!"),
+            (Punctuator::BangEq, "!="),
+            (Punctuator::BangEqEq, "!=="),
+            (Punctuator::Percent, "%"),
+            (Punctuator::PercentEq, "%="),
+            (Punctuator::Pipe, "|"),
+            (Punctuator::PipePipe, "||"),
+            (Punctuator::PipePipeEq, "||="),
+            (Punctuator::PipeEq, "|="),
+            (Punctuator::Caret, "^"),
+            (Punctuator::CaretEq, "^="),
+            (Punctuator::Question, "?"),
+            (Punctuator::QDot, "?."),
+            (Punctuator::QQ, "??"),
+            (Punctuator::QQEq, "??="),
+        ];
+        for (p, display) in pairs {
+            assert_eq!(format!("{}", p), display);
+        }
+    }
+    #[test]
+    fn clone() {
+        let p = Punctuator::PipePipe;
+        let p2 = p.clone();
+        assert_eq!(p, p2);
+    }
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", Punctuator::Semicolon), "");
+    }
+
+    #[test]
+    fn hash() {
+        let item1 = Punctuator::PipePipe;
+        let item2 = Punctuator::Semicolon;
+        let item3 = Punctuator::PipePipe;
+        let factory = RandomState::new();
+
+        assert_eq!(calculate_hash(&factory, &item1), calculate_hash(&factory, &item3));
+        assert_ne!(calculate_hash(&factory, &item1), calculate_hash(&factory, &item2));
     }
 }
-#[test]
-fn punctuator_clone() {
-    let p = Punctuator::PipePipe;
-    let p2 = p.clone();
-    assert_eq!(p, p2);
-}
-#[test]
-fn punctuator_debug() {
-    assert_ne!(format!("{:?}", Punctuator::Semicolon), "");
-}
-
 #[test]
 fn signed_integer_01() {
     let result = signed_integer(&Scanner::new(), "blue", true);
