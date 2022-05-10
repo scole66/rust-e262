@@ -69,6 +69,7 @@ pub enum Insn {
     PreDecrement,
     Delete,
     Void,
+    TypeOf,
 }
 
 impl fmt::Display for Insn {
@@ -110,6 +111,7 @@ impl fmt::Display for Insn {
             Insn::PreIncrement => "PRE_INCREMENT",
             Insn::Delete => "DELETE",
             Insn::Void => "VOID",
+            Insn::TypeOf => "TYPEOF",
         })
     }
 }
@@ -627,7 +629,11 @@ impl UnaryExpression {
                 chunk.op(Insn::Void);
                 Ok(CompilerStatusFlags::new().abrupt())
             }
-            UnaryExpression::Typeof(_) => todo!(),
+            UnaryExpression::Typeof(exp) => {
+                exp.compile(chunk, strict)?;
+                chunk.op(Insn::TypeOf);
+                Ok(CompilerStatusFlags::new().abrupt())
+            }
             UnaryExpression::NoOp(_) => todo!(),
             UnaryExpression::Negate(_) => todo!(),
             UnaryExpression::Complement(_) => todo!(),
