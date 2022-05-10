@@ -639,6 +639,16 @@ impl Agent {
                     let result = self.delete_ref(fc);
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Void => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.void_operator(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::TypeOf => {
+                    let fc = self.execution_context_stack[index].stack.pop().unwrap();
+                    let result = self.typeof_operator(fc);
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -699,6 +709,38 @@ impl Agent {
                 Ok(delete_status.into())
             }
         }
+    }
+
+    fn void_operator(&mut self, expr: FullCompletion) -> FullCompletion {
+        get_value(self, expr).map(NormalCompletion::from)?;
+        Ok(ECMAScriptValue::Undefined.into())
+    }
+
+    fn typeof_operator(&mut self, expr: FullCompletion) -> FullCompletion {
+        if let Ok(NormalCompletion::Reference(r)) = &expr {
+            if r.is_unresolvable_reference() {
+                return Ok(NormalCompletion::from("undefined"));
+            }
+        }
+
+        let val = get_value(self, expr)?;
+        let type_string = match val {
+            ECMAScriptValue::Undefined => "undefined",
+            ECMAScriptValue::Null => "object",
+            ECMAScriptValue::Boolean(_) => "boolean",
+            ECMAScriptValue::String(_) => "string",
+            ECMAScriptValue::Number(_) => "number",
+            ECMAScriptValue::BigInt(_) => "bigint",
+            ECMAScriptValue::Symbol(_) => "symbol",
+            ECMAScriptValue::Object(obj) => {
+                if obj.o.is_callable_obj() {
+                    "function"
+                } else {
+                    "object"
+                }
+            }
+        };
+        Ok(NormalCompletion::from(type_string))
     }
 }
 

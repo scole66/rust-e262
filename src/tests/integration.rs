@@ -3,6 +3,10 @@ use crate::agent::*;
 use crate::values::*;
 use num::BigInt;
 
+fn serr(msg: &str) -> Result<ECMAScriptValue, String> {
+    Err(msg.to_string())
+}
+
 mod update_expression {
     use super::*;
 
@@ -117,26 +121,41 @@ mod update_expression {
 
 mod unary_expression {
     use super::*;
+    use test_case::test_case;
 
-    mod delete {
-        use super::*;
-        use test_case::test_case;
+    #[test_case("delete 3;" => Ok(ECMAScriptValue::from(true)); "non-reference")]
+    #[test_case("delete a;" => Ok(ECMAScriptValue::from(true)); "non-strict unresolvable delete")]
+    #[test_case("delete Boolean.prototype;" => Ok(ECMAScriptValue::from(false)); "non-strict non-configurable")]
+    #[test_case("let obj={a:1,b:2}; delete obj.b;" => Ok(ECMAScriptValue::from(true)); "Legit delete")]
+    #[test_case("let h=9; delete h;" => Ok(ECMAScriptValue::from(false)); "denied top-level delete")]
+    #[test_case("delete a.b;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "error from expression")]
+    #[test_case("'use strict'; delete Boolean.prototype" => serr("Thrown: TypeError: property not deletable"); "strict, not deletable")]
+    fn delete(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
 
-        #[test_case("delete 3;" => ECMAScriptValue::from(true); "non-reference")]
-        #[test_case("delete a;" => ECMAScriptValue::from(true); "non-strict unresolvable delete")]
-        #[test_case("delete Boolean.prototype;" => ECMAScriptValue::from(false); "non-strict non-configurable")]
-        #[test_case("let obj={a:1,b:2}; delete obj.b;" => ECMAScriptValue::from(true); "Legit delete")]
-        #[test_case("let h=9; delete h;" => ECMAScriptValue::from(false); "denied top-level delete")]
-        fn normal(src: &str) -> ECMAScriptValue {
-            let mut agent = test_agent();
-            process_ecmascript(&mut agent, src).unwrap()
-        }
-        #[test_case("delete a.b;" => "Thrown: ReferenceError: Unresolvable Reference"; "error from expression")]
-        #[test_case("'use strict'; delete Boolean.prototype" => "Thrown: TypeError: property not deletable"; "strict, not deletable")]
-        fn errors(src: &str) -> String {
-            let mut agent = test_agent();
-            let result = process_ecmascript(&mut agent, src).unwrap_err();
-            result.to_string()
-        }
+    #[test_case("void 3;" => Ok(ECMAScriptValue::Undefined); "simple")]
+    #[test_case("void a;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err")]
+    fn void(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+
+    #[test_case("typeof a;" => Ok("undefined".into()); "undefined via unresolvable")]
+    #[test_case("typeof a.b;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "getvalue throws")]
+    #[test_case("typeof undefined;" => Ok("undefined".into()); "undefined")]
+    #[test_case("typeof null;" => Ok("object".into()); "object via null")]
+    #[test_case("typeof true;" => Ok("boolean".into()); "boolean")]
+    #[test_case("typeof 0;" => Ok("number".into()); "number")]
+    #[test_case("typeof 1n;" => Ok("bigint".into()); "big int")]
+    #[test_case("typeof 'a';" => Ok("string".into()); "string")]
+    //#[test_case("typeof Symbol.unscopables;" => Ok("symbol".into()); "symbol")] // <-- This is the correct test, but it fails because Symbol isn't done yet
+    #[test_case("typeof Symbol.unscopables;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "symbol -- replace test when ready")]
+    #[test_case("typeof {};" => Ok("object".into()); "object")]
+    #[test_case("typeof Boolean;" => Ok("function".into()); "function")]
+    fn typeof_op(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
 }
