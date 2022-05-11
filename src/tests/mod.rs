@@ -503,4 +503,8 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
+pub fn sok<T>(msg: &str) -> Result<String, T> {
+    Ok(msg.to_string())
+}
+
 mod integration;
