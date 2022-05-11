@@ -147,8 +147,7 @@ mod unary_expression {
     #[test_case("typeof 0;" => Ok("number".into()); "number")]
     #[test_case("typeof 1n;" => Ok("bigint".into()); "big int")]
     #[test_case("typeof 'a';" => Ok("string".into()); "string")]
-    //#[test_case("typeof Symbol.unscopables;" => Ok("symbol".into()); "symbol")] // <-- This is the correct test, but it fails because Symbol isn't done yet
-    #[test_case("typeof Symbol.unscopables;" => serr("Thrown: ReferenceError: Unresolvable Reference"); "symbol -- replace test when ready")]
+    #[test_case("typeof Symbol.unscopables;" => Ok("symbol".into()); "symbol")]
     #[test_case("typeof {};" => Ok("object".into()); "object")]
     #[test_case("typeof Boolean;" => Ok("function".into()); "function")]
     fn typeof_op(src: &str) -> Result<ECMAScriptValue, String> {
