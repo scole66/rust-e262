@@ -7,6 +7,7 @@ use super::object::{
     PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
+use super::symbol_object::SymbolRegistry;
 use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use ahash::RandomState;
 use std::cell::{Cell, RefCell};
@@ -126,7 +127,7 @@ pub fn calculate_hash<T: Hash>(factory: &RandomState, t: &T) -> u64 {
 }
 
 pub fn test_agent() -> Agent {
-    let mut agent = Agent::new();
+    let mut agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
     agent.initialize_host_defined_realm(true);
     agent
 }

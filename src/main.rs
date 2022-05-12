@@ -36,19 +36,24 @@ mod values;
 use agent::{process_ecmascript, Agent};
 use parser::{parse_text, ParseGoal, ParsedText};
 use prettyprint::PrettyPrint;
+use std::cell::RefCell;
+use std::rc::Rc;
+use symbol_object::SymbolRegistry;
 use values::to_string;
 
 #[derive(Debug)]
 struct VM {
-    // Holds the state for the virtual machine. Anything shared between execution contexts winds up here.
-    pub agent: Agent,
+    // Holds the state for the virtual machine. Anything shared between agents winds up here.
+    agent: Agent,
+    symbols: Rc<RefCell<SymbolRegistry>>,
 }
 
 impl VM {
-    fn new() -> VM {
-        let mut agent = Agent::new();
+    fn new() -> Self {
+        let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
+        let mut agent = Agent::new(sym_registry.clone());
         agent.initialize_host_defined_realm(false);
-        VM { agent }
+        VM { agent, symbols: sym_registry }
     }
 
     //fn compile(&mut self, _ast: &AST) -> Result<i32, String> {

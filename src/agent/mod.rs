@@ -19,6 +19,7 @@ use super::reference::{get_value, initialize_referenced_binding, put_value, Base
 use super::strings::JSString;
 use super::values::{to_numeric, to_object, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
 use crate::object::create_data_property_or_throw;
+use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::cell::RefCell;
@@ -51,11 +52,12 @@ pub struct Agent {
     pub symbols: WellKnownSymbols,
     obj_id: usize,
     pub symbol_id: usize,
+    gsr: Rc<RefCell<SymbolRegistry>>,
 }
 
-#[allow(clippy::new_without_default)]
+//#[allow(clippy::new_without_default)]
 impl Agent {
-    pub fn new() -> Self {
+    pub fn new(gsr: Rc<RefCell<SymbolRegistry>>) -> Self {
         Agent {
             obj_id: 1,
             execution_context_stack: vec![],
@@ -75,6 +77,7 @@ impl Agent {
                 unscopables_: Symbol(Rc::new(SymbolInternals { id: 13, description: Some(JSString::from("Symbol.unscopables")) })),
             },
             symbol_id: 14,
+            gsr,
         }
     }
 
@@ -359,6 +362,10 @@ impl Agent {
             }
             global_data!("debug_token", "present", true, true, true);
         }
+    }
+
+    pub fn global_symbol_registry(&self) -> Rc<RefCell<SymbolRegistry>> {
+        self.gsr.clone()
     }
 
     pub fn evaluate(&mut self, chunk: Rc<Chunk>) -> Completion<ECMAScriptValue> {

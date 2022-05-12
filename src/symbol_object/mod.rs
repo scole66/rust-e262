@@ -1,9 +1,12 @@
 use super::agent::*;
 use super::cr::*;
+use super::errors::*;
 use super::function_object::*;
 use super::object::*;
 use super::realm::*;
+use super::strings::*;
 use super::values::*;
+use bimap::BiMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -177,7 +180,6 @@ pub fn create_symbol_object(agent: &mut Agent, sym: Symbol) -> Object {
     obj
 }
 
-#[allow(unused_variables)]
 pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
@@ -240,7 +242,6 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     constructor_data!("iterator", agent.wks(WksId::Iterator), false, false, false);
     constructor_data!("match", agent.wks(WksId::Match), false, false, false);
     constructor_data!("matchAll", agent.wks(WksId::MatchAll), false, false, false);
-    //constructor_data!("prototype", symbol_prototype, false, false, false);
     constructor_data!("replace", agent.wks(WksId::Replace), false, false, false);
     constructor_data!("search", agent.wks(WksId::Search), false, false, false);
     constructor_data!("species", agent.wks(WksId::Species), false, false, false);
@@ -249,15 +250,225 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     constructor_data!("toStringTag", agent.wks(WksId::ToStringTag), false, false, false);
     constructor_data!("unscopables", agent.wks(WksId::Unscopables), false, false, false);
 
+    // The Symbol prototype object:
+    //
+    //  * is %Symbol.prototype%.
+    //  * is an ordinary object.
+    //  * is not a Symbol instance and does not have a [[SymbolData]] internal slot.
+    //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
+    let symbol_prototype = ordinary_object_create(agent, Some(object_prototype), &[]);
+
+    // Prototype Function Properties
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
+            define_property_or_throw(agent, &symbol_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+        };
+    }
+    prototype_function!(symbol_to_string, "toString", 0.0);
+    prototype_function!(symbol_value_of, "valueOf", 0.0);
+
+    macro_rules! prototype_data {
+        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            define_property_or_throw(
+                agent,
+                &symbol_prototype,
+                $name,
+                PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+            )
+            .unwrap();
+        };
+    }
+
+    constructor_data!("prototype", symbol_prototype.clone(), false, false, false);
+    prototype_data!("constructor", symbol_constructor.clone(), true, false, true);
+
+    let descriptor_getter = create_builtin_function(
+        agent,
+        symbol_description,
+        false,
+        0.0,
+        PropertyKey::from("description"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        Some("get".into()),
+    );
+    define_property_or_throw(agent, &symbol_prototype, "description", PotentialPropertyDescriptor::new().get(descriptor_getter).enumerable(false).configurable(true)).unwrap();
+    let to_prop_sym = agent.wks(WksId::ToPrimitive);
+    let to_primitive_func = create_builtin_function(
+        agent,
+        symbol_value_of,
+        false,
+        1.0,
+        PropertyKey::from(to_prop_sym.clone()),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    define_property_or_throw(agent, &symbol_prototype, to_prop_sym, PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true)).unwrap();
+    let to_tag_sym = agent.wks(WksId::ToStringTag);
+    define_property_or_throw(agent, &symbol_prototype, to_tag_sym, PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false)).unwrap();
+
     realm.borrow_mut().intrinsics.symbol = symbol_constructor;
+    realm.borrow_mut().intrinsics.symbol_prototype = symbol_prototype;
 }
 
-fn symbol_constructor_function(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    todo!()
+/// Symbol
+///
+/// Symbol is a built-in object whose constructor returns a symbol primitive — also called a Symbol value or just a
+/// Symbol — that's guaranteed to be unique. Symbols are often used to add unique property keys to an object that won't
+/// collide with keys any other code might add to the object, and which are hidden from any mechanisms other code will
+/// typically use to access the object. That enables a form of weak encapsulation, or a weak form of information
+/// hiding.
+///
+/// Every `Symbol()` call is guaranteed to return a unique Symbol. Every `Symbol.for("key")` call will always return
+/// the same Symbol for a given value of `"key"`. When `Symbol.for("key")` is called, if a Symbol with the given key
+/// can be found in the global Symbol registry, that Symbol is returned. Otherwise, a new Symbol is created, added to
+/// the global Symbol registry under the given key, and returned.
+fn symbol_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    // Symbol ( [ description ] )
+    // When Symbol is called with optional argument description, the following steps are taken:
+    //
+    // 1. If NewTarget is not undefined, throw a TypeError exception.
+    // 2. If description is undefined, let descString be undefined.
+    // 3. Else, let descString be ? ToString(description).
+    // 4. Return a new unique Symbol value whose [[Description]] value is descString.
+    if !new_target.is_none() {
+        Err(create_type_error(agent, "Symbol is not a constructor"))
+    } else {
+        let mut args = Arguments::from(arguments);
+        let description = args.next_arg();
+        let desc_string = match description {
+            ECMAScriptValue::Undefined => None,
+            _ => Some(to_string(agent, description)?),
+        };
+        let new_symbol = Symbol::new(agent, desc_string);
+        Ok(new_symbol.into())
+    }
 }
-fn symbol_for(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    todo!()
+
+/// Symbol.for()
+///
+/// The `Symbol.for(key)` method searches for existing symbols in a runtime-wide symbol registry with the given key and
+/// returns it if found. Otherwise a new symbol gets created in the global symbol registry with this key.
+///
+/// See [Symbol.for](https://tc39.es/ecma262/#sec-symbol.for) in ECMA-262.
+fn symbol_for(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    // Symbol.for ( key )
+    // When Symbol.for is called with argument key it performs the following steps:
+    //
+    //  1. Let stringKey be ? ToString(key).
+    //  2. For each element e of the GlobalSymbolRegistry List, do
+    //      a. If SameValue(e.[[Key]], stringKey) is true, return e.[[Symbol]].
+    //  3. Assert: GlobalSymbolRegistry does not currently contain an entry for stringKey.
+    //  4. Let newSymbol be a new unique Symbol value whose [[Description]] value is stringKey.
+    //  5. Append the Record { [[Key]]: stringKey, [[Symbol]]: newSymbol } to the GlobalSymbolRegistry List.
+    //  6. Return newSymbol.
+    //
+    // The GlobalSymbolRegistry is a List that is globally available. It is shared by all realms. Prior to the
+    // evaluation of any ECMAScript code it is initialized as a new empty List. Elements of the GlobalSymbolRegistry
+    // are Records with the structure defined in Table 62.
+    //
+    // Table 62: GlobalSymbolRegistry Record Fields
+    // +------------+----------+--------------------------------------------------+
+    // | Field Name | Value    | Usage                                            |
+    // +------------+----------+--------------------------------------------------+
+    // | [[Key]]    | a String | A string key used to globally identify a Symbol. |
+    // +------------+----------+--------------------------------------------------+
+    // | [[Symbol]] | a Symbol | A symbol that can be retrieved from any realm.   |
+    // +------------+----------+--------------------------------------------------+
+    let mut args = Arguments::from(arguments);
+    let key = args.next_arg();
+    let string_key = to_string(agent, key)?;
+    let gsm = agent.global_symbol_registry();
+    let mut registry = gsm.borrow_mut();
+    let maybe_sym = registry.symbol_by_key(&string_key);
+    match maybe_sym {
+        Some(sym) => Ok(sym.into()),
+        None => {
+            let new_symbol = Symbol::new(agent, Some(string_key.clone()));
+            registry.add(string_key, new_symbol.clone());
+            Ok(new_symbol.into())
+        }
+    }
 }
-fn symbol_key_for(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    todo!()
+
+/// Symbol.keyFor()
+///
+/// The Symbol.keyFor(sym) method retrieves a shared symbol key from the global symbol registry for the given symbol.
+///
+/// See [Symbol.keyFor](https://tc39.es/ecma262/#sec-symbol.keyfor) in ECMA-262.
+fn symbol_key_for(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    // Symbol.keyFor ( sym )
+    // When Symbol.keyFor is called with argument sym it performs the following steps:
+    //
+    //  1. If Type(sym) is not Symbol, throw a TypeError exception.
+    //  2. For each element e of the GlobalSymbolRegistry List (see 20.4.2.2), do
+    //      a. If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
+    //  3. Assert: GlobalSymbolRegistry does not currently contain an entry for sym.
+    //  4. Return undefined.
+    let mut args = Arguments::from(arguments);
+    let sym = args.next_arg();
+    if let ECMAScriptValue::Symbol(sym) = sym {
+        let gsm = agent.global_symbol_registry();
+        let registry = gsm.borrow();
+        let maybe_key = registry.key_by_symbol(&sym);
+        match maybe_key {
+            Some(key) => Ok(key.into()),
+            None => Ok(ECMAScriptValue::Undefined),
+        }
+    } else {
+        Err(create_type_error(agent, "value is not a symbol"))
+    }
 }
+
+fn this_symbol_value(agent: &mut Agent, this_value: ECMAScriptValue) -> Completion<Symbol> {
+    match this_value {
+        ECMAScriptValue::Symbol(s) => Ok(s),
+        ECMAScriptValue::Object(o) if o.o.is_symbol_object() => {
+            let so = o.o.to_symbol_obj().unwrap();
+            Ok(so.symbol_data().borrow().clone().unwrap())
+        }
+        _ => Err(create_type_error(agent, "Not a symbol")),
+    }
+}
+
+fn symbol_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    let sym = this_symbol_value(agent, this_value)?;
+    Ok(sym.descriptive_string().into())
+}
+
+fn symbol_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    Ok(this_symbol_value(agent, this_value)?.into())
+}
+
+fn symbol_description(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    let sym = this_symbol_value(agent, this_value)?;
+    Ok(sym.description().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined))
+}
+
+#[derive(Debug, Default)]
+pub struct SymbolRegistry {
+    symbols: BiMap<Symbol, JSString>,
+}
+
+impl SymbolRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn symbol_by_key(&self, key: &JSString) -> Option<Symbol> {
+        self.symbols.get_by_right(key).cloned()
+    }
+    pub fn key_by_symbol(&self, sym: &Symbol) -> Option<JSString> {
+        self.symbols.get_by_left(sym).cloned()
+    }
+    pub fn add(&mut self, key: JSString, sym: Symbol) {
+        self.symbols.insert_no_overwrite(sym, key).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests;
