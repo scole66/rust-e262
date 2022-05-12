@@ -65,10 +65,48 @@ fn symbol_constructor_function(tgt_maker: fn(&mut Agent) -> Option<Object>, arg_
     super::symbol_constructor_function(&mut agent, ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(|e| unwind_any_error(&mut agent, e))
 }
 
-#[test]
-fn symbol_for() {
-    let mut agent = test_agent();
-    super::symbol_for(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap();
+mod symbol_for {
+    use super::*;
+
+    #[test]
+    fn new() {
+        let mut agent = test_agent();
+        let gsr = agent.global_symbol_registry();
+        let count_prior = gsr.borrow().len();
+        let result = symbol_for(&mut agent, ECMAScriptValue::Undefined, None, &["key".into()]);
+        if let Ok(ECMAScriptValue::Symbol(sym)) = result {
+            assert_eq!(sym.descriptive_string(), "Symbol(key)");
+            let count_after = gsr.borrow().len();
+            assert_eq!(count_after, count_prior + 1);
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn duplicate() {
+        let mut agent = test_agent();
+        let gsr = agent.global_symbol_registry();
+        let count_prior = gsr.borrow().len();
+        let first = symbol_for(&mut agent, ECMAScriptValue::Undefined, None, &["key".into()]);
+        let second = symbol_for(&mut agent, ECMAScriptValue::Undefined, None, &["key".into()]);
+        if let (Ok(ECMAScriptValue::Symbol(first)), Ok(ECMAScriptValue::Symbol(second))) = (first, second) {
+            assert_eq!(first, second);
+            assert_eq!(first.descriptive_string(), "Symbol(key)");
+            let count_after = gsr.borrow().len();
+            assert_eq!(count_after, count_prior + 1);
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn bad_key() {
+        let mut agent = test_agent();
+        let to_primitive = agent.wks(WksId::ToPrimitive);
+        let result = symbol_for(&mut agent, ECMAScriptValue::Undefined, None, &[to_primitive.into()]).unwrap_err();
+        assert_eq!(unwind_any_error(&mut agent, result), "TypeError: Symbols may not be converted to strings");
+    }
 }
 
 #[test]

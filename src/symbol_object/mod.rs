@@ -468,6 +468,9 @@ impl SymbolRegistry {
     pub fn add(&mut self, key: JSString, sym: Symbol) {
         self.symbols.insert_no_overwrite(sym, key).unwrap();
     }
+    pub fn len(&self) -> usize {
+        self.symbols.len()
+    }
 }
 
 #[cfg(test)]
