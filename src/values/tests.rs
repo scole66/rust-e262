@@ -934,11 +934,12 @@ fn to_object_05() {
     let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
 }
 #[test]
-#[should_panic(expected = "not yet implemented")] // An XFAIL. Symbol objects not yet implemented.
 fn to_object_06() {
     let mut agent = test_agent();
     let test_value = agent.wks(WksId::ToPrimitive);
-    let _result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let result = to_object(&mut agent, ECMAScriptValue::from(test_value)).unwrap();
+    let desc = get(&mut agent, &result, &"description".into()).unwrap();
+    assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
 }
 #[test]
 #[should_panic(expected = "not yet implemented")] // An XFAIL. BigInt objects not yet implemented.
