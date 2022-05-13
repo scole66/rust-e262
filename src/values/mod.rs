@@ -427,11 +427,15 @@ impl Symbol {
     pub fn description(&self) -> Option<JSString> {
         self.0.description.as_ref().cloned()
     }
+    pub fn descriptive_string(&self) -> JSString {
+        let desc = self.description().unwrap_or_else(|| JSString::from(""));
+        JSString::from("Symbol(").concat(desc).concat(")")
+    }
 }
 
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Symbol({})", self.description().unwrap_or_else(|| JSString::from("")))
+        write!(f, "{}", self.descriptive_string())
     }
 }
 

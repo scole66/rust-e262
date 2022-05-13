@@ -23,6 +23,7 @@ uid = "0.1.5"
 counter = "0.5.3"
 anyhow = "1.0.56"
 num_enum = "0.5.7"
+bimap = "0.6.2"
 
 [dev-dependencies]
 test-case = "2.0"

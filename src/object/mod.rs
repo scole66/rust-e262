@@ -8,6 +8,7 @@ use super::errors::ErrorObject;
 use super::function_object::{BuiltinFunctionInterface, CallableObject, ConstructableObject, FunctionObjectData};
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
+use super::symbol_object::*;
 use super::values::{is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
 use ahash::{AHashMap, AHashSet};
 use anyhow::anyhow;
@@ -951,6 +952,9 @@ pub trait ObjectInterface: Debug {
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
+    fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
+        None
+    }
     fn to_function_obj(&self) -> Option<&dyn FunctionInterface> {
         // This is a standard ECMAScript Function Object --- in particular, not a exotic Built-In Function object
         None
@@ -996,6 +1000,9 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn is_proxy_object(&self) -> bool {
+        false
+    }
+    fn is_symbol_object(&self) -> bool {
         false
     }
 
@@ -1355,6 +1362,7 @@ pub enum InternalSlotName {
     Extensible,
     BooleanData,
     ErrorData,
+    SymbolData,
     InitialName,
     Realm,
     NumberData,
@@ -1367,6 +1375,7 @@ pub const ERROR_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototyp
 pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
 pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
+pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1397,6 +1406,8 @@ pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotN
         NumberObject::object(agent, prototype)
     } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
         ArrayObject::object(agent, prototype)
+    } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
+        SymbolObject::object(agent, prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {:?}", slot_set);

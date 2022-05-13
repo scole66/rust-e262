@@ -12,6 +12,7 @@ use super::object::{
     define_property_or_throw, immutable_prototype_exotic_object_create, ordinary_object_create, DeadObject, InternalSlotName, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::object_object::provision_object_intrinsic;
+use super::symbol_object::provision_symbol_intrinsic;
 use super::values::{ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::fmt;
@@ -37,6 +38,8 @@ pub enum IntrinsicId {
     RangeErrorPrototype,
     ReferenceError,
     ReferenceErrorPrototype,
+    Symbol,
+    SymbolPrototype,
     SyntaxError,
     SyntaxErrorPrototype,
     ThrowTypeError,
@@ -111,6 +114,7 @@ pub struct Intrinsics {
     pub string: Object,                             // String	The String constructor (22.1.1)
     pub string_iterator_prototype: Object,          // The prototype of String iterator objects (22.1.5)
     pub symbol: Object,                             // Symbol	The Symbol constructor (20.4.1)
+    pub symbol_prototype: Object,                   //
     pub syntax_error: Object,                       // SyntaxError	The SyntaxError constructor (20.5.5.4)
     pub syntax_error_prototype: Object,             //
     pub throw_type_error: Object,                   // A function object that unconditionally throws a new instance of %TypeError%
@@ -202,6 +206,7 @@ impl Intrinsics {
             string: dead.clone(),
             string_iterator_prototype: dead.clone(),
             symbol: dead.clone(),
+            symbol_prototype: dead.clone(),
             syntax_error: dead.clone(),
             syntax_error_prototype: dead.clone(),
             throw_type_error: dead.clone(),
@@ -238,6 +243,8 @@ impl Intrinsics {
             IntrinsicId::RangeErrorPrototype => &self.range_error_prototype,
             IntrinsicId::ReferenceError => &self.reference_error,
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
+            IntrinsicId::Symbol => &self.symbol,
+            IntrinsicId::SymbolPrototype => &self.symbol_prototype,
             IntrinsicId::SyntaxError => &self.syntax_error,
             IntrinsicId::SyntaxErrorPrototype => &self.syntax_error_prototype,
             IntrinsicId::ThrowTypeError => &self.throw_type_error,
@@ -351,6 +358,7 @@ pub fn create_intrinsics(agent: &mut Agent, realm_rec: Rc<RefCell<Realm>>) {
     provision_uri_error_intrinsic(agent, &realm_rec);
     provision_object_intrinsic(agent, &realm_rec);
     provision_array_intrinsic(agent, &realm_rec);
+    provision_symbol_intrinsic(agent, &realm_rec);
 
     add_restricted_function_properties(agent, &function_prototype, realm_rec.clone());
 }

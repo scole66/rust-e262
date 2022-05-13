@@ -3,10 +3,12 @@ use crate::parser::testhelp::Maker;
 use crate::tests::test_agent;
 use crate::tests::{create_named_realm, get_realm_name};
 use ahash::AHashSet;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[test]
 fn agent_new() {
-    let agent = Agent::new();
+    let agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
 
     // New agent; no realm initialized.
     assert!(agent.execution_context_stack.is_empty());
@@ -41,8 +43,7 @@ fn agent_new() {
 
 #[test]
 fn agent_pop_execution_context() {
-    let mut agent = Agent::new();
-    agent.initialize_host_defined_realm(true);
+    let mut agent = test_agent();
     let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
     let sr = ScriptRecord { realm: realm_ref.clone(), ecmascript_code: Maker::new("").script(), compiled: Rc::new(Chunk::new("test")) };
@@ -56,7 +57,7 @@ fn agent_pop_execution_context() {
 }
 #[test]
 fn agent_active_function_object() {
-    let mut agent = Agent::new();
+    let mut agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
     // no Running Execution Context, so this should be None.
     let afo = agent.active_function_object();
     assert!(afo.is_none());
@@ -77,7 +78,7 @@ fn agent_active_function_object() {
 }
 #[test]
 fn agent_next_object_id() {
-    let mut agent = Agent::new();
+    let mut agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
     // Starts at something, and then increases monotonically.
     let first = agent.next_object_id();
     for x in 1..10 {
@@ -86,7 +87,7 @@ fn agent_next_object_id() {
 }
 #[test]
 fn agent_next_symbol_id() {
-    let mut agent = Agent::new();
+    let mut agent = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
     // Starts at something, and then increases monotonically.
     let first = agent.next_symbol_id();
     for x in 1..10 {
@@ -95,7 +96,7 @@ fn agent_next_symbol_id() {
 }
 #[test]
 fn agent_debug() {
-    assert_ne!(format!("{:?}", Agent::new()), "");
+    assert_ne!(format!("{:?}", Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())))), "");
 }
 
 #[test]
@@ -165,14 +166,14 @@ mod current_realm_record {
 
     #[test]
     fn empty() {
-        let a = Agent::new();
+        let a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
         let realm = a.current_realm_record();
 
         assert!(realm.is_none());
     }
     #[test]
     fn stacked() {
-        let mut a = Agent::new();
+        let mut a = Agent::new(Rc::new(RefCell::new(SymbolRegistry::new())));
         let first_realm = create_named_realm(&mut a, "first");
         let first_context = ExecutionContext::new(None, first_realm, None);
         a.push_execution_context(first_context);
