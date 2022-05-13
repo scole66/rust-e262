@@ -544,9 +544,9 @@ impl MemberExpression {
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(pe) => pe.compile(chunk, strict),
-            MemberExpressionKind::IdentifierName(me, id) => {
+        match self {
+            MemberExpression::PrimaryExpression(pe) => pe.compile(chunk, strict),
+            MemberExpression::IdentifierName(me, id) => {
                 let mut mark = None;
                 let mut might_be_abrupt = false;
                 let status = me.compile(chunk, strict)?;
@@ -563,7 +563,7 @@ impl MemberExpression {
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: true })
             }
-            MemberExpressionKind::Expression(me, exp) => {
+            MemberExpression::Expression(me, exp) => {
                 let mut exits = vec![];
                 // Stack: ...
                 let status = me.compile(chunk, strict)?;
@@ -583,19 +583,19 @@ impl MemberExpression {
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || !exits.is_empty(), can_be_reference: true })
             }
-            MemberExpressionKind::TemplateLiteral(_, _) => todo!(),
-            MemberExpressionKind::SuperProperty(_) => todo!(),
-            MemberExpressionKind::MetaProperty(_) => todo!(),
-            MemberExpressionKind::NewArguments(_, _) => todo!(),
-            MemberExpressionKind::PrivateId(_, _) => todo!(),
+            MemberExpression::TemplateLiteral(_, _) => todo!(),
+            MemberExpression::SuperProperty(_) => todo!(),
+            MemberExpression::MetaProperty(_) => todo!(),
+            MemberExpression::NewArguments(_, _) => todo!(),
+            MemberExpression::PrivateId(_, _) => todo!(),
         }
     }
 }
 
 impl NewExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(me) => me.compile(chunk, strict),
+        match self {
+            NewExpression::MemberExpression(me) => me.compile(chunk, strict),
             _ => todo!(),
         }
     }
@@ -605,7 +605,8 @@ impl LeftHandSideExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LeftHandSideExpression::New(ne) => ne.compile(chunk, strict),
-            _ => todo!(),
+            LeftHandSideExpression::Call(_) => todo!(),
+            LeftHandSideExpression::Optional(_) => todo!(),
         }
     }
 }
