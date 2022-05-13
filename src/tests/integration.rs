@@ -1,6 +1,6 @@
 use super::*;
 use crate::agent::*;
-use crate::tests::serr;
+use crate::tests::{serr, vok};
 use crate::values::*;
 use num::BigInt;
 
@@ -151,6 +151,24 @@ mod unary_expression {
     #[test_case("typeof {};" => Ok("object".into()); "object")]
     #[test_case("typeof Boolean;" => Ok("function".into()); "function")]
     fn typeof_op(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}
+
+mod member_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("m.a.c" => serr("Thrown: ReferenceError: Unresolvable Reference"); "member expression throws")]
+    #[test_case("m.a" => serr("Thrown: ReferenceError: Unresolvable Reference"); "getvalue throws")]
+    #[test_case("let m={a: 10}; m.a;" => vok(10); "id member exp")]
+    #[test_case("m.a[c]" => serr("Thrown: ReferenceError: Unresolvable Reference"); "exp syntax; member exp throws")]
+    #[test_case("m[c]" => serr("Thrown: ReferenceError: Unresolvable Reference"); "exp syntax; getvalue throws")]
+    #[test_case("let m={};m[c]" => serr("Thrown: ReferenceError: Unresolvable Reference"); "exp syntax; getname throws")]
+    #[test_case("let m={},c={toString:undefined, valueOf:undefined};m[c]" => serr("Thrown: TypeError: Cannot convert object to primitive value"); "exp syntax; tokey throws")]
+    #[test_case("let m={'1':99};m[1]" => vok(99); "exp member exp")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
         let mut agent = test_agent();
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
