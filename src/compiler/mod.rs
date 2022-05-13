@@ -576,7 +576,7 @@ impl MemberExpression {
                     exits.push(exit);
                 }
                 // Stack: base ...
-                let status = Self::evaluate_property_access_with_expression_key(chunk, &exp, strict)?;
+                let status = Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
                 // Stack: ref/err ...
                 for exit in &exits {
                     chunk.fixup(*exit)?;
