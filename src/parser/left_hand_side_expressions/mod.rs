@@ -30,7 +30,7 @@ use std::io::Write;
 // If they're there, build up one of the interior productions and loop.
 
 #[derive(Debug)]
-pub enum MemberExpressionKind {
+pub enum MemberExpression {
     PrimaryExpression(Rc<PrimaryExpression>),
     Expression(Rc<MemberExpression>, Rc<Expression>),
     IdentifierName(Rc<MemberExpression>, IdentifierData),
@@ -41,25 +41,20 @@ pub enum MemberExpressionKind {
     PrivateId(Rc<MemberExpression>, IdentifierData),
 }
 
-#[derive(Debug)]
-pub struct MemberExpression {
-    pub kind: MemberExpressionKind,
-}
-
 impl fmt::Display for MemberExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => write!(f, "{}", boxed),
-            MemberExpressionKind::Expression(me, exp) => {
+        match self {
+            MemberExpression::PrimaryExpression(boxed) => write!(f, "{}", boxed),
+            MemberExpression::Expression(me, exp) => {
                 write!(f, "{} [ {} ]", me, exp)
             }
-            MemberExpressionKind::IdentifierName(me, id) | MemberExpressionKind::PrivateId(me, id) => {
+            MemberExpression::IdentifierName(me, id) | MemberExpression::PrivateId(me, id) => {
                 write!(f, "{} . {}", me, id)
             }
-            MemberExpressionKind::TemplateLiteral(me, tl) => write!(f, "{} {}", me, tl),
-            MemberExpressionKind::SuperProperty(boxed) => write!(f, "{}", boxed),
-            MemberExpressionKind::MetaProperty(boxed) => write!(f, "{}", boxed),
-            MemberExpressionKind::NewArguments(me, args) => write!(f, "new {} {}", me, args),
+            MemberExpression::TemplateLiteral(me, tl) => write!(f, "{} {}", me, tl),
+            MemberExpression::SuperProperty(boxed) => write!(f, "{}", boxed),
+            MemberExpression::MetaProperty(boxed) => write!(f, "{}", boxed),
+            MemberExpression::NewArguments(me, args) => write!(f, "new {} {}", me, args),
         }
     }
 }
@@ -71,20 +66,20 @@ impl PrettyPrint for MemberExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}MemberExpression: {}", first, self)?;
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            MemberExpressionKind::Expression(me, exp) => {
+        match self {
+            MemberExpression::PrimaryExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpression::Expression(me, exp) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::IdentifierName(me, _) | MemberExpressionKind::PrivateId(me, _) => me.pprint_with_leftpad(writer, &successive, Spot::Final),
-            MemberExpressionKind::TemplateLiteral(me, tl) => {
+            MemberExpression::IdentifierName(me, _) | MemberExpression::PrivateId(me, _) => me.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpression::TemplateLiteral(me, tl) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::SuperProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            MemberExpressionKind::MetaProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            MemberExpressionKind::NewArguments(me, args) => {
+            MemberExpression::SuperProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpression::MetaProperty(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpression::NewArguments(me, args) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 args.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -99,35 +94,35 @@ impl PrettyPrint for MemberExpression {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}MemberExpression: {}", first, self).and(Ok(successive))
         };
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            MemberExpressionKind::SuperProperty(node) => node.concise_with_leftpad(writer, pad, state),
-            MemberExpressionKind::MetaProperty(node) => node.concise_with_leftpad(writer, pad, state),
-            MemberExpressionKind::Expression(me, exp) => {
+        match self {
+            MemberExpression::PrimaryExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpression::SuperProperty(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpression::MetaProperty(node) => node.concise_with_leftpad(writer, pad, state),
+            MemberExpression::Expression(me, exp) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            MemberExpressionKind::IdentifierName(me, id) => {
+            MemberExpression::IdentifierName(me, id) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::IdentifierName, &successive, Spot::Final)
             }
-            MemberExpressionKind::PrivateId(me, id) => {
+            MemberExpression::PrivateId(me, id) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
-            MemberExpressionKind::TemplateLiteral(me, tl) => {
+            MemberExpression::TemplateLiteral(me, tl) => {
                 let successive = head(pad, state)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpressionKind::NewArguments(me, args) => {
+            MemberExpression::NewArguments(me, args) => {
                 let successive = head(pad, state)?;
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 me.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -139,47 +134,47 @@ impl PrettyPrint for MemberExpression {
 
 impl IsFunctionDefinition for MemberExpression {
     fn is_function_definition(&self) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => boxed.is_function_definition(),
-            MemberExpressionKind::Expression(..)
-            | MemberExpressionKind::IdentifierName(..)
-            | MemberExpressionKind::TemplateLiteral(..)
-            | MemberExpressionKind::SuperProperty(_)
-            | MemberExpressionKind::MetaProperty(_)
-            | MemberExpressionKind::NewArguments(..)
-            | MemberExpressionKind::PrivateId(..) => false,
+        match self {
+            MemberExpression::PrimaryExpression(boxed) => boxed.is_function_definition(),
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::TemplateLiteral(..)
+            | MemberExpression::SuperProperty(_)
+            | MemberExpression::MetaProperty(_)
+            | MemberExpression::NewArguments(..)
+            | MemberExpression::PrivateId(..) => false,
         }
     }
 }
 
-pub trait ToMemberExpressionKind {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpressionKind;
+pub trait ToMemberExpression {
+    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression;
 }
 
-impl ToMemberExpressionKind for PrimaryExpression {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpressionKind {
-        MemberExpressionKind::PrimaryExpression(node)
+impl ToMemberExpression for PrimaryExpression {
+    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
+        MemberExpression::PrimaryExpression(node)
     }
 }
 
-impl ToMemberExpressionKind for SuperProperty {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpressionKind {
-        MemberExpressionKind::SuperProperty(node)
+impl ToMemberExpression for SuperProperty {
+    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
+        MemberExpression::SuperProperty(node)
     }
 }
 
-impl ToMemberExpressionKind for MetaProperty {
-    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpressionKind {
-        MemberExpressionKind::MetaProperty(node)
+impl ToMemberExpression for MetaProperty {
+    fn to_member_expression_kind(node: Rc<Self>) -> MemberExpression {
+        MemberExpression::MetaProperty(node)
     }
 }
 
 fn me_boxer<T>(pair: (Rc<T>, Scanner)) -> ParseResult<MemberExpression>
 where
-    T: ToMemberExpressionKind,
+    T: ToMemberExpression,
 {
     let (node, scanner) = pair;
-    Ok((Rc::new(MemberExpression { kind: T::to_member_expression_kind(node) }), scanner))
+    Ok((Rc::new(T::to_member_expression_kind(node)), scanner))
 }
 
 fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await_flag: bool, me: Rc<MemberExpression>, scan: Scanner) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
@@ -202,10 +197,10 @@ fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await
         })
     }) {
         current_me = match parts {
-            After::TLit(tl) => Rc::new(MemberExpression { kind: MemberExpressionKind::TemplateLiteral(current_me, tl) }),
-            After::Exp(exp) => Rc::new(MemberExpression { kind: MemberExpressionKind::Expression(current_me, exp) }),
-            After::Id(id) => Rc::new(MemberExpression { kind: MemberExpressionKind::IdentifierName(current_me, id) }),
-            After::Pid(id) => Rc::new(MemberExpression { kind: MemberExpressionKind::PrivateId(current_me, id) }),
+            After::TLit(tl) => Rc::new(MemberExpression::TemplateLiteral(current_me, tl)),
+            After::Exp(exp) => Rc::new(MemberExpression::Expression(current_me, exp)),
+            After::Id(id) => Rc::new(MemberExpression::IdentifierName(current_me, id)),
+            After::Pid(id) => Rc::new(MemberExpression::PrivateId(current_me, id)),
         };
         after_scan = after_production;
     }
@@ -231,10 +226,7 @@ impl MemberExpression {
             .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| MetaProperty::parse(parser, scanner).and_then(me_boxer))
-            .otherwise(|| {
-                Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag)
-                    .map(|(me, args, after)| (Rc::new(MemberExpression { kind: MemberExpressionKind::NewArguments(me, args) }), after))
-            })
+            .otherwise(|| Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag).map(|(me, args, after)| (Rc::new(MemberExpression::NewArguments(me, args)), after)))
             // And then all the head-recursive productions.
             .and_then(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
     }
@@ -246,20 +238,20 @@ impl MemberExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.contains(kind),
-            MemberExpressionKind::Expression(l, r) => l.contains(kind) || r.contains(kind),
-            MemberExpressionKind::IdentifierName(n, _) | MemberExpressionKind::PrivateId(n, _) => n.contains(kind),
-            MemberExpressionKind::TemplateLiteral(l, r) => l.contains(kind) || r.contains(kind),
-            MemberExpressionKind::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
-            MemberExpressionKind::MetaProperty(n) => n.contains(kind),
-            MemberExpressionKind::NewArguments(l, r) => l.contains(kind) || r.contains(kind),
+        match self {
+            MemberExpression::PrimaryExpression(n) => n.contains(kind),
+            MemberExpression::Expression(l, r) => l.contains(kind) || r.contains(kind),
+            MemberExpression::IdentifierName(n, _) | MemberExpression::PrivateId(n, _) => n.contains(kind),
+            MemberExpression::TemplateLiteral(l, r) => l.contains(kind) || r.contains(kind),
+            MemberExpression::SuperProperty(n) => kind == ParseNodeKind::SuperProperty || n.contains(kind),
+            MemberExpression::MetaProperty(n) => n.contains(kind),
+            MemberExpression::NewArguments(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.as_string_literal(),
+        match self {
+            MemberExpression::PrimaryExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
@@ -267,24 +259,24 @@ impl MemberExpression {
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
-        match &self.kind {
+        match self {
             //  1. For each child node child of this Parse Node, do
             //      a. If child is an instance of a nonterminal, then
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
-            MemberExpressionKind::PrimaryExpression(n) => n.all_private_identifiers_valid(names),
-            MemberExpressionKind::Expression(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            MemberExpressionKind::IdentifierName(n, _) => n.all_private_identifiers_valid(names),
-            MemberExpressionKind::TemplateLiteral(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            MemberExpressionKind::SuperProperty(n) => n.all_private_identifiers_valid(names),
-            MemberExpressionKind::MetaProperty(_) => true,
-            MemberExpressionKind::NewArguments(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::PrimaryExpression(n) => n.all_private_identifiers_valid(names),
+            MemberExpression::Expression(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::IdentifierName(n, _) => n.all_private_identifiers_valid(names),
+            MemberExpression::TemplateLiteral(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::SuperProperty(n) => n.all_private_identifiers_valid(names),
+            MemberExpression::MetaProperty(_) => true,
+            MemberExpression::NewArguments(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
 
             // MemberExpression : MemberExpression . PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of MemberExpression with argument names.
             //  2. Return false.
-            MemberExpressionKind::PrivateId(n, id) => names.contains(&id.string_value) && n.all_private_identifiers_valid(names),
+            MemberExpression::PrivateId(n, id) => names.contains(&id.string_value) && n.all_private_identifiers_valid(names),
         }
     }
 
@@ -299,62 +291,62 @@ impl MemberExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(pe) => pe.contains_arguments(),
-            MemberExpressionKind::Expression(me, e) => me.contains_arguments() || e.contains_arguments(),
-            MemberExpressionKind::IdentifierName(me, _) | MemberExpressionKind::PrivateId(me, _) => me.contains_arguments(),
-            MemberExpressionKind::TemplateLiteral(me, tl) => me.contains_arguments() || tl.contains_arguments(),
-            MemberExpressionKind::SuperProperty(sp) => sp.contains_arguments(),
-            MemberExpressionKind::MetaProperty(_) => false,
-            MemberExpressionKind::NewArguments(me, a) => me.contains_arguments() || a.contains_arguments(),
+        match self {
+            MemberExpression::PrimaryExpression(pe) => pe.contains_arguments(),
+            MemberExpression::Expression(me, e) => me.contains_arguments() || e.contains_arguments(),
+            MemberExpression::IdentifierName(me, _) | MemberExpression::PrivateId(me, _) => me.contains_arguments(),
+            MemberExpression::TemplateLiteral(me, tl) => me.contains_arguments() || tl.contains_arguments(),
+            MemberExpression::SuperProperty(sp) => sp.contains_arguments(),
+            MemberExpression::MetaProperty(_) => false,
+            MemberExpression::NewArguments(me, a) => me.contains_arguments() || a.contains_arguments(),
         }
     }
 
     pub fn is_object_or_array_literal(&self) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.is_object_or_array_literal(),
-            MemberExpressionKind::Expression(..)
-            | MemberExpressionKind::IdentifierName(..)
-            | MemberExpressionKind::TemplateLiteral(..)
-            | MemberExpressionKind::SuperProperty(..)
-            | MemberExpressionKind::MetaProperty(..)
-            | MemberExpressionKind::NewArguments(..)
-            | MemberExpressionKind::PrivateId(..) => false,
+        match self {
+            MemberExpression::PrimaryExpression(n) => n.is_object_or_array_literal(),
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::TemplateLiteral(..)
+            | MemberExpression::SuperProperty(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..)
+            | MemberExpression::PrivateId(..) => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(n) => n.early_errors(agent, errs, strict),
-            MemberExpressionKind::Expression(l, r) => {
+        match self {
+            MemberExpression::PrimaryExpression(n) => n.early_errors(agent, errs, strict),
+            MemberExpression::Expression(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
-            MemberExpressionKind::IdentifierName(n, _) => n.early_errors(agent, errs, strict),
-            MemberExpressionKind::TemplateLiteral(l, r) => {
+            MemberExpression::IdentifierName(n, _) => n.early_errors(agent, errs, strict),
+            MemberExpression::TemplateLiteral(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict, 0xffff_ffff);
             }
-            MemberExpressionKind::SuperProperty(n) => n.early_errors(agent, errs, strict),
-            MemberExpressionKind::MetaProperty(meta) => meta.early_errors(agent, errs),
-            MemberExpressionKind::NewArguments(l, r) => {
+            MemberExpression::SuperProperty(n) => n.early_errors(agent, errs, strict),
+            MemberExpression::MetaProperty(meta) => meta.early_errors(agent, errs),
+            MemberExpression::NewArguments(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
-            MemberExpressionKind::PrivateId(n, _) => n.early_errors(agent, errs, strict),
+            MemberExpression::PrivateId(n, _) => n.early_errors(agent, errs, strict),
         }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(node) => node.is_strictly_deletable(),
-            MemberExpressionKind::Expression(..)
-            | MemberExpressionKind::IdentifierName(..)
-            | MemberExpressionKind::TemplateLiteral(..)
-            | MemberExpressionKind::SuperProperty(..)
-            | MemberExpressionKind::MetaProperty(..)
-            | MemberExpressionKind::NewArguments(..) => true,
-            MemberExpressionKind::PrivateId(..) => false,
+        match self {
+            MemberExpression::PrimaryExpression(node) => node.is_strictly_deletable(),
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::TemplateLiteral(..)
+            | MemberExpression::SuperProperty(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..) => true,
+            MemberExpression::PrivateId(..) => false,
         }
     }
 
@@ -362,14 +354,14 @@ impl MemberExpression {
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(boxed) => boxed.assignment_target_type(strict),
-            MemberExpressionKind::Expression(..) => ATTKind::Simple,
-            MemberExpressionKind::IdentifierName(..) | MemberExpressionKind::PrivateId(..) => ATTKind::Simple,
-            MemberExpressionKind::TemplateLiteral(..) => ATTKind::Invalid,
-            MemberExpressionKind::SuperProperty(..) => ATTKind::Simple,
-            MemberExpressionKind::MetaProperty(..) => ATTKind::Invalid,
-            MemberExpressionKind::NewArguments(..) => ATTKind::Invalid,
+        match self {
+            MemberExpression::PrimaryExpression(boxed) => boxed.assignment_target_type(strict),
+            MemberExpression::Expression(..) => ATTKind::Simple,
+            MemberExpression::IdentifierName(..) | MemberExpression::PrivateId(..) => ATTKind::Simple,
+            MemberExpression::TemplateLiteral(..) => ATTKind::Invalid,
+            MemberExpression::SuperProperty(..) => ATTKind::Simple,
+            MemberExpression::MetaProperty(..) => ATTKind::Invalid,
+            MemberExpression::NewArguments(..) => ATTKind::Invalid,
         }
     }
 
@@ -377,21 +369,21 @@ impl MemberExpression {
     ///
     /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
     pub fn is_identifier_ref(&self) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(x) => x.is_identifier_ref(),
-            MemberExpressionKind::Expression(..)
-            | MemberExpressionKind::IdentifierName(..)
-            | MemberExpressionKind::TemplateLiteral(..)
-            | MemberExpressionKind::SuperProperty(..)
-            | MemberExpressionKind::MetaProperty(..)
-            | MemberExpressionKind::NewArguments(..)
-            | MemberExpressionKind::PrivateId(..) => false,
+        match self {
+            MemberExpression::PrimaryExpression(x) => x.is_identifier_ref(),
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::TemplateLiteral(..)
+            | MemberExpression::SuperProperty(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..)
+            | MemberExpression::PrivateId(..) => false,
         }
     }
 
     pub fn is_named_function(&self) -> bool {
-        match &self.kind {
-            MemberExpressionKind::PrimaryExpression(node) => node.is_named_function(),
+        match self {
+            MemberExpression::PrimaryExpression(node) => node.is_named_function(),
             _ => false,
         }
     }
@@ -401,20 +393,16 @@ impl MemberExpression {
 //      super [ Expression[+In, ?Yield, ?Await] ]
 //      super . IdentifierName
 #[derive(Debug)]
-pub enum SuperPropertyKind {
+pub enum SuperProperty {
     Expression(Rc<Expression>),
     IdentifierName(IdentifierData),
-}
-#[derive(Debug)]
-pub struct SuperProperty {
-    kind: SuperPropertyKind,
 }
 
 impl fmt::Display for SuperProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            SuperPropertyKind::Expression(boxed) => write!(f, "super [ {} ]", boxed),
-            SuperPropertyKind::IdentifierName(boxed) => write!(f, "super . {}", boxed),
+        match self {
+            SuperProperty::Expression(boxed) => write!(f, "super [ {} ]", boxed),
+            SuperProperty::IdentifierName(boxed) => write!(f, "super . {}", boxed),
         }
     }
 }
@@ -426,9 +414,9 @@ impl PrettyPrint for SuperProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SuperProperty: {}", first, self)?;
-        match &self.kind {
-            SuperPropertyKind::Expression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            SuperPropertyKind::IdentifierName(_) => Ok(()),
+        match self {
+            SuperProperty::Expression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            SuperProperty::IdentifierName(_) => Ok(()),
         }
     }
 
@@ -438,14 +426,14 @@ impl PrettyPrint for SuperProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SuperProperty: {}", first, self)?;
-        match &self.kind {
-            SuperPropertyKind::Expression(node) => {
+        match self {
+            SuperProperty::Expression(node) => {
                 pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            SuperPropertyKind::IdentifierName(id) => {
+            SuperProperty::IdentifierName(id) => {
                 pprint_token(writer, "super", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::IdentifierName, &successive, Spot::Final)
@@ -462,19 +450,19 @@ impl SuperProperty {
             Punctuator::LeftBracket => {
                 let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
                 let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
-                Ok((Rc::new(SuperProperty { kind: SuperPropertyKind::Expression(exp) }), after_rb))
+                Ok((Rc::new(SuperProperty::Expression(exp)), after_rb))
             }
             _ => {
                 let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementRegExp)?;
-                Ok((Rc::new(SuperProperty { kind: SuperPropertyKind::IdentifierName(id) }), after_id))
+                Ok((Rc::new(SuperProperty::IdentifierName(id)), after_id))
             }
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            SuperPropertyKind::Expression(n) => kind == ParseNodeKind::Super || n.contains(kind),
-            SuperPropertyKind::IdentifierName(_) => kind == ParseNodeKind::Super,
+        match self {
+            SuperProperty::Expression(n) => kind == ParseNodeKind::Super || n.contains(kind),
+            SuperProperty::IdentifierName(_) => kind == ParseNodeKind::Super,
         }
     }
 
@@ -485,9 +473,9 @@ impl SuperProperty {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match &self.kind {
-            SuperPropertyKind::Expression(n) => n.all_private_identifiers_valid(names),
-            SuperPropertyKind::IdentifierName(_) => true,
+        match self {
+            SuperProperty::Expression(n) => n.all_private_identifiers_valid(names),
+            SuperProperty::IdentifierName(_) => true,
         }
     }
 
@@ -502,17 +490,17 @@ impl SuperProperty {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            SuperPropertyKind::Expression(e) => e.contains_arguments(),
-            SuperPropertyKind::IdentifierName(_) => false,
+        match self {
+            SuperProperty::Expression(e) => e.contains_arguments(),
+            SuperProperty::IdentifierName(_) => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        match &self.kind {
-            SuperPropertyKind::Expression(exp) => exp.early_errors(agent, errs, strict),
-            SuperPropertyKind::IdentifierName(_) => {}
+        match self {
+            SuperProperty::Expression(exp) => exp.early_errors(agent, errs, strict),
+            SuperProperty::IdentifierName(_) => {}
         }
     }
 }
@@ -525,20 +513,16 @@ impl SuperProperty {
 // ImportMeta :
 //      import . meta
 #[derive(Debug)]
-pub enum MetaPropertyKind {
+pub enum MetaProperty {
     NewTarget,
     ImportMeta(ParseGoal),
-}
-#[derive(Debug)]
-pub struct MetaProperty {
-    kind: MetaPropertyKind,
 }
 
 impl fmt::Display for MetaProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            MetaPropertyKind::NewTarget => write!(f, "new . target"),
-            MetaPropertyKind::ImportMeta(_) => write!(f, "import . meta"),
+        match self {
+            MetaProperty::NewTarget => write!(f, "new . target"),
+            MetaProperty::ImportMeta(_) => write!(f, "import . meta"),
         }
     }
 }
@@ -557,13 +541,13 @@ impl PrettyPrint for MetaProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}MetaProperty: {}", first, self)?;
-        match &self.kind {
-            MetaPropertyKind::NewTarget => {
+        match self {
+            MetaProperty::NewTarget => {
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "target", TokenType::Keyword, &successive, Spot::Final)
             }
-            MetaPropertyKind::ImportMeta(_) => {
+            MetaProperty::ImportMeta(_) => {
                 pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "meta", TokenType::Keyword, &successive, Spot::Final)
@@ -573,31 +557,31 @@ impl PrettyPrint for MetaProperty {
 }
 
 impl MetaProperty {
-    fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: Keyword, kind: MetaPropertyKind) -> ParseResult<Self> {
+    fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: Keyword, kind: MetaProperty) -> ParseResult<Self> {
         let after_dot = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
         let after_kwd = scan_for_keyword(after_dot, parser.source, ScanGoal::InputElementRegExp, kwd)?;
-        Ok((Rc::new(MetaProperty { kind }), after_kwd))
+        Ok((Rc::new(kind), after_kwd))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (kwd, after_kwd) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
-            Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaPropertyKind::NewTarget),
-            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaPropertyKind::ImportMeta(parser.goal)),
+            Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaProperty::NewTarget),
+            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaProperty::ImportMeta(parser.goal)),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            MetaPropertyKind::NewTarget => kind == ParseNodeKind::NewTarget,
-            MetaPropertyKind::ImportMeta(_) => false,
+        match self {
+            MetaProperty::NewTarget => kind == ParseNodeKind::NewTarget,
+            MetaProperty::ImportMeta(_) => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
-        match &self.kind {
-            MetaPropertyKind::NewTarget => {}
-            MetaPropertyKind::ImportMeta(goal) => {
+        match self {
+            MetaProperty::NewTarget => {}
+            MetaProperty::ImportMeta(goal) => {
                 // ImportMeta :
                 //  import . meta
                 //  * It is a Syntax Error if the syntactic goal symbol is not Module.
@@ -614,22 +598,18 @@ impl MetaProperty {
 //      ( ArgumentList[?Yield, ?Await] )
 //      ( ArgumentList[?Yield, ?Await] , )
 #[derive(Debug)]
-pub enum ArgumentsKind {
+pub enum Arguments {
     Empty,
     ArgumentList(Rc<ArgumentList>),
     ArgumentListComma(Rc<ArgumentList>),
 }
-#[derive(Debug)]
-pub struct Arguments {
-    kind: ArgumentsKind,
-}
 
 impl fmt::Display for Arguments {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            ArgumentsKind::Empty => write!(f, "( )"),
-            ArgumentsKind::ArgumentList(boxed) => write!(f, "( {} )", boxed),
-            ArgumentsKind::ArgumentListComma(boxed) => write!(f, "( {} , )", boxed),
+        match self {
+            Arguments::Empty => write!(f, "( )"),
+            Arguments::ArgumentList(boxed) => write!(f, "( {} )", boxed),
+            Arguments::ArgumentListComma(boxed) => write!(f, "( {} , )", boxed),
         }
     }
 }
@@ -641,9 +621,9 @@ impl PrettyPrint for Arguments {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Arguments: {}", first, self)?;
-        match &self.kind {
-            ArgumentsKind::Empty => Ok(()),
-            ArgumentsKind::ArgumentList(boxed) | ArgumentsKind::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+        match self {
+            Arguments::Empty => Ok(()),
+            Arguments::ArgumentList(boxed) | Arguments::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -653,12 +633,12 @@ impl PrettyPrint for Arguments {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Arguments: {}", first, self)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        match &self.kind {
-            ArgumentsKind::Empty => {}
-            ArgumentsKind::ArgumentList(node) => {
+        match self {
+            Arguments::Empty => {}
+            Arguments::ArgumentList(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ArgumentsKind::ArgumentListComma(node) => {
+            Arguments::ArgumentListComma(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
@@ -671,19 +651,17 @@ impl Arguments {
     // Arguments has many parents. It needs caching.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen).map(|after_rp| (Rc::new(Arguments { kind: ArgumentsKind::Empty }), after_rp)).otherwise(
-            || {
-                let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(after_args, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightParen])?;
-                match punct {
-                    Punctuator::RightParen => Ok((Rc::new(Arguments { kind: ArgumentsKind::ArgumentList(args) }), after_punct)),
-                    _ => {
-                        let after_rp = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-                        Ok((Rc::new(Arguments { kind: ArgumentsKind::ArgumentListComma(args) }), after_rp))
-                    }
+        scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen).map(|after_rp| (Rc::new(Arguments::Empty), after_rp)).otherwise(|| {
+            let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
+            let (punct, after_punct) = scan_for_punct_set(after_args, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightParen])?;
+            match punct {
+                Punctuator::RightParen => Ok((Rc::new(Arguments::ArgumentList(args)), after_punct)),
+                _ => {
+                    let after_rp = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
+                    Ok((Rc::new(Arguments::ArgumentListComma(args)), after_rp))
                 }
-            },
-        )
+            }
+        })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -699,10 +677,10 @@ impl Arguments {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            ArgumentsKind::Empty => false,
-            ArgumentsKind::ArgumentList(n) => n.contains(kind),
-            ArgumentsKind::ArgumentListComma(n) => n.contains(kind),
+        match self {
+            Arguments::Empty => false,
+            Arguments::ArgumentList(n) => n.contains(kind),
+            Arguments::ArgumentListComma(n) => n.contains(kind),
         }
     }
 
@@ -713,10 +691,10 @@ impl Arguments {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match &self.kind {
-            ArgumentsKind::Empty => true,
-            ArgumentsKind::ArgumentList(n) => n.all_private_identifiers_valid(names),
-            ArgumentsKind::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
+        match self {
+            Arguments::Empty => true,
+            Arguments::ArgumentList(n) => n.all_private_identifiers_valid(names),
+            Arguments::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
         }
     }
 
@@ -731,17 +709,17 @@ impl Arguments {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            ArgumentsKind::Empty => false,
-            ArgumentsKind::ArgumentList(al) | ArgumentsKind::ArgumentListComma(al) => al.contains_arguments(),
+        match self {
+            Arguments::Empty => false,
+            Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => al.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        match &self.kind {
-            ArgumentsKind::Empty => {}
-            ArgumentsKind::ArgumentList(n) | ArgumentsKind::ArgumentListComma(n) => n.early_errors(agent, errs, strict),
+        match self {
+            Arguments::Empty => {}
+            Arguments::ArgumentList(n) | Arguments::ArgumentListComma(n) => n.early_errors(agent, errs, strict),
         }
     }
 }
@@ -752,21 +730,21 @@ impl Arguments {
 //      ArgumentList[?Yield, ?Await] , AssignmentExpression[+In, ?Yield, ?Await]
 //      ArgumentList[?Yield, ?Await] , ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum ArgumentListKind {
+pub enum ArgumentList {
     FallThru(Rc<AssignmentExpression>),
     Dots(Rc<AssignmentExpression>),
     ArgumentList(Rc<ArgumentList>, Rc<AssignmentExpression>),
     ArgumentListDots(Rc<ArgumentList>, Rc<AssignmentExpression>),
 }
 
-impl ArgumentListKind {
-    // Package the results of a successful assignment_expression into an ArgumentListKind::FallThru.
+impl ArgumentList {
+    // Package the results of a successful assignment_expression into an ArgumentList::FallThru.
     fn ae_bundle(pair: (Rc<AssignmentExpression>, Scanner)) -> Result<(Self, Scanner), ParseError> {
         let (ae_boxed, scanner) = pair;
         Ok((Self::FallThru(ae_boxed), scanner))
     }
 
-    // Package the results of assignment_expression into an ArgumentListKind (or pass along a None)
+    // Package the results of assignment_expression into an ArgumentList (or pass along a None)
     //fn ae_package(opt: Option<(Rc<AssignmentExpression>, Scanner)>) -> Result<Option<(Self, Scanner)>, String> {
     //    opt.map_or(Ok(None), Self::ae_bundle)
     //}
@@ -774,7 +752,7 @@ impl ArgumentListKind {
     // Parse the production
     //      ArgumentList : AssignmentExpression
     // returning one of:
-    //    * an ArgumentListKind that contains all the relevant info
+    //    * an ArgumentList that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
     pub fn parse_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
         AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).and_then(Self::ae_bundle)
@@ -783,7 +761,7 @@ impl ArgumentListKind {
     // Parse the production
     //      ArgumentList : ... AssignmentExpression
     // returning one of:
-    //    * an ArgumentListKind that contains all the relevant info
+    //    * an ArgumentList that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
     // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
     pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
@@ -816,18 +794,13 @@ impl ArgumentListKind {
     }
 }
 
-#[derive(Debug)]
-pub struct ArgumentList {
-    kind: ArgumentListKind,
-}
-
 impl fmt::Display for ArgumentList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) => write!(f, "{}", boxed),
-            ArgumentListKind::Dots(boxed) => write!(f, "... {}", boxed),
-            ArgumentListKind::ArgumentList(list, exp) => write!(f, "{} , {}", list, exp),
-            ArgumentListKind::ArgumentListDots(list, exp) => write!(f, "{} , ... {}", list, exp),
+        match self {
+            ArgumentList::FallThru(boxed) => write!(f, "{}", boxed),
+            ArgumentList::Dots(boxed) => write!(f, "... {}", boxed),
+            ArgumentList::ArgumentList(list, exp) => write!(f, "{} , {}", list, exp),
+            ArgumentList::ArgumentListDots(list, exp) => write!(f, "{} , ... {}", list, exp),
         }
     }
 }
@@ -839,9 +812,9 @@ impl PrettyPrint for ArgumentList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArgumentList: {}", first, self)?;
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) | ArgumentListKind::Dots(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArgumentListKind::ArgumentList(list, exp) | ArgumentListKind::ArgumentListDots(list, exp) => {
+        match self {
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -855,20 +828,20 @@ impl PrettyPrint for ArgumentList {
             let (first, successive) = prettypad(pad, state);
             writeln!(writer, "{}ArgumentList: {}", first, self).and(Ok(successive))
         };
-        match &self.kind {
-            ArgumentListKind::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
-            ArgumentListKind::Dots(node) => {
+        match self {
+            ArgumentList::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
+            ArgumentList::Dots(node) => {
                 let successive = head(pad, state)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArgumentListKind::ArgumentList(list, exp) => {
+            ArgumentList::ArgumentList(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArgumentListKind::ArgumentListDots(list, exp) => {
+            ArgumentList::ArgumentListDots(list, exp) => {
                 let successive = head(pad, state)?;
                 list.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -882,24 +855,22 @@ impl PrettyPrint for ArgumentList {
 impl ArgumentList {
     // ArgumentList's only direct parent is Arguments; it doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        ArgumentListKind::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
-            .otherwise(|| ArgumentListKind::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
+        ArgumentList::parse_assignment_expression(parser, scanner, yield_flag, await_flag)
+            .otherwise(|| ArgumentList::parse_dots_assignment_expression(parser, scanner, yield_flag, await_flag))
             .map(|(kind, after)| {
                 let mut top_scanner = after;
-                let mut top_box = Rc::new(Self { kind });
+                let mut top_box = Rc::new(kind);
                 enum Dots {
                     Dots,
                     NoDots,
                 }
-                while let Ok((ae, scan, dotstate)) = ArgumentListKind::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
+                while let Ok((ae, scan, dotstate)) = ArgumentList::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
                     .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
-                    .otherwise(|| ArgumentListKind::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag).map(|(ae, after_ae)| (ae, after_ae, Dots::Dots)))
+                    .otherwise(|| ArgumentList::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag).map(|(ae, after_ae)| (ae, after_ae, Dots::Dots)))
                 {
-                    top_box = Rc::new(ArgumentList {
-                        kind: match dotstate {
-                            Dots::Dots => ArgumentListKind::ArgumentListDots(top_box, ae),
-                            Dots::NoDots => ArgumentListKind::ArgumentList(top_box, ae),
-                        },
+                    top_box = Rc::new(match dotstate {
+                        Dots::Dots => ArgumentList::ArgumentListDots(top_box, ae),
+                        Dots::NoDots => ArgumentList::ArgumentList(top_box, ae),
                     });
                     top_scanner = scan;
                 }
@@ -908,11 +879,11 @@ impl ArgumentList {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) => boxed.contains(kind),
-            ArgumentListKind::Dots(boxed) => boxed.contains(kind),
-            ArgumentListKind::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
-            ArgumentListKind::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
+        match self {
+            ArgumentList::FallThru(boxed) => boxed.contains(kind),
+            ArgumentList::Dots(boxed) => boxed.contains(kind),
+            ArgumentList::ArgumentList(list, exp) => list.contains(kind) || exp.contains(kind),
+            ArgumentList::ArgumentListDots(list, exp) => list.contains(kind) || exp.contains(kind),
         }
     }
 
@@ -923,11 +894,11 @@ impl ArgumentList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentListKind::Dots(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentListKind::ArgumentList(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
-            ArgumentListKind::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+        match self {
+            ArgumentList::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentList::ArgumentList(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            ArgumentList::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
         }
     }
 
@@ -942,17 +913,17 @@ impl ArgumentList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            ArgumentListKind::FallThru(ae) | ArgumentListKind::Dots(ae) => ae.contains_arguments(),
-            ArgumentListKind::ArgumentList(al, ae) | ArgumentListKind::ArgumentListDots(al, ae) => al.contains_arguments() || ae.contains_arguments(),
+        match self {
+            ArgumentList::FallThru(ae) | ArgumentList::Dots(ae) => ae.contains_arguments(),
+            ArgumentList::ArgumentList(al, ae) | ArgumentList::ArgumentListDots(al, ae) => al.contains_arguments() || ae.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
-        match &self.kind {
-            ArgumentListKind::FallThru(boxed) | ArgumentListKind::Dots(boxed) => boxed.early_errors(agent, errs, strict),
-            ArgumentListKind::ArgumentList(list, exp) | ArgumentListKind::ArgumentListDots(list, exp) => {
+        match self {
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.early_errors(agent, errs, strict),
+            ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.early_errors(agent, errs, strict);
                 exp.early_errors(agent, errs, strict);
             }
@@ -964,21 +935,16 @@ impl ArgumentList {
 //      MemberExpression[?Yield, ?Await]
 //      new NewExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum NewExpressionKind {
+pub enum NewExpression {
     MemberExpression(Rc<MemberExpression>),
     NewExpression(Rc<NewExpression>),
 }
 
-#[derive(Debug)]
-pub struct NewExpression {
-    pub kind: NewExpressionKind,
-}
-
 impl fmt::Display for NewExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => write!(f, "{}", boxed),
-            NewExpressionKind::NewExpression(boxed) => write!(f, "new {}", boxed),
+        match self {
+            NewExpression::MemberExpression(boxed) => write!(f, "{}", boxed),
+            NewExpression::NewExpression(boxed) => write!(f, "new {}", boxed),
         }
     }
 }
@@ -990,18 +956,18 @@ impl PrettyPrint for NewExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}NewExpression: {}", first, self)?;
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            NewExpressionKind::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            NewExpression::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
         T: Write,
     {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            NewExpressionKind::NewExpression(node) => {
+        match self {
+            NewExpression::MemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            NewExpression::NewExpression(node) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}NewExpression: {}", first, self)?;
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
@@ -1013,9 +979,9 @@ impl PrettyPrint for NewExpression {
 
 impl IsFunctionDefinition for NewExpression {
     fn is_function_definition(&self) -> bool {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.is_function_definition(),
-            NewExpressionKind::NewExpression(_) => false,
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.is_function_definition(),
+            NewExpression::NewExpression(_) => false,
         }
     }
 }
@@ -1025,25 +991,25 @@ impl NewExpression {
         Err(ParseError::new(PECode::NewOrMEExpected, scanner))
             .otherwise(|| {
                 let (me, after_me) = MemberExpression::parse(parser, scanner, yield_flag, await_flag)?;
-                Ok((Rc::new(NewExpression { kind: NewExpressionKind::MemberExpression(me) }), after_me))
+                Ok((Rc::new(NewExpression::MemberExpression(me)), after_me))
             })
             .otherwise(|| {
                 let after_new = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
                 let (ne, after_ne) = Self::parse(parser, after_new, yield_flag, await_flag)?;
-                Ok((Rc::new(NewExpression { kind: NewExpressionKind::NewExpression(ne) }), after_ne))
+                Ok((Rc::new(NewExpression::NewExpression(ne)), after_ne))
             })
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.contains(kind),
-            NewExpressionKind::NewExpression(boxed) => boxed.contains(kind),
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.contains(kind),
+            NewExpression::NewExpression(boxed) => boxed.contains(kind),
         }
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(n) => n.as_string_literal(),
+        match self {
+            NewExpression::MemberExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
@@ -1055,9 +1021,9 @@ impl NewExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
-            NewExpressionKind::NewExpression(boxed) => boxed.all_private_identifiers_valid(names),
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            NewExpression::NewExpression(boxed) => boxed.all_private_identifiers_valid(names),
         }
     }
 
@@ -1072,30 +1038,30 @@ impl NewExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            NewExpressionKind::MemberExpression(me) => me.contains_arguments(),
-            NewExpressionKind::NewExpression(ne) => ne.contains_arguments(),
+        match self {
+            NewExpression::MemberExpression(me) => me.contains_arguments(),
+            NewExpression::NewExpression(ne) => ne.contains_arguments(),
         }
     }
 
     pub fn is_object_or_array_literal(&self) -> bool {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.is_object_or_array_literal(),
-            NewExpressionKind::NewExpression(_) => false,
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.is_object_or_array_literal(),
+            NewExpression::NewExpression(_) => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
-            NewExpressionKind::NewExpression(boxed) => boxed.early_errors(agent, errs, strict),
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
+            NewExpression::NewExpression(boxed) => boxed.early_errors(agent, errs, strict),
         }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        match &self.kind {
-            NewExpressionKind::NewExpression(_) => true,
-            NewExpressionKind::MemberExpression(node) => node.is_strictly_deletable(),
+        match self {
+            NewExpression::NewExpression(_) => true,
+            NewExpression::MemberExpression(node) => node.is_strictly_deletable(),
         }
     }
 
@@ -1103,9 +1069,9 @@ impl NewExpression {
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(boxed) => boxed.assignment_target_type(strict),
-            NewExpressionKind::NewExpression(_) => ATTKind::Invalid,
+        match self {
+            NewExpression::MemberExpression(boxed) => boxed.assignment_target_type(strict),
+            NewExpression::NewExpression(_) => ATTKind::Invalid,
         }
     }
 
@@ -1113,15 +1079,15 @@ impl NewExpression {
     ///
     /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
     pub fn is_identifier_ref(&self) -> bool {
-        match &self.kind {
-            NewExpressionKind::NewExpression(_) => false,
-            NewExpressionKind::MemberExpression(x) => x.is_identifier_ref(),
+        match self {
+            NewExpression::NewExpression(_) => false,
+            NewExpression::MemberExpression(x) => x.is_identifier_ref(),
         }
     }
 
     pub fn is_named_function(&self) -> bool {
-        match &self.kind {
-            NewExpressionKind::MemberExpression(node) => node.is_named_function(),
+        match self {
+            NewExpression::MemberExpression(node) => node.is_named_function(),
             _ => false,
         }
     }
@@ -1363,7 +1329,7 @@ impl ImportCall {
 //      CallExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
 //      CallExpression[?Yield, ?Await] . PrivateIdentifier
 #[derive(Debug)]
-pub enum CallExpressionKind {
+pub enum CallExpression {
     CallMemberExpression(Rc<CallMemberExpression>),
     SuperCall(Rc<SuperCall>),
     ImportCall(Rc<ImportCall>),
@@ -1374,21 +1340,16 @@ pub enum CallExpressionKind {
     CallExpressionPrivateId(Rc<CallExpression>, IdentifierData),
 }
 
-#[derive(Debug)]
-pub struct CallExpression {
-    kind: CallExpressionKind,
-}
-
 impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(boxed) => write!(f, "{}", boxed),
-            CallExpressionKind::SuperCall(boxed) => write!(f, "{}", boxed),
-            CallExpressionKind::ImportCall(boxed) => write!(f, "{}", boxed),
-            CallExpressionKind::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
-            CallExpressionKind::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
-            CallExpressionKind::CallExpressionIdentifierName(ce, id) | CallExpressionKind::CallExpressionPrivateId(ce, id) => write!(f, "{} . {}", ce, id),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
+        match self {
+            CallExpression::CallMemberExpression(boxed) => write!(f, "{}", boxed),
+            CallExpression::SuperCall(boxed) => write!(f, "{}", boxed),
+            CallExpression::ImportCall(boxed) => write!(f, "{}", boxed),
+            CallExpression::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
+            CallExpression::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
+            CallExpression::CallExpressionIdentifierName(ce, id) | CallExpression::CallExpressionPrivateId(ce, id) => write!(f, "{} . {}", ce, id),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
         }
     }
 }
@@ -1400,24 +1361,24 @@ impl PrettyPrint for CallExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CallExpression: {}", first, self)?;
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpressionKind::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpressionKind::ImportCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpressionKind::CallExpressionArguments(ce, args) => {
+        match self {
+            CallExpression::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::ImportCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::CallExpressionArguments(ce, args) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 args.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionExpression(ce, exp) => {
+            CallExpression::CallExpressionExpression(ce, exp) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => {
+            CallExpression::CallExpressionIdentifierName(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::CallExpressionPrivateId(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -1430,30 +1391,30 @@ impl PrettyPrint for CallExpression {
             writeln!(writer, "{}CallExpression: {}", first, self)?;
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and(Ok(successive))
         };
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpressionKind::SuperCall(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpressionKind::ImportCall(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpressionKind::CallExpressionArguments(ce, right) => {
+        match self {
+            CallExpression::CallMemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpression::SuperCall(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpression::ImportCall(node) => node.concise_with_leftpad(writer, pad, state),
+            CallExpression::CallExpressionArguments(ce, right) => {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionExpression(ce, right) => {
+            CallExpression::CallExpressionExpression(ce, right) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionIdentifierName(ce, right) => {
+            CallExpression::CallExpressionIdentifierName(ce, right) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::NotFinal)
             }
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, right) => {
+            CallExpression::CallExpressionTemplateLiteral(ce, right) => {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpressionKind::CallExpressionPrivateId(ce, id) => {
+            CallExpression::CallExpressionPrivateId(ce, id) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
@@ -1465,11 +1426,9 @@ impl PrettyPrint for CallExpression {
 impl CallExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::CallExpression), scanner))
-            .otherwise(|| {
-                CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Rc::new(Self { kind: CallExpressionKind::CallMemberExpression(cme) }), after_cme))
-            })
-            .otherwise(|| SuperCall::parse(parser, scanner, yield_arg, await_arg).map(|(sc, after_sc)| (Rc::new(Self { kind: CallExpressionKind::SuperCall(sc) }), after_sc)))
-            .otherwise(|| ImportCall::parse(parser, scanner, yield_arg, await_arg).map(|(ic, after_ic)| (Rc::new(Self { kind: CallExpressionKind::ImportCall(ic) }), after_ic)))
+            .otherwise(|| CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Rc::new(CallExpression::CallMemberExpression(cme)), after_cme)))
+            .otherwise(|| SuperCall::parse(parser, scanner, yield_arg, await_arg).map(|(sc, after_sc)| (Rc::new(CallExpression::SuperCall(sc)), after_sc)))
+            .otherwise(|| ImportCall::parse(parser, scanner, yield_arg, await_arg).map(|(ic, after_ic)| (Rc::new(CallExpression::ImportCall(ic)), after_ic)))
             .map(|(ce, after_ce)| {
                 enum Follow {
                     Args(Rc<Arguments>),
@@ -1497,14 +1456,12 @@ impl CallExpression {
                         }
                     })
                 {
-                    top_box = Rc::new(CallExpression {
-                        kind: match follow {
-                            Follow::Exp(exp) => CallExpressionKind::CallExpressionExpression(top_box, exp),
-                            Follow::Id(id) => CallExpressionKind::CallExpressionIdentifierName(top_box, id),
-                            Follow::TLit(tl) => CallExpressionKind::CallExpressionTemplateLiteral(top_box, tl),
-                            Follow::Args(args) => CallExpressionKind::CallExpressionArguments(top_box, args),
-                            Follow::Pid(id) => CallExpressionKind::CallExpressionPrivateId(top_box, id),
-                        },
+                    top_box = Rc::new(match follow {
+                        Follow::Exp(exp) => CallExpression::CallExpressionExpression(top_box, exp),
+                        Follow::Id(id) => CallExpression::CallExpressionIdentifierName(top_box, id),
+                        Follow::TLit(tl) => CallExpression::CallExpressionTemplateLiteral(top_box, tl),
+                        Follow::Args(args) => CallExpression::CallExpressionArguments(top_box, args),
+                        Follow::Pid(id) => CallExpression::CallExpressionPrivateId(top_box, id),
                     });
                     top_scanner = scan;
                 }
@@ -1525,38 +1482,38 @@ impl CallExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(boxed) => boxed.contains(kind),
-            CallExpressionKind::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
-            CallExpressionKind::ImportCall(boxed) => boxed.contains(kind),
-            CallExpressionKind::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
-            CallExpressionKind::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains(kind),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
+        match self {
+            CallExpression::CallMemberExpression(boxed) => boxed.contains(kind),
+            CallExpression::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
+            CallExpression::ImportCall(boxed) => boxed.contains(kind),
+            CallExpression::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
+            CallExpression::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
+            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => ce.contains(kind),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
-        match &self.kind {
+        match self {
             //  1. For each child node child of this Parse Node, do
             //      a. If child is an instance of a nonterminal, then
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
-            CallExpressionKind::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpressionKind::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpressionKind::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpressionKind::CallExpressionArguments(ce, args) => ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names),
-            CallExpressionKind::CallExpressionExpression(ce, exp) => ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) => ce.all_private_identifiers_valid(names),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names),
+            CallExpression::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpression::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpression::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionArguments(ce, args) => ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionExpression(ce, exp) => ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionIdentifierName(ce, _) => ce.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names),
 
             // CallExpression : CallExpression . PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of CallExpression with argument names.
             //  2. Return false.
-            CallExpressionKind::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
         }
     }
 
@@ -1571,54 +1528,54 @@ impl CallExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(cme) => cme.contains_arguments(),
-            CallExpressionKind::SuperCall(sc) => sc.contains_arguments(),
-            CallExpressionKind::ImportCall(ic) => ic.contains_arguments(),
-            CallExpressionKind::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
-            CallExpressionKind::CallExpressionExpression(ce, e) => ce.contains_arguments() || e.contains_arguments(),
-            CallExpressionKind::CallExpressionIdentifierName(ce, _) | CallExpressionKind::CallExpressionPrivateId(ce, _) => ce.contains_arguments(),
-            CallExpressionKind::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
+        match self {
+            CallExpression::CallMemberExpression(cme) => cme.contains_arguments(),
+            CallExpression::SuperCall(sc) => sc.contains_arguments(),
+            CallExpression::ImportCall(ic) => ic.contains_arguments(),
+            CallExpression::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
+            CallExpression::CallExpressionExpression(ce, e) => ce.contains_arguments() || e.contains_arguments(),
+            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => ce.contains_arguments(),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
-            CallExpressionKind::SuperCall(node) => node.early_errors(agent, errs, strict),
-            CallExpressionKind::ImportCall(node) => node.early_errors(agent, errs, strict),
-            CallExpressionKind::CallExpressionArguments(node, args) => {
+        match self {
+            CallExpression::CallMemberExpression(node) => node.early_errors(agent, errs, strict),
+            CallExpression::SuperCall(node) => node.early_errors(agent, errs, strict),
+            CallExpression::ImportCall(node) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionArguments(node, args) => {
                 node.early_errors(agent, errs, strict);
                 args.early_errors(agent, errs, strict);
             }
-            CallExpressionKind::CallExpressionExpression(node, exp) => {
+            CallExpression::CallExpressionExpression(node, exp) => {
                 node.early_errors(agent, errs, strict);
                 exp.early_errors(agent, errs, strict);
             }
-            CallExpressionKind::CallExpressionIdentifierName(node, _) => node.early_errors(agent, errs, strict),
-            CallExpressionKind::CallExpressionTemplateLiteral(node, tl) => {
+            CallExpression::CallExpressionIdentifierName(node, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionTemplateLiteral(node, tl) => {
                 node.early_errors(agent, errs, strict);
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
-            CallExpressionKind::CallExpressionPrivateId(node, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionPrivateId(node, _) => node.early_errors(agent, errs, strict),
         }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        !matches!(&self.kind, CallExpressionKind::CallExpressionPrivateId(..))
+        !matches!(self, CallExpression::CallExpressionPrivateId(..))
     }
 
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self) -> ATTKind {
-        match &self.kind {
-            CallExpressionKind::CallMemberExpression(_)
-            | CallExpressionKind::SuperCall(_)
-            | CallExpressionKind::ImportCall(_)
-            | CallExpressionKind::CallExpressionArguments(..)
-            | CallExpressionKind::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
-            CallExpressionKind::CallExpressionExpression(..) | CallExpressionKind::CallExpressionIdentifierName(..) | CallExpressionKind::CallExpressionPrivateId(..) => ATTKind::Simple,
+        match self {
+            CallExpression::CallMemberExpression(_)
+            | CallExpression::SuperCall(_)
+            | CallExpression::ImportCall(_)
+            | CallExpression::CallExpressionArguments(..)
+            | CallExpression::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
+            CallExpression::CallExpressionExpression(..) | CallExpression::CallExpressionIdentifierName(..) | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
 }
