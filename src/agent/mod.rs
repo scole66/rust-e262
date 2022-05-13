@@ -524,7 +524,7 @@ impl Agent {
                     // Stack: name base ...
                     let name = {
                         let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
-                        let value: Result<JSString, _> = result.unwrap().try_into();
+                        let value: Result<PropertyKey, _> = result.unwrap().try_into();
                         value.unwrap()
                     };
                     // Stack: base ...

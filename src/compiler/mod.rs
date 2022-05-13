@@ -492,7 +492,7 @@ impl ComputedPropertyName {
 }
 
 impl MemberExpression {
-    /// See [EvaluatePropertyAccessWithIdentifierKey ](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
+    /// See [EvaluatePropertyAccessWithIdentifierKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
     fn evaluate_property_access_with_identifier_key(chunk: &mut Chunk, identifier_name: &IdentifierData, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         // Stack: base ...
         let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
@@ -501,6 +501,46 @@ impl MemberExpression {
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref
         Ok(CompilerStatusFlags::new().reference())
+    }
+
+    /// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
+    fn evaluate_property_access_with_expression_key(chunk: &mut Chunk, expression: &Rc<Expression>, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        let mut exits = vec![];
+        // Stack: base ...
+        let state = expression.compile(chunk, strict)?;
+        // Stack: propertyNameReference/error1 base ...
+        if state.can_be_reference {
+            chunk.op(Insn::GetValue);
+        }
+        // Stack: propertyNameValue/error1/error2 base ...
+        if state.can_be_abrupt || state.can_be_reference {
+            let norm = chunk.op_jump(Insn::JumpIfNormal);
+            // Stack: error1/error2 base ...
+            chunk.op(Insn::Swap);
+            chunk.op(Insn::Pop);
+            // stack: error1/error2 ...
+            let exit = chunk.op_jump(Insn::Jump);
+            exits.push(exit);
+            chunk.fixup(norm)?;
+        }
+        // Stack: nameValue base ...
+        chunk.op(Insn::ToPropertyKey);
+        // Stack: key/err base ...
+        let norm = chunk.op_jump(Insn::JumpIfNormal);
+        chunk.op(Insn::Swap);
+        chunk.op(Insn::Pop);
+        let exit = chunk.op_jump(Insn::Jump);
+        exits.push(exit);
+        chunk.fixup(norm)?;
+
+        // Stack: key base ...
+        chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+        // Stack: ref ...
+
+        for exit in exits {
+            chunk.fixup(exit)?;
+        }
+        Ok(CompilerStatusFlags::new().abrupt().reference())
     }
 
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
@@ -521,9 +561,28 @@ impl MemberExpression {
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: status.can_be_reference })
+                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: true })
             }
-            MemberExpressionKind::Expression(_, _) => todo!(),
+            MemberExpressionKind::Expression(me, exp) => {
+                let mut exits = vec![];
+                // Stack: ...
+                let status = me.compile(chunk, strict)?;
+                // Stack: base/err ...
+                if status.can_be_reference {
+                    chunk.op(Insn::GetValue);
+                }
+                if status.can_be_abrupt || status.can_be_reference {
+                    let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                    exits.push(exit);
+                }
+                // Stack: base ...
+                let status = Self::evaluate_property_access_with_expression_key(chunk, &exp, strict)?;
+                // Stack: ref/err ...
+                for exit in &exits {
+                    chunk.fixup(*exit)?;
+                }
+                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || !exits.is_empty(), can_be_reference: true })
+            }
             MemberExpressionKind::TemplateLiteral(_, _) => todo!(),
             MemberExpressionKind::SuperProperty(_) => todo!(),
             MemberExpressionKind::MetaProperty(_) => todo!(),
