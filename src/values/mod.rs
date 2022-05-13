@@ -428,7 +428,7 @@ impl Symbol {
         self.0.description.as_ref().cloned()
     }
     pub fn descriptive_string(&self) -> JSString {
-        let desc = self.description().unwrap_or(JSString::from(""));
+        let desc = self.description().unwrap_or_else(|| JSString::from(""));
         JSString::from("Symbol(").concat(desc).concat(")")
     }
 }

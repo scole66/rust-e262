@@ -297,17 +297,8 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     );
     define_property_or_throw(agent, &symbol_prototype, "description", PotentialPropertyDescriptor::new().get(descriptor_getter).enumerable(false).configurable(true)).unwrap();
     let to_prop_sym = agent.wks(WksId::ToPrimitive);
-    let to_primitive_func = create_builtin_function(
-        agent,
-        symbol_value_of,
-        false,
-        1.0,
-        PropertyKey::from(to_prop_sym.clone()),
-        BUILTIN_FUNCTION_SLOTS,
-        Some(realm.clone()),
-        Some(function_prototype.clone()),
-        None,
-    );
+    let to_primitive_func =
+        create_builtin_function(agent, symbol_value_of, false, 1.0, PropertyKey::from(to_prop_sym.clone()), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype), None);
     define_property_or_throw(agent, &symbol_prototype, to_prop_sym, PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true)).unwrap();
     let to_tag_sym = agent.wks(WksId::ToStringTag);
     define_property_or_throw(agent, &symbol_prototype, to_tag_sym, PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false)).unwrap();
@@ -336,7 +327,7 @@ fn symbol_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
     // 2. If description is undefined, let descString be undefined.
     // 3. Else, let descString be ? ToString(description).
     // 4. Return a new unique Symbol value whose [[Description]] value is descString.
-    if !new_target.is_none() {
+    if new_target.is_some() {
         Err(create_type_error(agent, "Symbol is not a constructor"))
     } else {
         let mut args = Arguments::from(arguments);
