@@ -52,8 +52,5 @@ for part in ${typeparts[@]}; do
   mangled=${mangled}${#part}${part}
 done
 
-tst ${file}::tests::${modname}
+tst ${file}::tests::${modname} || exit
 report --name-regex="_3res${#file}${file}([^0-9][^_]+_)?${mangled}"  --uncovered  --demangled
-
-# To Check: ECMAScriptValue, 
-# Ok: ArrayIndex, SymbolInternals, Symbol, PrivateElementKind, PrivateElement, Numeric, PrivateName, PropertyKey

@@ -260,9 +260,7 @@ impl ObjectLiteral {
                 // Stack: ...
                 chunk.op(Insn::Object);
                 // Stack: obj ...
-                let status = pdl.property_definition_evaluation(chunk, strict)?;
-                // Stack: obj ...
-                Ok(status)
+                pdl.property_definition_evaluation(chunk, strict)
             }
         }
     }

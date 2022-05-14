@@ -10,18 +10,45 @@ mod insn {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(Insn::String => "STRING"; "String innstruction")]
-    #[test_case(Insn::Resolve => "RESOLVE"; "Resolve innstruction")]
-    #[test_case(Insn::StrictResolve => "STRICT_RESOLVE"; "StrictResolve innstruction")]
-    #[test_case(Insn::This => "THIS"; "This innstruction")]
-    #[test_case(Insn::Null => "NULL"; "Null innstruction")]
-    #[test_case(Insn::True => "TRUE"; "True innstruction")]
-    #[test_case(Insn::False => "FALSE"; "False innstruction")]
-    #[test_case(Insn::Float => "FLOAT"; "Float innstruction")]
-    #[test_case(Insn::Bigint => "BIGINT"; "Bigint innstruction")]
-    #[test_case(Insn::GetValue => "GET_VALUE"; "GetValue innstruction")]
-    #[test_case(Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT"; "JumpIfAbrupt innstruction")]
-    #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty innstruction")]
+    #[test_case(Insn::String => "STRING"; "String instruction")]
+    #[test_case(Insn::Resolve => "RESOLVE"; "Resolve instruction")]
+    #[test_case(Insn::StrictResolve => "STRICT_RESOLVE"; "StrictResolve instruction")]
+    #[test_case(Insn::This => "THIS"; "This instruction")]
+    #[test_case(Insn::Null => "NULL"; "Null instruction")]
+    #[test_case(Insn::True => "TRUE"; "True instruction")]
+    #[test_case(Insn::False => "FALSE"; "False instruction")]
+    #[test_case(Insn::Float => "FLOAT"; "Float instruction")]
+    #[test_case(Insn::Bigint => "BIGINT"; "Bigint instruction")]
+    #[test_case(Insn::GetValue => "GET_VALUE"; "GetValue instruction")]
+    #[test_case(Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT"; "JumpIfAbrupt instruction")]
+    #[test_case(Insn::UpdateEmpty => "UPDATE_EMPTY"; "UpdateEmpty instruction")]
+    #[test_case(Insn::Undefined => "UNDEFINED"; "Undefined instruction")]
+    #[test_case(Insn::Empty => "EMPTY"; "Empty instruction")]
+    #[test_case(Insn::PutValue => "PUT_VALUE"; "PutValue instruction")]
+    #[test_case(Insn::Jump => "JUMP"; "Jump instruction")]
+    #[test_case(Insn::JumpIfNormal => "JUMP_IF_NORMAL"; "JumpIfNormal instruction")]
+    #[test_case(Insn::Call => "CALL"; "Call instruction")]
+    #[test_case(Insn::Swap => "SWAP"; "Swap instruction")]
+    #[test_case(Insn::Pop => "POP"; "Pop instruction")]
+    #[test_case(Insn::Pop2Push3 => "POP2_PUSH3"; "Pop2Push3 instruction")]
+    #[test_case(Insn::Dup => "DUP"; "Dup instruction")]
+    #[test_case(Insn::Unwrap => "UNWRAP"; "Unwrap instruction")]
+    #[test_case(Insn::Ref => "REF"; "Ref instruction")]
+    #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
+    #[test_case(Insn::InitializeReferencedBinding => "IRB"; "InitializeReferencedBinding instruction")]
+    #[test_case(Insn::Object => "OBJECT"; "Object instruction")]
+    #[test_case(Insn::CreateDataProperty => "CR_PROP"; "CreateDataProperty instruction")]
+    #[test_case(Insn::SetPrototype => "SET_PROTO"; "SetPrototype instruction")]
+    #[test_case(Insn::ToPropertyKey => "TO_KEY"; "ToPropertyKey instruction")]
+    #[test_case(Insn::CopyDataProps => "COPY_DATA_PROPS"; "CopyDataProps instruction")]
+    #[test_case(Insn::ToNumeric => "TO_NUMERIC"; "ToNumeric instruction")]
+    #[test_case(Insn::Increment => "INCREMENT"; "Increment instruction")]
+    #[test_case(Insn::Decrement => "DECREMENT"; "Decrement instruction")]
+    #[test_case(Insn::PreDecrement => "PRE_DECREMENT"; "PreDecrement instruction")]
+    #[test_case(Insn::PreIncrement => "PRE_INCREMENT"; "PreIncrement instruction")]
+    #[test_case(Insn::Delete => "DELETE"; "Delete instruction")]
+    #[test_case(Insn::Void => "VOID"; "Void instruction")]
+    #[test_case(Insn::TypeOf => "TYPEOF"; "TypeOf instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -58,6 +85,50 @@ mod insn {
         let insn = Insn::String;
         let i2 = insn.clone();
         assert_eq!(insn, i2);
+    }
+}
+
+mod compiler_status_flags {
+    use super::*;
+
+    #[test]
+    fn default() {
+        let csf = CompilerStatusFlags::default();
+        assert_eq!(csf.can_be_reference, false);
+        assert_eq!(csf.can_be_abrupt, false);
+    }
+
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", CompilerStatusFlags::new()), "");
+    }
+
+    #[test]
+    fn clone() {
+        let csf1 = CompilerStatusFlags { can_be_abrupt: false, can_be_reference: true };
+        let csf2 = csf1.clone();
+        assert_eq!(csf1.can_be_abrupt, csf2.can_be_abrupt);
+        assert_eq!(csf1.can_be_reference, csf2.can_be_reference);
+    }
+
+    #[test]
+    fn new() {
+        let csf1 = CompilerStatusFlags::default();
+        let csf2 = CompilerStatusFlags::new();
+        assert_eq!(csf1.can_be_abrupt, csf2.can_be_abrupt);
+        assert_eq!(csf1.can_be_reference, csf2.can_be_reference);
+    }
+
+    #[test]
+    fn abrupt() {
+        let csf = CompilerStatusFlags::new().abrupt();
+        assert_eq!(csf.can_be_abrupt, true);
+    }
+
+    #[test]
+    fn reference() {
+        let csf = CompilerStatusFlags::new().reference();
+        assert_eq!(csf.can_be_reference, true);
     }
 }
 
@@ -162,6 +233,7 @@ mod primary_expression {
         #[test_case("true", true => svec(&[
             "TRUE"
         ]); "literal")]
+        #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
         #[test_case("class {}", true => panics "not yet implemented"; "anything else")]
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
@@ -214,6 +286,101 @@ mod parenthesized_expression {
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod object_literal {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("{}", true => svec(&["OBJECT"]); "empty")]
+    #[test_case("{a}", true => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"]); "strict elements")]
+    #[test_case("{a,}", false => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"]); "non-strict elements")]
+    fn compile(src: &str, strict: bool) -> Vec<String> {
+        let node = Maker::new(src).object_literal();
+        let mut c = Chunk::new("x");
+        node.compile(&mut c, strict).unwrap();
+        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod property_definition_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true => (svec(&[
+        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+    ]), true, false); "one item, strict")]
+    #[test_case("a", false => (svec(&[
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+    ]), true, false); "one item, non-strict")]
+    #[test_case("b:1", false => (svec(&[
+        "STRING 0 (b)", "FLOAT 0 (1)", "CR_PROP"
+    ]), false, false); "one item, errorfree")]
+    #[test_case("a,b", true => (svec(&[
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "SWAP",
+        "POP",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "CR_PROP",
+        "JUMP_IF_ABRUPT 15",
+        "STRING 1 (b)",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "SWAP",
+        "POP",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "CR_PROP"
+    ]), true, false); "list, strict")]
+    #[test_case("a,b", false => (svec(&[
+        "STRING 0 (a)",
+        "STRING 0 (a)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "SWAP",
+        "POP",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "CR_PROP",
+        "JUMP_IF_ABRUPT 15",
+        "STRING 1 (b)",
+        "STRING 1 (b)",
+        "RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 6",
+        "SWAP",
+        "POP",
+        "SWAP",
+        "POP",
+        "JUMP 1",
+        "CR_PROP"
+    ]), true, false); "list, non-strict")]
+    #[test_case("a:1,b", false => (svec(&[
+        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+    ]), true, false); "potential errors in first")]
+    #[test_case("a,b:1", false => (svec(&[
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 1 (b)", "FLOAT 0 (1)", "CR_PROP"
+    ]), true, false); "potential errors in second")]
+    #[test_case("a:0,b:1", false => (svec(&[
+        "STRING 0 (a)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (b)", "FLOAT 1 (1)", "CR_PROP"
+    ]), false, false); "error free list")]
+    fn compile(src: &str, strict: bool) -> (Vec<String>, bool, bool) {
+        let node = Maker::new(src).property_definition_list();
+        let mut c = Chunk::new("x");
+        let status = node.property_definition_evaluation(&mut c, strict).unwrap();
+        (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference)
     }
 }
 
