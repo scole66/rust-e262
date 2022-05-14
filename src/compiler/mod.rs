@@ -49,11 +49,13 @@ pub enum Insn {
     Jump,
     JumpIfAbrupt,
     JumpIfNormal,
+    Call,
     UpdateEmpty,
     Swap,
     Pop,
     Pop2Push3,
     Dup,
+    Unwrap,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -91,11 +93,13 @@ impl fmt::Display for Insn {
             Insn::Jump => "JUMP",
             Insn::JumpIfAbrupt => "JUMP_IF_ABRUPT",
             Insn::JumpIfNormal => "JUMP_IF_NORMAL",
+            Insn::Call => "CALL",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
             Insn::Swap => "SWAP",
             Insn::Pop => "POP",
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Dup => "DUP",
+            Insn::Unwrap => "UNWRAP",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -123,7 +127,7 @@ pub struct CompilerStatusFlags {
 }
 impl CompilerStatusFlags {
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self::default()
     }
     pub fn abrupt(self) -> Self {
         Self { can_be_abrupt: true, ..self }
@@ -601,12 +605,134 @@ impl NewExpression {
     }
 }
 
+impl CallExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            CallExpression::CallMemberExpression(cme) => cme.compile(chunk, strict),
+            CallExpression::SuperCall(_) => todo!(),
+            CallExpression::ImportCall(_) => todo!(),
+            CallExpression::CallExpressionArguments(_, _) => todo!(),
+            CallExpression::CallExpressionExpression(_, _) => todo!(),
+            CallExpression::CallExpressionIdentifierName(_, _) => todo!(),
+            CallExpression::CallExpressionTemplateLiteral(_, _) => todo!(),
+            CallExpression::CallExpressionPrivateId(_, _) => todo!(),
+        }
+    }
+}
+
+impl CallMemberExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        let mut exits = vec![];
+        // Stack: ...
+        let status = self.member_expression.compile(chunk, strict)?;
+        // Stack: ref/err ...
+        chunk.op(Insn::Dup);
+        // Stack: ref/err ref/err ...
+        if status.can_be_reference {
+            chunk.op(Insn::GetValue);
+        }
+        if status.can_be_abrupt || status.can_be_reference {
+            let happy = chunk.op_jump(Insn::JumpIfNormal);
+            // Stack: err err ...
+            chunk.op_plus_arg(Insn::Unwrap, 1);
+            exits.push(chunk.op_jump(Insn::Jump));
+            chunk.fixup(happy)?;
+        }
+        // Stack: func ref ...
+        let arg_status = self.arguments.argument_list_evaluation(chunk, strict)?;
+        // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 func ref ...
+        // or: Stack: err func ref ...
+        if arg_status.can_be_abrupt {
+            let happy = chunk.op_jump(Insn::JumpIfNormal);
+            chunk.op_plus_arg(Insn::Unwrap, 2);
+            exits.push(chunk.op_jump(Insn::Jump));
+            chunk.fixup(happy)?;
+        }
+        chunk.op(Insn::Call);
+        for mark in exits {
+            chunk.fixup(mark)?;
+        }
+        Ok(CompilerStatusFlags::new().abrupt())
+    }
+}
+
 impl LeftHandSideExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LeftHandSideExpression::New(ne) => ne.compile(chunk, strict),
-            LeftHandSideExpression::Call(_) => todo!(),
+            LeftHandSideExpression::Call(ce) => ce.compile(chunk, strict),
             LeftHandSideExpression::Optional(_) => todo!(),
+        }
+    }
+}
+
+impl Arguments {
+    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            Arguments::Empty => {
+                let index = chunk.add_to_float_pool(0.0)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                Ok(CompilerStatusFlags::new())
+            }
+            Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => {
+                let mut exit = None;
+                let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict)?;
+                if status.can_be_abrupt {
+                    // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
+                    // or Stack: err ...
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let index = chunk.add_to_float_pool(arg_list_len as f64)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
+                }
+                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
+            }
+        }
+    }
+}
+
+impl ArgumentList {
+    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<(u16, CompilerStatusFlags)> {
+        match self {
+            ArgumentList::FallThru(item) => {
+                // Stack: ...
+                let status = item.compile(chunk, strict)?;
+                // Stack: ref/err ...
+                if status.can_be_reference {
+                    chunk.op(Insn::GetValue);
+                }
+                // Stack val/err ...
+                Ok((1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status.can_be_reference, can_be_reference: false }))
+            }
+            ArgumentList::Dots(_) => todo!(),
+            ArgumentList::ArgumentList(lst, item) => {
+                // Stack: ...
+                let mut exits = vec![];
+                let (prev_count, status) = lst.argument_list_evaluation(chunk, strict)?;
+                // Stack: val(N) val(N-1) ... val(0) ...
+                // or err ...
+                if status.can_be_abrupt {
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                }
+                let status2 = item.compile(chunk, strict)?;
+                // Stack: val/err val(n) val(n-1) ... val(0) ...
+                if status2.can_be_reference {
+                    chunk.op(Insn::GetValue);
+                }
+                if status2.can_be_reference || status2.can_be_abrupt {
+                    let happy = chunk.op_jump(Insn::JumpIfNormal);
+                    chunk.op_plus_arg(Insn::Unwrap, prev_count);
+                    //exits.push(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(happy)?;
+                }
+                for mark in exits {
+                    chunk.fixup(mark)?;
+                }
+                Ok((prev_count + 1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference, can_be_reference: false }))
+            }
+            ArgumentList::ArgumentListDots(_, _) => todo!(),
         }
     }
 }

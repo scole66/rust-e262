@@ -243,6 +243,16 @@ impl TryFrom<ECMAScriptValue> for Numeric {
     }
 }
 
+impl TryFrom<ECMAScriptValue> for f64 {
+    type Error = anyhow::Error;
+    fn try_from(src: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match src {
+            ECMAScriptValue::Number(n) => Ok(n),
+            _ => Err(anyhow!("Value not an f64")),
+        }
+    }
+}
+
 impl Default for ECMAScriptValue {
     fn default() -> Self {
         Self::Undefined

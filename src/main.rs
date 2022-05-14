@@ -110,7 +110,7 @@ fn run_file(vm: &mut VM, fname: &str) {
         Ok(file_content) => {
             let script_source = String::from_utf8_lossy(&file_content);
             match process_ecmascript(&mut vm.agent, &script_source) {
-                Ok(value) => println!("{:?}", value),
+                Ok(value) => println!("{:#?}", value),
                 Err(err) => println!("{}", err),
             }
             //match interpret(vm, &script_source) {

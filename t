@@ -25,6 +25,20 @@ case $1 in
   | symbol_value_of \
   | symbol_description \
   ) data=($1 $1 symbol_object) ;;
+
+  # compiler
+  Insn) data=($1 insn compiler) ;;
+  CompilerStatusFlags) data=($1 compiler_status_flags compiler) ;;
+  CompilerIdentifierReference) data=(parser::identifier::IdentifierReference identifier_reference compiler) ;;
+  CompilerPrimaryExpression) data=(parser::primary_expressions::PrimaryExpression primary_expression compiler) ;;
+  CompilerLiteral) data=(parser::primary_expressions::Literal literal compiler) ;;
+  CompilerParenthesizedExpression) data=(parser::primary_expressions::ParenthesizedExpression parenthesized_expression compiler) ;;
+  CompilerObjectLiteral) data=(parser::primary_expressions::ObjectLiteral object_literal compiler) ;;
+  CompilerPropertyDefinitionList) data=(parser::primary_expressions::PropertyDefinitionList property_definition_list compiler) ;;
+  CompilerPropertyDefinition) data=(parser::primary_expressions::PropertyDefinition property_definition compiler) ;;
+  CompilerPropertyName) data=(parser::primary_expressions::PropertyName property_name compiler) ;;
+  CompilerCallExpression) data=(parser::left_hand_side_expressions::CallExpression call_expression compiler) ;;
+
   *) echo "No type called $1"; exit ;;
 esac
 

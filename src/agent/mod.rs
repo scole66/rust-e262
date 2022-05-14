@@ -4,7 +4,7 @@ use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, Norm
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::{create_reference_error, create_syntax_error, create_type_error, unwind_any_error_object};
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
-use super::object::{copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
+use super::object::{call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;
@@ -17,7 +17,7 @@ use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
-use super::values::{to_numeric, to_object, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
+use super::values::{is_callable, to_numeric, to_object, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
 use crate::object::create_data_property_or_throw;
 use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
@@ -394,7 +394,8 @@ impl Agent {
             Some(r) => Ok(r),
             None => Err(create_type_error(self, "No compiled units!")),
         }?;
-        while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+        //while self.execution_context_stack[index].pc < chunk.opcodes.len() {
+        loop {
             /* Diagnostics */
             print!("Stack: [ ");
             print!(
@@ -410,6 +411,9 @@ impl Agent {
                     .join(" ] [ ")
             );
             println!(" ]");
+            if self.execution_context_stack[index].pc >= chunk.opcodes.len() {
+                break;
+            }
             let (_, repr) = chunk.insn_repr_at(self.execution_context_stack[index].pc as usize);
             println!("{:04}{}", self.execution_context_stack[index].pc, repr);
 
@@ -657,6 +661,35 @@ impl Agent {
                     let result = self.typeof_operator(fc);
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Unwrap => {
+                    let vals_to_remove = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
+                    self.execution_context_stack[index].pc += 1;
+                    assert!(vals_to_remove < self.execution_context_stack[index].stack.len());
+                    if vals_to_remove > 0 {
+                        let old_index_of_err = self.execution_context_stack[index].stack.len() - 1;
+                        let new_index_of_err = old_index_of_err - vals_to_remove;
+                        self.execution_context_stack[index].stack.swap(new_index_of_err, old_index_of_err);
+                        self.execution_context_stack[index].stack.truncate(new_index_of_err + 1);
+                    }
+                }
+                Insn::Call => {
+                    let arg_count_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let arg_count_val = ECMAScriptValue::try_from(arg_count_nc).unwrap();
+                    let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
+                    let mut arguments = Vec::with_capacity(arg_count);
+                    for _ in 1..=arg_count {
+                        let nc = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+                        arguments.push(nc);
+                    }
+                    arguments.reverse();
+                    let func_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+                    let func_val = ECMAScriptValue::try_from(func_nc).unwrap();
+                    let ref_nc = self.execution_context_stack[index].stack.pop().unwrap().unwrap();
+
+                    let result = self.evaluate_call(func_val, ref_nc, &arguments);
+
+                    self.execution_context_stack[index].stack.push(result);
+                }
             }
         }
         self.execution_context_stack[index]
@@ -669,6 +702,25 @@ impl Agent {
                 })
             })
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
+    }
+
+    fn evaluate_call(&mut self, func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) -> FullCompletion {
+        let this_value = match &reference {
+            NormalCompletion::Empty => unreachable!(),
+            NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
+            NormalCompletion::Reference(r) => match &r.base {
+                Base::Unresolvable => unreachable!(),
+                Base::Environment(e) => e.with_base_object().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined),
+                Base::Value(_) => r.get_this_value(),
+            },
+        };
+        if !func.is_object() {
+            return Err(create_type_error(self, "not an object"));
+        }
+        if !is_callable(&func) {
+            return Err(create_type_error(self, "not a function"));
+        }
+        call(self, &func, &this_value, arguments).map(NormalCompletion::from)
     }
 
     fn prefix_increment(&mut self, expr: FullCompletion) -> FullCompletion {
