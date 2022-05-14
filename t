@@ -89,4 +89,4 @@ for part in ${typeparts[@]}; do
 done
 
 tst ${file}::tests::${modname} || exit
-report --name-regex="_3res${#file}${file}([^0-9][^_]+_)?${mangled}"   --demangled
+report --name-regex="_3res${#file}${file}([^0-9][^_]+_)?${mangled}" --uncovered --demangled
