@@ -33,6 +33,7 @@ pub type Opcode = u16;
 #[derive(Debug, Copy, Clone, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Insn {
+    Nop,
     String,
     Resolve,
     StrictResolve,
@@ -77,6 +78,7 @@ pub enum Insn {
 impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(match self {
+            Insn::Nop => "NOP",
             Insn::String => "STRING",
             Insn::Resolve => "RESOLVE",
             Insn::StrictResolve => "STRICT_RESOLVE",
@@ -224,6 +226,20 @@ impl Literal {
                     Numeric::BigInt(bi) => {
                         let idx = chunk.add_to_bigint_pool(bi.clone())?;
                         chunk.op_plus_arg(Insn::Bigint, idx);
+                    }
+                }
+            }
+            LiteralKind::DebugLiteral(ch) => {
+                if cfg!(test) {
+                    match *ch {
+                        '@' => {
+                            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
+                            for _ in 0..32768 {
+                                chunk.op(Insn::Nop);
+                            }
+                            chunk.op(Insn::False);
+                        }
+                        _ => (),
                     }
                 }
             }
