@@ -1097,8 +1097,8 @@ impl NewExpression {
 //      MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await]
 #[derive(Debug)]
 pub struct CallMemberExpression {
-    member_expression: Rc<MemberExpression>,
-    arguments: Rc<Arguments>,
+    pub member_expression: Rc<MemberExpression>,
+    pub arguments: Rc<Arguments>,
 }
 
 impl fmt::Display for CallMemberExpression {

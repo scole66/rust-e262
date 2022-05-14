@@ -306,7 +306,29 @@ mod left_hand_side_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a()", true => panics "not yet implemented"; "lhs")]
+    #[test_case("a()", true => svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWRAP 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]); "call strict")]
+    #[test_case("a()", false => svec(&[
+        "STRING 0 (a)",
+        "RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWRAP 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL"
+    ]); "call non-strict")]
+    #[test_case("a?.b", true => panics "not yet implemented"; "optional")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).left_hand_side_expression();
         let mut c = Chunk::new("x");
