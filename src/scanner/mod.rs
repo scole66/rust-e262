@@ -268,6 +268,7 @@ pub enum Token {
     RegularExpression(RegularExpressionData),
     PrivateIdentifier(IdentifierData),
     Error(String),
+    Debug(char),
 }
 
 impl fmt::Display for Punctuator {
@@ -354,6 +355,7 @@ impl fmt::Display for Token {
             Token::TemplateTail(val) => val.fmt(f),
             Token::RegularExpression(val) => val.fmt(f),
             Token::Error(_) => f.write_str("\u{26a0}"),
+            Token::Debug(c) => write!(f, "@@{c}"),
         }
     }
 }
@@ -1877,6 +1879,25 @@ fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner
         }
         Ok(None) => None,
     })
+}
+
+fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+    if cfg!(test) {
+        match_char(scanner, source, '@').and_then(|s| match_char(&s, source, '@')).and_then(|s| {
+            let c = source[s.start_idx..].chars().next();
+            if let Some(c) = c {
+                if !is_whitespace(c) {
+                    Some((Token::Debug(c), Scanner { line: s.line, column: s.column + 1, start_idx: s.start_idx + c.len_utf8() }))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    }
 }
 
 fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
