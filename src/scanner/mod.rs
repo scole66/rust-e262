@@ -1901,9 +1901,11 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 }
 
 fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
-    private_identifier(scanner, source).or_else(|| {
-        identifier_name(scanner, source)
-            .or_else(|| numeric_literal(scanner, source).or_else(|| punctuator(scanner, source).or_else(|| string_literal(scanner, source).or_else(|| template(scanner, source)))))
+    debug_token(scanner, source).or_else(|| {
+        private_identifier(scanner, source).or_else(|| {
+            identifier_name(scanner, source)
+                .or_else(|| numeric_literal(scanner, source).or_else(|| punctuator(scanner, source).or_else(|| string_literal(scanner, source).or_else(|| template(scanner, source)))))
+        })
     })
 }
 

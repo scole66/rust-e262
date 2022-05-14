@@ -307,6 +307,8 @@ mod object_literal {
 mod property_definition_list {
     use super::*;
     use test_case::test_case;
+    use std::io;
+    use crate::prettyprint::PrettyPrint;
 
     #[test_case("a", true => (svec(&[
         "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
@@ -376,8 +378,10 @@ mod property_definition_list {
     #[test_case("a:0,b:1", false => (svec(&[
         "STRING 0 (a)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (b)", "FLOAT 1 (1)", "CR_PROP"
     ]), false, false); "error free list")]
+    #[test_case("a,b:@@@", false => (svec(&[]), false, false); "breaks?")]
     fn compile(src: &str, strict: bool) -> (Vec<String>, bool, bool) {
         let node = Maker::new(src).property_definition_list();
+        node.pprint(&mut io::stdout()).unwrap();
         let mut c = Chunk::new("x");
         let status = node.property_definition_evaluation(&mut c, strict).unwrap();
         (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference)
