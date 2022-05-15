@@ -682,17 +682,18 @@ impl Arguments {
                 Ok(CompilerStatusFlags::new())
             }
             Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => {
-                let mut exit = None;
                 let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict)?;
-                if status.can_be_abrupt {
+                let exit = if status.can_be_abrupt {
                     // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
                     // or Stack: err ...
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
                 let index = chunk.add_to_float_pool(arg_list_len as f64)?;
                 chunk.op_plus_arg(Insn::Float, index);
                 if let Some(mark) = exit {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
             }

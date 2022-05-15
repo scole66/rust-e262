@@ -147,7 +147,7 @@ fn disasm_filt(s: String) -> Option<String> {
 
 fn full_chunk(n: &str) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats = vec![0.0; 65536];
+    c.floats = vec![56878142.0; 65536];
     c.strings = Vec::with_capacity(65536);
     c.bigints = Vec::with_capacity(65536);
     for nbr in 0..65536 {
@@ -159,7 +159,7 @@ fn full_chunk(n: &str) -> Chunk {
 
 fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
     let mut c = Chunk::new(n);
-    c.floats.resize(65536 - slots_left, 0.0);
+    c.floats.resize(65536 - slots_left, 7489305.0);
     c.strings.resize(65536 - slots_left, JSString::from(""));
     c.bigints.resize(65536 - slots_left, Rc::new(BigInt::from(783)));
     c
@@ -637,6 +637,26 @@ mod left_hand_side_expression {
         let mut c = Chunk::new("x");
         node.compile(&mut c, strict).unwrap();
         c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+    }
+}
+
+mod arguments {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("()", true, None => Ok((svec(&["FLOAT 0 (0)"]), false, false)); "empty")]
+    #[test_case("()", true, Some(0) => serr("Out of room for floats in this compilation unit"); "empty; no space for args")]
+    #[test_case("(1)", true, None => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)"]), false, false)); "one arg; no errors")]
+    #[test_case("(a)", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for args")]
+    #[test_case("(999)", true, Some(1) => serr("Out of room for floats in this compilation unit"); "no room for length")]
+    #[test_case("(a,)", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; strict")]
+    #[test_case("(a,)", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).arguments();
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.argument_list_evaluation(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
     }
 }
 

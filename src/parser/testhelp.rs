@@ -25,10 +25,7 @@ use identifiers::{BindingIdentifier, IdentifierReference};
 use if_statement::IfStatement;
 use iteration_statements::{DoWhileStatement, ForBinding, ForDeclaration, ForInOfStatement, ForStatement, IterationStatement, WhileStatement};
 use labelled_statements::{LabelledItem, LabelledStatement};
-use left_hand_side_expressions::{
-    ArgumentList, Arguments, CallExpression, CallMemberExpression, ImportCall, LeftHandSideExpression, MemberExpression, MetaProperty, NewExpression, OptionalChain, OptionalExpression,
-    SuperCall, SuperProperty,
-};
+use left_hand_side_expressions::*;
 use method_definitions::MethodDefinition;
 use multiplicative_operators::MultiplicativeExpression;
 use parameter_lists::{FormalParameter, FormalParameterList, FormalParameters, FunctionRestParameter, UniqueFormalParameters};
