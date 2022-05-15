@@ -368,6 +368,10 @@ impl<'a> Maker<'a> {
     pub fn coalesce_expression_head(self) -> Rc<CoalesceExpressionHead> {
         CoalesceExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0.head.clone()
     }
+    /// Use the configs in the [`Maker`] object to make a [`ComputedPropertyName`] parse node.
+    pub fn computed_property_name(self) -> Rc<ComputedPropertyName> {
+        ComputedPropertyName::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ConciseBody`] parse node.
     pub fn concise_body(self) -> Rc<ConciseBody> {
         ConciseBody::parse(&mut newparser(self.source), Scanner::new(), self.in_flag).unwrap().0
@@ -516,6 +520,10 @@ impl<'a> Maker<'a> {
     pub fn literal(self) -> Rc<Literal> {
         Literal::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
+    /// Use the configs in the [`Maker`] object to make a [`LiteralPropertyName`] parse node.
+    pub fn literal_property_name(self) -> Rc<LiteralPropertyName> {
+        LiteralPropertyName::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`LogicalANDExpression`] parse node.
     pub fn logical_and_expression(self) -> Rc<LogicalANDExpression> {
         LogicalANDExpression::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag).unwrap().0
@@ -571,6 +579,10 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`PropertyDefinitionList`] parse node.
     pub fn property_definition_list(self) -> Rc<PropertyDefinitionList> {
         PropertyDefinitionList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`PropertyName`] parse node.
+    pub fn property_name(self) -> Rc<PropertyName> {
+        PropertyName::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`RelationalExpression`] parse node.
     pub fn relational_expression(self) -> Rc<RelationalExpression> {

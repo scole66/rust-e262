@@ -499,7 +499,7 @@ impl ComputedPropertyName {
         // Stack:: key ...
 
         for mark in exits {
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).unwrap();
         }
         Ok(CompilerStatusFlags::new().abrupt())
     }
@@ -530,29 +530,27 @@ impl MemberExpression {
         if state.can_be_abrupt || state.can_be_reference {
             let norm = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: error1/error2 base ...
-            chunk.op(Insn::Swap);
-            chunk.op(Insn::Pop);
+            chunk.op_plus_arg(Insn::Unwind, 1);
             // stack: error1/error2 ...
             let exit = chunk.op_jump(Insn::Jump);
             exits.push(exit);
-            chunk.fixup(norm)?;
+            chunk.fixup(norm).unwrap();
         }
         // Stack: nameValue base ...
         chunk.op(Insn::ToPropertyKey);
         // Stack: key/err base ...
         let norm = chunk.op_jump(Insn::JumpIfNormal);
-        chunk.op(Insn::Swap);
-        chunk.op(Insn::Pop);
+        chunk.op_plus_arg(Insn::Unwind, 1);
         let exit = chunk.op_jump(Insn::Jump);
         exits.push(exit);
-        chunk.fixup(norm)?;
+        chunk.fixup(norm).unwrap();
 
         // Stack: key base ...
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref ...
 
         for exit in exits {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).unwrap();
         }
         Ok(CompilerStatusFlags::new().abrupt().reference())
     }
@@ -573,29 +571,28 @@ impl MemberExpression {
                 }
                 let status = Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
                 if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: true })
             }
             MemberExpression::Expression(me, exp) => {
-                let mut exits = vec![];
                 // Stack: ...
                 let status = me.compile(chunk, strict)?;
                 // Stack: base/err ...
                 if status.can_be_reference {
                     chunk.op(Insn::GetValue);
                 }
-                if status.can_be_abrupt || status.can_be_reference {
-                    let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                    exits.push(exit);
-                }
+                let exit = if status.can_be_abrupt || status.can_be_reference { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 // Stack: base ...
                 let status = Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
+                // expressions are always: abrupt/ref, so we can avoid further boolean logic.
+                assert!(status.can_be_abrupt && status.can_be_reference);
+
                 // Stack: ref/err ...
-                for exit in &exits {
-                    chunk.fixup(*exit)?;
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || !exits.is_empty(), can_be_reference: true })
+                Ok(CompilerStatusFlags::new().abrupt().reference())
             }
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),

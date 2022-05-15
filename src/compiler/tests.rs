@@ -400,32 +400,100 @@ mod property_definition {
             .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
             .map_err(|e| e.to_string())
     }
+}
 
+mod property_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["STRING 0 (a)"]), false, false)); "literal property name")]
+    #[test_case("[a]", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true, false)); "computed property name; strict")]
+    #[test_case("[a]", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true, false)); "computed property name; non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).property_name();
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
+    }
+
+    #[test_case("[a]" => false; "computed")]
+    #[test_case("__proto__" => true; "literal, match")]
+    #[test_case("a" => false; "literal, no match")]
+    fn is_literal_proto(src: &str) -> bool {
+        Maker::new(src).property_name().is_literal_proto()
+    }
+}
+
+mod literal_property_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("__proto__" => true; "id proto")]
+    #[test_case("a" => false; "id not")]
+    #[test_case("'__proto__'" => true; "string proto")]
+    #[test_case("'a'" => false; "string not")]
+    #[test_case("1" => false; "number")]
+    fn is_literal_proto(src: &str) -> bool {
+        Maker::new(src).literal_property_name().is_literal_proto()
+    }
+
+    #[test_case("a", None => Ok((svec(&["STRING 0 (a)"]), false, false)); "id")]
+    #[test_case("'a'", None => Ok((svec(&["STRING 0 (a)"]), false, false)); "string")]
+    #[test_case("1", None => Ok((svec(&["STRING 0 (1)"]), false, false)); "number")]
+    #[test_case("a", Some(0) => serr("Out of room for strings in this compilation unit"); "id; err")]
+    #[test_case("'a'", Some(0) => serr("Out of room for strings in this compilation unit"); "string; err")]
+    #[test_case("1", Some(0) => serr("Out of room for strings in this compilation unit"); "number; err")]
+    fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).literal_property_name();
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c).map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference)).map_err(|e| e.to_string())
+    }
+}
+
+mod computed_property_name {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("[a]", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true, false)); "reference expression; strict")]
+    #[test_case("[a]", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true, false)); "reference expression; non-strict")]
+    #[test_case("[a]", true, Some(0) => serr("Out of room for strings in this compilation unit"); "err in expr")]
+    #[test_case("[1]", true, None => Ok((svec(&["FLOAT 0 (1)", "TO_KEY"]), true, false)); "error-free expr")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).computed_property_name();
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
+    }
 }
 
 mod member_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a.b", true => svec(&[
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("a.b", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
         "JUMP_IF_ABRUPT 3",
         "STRING 1 (b)",
         "STRICT_REF"
-    ]); "member property; strict")]
-    #[test_case("a.b", false => svec(&[
+    ]), true, true)); "member property; strict")]
+    #[test_case("a.b", false, None => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
         "JUMP_IF_ABRUPT 3",
         "STRING 1 (b)",
         "REF"
-    ]); "member property; non-strict")]
-    #[test_case("a[b]", true => svec(&[
+    ]), true, true)); "member property; non-strict")]
+    #[test_case("a.b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for id")]
+    #[test_case("a.b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no space for base")]
+    #[test_case("(1).b", true, None => Ok((svec(&["FLOAT 0 (1)", "STRING 0 (b)", "STRICT_REF"]), false, true)); "error-free base")]
+    #[test_case("a[b]", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -434,17 +502,15 @@ mod member_expression {
         "STRICT_RESOLVE",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 8",
         "TO_KEY",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 1",
         "STRICT_REF"
-    ]); "strict member exp")]
-    #[test_case("a[b]", false => svec(&[
+    ]), true, true)); "strict member exp")]
+    #[test_case("a[b]", false, None => Ok((svec(&[
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
@@ -453,21 +519,29 @@ mod member_expression {
         "RESOLVE",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 8",
         "TO_KEY",
         "JUMP_IF_NORMAL 4",
-        "SWAP",
-        "POP",
+        "UNWIND 1",
         "JUMP 1",
         "REF"
-    ]); "non-strict member exp")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    ]), true, true)); "non-strict member exp")]
+    #[test_case("a[b]", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no space for base (expression)")]
+    #[test_case("(1)[1]", true, None => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "STRICT_REF"]), true, true)); "no errors in base (expression)")]
+    #[test_case("b[a]", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for expression (expression)")]
+    #[test_case("a[@@@]", true, None => serr("out of range integral type conversion attempted"); "bad jump (expression)")]
+    #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
+    #[test_case("super.a", true, None => panics "not yet implemented"; "super ref")]
+    #[test_case("new.target", true, None => panics "not yet implemented"; "meta")]
+    #[test_case("new a()", true, None => panics "not yet implemented"; "new-args")]
+    #[test_case("a.#pid", true, None => panics "not yet implemented"; "private")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).member_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
     }
 }
 
