@@ -239,6 +239,21 @@ impl Literal {
                             }
                             chunk.op(Insn::False);
                         }
+                        '!' => {
+                            // Fill the string table.
+                            chunk.strings.resize(65536, JSString::from(""));
+                            chunk.op(Insn::False);
+                        }
+                        '#' => {
+                            // Fill the float table.
+                            chunk.floats.resize(65536, 10.1);
+                            chunk.op(Insn::False);
+                        }
+                        '$' => {
+                            // Fill the bigint table.
+                            chunk.floats.resize(65536, Bigint::from(9876543219));
+                            chunk.op(Insn::False);
+                        }
                         _ => (),
                     }
                 }
