@@ -87,7 +87,7 @@ impl Chunk {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{} ({})", insn, arg, self.bigints[arg]))
             }
-            Insn::Unwrap => {
+            Insn::Unwind => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<20}{}", insn, arg))
             }

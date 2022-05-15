@@ -35,8 +35,8 @@ case $1 in
   CompilerParenthesizedExpression) data=(parser::primary_expressions::ParenthesizedExpression parenthesized_expression compiler) ;;
   CompilerObjectLiteral) data=(parser::primary_expressions::ObjectLiteral object_literal compiler) ;;
   CompilerPropertyDefinitionList) data=(parser::primary_expressions::PropertyDefinitionList property_definition_list compiler) ;;
-  CompilerPropertyDefinition) data=(parser::primary_expressions::PropertyDefinition property_definition compiler) ;;
-  CompilerPropertyName) data=(parser::primary_expressions::PropertyName property_name compiler) ;;
+  CompilerPropertyDefinition) data=(parser::primary_expressions::PropertyDefinition property_definition:: compiler) ;;
+  CompilerPropertyName) data=(parser::primary_expressions::PropertyName ::property_name:: compiler) ;;
   CompilerLiteralPropertyName) data=(parser::primary_expressions::LiteralPropertyName literal_property_name compiler) ;;
   CompilerComputedPropertyName) data=(parser::primary_expressions::ComputedPropertyName computed_property_name compiler) ;;
   CompilerMemberExpression) data=(parser::left_hand_side_expressions::MemberExpression member_expression compiler) ;;

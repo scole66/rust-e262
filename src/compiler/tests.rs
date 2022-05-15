@@ -33,7 +33,7 @@ mod insn {
     #[test_case(Insn::Pop => "POP"; "Pop instruction")]
     #[test_case(Insn::Pop2Push3 => "POP2_PUSH3"; "Pop2Push3 instruction")]
     #[test_case(Insn::Dup => "DUP"; "Dup instruction")]
-    #[test_case(Insn::Unwrap => "UNWRAP"; "Unwrap instruction")]
+    #[test_case(Insn::Unwind => "UNWIND"; "Unwind instruction")]
     #[test_case(Insn::Ref => "REF"; "Ref instruction")]
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
     #[test_case(Insn::InitializeReferencedBinding => "IRB"; "InitializeReferencedBinding instruction")]
@@ -154,6 +154,14 @@ fn full_chunk(n: &str) -> Chunk {
         c.strings.push(JSString::from(""));
         c.bigints.push(Rc::new(BigInt::from(nbr)));
     }
+    c
+}
+
+fn almost_full_chunk(n: &str, slots_left: usize) -> Chunk {
+    let mut c = Chunk::new(n);
+    c.floats.resize(65536 - slots_left, 0.0);
+    c.strings.resize(65536 - slots_left, JSString::from(""));
+    c.bigints.resize(65536 - slots_left, Rc::new(BigInt::from(783)));
     c
 }
 
@@ -295,8 +303,8 @@ mod object_literal {
     use test_case::test_case;
 
     #[test_case("{}", true => svec(&["OBJECT"]); "empty")]
-    #[test_case("{a}", true => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"]); "strict elements")]
-    #[test_case("{a,}", false => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"]); "non-strict elements")]
+    #[test_case("{a}", true => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]); "strict elements")]
+    #[test_case("{a,}", false => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]); "non-strict elements")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).object_literal();
         let mut c = Chunk::new("x");
@@ -310,69 +318,25 @@ mod property_definition_list {
     use test_case::test_case;
 
     #[test_case("a", true => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
     ]), true, false)); "one item, strict")]
     #[test_case("a", false => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
     ]), true, false)); "one item, non-strict")]
     #[test_case("b:1", false => Ok((svec(&[
         "STRING 0 (b)", "FLOAT 0 (1)", "CR_PROP"
     ]), false, false)); "one item, errorfree")]
     #[test_case("a,b", true => Ok((svec(&[
-        "STRING 0 (a)",
-        "STRING 0 (a)",
-        "STRICT_RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 6",
-        "SWAP",
-        "POP",
-        "SWAP",
-        "POP",
-        "JUMP 1",
-        "CR_PROP",
-        "JUMP_IF_ABRUPT 15",
-        "STRING 1 (b)",
-        "STRING 1 (b)",
-        "STRICT_RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 6",
-        "SWAP",
-        "POP",
-        "SWAP",
-        "POP",
-        "JUMP 1",
-        "CR_PROP"
+        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 13", "STRING 1 (b)", "STRING 1 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
     ]), true, false)); "list, strict")]
     #[test_case("a,b", false => Ok((svec(&[
-        "STRING 0 (a)",
-        "STRING 0 (a)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 6",
-        "SWAP",
-        "POP",
-        "SWAP",
-        "POP",
-        "JUMP 1",
-        "CR_PROP",
-        "JUMP_IF_ABRUPT 15",
-        "STRING 1 (b)",
-        "STRING 1 (b)",
-        "RESOLVE",
-        "GET_VALUE",
-        "JUMP_IF_NORMAL 6",
-        "SWAP",
-        "POP",
-        "SWAP",
-        "POP",
-        "JUMP 1",
-        "CR_PROP"
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 13", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
     ]), true, false)); "list, non-strict")]
     #[test_case("a:1,b", false => Ok((svec(&[
-        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
+        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
     ]), true, false)); "potential errors in first")]
     #[test_case("a,b:1", false => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 1 (b)", "FLOAT 0 (1)", "CR_PROP"
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 1 (b)", "FLOAT 0 (1)", "CR_PROP"
     ]), true, false)); "potential errors in second")]
     #[test_case("a:0,b:1", false => Ok((svec(&[
         "STRING 0 (a)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (b)", "FLOAT 1 (1)", "CR_PROP"
@@ -386,6 +350,57 @@ mod property_definition_list {
             .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
             .map_err(|e| e.to_string())
     }
+}
+
+mod property_definition {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&[
+        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
+    ]), true, false)); "id ref, strict")]
+    #[test_case("a", false, None => Ok((svec(&[
+        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
+    ]), true, false)); "id ref, non-strict")]
+    #[test_case("a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "first string has no room")]
+    #[test_case("a=1", false, None => panics "unreachable"; "cover initialized name")]
+    #[test_case("a:1", true, None => Ok((svec(&[
+        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP"
+    ]), false, false)); "name:property; no possibility of error, strict")]
+    #[test_case("[a]:1", true, None => Ok((svec(&[
+        "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (1)", "CR_PROP"
+    ]), true, false)); "name:property; potential error in name, strict")]
+    #[test_case("[a]:1", false, None => Ok((svec(&[
+        "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (1)", "CR_PROP"
+    ]), true, false)); "name:property; potential error in name, non-strict")]
+    #[test_case("[q]:33", false, Some(0) => serr("Out of room for strings in this compilation unit"); "pn compile errors out")]
+    #[test_case("a: function () {}", true, None => panics "not yet implemented"; "anonymous function def")]
+    #[test_case("a:b", false, Some(1) => serr("Out of room for strings in this compilation unit"); "ae compile errors out")]
+    #[test_case("a:b", false, None => Ok((svec(&[
+        "STRING 0 (a)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
+    ]), true, false)); "name:value, ae can error; not-strict")]
+    #[test_case("a:b", true, None => Ok((svec(&[
+        "STRING 0 (a)", "STRING 1 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
+    ]), true, false)); "name:value, ae can error; strict")]
+    #[test_case("[a]:@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
+    #[test_case("__proto__:null", true, None => Ok((svec(&["NULL", "SET_PROTO"]), false, false)); "proto-setter")]
+    #[test_case("a(){}", true, None => panics "not yet implemented"; "method def")]
+    #[test_case("...a", true, None => Ok((svec(&[
+        "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
+    ]), true, false)); "rest object, strict")]
+    #[test_case("...a", false, None => Ok((svec(&[
+        "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
+    ]), true, false)); "rest object, non-strict")]
+    #[test_case("...a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "rest object, ae errs")]
+    #[test_case("...true", false, None => Ok((svec(&["TRUE", "COPY_DATA_PROPS"]), true, false)); "rest object, not reference")]
+    fn compile(src: &str, strict: bool, string_spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+        let node = Maker::new(src).property_definition();
+        let mut c = if let Some(spot_count) = string_spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.property_definition_evaluation(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
+    }
+
 }
 
 mod member_expression {
@@ -483,7 +498,7 @@ mod left_hand_side_expression {
         "DUP",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "UNWRAP 1",
+        "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
         "CALL"
@@ -494,7 +509,7 @@ mod left_hand_side_expression {
         "DUP",
         "GET_VALUE",
         "JUMP_IF_NORMAL 4",
-        "UNWRAP 1",
+        "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
         "CALL"

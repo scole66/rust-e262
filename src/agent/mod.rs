@@ -664,7 +664,7 @@ impl Agent {
                     let result = self.typeof_operator(fc);
                     self.execution_context_stack[index].stack.push(result);
                 }
-                Insn::Unwrap => {
+                Insn::Unwind => {
                     let vals_to_remove = chunk.opcodes[self.execution_context_stack[index].pc as usize] as usize;
                     self.execution_context_stack[index].pc += 1;
                     assert!(vals_to_remove < self.execution_context_stack[index].stack.len());
