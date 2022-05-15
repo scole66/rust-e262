@@ -11,6 +11,7 @@ mod insn {
     use super::*;
     use test_case::test_case;
 
+    #[test_case(Insn::Nop => "NOP"; "Nop instruction")]
     #[test_case(Insn::String => "STRING"; "String instruction")]
     #[test_case(Insn::Resolve => "RESOLVE"; "Resolve instruction")]
     #[test_case(Insn::StrictResolve => "STRICT_RESOLVE"; "StrictResolve instruction")]
@@ -651,11 +652,36 @@ mod arguments {
     #[test_case("(999)", true, Some(1) => serr("Out of room for floats in this compilation unit"); "no room for length")]
     #[test_case("(a,)", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; strict")]
     #[test_case("(a,)", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; non-strict")]
-    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    fn argument_list_evaluation(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arguments();
         let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.argument_list_evaluation(&mut c, strict)
             .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
+    }
+}
+
+mod argument_list {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), 1, true, false)); "item/reference/strict")]
+    #[test_case("a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE"]), 1, true, false)); "item/reference/non-strict")]
+    #[test_case("true", true, None => Ok((svec(&["TRUE"]), 1, false, false)); "item/literal")]
+    #[test_case("a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for item")]
+    #[test_case("...a", true, None => panics "not yet implemented"; "...a -style object unpacking")]
+    #[test_case("true, false", true, None => Ok((svec(&["TRUE", "FALSE"]), 2, false, false)); "list/noref")]
+    #[test_case("a,b", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 8", "STRING 1 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 2", "UNWIND 1"]), 2, true, false)); "errable items, strict")]
+    #[test_case("a,b", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 8", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 2", "UNWIND 1"]), 2, true, false)); "errable items, non-strict")]
+    #[test_case("a,b", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no room for first list")]
+    #[test_case("a,b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no room for last item")]
+    #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
+    #[test_case("a,...b", true, None => panics "not yet implemented"; "list + rest")]
+    fn argument_list_evaluation(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, u16, bool, bool), String> {
+        let node = Maker::new(src).argument_list();
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.argument_list_evaluation(&mut c, strict)
+            .map(|(count, status)| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), count, status.can_be_abrupt, status.can_be_reference))
             .map_err(|e| e.to_string())
     }
 }

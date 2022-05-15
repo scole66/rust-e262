@@ -717,13 +717,11 @@ impl ArgumentList {
             ArgumentList::Dots(_) => todo!(),
             ArgumentList::ArgumentList(lst, item) => {
                 // Stack: ...
-                let mut exits = vec![];
                 let (prev_count, status) = lst.argument_list_evaluation(chunk, strict)?;
+                assert!(!status.can_be_reference);
                 // Stack: val(N) val(N-1) ... val(0) ...
                 // or err ...
-                if status.can_be_abrupt {
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                let exit = if status.can_be_abrupt { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let status2 = item.compile(chunk, strict)?;
                 // Stack: val/err val(n) val(n-1) ... val(0) ...
                 if status2.can_be_reference {
@@ -732,10 +730,9 @@ impl ArgumentList {
                 if status2.can_be_reference || status2.can_be_abrupt {
                     let happy = chunk.op_jump(Insn::JumpIfNormal);
                     chunk.op_plus_arg(Insn::Unwind, prev_count);
-                    //exits.push(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(happy)?;
+                    chunk.fixup(happy).unwrap();
                 }
-                for mark in exits {
+                if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
                 Ok((prev_count + 1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference, can_be_reference: false }))
