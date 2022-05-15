@@ -643,7 +643,7 @@ impl CallMemberExpression {
             // Stack: err err ...
             chunk.op_plus_arg(Insn::Unwind, 1);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy)?;
+            chunk.fixup(happy).unwrap();
         }
         // Stack: func ref ...
         let arg_status = self.arguments.argument_list_evaluation(chunk, strict)?;
@@ -653,7 +653,7 @@ impl CallMemberExpression {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
             chunk.op_plus_arg(Insn::Unwind, 2);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy)?;
+            chunk.fixup(happy).unwrap();
         }
         chunk.op(Insn::Call);
         for mark in exits {
