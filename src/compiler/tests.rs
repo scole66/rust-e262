@@ -2,6 +2,7 @@ use super::*;
 use crate::chunk::Chunk;
 use crate::parser::testhelp::{svec, Maker};
 use crate::strings::JSString;
+use crate::tests::serr;
 use itertools::Itertools;
 use num::BigInt;
 use std::rc::Rc;
@@ -307,19 +308,17 @@ mod object_literal {
 mod property_definition_list {
     use super::*;
     use test_case::test_case;
-    use std::io;
-    use crate::prettyprint::PrettyPrint;
 
-    #[test_case("a", true => (svec(&[
+    #[test_case("a", true => Ok((svec(&[
         "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
-    ]), true, false); "one item, strict")]
-    #[test_case("a", false => (svec(&[
+    ]), true, false)); "one item, strict")]
+    #[test_case("a", false => Ok((svec(&[
         "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
-    ]), true, false); "one item, non-strict")]
-    #[test_case("b:1", false => (svec(&[
+    ]), true, false)); "one item, non-strict")]
+    #[test_case("b:1", false => Ok((svec(&[
         "STRING 0 (b)", "FLOAT 0 (1)", "CR_PROP"
-    ]), false, false); "one item, errorfree")]
-    #[test_case("a,b", true => (svec(&[
+    ]), false, false)); "one item, errorfree")]
+    #[test_case("a,b", true => Ok((svec(&[
         "STRING 0 (a)",
         "STRING 0 (a)",
         "STRICT_RESOLVE",
@@ -343,8 +342,8 @@ mod property_definition_list {
         "POP",
         "JUMP 1",
         "CR_PROP"
-    ]), true, false); "list, strict")]
-    #[test_case("a,b", false => (svec(&[
+    ]), true, false)); "list, strict")]
+    #[test_case("a,b", false => Ok((svec(&[
         "STRING 0 (a)",
         "STRING 0 (a)",
         "RESOLVE",
@@ -368,23 +367,24 @@ mod property_definition_list {
         "POP",
         "JUMP 1",
         "CR_PROP"
-    ]), true, false); "list, non-strict")]
-    #[test_case("a:1,b", false => (svec(&[
+    ]), true, false)); "list, non-strict")]
+    #[test_case("a:1,b", false => Ok((svec(&[
         "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP"
-    ]), true, false); "potential errors in first")]
-    #[test_case("a,b:1", false => (svec(&[
+    ]), true, false)); "potential errors in first")]
+    #[test_case("a,b:1", false => Ok((svec(&[
         "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 6", "SWAP", "POP", "SWAP", "POP", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 1 (b)", "FLOAT 0 (1)", "CR_PROP"
-    ]), true, false); "potential errors in second")]
-    #[test_case("a:0,b:1", false => (svec(&[
+    ]), true, false)); "potential errors in second")]
+    #[test_case("a:0,b:1", false => Ok((svec(&[
         "STRING 0 (a)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (b)", "FLOAT 1 (1)", "CR_PROP"
-    ]), false, false); "error free list")]
-    #[test_case("a,b:@@@", false => (svec(&[]), false, false); "breaks?")]
-    fn compile(src: &str, strict: bool) -> (Vec<String>, bool, bool) {
+    ]), false, false)); "error free list")]
+    #[test_case("a,b:@@@", false => serr("out of range integral type conversion attempted"); "jump fails")]
+    #[test_case("[@@!]:0,a,b", false => serr("Out of room for strings in this compilation unit"); "filled string table")]
+    fn compile(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition_list();
-        node.pprint(&mut io::stdout()).unwrap();
         let mut c = Chunk::new("x");
-        let status = node.property_definition_evaluation(&mut c, strict).unwrap();
-        (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference)
+        node.property_definition_evaluation(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
     }
 }
 

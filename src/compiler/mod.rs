@@ -239,6 +239,11 @@ impl Literal {
                             }
                             chunk.op(Insn::False);
                         }
+                        '!' => {
+                            // Fill the string table.
+                            chunk.strings.resize(65536, JSString::from(""));
+                            chunk.op(Insn::False);
+                        }
                         _ => (),
                     }
                 }
