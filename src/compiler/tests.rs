@@ -106,6 +106,7 @@ mod compiler_status_flags {
     }
 
     #[test]
+    #[allow(clippy::clone-on-copy)]
     fn clone() {
         let csf1 = CompilerStatusFlags { can_be_abrupt: false, can_be_reference: true };
         let csf2 = csf1.clone();
