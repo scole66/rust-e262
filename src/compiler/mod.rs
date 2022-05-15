@@ -23,6 +23,7 @@ use super::parser::update_expressions::*;
 use super::scanner::*;
 use super::strings::*;
 use super::values::*;
+use num::BigInt;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
@@ -242,6 +243,16 @@ impl Literal {
                         '!' => {
                             // Fill the string table.
                             chunk.strings.resize(65536, JSString::from(""));
+                            chunk.op(Insn::False);
+                        }
+                        '#' => {
+                            // Fill the float table.
+                            chunk.floats.resize(65536, 10.1);
+                            chunk.op(Insn::False);
+                        }
+                        '$' => {
+                            // Fill the bigint table.
+                            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
                             chunk.op(Insn::False);
                         }
                         _ => (),
