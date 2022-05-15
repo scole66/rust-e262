@@ -252,7 +252,7 @@ impl Literal {
                         }
                         '$' => {
                             // Fill the bigint table.
-                            chunk.floats.resize(65536, BigInt::from(9876543219));
+                            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
                             chunk.op(Insn::False);
                         }
                         _ => (),
