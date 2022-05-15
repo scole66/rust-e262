@@ -95,6 +95,7 @@ impl Chunk {
             | Insn::StrictRef
             | Insn::Resolve
             | Insn::StrictResolve
+            | Insn::Nop
             | Insn::InitializeReferencedBinding
             | Insn::CreateDataProperty
             | Insn::SetPrototype

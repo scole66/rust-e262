@@ -422,6 +422,9 @@ impl Agent {
             let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
             self.execution_context_stack[index].pc += 1;
             match instruction {
+                Insn::Nop => {
+                    // Do nothing
+                }
                 Insn::String => {
                     let string_index = chunk.opcodes[self.execution_context_stack[index].pc as usize]; // failure is a coding error (the compiler broke)
                     self.execution_context_stack[index].pc += 1;

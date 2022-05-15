@@ -23,6 +23,7 @@ use super::parser::update_expressions::*;
 use super::scanner::*;
 use super::strings::*;
 use super::values::*;
+use num::BigInt;
 use num_enum::IntoPrimitive;
 use num_enum::TryFromPrimitive;
 use std::fmt;
@@ -33,6 +34,7 @@ pub type Opcode = u16;
 #[derive(Debug, Copy, Clone, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Insn {
+    Nop,
     String,
     Resolve,
     StrictResolve,
@@ -77,6 +79,7 @@ pub enum Insn {
 impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(match self {
+            Insn::Nop => "NOP",
             Insn::String => "STRING",
             Insn::Resolve => "RESOLVE",
             Insn::StrictResolve => "STRICT_RESOLVE",
@@ -224,6 +227,35 @@ impl Literal {
                     Numeric::BigInt(bi) => {
                         let idx = chunk.add_to_bigint_pool(bi.clone())?;
                         chunk.op_plus_arg(Insn::Bigint, idx);
+                    }
+                }
+            }
+            LiteralKind::DebugLiteral(ch) => {
+                if cfg!(test) {
+                    match *ch {
+                        '@' => {
+                            // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
+                            for _ in 0..32768 {
+                                chunk.op(Insn::Nop);
+                            }
+                            chunk.op(Insn::False);
+                        }
+                        '!' => {
+                            // Fill the string table.
+                            chunk.strings.resize(65536, JSString::from(""));
+                            chunk.op(Insn::False);
+                        }
+                        '#' => {
+                            // Fill the float table.
+                            chunk.floats.resize(65536, 10.1);
+                            chunk.op(Insn::False);
+                        }
+                        '$' => {
+                            // Fill the bigint table.
+                            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+                            chunk.op(Insn::False);
+                        }
+                        _ => (),
                     }
                 }
             }

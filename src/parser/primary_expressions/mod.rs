@@ -1985,6 +1985,7 @@ pub enum LiteralKind {
     BooleanLiteral(bool),
     NumericLiteral(Numeric),
     StringLiteral(StringToken),
+    DebugLiteral(char),
 }
 #[derive(Debug)]
 pub struct Literal {
@@ -2009,6 +2010,7 @@ impl fmt::Display for Literal {
             }
             LiteralKind::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", *b),
             LiteralKind::StringLiteral(s) => write!(f, "{}", *s),
+            LiteralKind::DebugLiteral(ch) => write!(f, "@@{ch}"),
         }
     }
 }
@@ -2030,6 +2032,7 @@ impl PrettyPrint for Literal {
             LiteralKind::BooleanLiteral(_) => pprint_token(writer, self, TokenType::Keyword, pad, state),
             LiteralKind::NumericLiteral(_) => pprint_token(writer, self, TokenType::Numeric, pad, state),
             LiteralKind::StringLiteral(_) => pprint_token(writer, self, TokenType::String, pad, state),
+            LiteralKind::DebugLiteral(_) => pprint_token(writer, self, TokenType::Punctuator, pad, state),
         }
     }
 }
@@ -2044,6 +2047,7 @@ impl Literal {
             Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
             Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner)),
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
+            Token::Debug(ch) => Ok((Rc::new(Literal { kind: LiteralKind::DebugLiteral(ch) }), newscanner)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
         }
     }
@@ -2073,6 +2077,7 @@ impl Literal {
                 assert!(!s.has_legacy_octal_escapes());
             }
             LiteralKind::BooleanLiteral(..) | LiteralKind::NullLiteral => {}
+            LiteralKind::DebugLiteral(_) => (),
         }
 
         //match &self.kind {
