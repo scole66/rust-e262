@@ -57,7 +57,7 @@ pub enum Insn {
     Pop,
     Pop2Push3,
     Dup,
-    Unwrap,
+    Unwind,
     Ref,
     StrictRef,
     InitializeReferencedBinding,
@@ -102,7 +102,7 @@ impl fmt::Display for Insn {
             Insn::Pop => "POP",
             Insn::Pop2Push3 => "POP2_PUSH3",
             Insn::Dup => "DUP",
-            Insn::Unwrap => "UNWRAP",
+            Insn::Unwind => "UNWIND",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
             Insn::InitializeReferencedBinding => "IRB",
@@ -292,9 +292,7 @@ impl ObjectLiteral {
                 // Stack: ...
                 chunk.op(Insn::Object);
                 // Stack: obj ...
-                let status = pdl.property_definition_evaluation(chunk, strict)?;
-                // Stack: obj ...
-                Ok(status)
+                pdl.property_definition_evaluation(chunk, strict)
             }
         }
     }
@@ -324,63 +322,54 @@ impl PropertyDefinition {
     pub fn property_definition_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             PropertyDefinition::IdentifierReference(idr) => {
-                let mut exit_status = CompilerStatusFlags::new();
                 // Stack: obj ...
                 let name = idr.string_value();
                 let name_idx = chunk.add_to_string_pool(name)?;
                 chunk.op_plus_arg(Insn::String, name_idx);
                 // Stack: name obj ...
-                let status = idr.compile(chunk, strict)?;
-                let mut escape = None;
-                if status.can_be_reference {
-                    // Stack: ref name obj ...
-                    chunk.op(Insn::GetValue);
-                }
-                if status.can_be_abrupt || status.can_be_reference {
-                    // Stack: value name obj ...
-                    let isok = chunk.op_jump(Insn::JumpIfNormal);
-                    // Stack: err name obj ...
-                    chunk.op(Insn::Swap);
-                    // Stack: name err obj ...
-                    chunk.op(Insn::Pop);
-                    // Stack: err obj ...
-                    chunk.op(Insn::Swap);
-                    // Stack: obj err ...
-                    chunk.op(Insn::Pop);
-                    // Stack: err ...
-                    escape = Some(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(isok)?;
-                    exit_status = exit_status.abrupt();
-                }
+
+                // Following is unwrapped: idr compilation only fails if the string table is full and we can't insert,
+                // but since we _just_ inserted this string, above, it will never have a problem.
+                let status = idr.compile(chunk, strict).unwrap();
+                // idr always returns a reference (it's in the name), so don't bother with the logic of when it would
+                // otherwise be false.
+                assert!(status.can_be_reference);
+
+                // Stack: ref name obj ...
+                chunk.op(Insn::GetValue);
                 // Stack: value name obj ...
+                let isok = chunk.op_jump(Insn::JumpIfNormal);
+                // Stack: err name obj ...
+                chunk.op_plus_arg(Insn::Unwind, 2);
+                // Stack: err ...
+                let escape = chunk.op_jump(Insn::Jump);
+                chunk.fixup(isok).unwrap(); // two instructions is never gonna be too far.
+                                            // Stack: value name obj ...
                 chunk.op(Insn::CreateDataProperty);
                 // Stack: obj ...
-
-                if let Some(mark) = escape {
-                    chunk.fixup(mark)?;
-                }
-                Ok(exit_status)
+                chunk.fixup(escape).unwrap(); // one instruction. won't overrun.
+                Ok(CompilerStatusFlags::new().abrupt())
             }
             PropertyDefinition::CoverInitializedName(_) => unreachable!(),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
                 let mut exit_status = CompilerStatusFlags::new();
                 let mut exits = Vec::with_capacity(2);
+                let is_proto_setter = pn.is_literal_proto();
                 // Stack: obj ...
-                let status = pn.compile(chunk, strict)?;
-                // Stack: propKey obj ...
-                if status.can_be_abrupt {
-                    let mark = chunk.op_jump(Insn::JumpIfNormal);
-                    // Stack: err obj ...
-                    chunk.op(Insn::Swap);
-                    // Stack: obj err ...
-                    chunk.op(Insn::Pop);
-                    // Stack: err ...
-                    exits.push(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(mark)?;
-                    exit_status = exit_status.abrupt();
+                if !is_proto_setter {
+                    let status = pn.compile(chunk, strict)?;
+                    // Stack: propKey obj ...
+                    if status.can_be_abrupt {
+                        let mark = chunk.op_jump(Insn::JumpIfNormal);
+                        // Stack: err obj ...
+                        chunk.op_plus_arg(Insn::Unwind, 1);
+                        // Stack: err ...
+                        exits.push(chunk.op_jump(Insn::Jump));
+                        chunk.fixup(mark).unwrap();
+                        exit_status = exit_status.abrupt();
+                    }
                 }
                 // Stack: propKey obj ...
-                let is_proto_setter = pn.is_literal_proto();
                 if !is_proto_setter && ae.is_anonymous_function_definition() {
                     todo!();
                 } else {
@@ -393,31 +382,21 @@ impl PropertyDefinition {
                         // Stack: propValue propKey obj ...
                         let mark = chunk.op_jump(Insn::JumpIfNormal);
                         // Stack: err propKey obj ...
-                        chunk.op(Insn::Swap);
-                        // Stack: propKey err obj ...
-                        chunk.op(Insn::Pop);
-                        // Stack: err obj ...
-                        chunk.op(Insn::Swap);
-                        // Stack: obj err ...
-                        chunk.op(Insn::Pop);
+                        chunk.op_plus_arg(Insn::Unwind, 2);
                         // Stack: err ...
                         exits.push(chunk.op_jump(Insn::Jump));
-                        chunk.fixup(mark)?;
+                        chunk.fixup(mark).unwrap();
                         exit_status = exit_status.abrupt();
                     }
                 }
-                // Stack: propValue propKey obj ...
                 if is_proto_setter {
-                    chunk.op(Insn::Swap);
-                    // Stack: propKey propValue obj ...
-                    chunk.op(Insn::Pop);
                     // Stack: propValue obj ...
                     chunk.op(Insn::SetPrototype);
-                    // Stack: obj ...
                 } else {
+                    // Stack: propValue propKey obj ...
                     chunk.op(Insn::CreateDataProperty);
-                    // Stack: obj ...
                 }
+                // Stack: obj ...
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
@@ -425,29 +404,28 @@ impl PropertyDefinition {
             }
             PropertyDefinition::MethodDefinition(_) => todo!(),
             PropertyDefinition::AssignmentExpression(ae) => {
-                let mut exits = vec![];
                 // Stack: obj ...
                 let status = ae.compile(chunk, strict)?;
                 // Stack: exprValue obj ...
                 if status.can_be_reference {
                     chunk.op(Insn::GetValue);
                 }
-                if status.can_be_abrupt || status.can_be_reference {
+                let exit = if status.can_be_abrupt || status.can_be_reference {
                     let close = chunk.op_jump(Insn::JumpIfNormal);
                     // Stack: err obj ...
-                    chunk.op(Insn::Swap);
-                    // Stack: obj err ...
-                    chunk.op(Insn::Pop);
+                    chunk.op_plus_arg(Insn::Unwind, 1);
                     // Stack: err ...
-                    let mark = chunk.op_jump(Insn::Jump);
-                    exits.push(mark);
-                    chunk.fixup(close)?;
-                }
+                    let exit = Some(chunk.op_jump(Insn::Jump));
+                    chunk.fixup(close).unwrap();
+                    exit
+                } else {
+                    None
+                };
                 // Stack: fromValue obj ...
                 chunk.op(Insn::CopyDataProps);
                 // Stack: obj ...
-                for mark in exits {
-                    chunk.fixup(mark)?;
+                if let Some(mark) = exit {
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags::new().abrupt())
             }
@@ -521,7 +499,7 @@ impl ComputedPropertyName {
         // Stack:: key ...
 
         for mark in exits {
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).unwrap();
         }
         Ok(CompilerStatusFlags::new().abrupt())
     }
@@ -552,29 +530,27 @@ impl MemberExpression {
         if state.can_be_abrupt || state.can_be_reference {
             let norm = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: error1/error2 base ...
-            chunk.op(Insn::Swap);
-            chunk.op(Insn::Pop);
+            chunk.op_plus_arg(Insn::Unwind, 1);
             // stack: error1/error2 ...
             let exit = chunk.op_jump(Insn::Jump);
             exits.push(exit);
-            chunk.fixup(norm)?;
+            chunk.fixup(norm).unwrap();
         }
         // Stack: nameValue base ...
         chunk.op(Insn::ToPropertyKey);
         // Stack: key/err base ...
         let norm = chunk.op_jump(Insn::JumpIfNormal);
-        chunk.op(Insn::Swap);
-        chunk.op(Insn::Pop);
+        chunk.op_plus_arg(Insn::Unwind, 1);
         let exit = chunk.op_jump(Insn::Jump);
         exits.push(exit);
-        chunk.fixup(norm)?;
+        chunk.fixup(norm).unwrap();
 
         // Stack: key base ...
         chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
         // Stack: ref ...
 
         for exit in exits {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).unwrap();
         }
         Ok(CompilerStatusFlags::new().abrupt().reference())
     }
@@ -595,29 +571,28 @@ impl MemberExpression {
                 }
                 let status = Self::evaluate_property_access_with_identifier_key(chunk, id, strict)?;
                 if let Some(mark) = mark {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: true })
             }
             MemberExpression::Expression(me, exp) => {
-                let mut exits = vec![];
                 // Stack: ...
                 let status = me.compile(chunk, strict)?;
                 // Stack: base/err ...
                 if status.can_be_reference {
                     chunk.op(Insn::GetValue);
                 }
-                if status.can_be_abrupt || status.can_be_reference {
-                    let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                    exits.push(exit);
-                }
+                let exit = if status.can_be_abrupt || status.can_be_reference { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 // Stack: base ...
                 let status = Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
+                // expressions are always: abrupt/ref, so we can avoid further boolean logic.
+                assert!(status.can_be_abrupt && status.can_be_reference);
+
                 // Stack: ref/err ...
-                for exit in &exits {
-                    chunk.fixup(*exit)?;
+                if let Some(mark) = exit {
+                    chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || !exits.is_empty(), can_be_reference: true })
+                Ok(CompilerStatusFlags::new().abrupt().reference())
             }
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),
@@ -666,9 +641,9 @@ impl CallMemberExpression {
         if status.can_be_abrupt || status.can_be_reference {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
             // Stack: err err ...
-            chunk.op_plus_arg(Insn::Unwrap, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy)?;
+            chunk.fixup(happy).unwrap();
         }
         // Stack: func ref ...
         let arg_status = self.arguments.argument_list_evaluation(chunk, strict)?;
@@ -676,9 +651,9 @@ impl CallMemberExpression {
         // or: Stack: err func ref ...
         if arg_status.can_be_abrupt {
             let happy = chunk.op_jump(Insn::JumpIfNormal);
-            chunk.op_plus_arg(Insn::Unwrap, 2);
+            chunk.op_plus_arg(Insn::Unwind, 2);
             exits.push(chunk.op_jump(Insn::Jump));
-            chunk.fixup(happy)?;
+            chunk.fixup(happy).unwrap();
         }
         chunk.op(Insn::Call);
         for mark in exits {
@@ -707,17 +682,18 @@ impl Arguments {
                 Ok(CompilerStatusFlags::new())
             }
             Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => {
-                let mut exit = None;
                 let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict)?;
-                if status.can_be_abrupt {
+                let exit = if status.can_be_abrupt {
                     // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
                     // or Stack: err ...
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
                 let index = chunk.add_to_float_pool(arg_list_len as f64)?;
                 chunk.op_plus_arg(Insn::Float, index);
                 if let Some(mark) = exit {
-                    chunk.fixup(mark)?;
+                    chunk.fixup(mark).unwrap();
                 }
                 Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt, can_be_reference: false })
             }
@@ -741,13 +717,11 @@ impl ArgumentList {
             ArgumentList::Dots(_) => todo!(),
             ArgumentList::ArgumentList(lst, item) => {
                 // Stack: ...
-                let mut exits = vec![];
                 let (prev_count, status) = lst.argument_list_evaluation(chunk, strict)?;
+                assert!(!status.can_be_reference);
                 // Stack: val(N) val(N-1) ... val(0) ...
                 // or err ...
-                if status.can_be_abrupt {
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                }
+                let exit = if status.can_be_abrupt { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let status2 = item.compile(chunk, strict)?;
                 // Stack: val/err val(n) val(n-1) ... val(0) ...
                 if status2.can_be_reference {
@@ -755,11 +729,10 @@ impl ArgumentList {
                 }
                 if status2.can_be_reference || status2.can_be_abrupt {
                     let happy = chunk.op_jump(Insn::JumpIfNormal);
-                    chunk.op_plus_arg(Insn::Unwrap, prev_count);
-                    //exits.push(chunk.op_jump(Insn::Jump));
-                    chunk.fixup(happy)?;
+                    chunk.op_plus_arg(Insn::Unwind, prev_count);
+                    chunk.fixup(happy).unwrap();
                 }
-                for mark in exits {
+                if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
                 Ok((prev_count + 1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference, can_be_reference: false }))
