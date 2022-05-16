@@ -17,7 +17,7 @@ use super::parser::{parse_text, ParseGoal, ParsedText};
 use super::realm::{create_realm, IntrinsicId, Realm};
 use super::reference::{get_value, initialize_referenced_binding, put_value, Base, Reference};
 use super::strings::JSString;
-use super::values::{is_callable, to_numeric, to_object, to_property_key, ECMAScriptValue, Numeric, PropertyKey, Symbol, SymbolInternals};
+use super::values::*;
 use crate::object::create_data_property_or_throw;
 use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
@@ -691,6 +691,52 @@ impl Agent {
 
                     let result = self.evaluate_call(func_val, ref_nc, &arguments);
 
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::UnaryPlus => {
+                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let val = get_value(self, exp);
+                    let result = match val {
+                        Ok(ev) => to_number(self, ev).map(NormalCompletion::from),
+                        Err(ac) => Err(ac),
+                    };
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::UnaryMinus => {
+                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let val = get_value(self, exp);
+                    let old_val = match val {
+                        Ok(val) => to_numeric(self, val),
+                        Err(ac) => Err(ac),
+                    };
+                    let result = match old_val {
+                        Err(ac) => Err(ac),
+                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(-n)),
+                        Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(-&*bi))),
+                    };
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::UnaryComplement => {
+                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let val = get_value(self, exp);
+                    let old_val = match val {
+                        Ok(val) => to_numeric(self, val),
+                        Err(ac) => Err(ac),
+                    };
+                    let result = match old_val {
+                        Err(ac) => Err(ac),
+                        Ok(Numeric::Number(n)) => Ok(NormalCompletion::from(!to_int32(self, n).unwrap())),
+                        Ok(Numeric::BigInt(bi)) => Ok(NormalCompletion::from(Rc::new(!&*bi))),
+                    };
+                    self.execution_context_stack[index].stack.push(result);
+                }
+                Insn::UnaryNot => {
+                    let exp = self.execution_context_stack[index].stack.pop().unwrap();
+                    let val = get_value(self, exp);
+                    let result = match val {
+                        Ok(val) => Ok(NormalCompletion::from(!to_boolean(val))),
+                        Err(ac) => Err(ac),
+                    };
                     self.execution_context_stack[index].stack.push(result);
                 }
             }

@@ -785,29 +785,37 @@ mod unary_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
-    #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("-a", true => panics "not yet implemented"; "negate; strict")]
-    #[test_case("-a", false => panics "not yet implemented"; "negate; non-strict")]
-    #[test_case("+a", true => panics "not yet implemented"; "tonumber; strict")]
-    #[test_case("+a", false => panics "not yet implemented"; "tonumber; non-strict")]
-    #[test_case("!a", true => panics "not yet implemented"; "not; strict")]
-    #[test_case("!a", false => panics "not yet implemented"; "not; non-strict")]
-    #[test_case("~a", true => panics "not yet implemented"; "complement; strict")]
-    #[test_case("~a", false => panics "not yet implemented"; "complement; non-strict")]
-    #[test_case("void a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "VOID"]); "void; strict")]
-    #[test_case("void a", false => svec(&["STRING 0 (a)", "RESOLVE", "VOID"]); "void; non-strict")]
-    #[test_case("typeof a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "TYPEOF"]); "typeof; strict")]
-    #[test_case("typeof a", false => svec(&["STRING 0 (a)", "RESOLVE", "TYPEOF"]); "typeof; non-strict")]
-    #[test_case("delete a", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "DELETE"]); "delete; strict")]
-    #[test_case("delete a", false => svec(&["STRING 0 (a)", "RESOLVE", "DELETE"]); "delete; non-strict")]
-    #[test_case("await a", true => panics "not yet implemented"; "await; strict")]
-    #[test_case("await a", false => panics "not yet implemented"; "await; non-strict")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("id", true, None => Ok((svec(&["STRING 0 (id)", "STRICT_RESOLVE"]), true, true)); "fall-thru strict")]
+    #[test_case("id", false, None => Ok((svec(&["STRING 0 (id)", "RESOLVE"]), true, true)); "fall-thru non strict")]
+    #[test_case("-a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "UNARY_MINUS"]), true, false)); "negate; strict")]
+    #[test_case("-a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "UNARY_MINUS"]), true, false)); "negate; non-strict")]
+    #[test_case("-a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "negate; compile fail")]
+    #[test_case("+a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "UNARY_PLUS"]), true, false)); "tonumber; strict")]
+    #[test_case("+a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "UNARY_PLUS"]), true, false)); "tonumber; non-strict")]
+    #[test_case("+a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "tonumber; compile fail")]
+    #[test_case("!a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "UNARY_NOT"]), true, false)); "not; strict")]
+    #[test_case("!a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "UNARY_NOT"]), true, false)); "not; non-strict")]
+    #[test_case("!a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "not; compile fail")]
+    #[test_case("~a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "UNARY_COMPLEMENT"]), true, false)); "complement; strict")]
+    #[test_case("~a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "UNARY_COMPLEMENT"]), true, false)); "complement; non-strict")]
+    #[test_case("~a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "complement; compile fail")]
+    #[test_case("void a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "VOID"]), true, false)); "void; strict")]
+    #[test_case("void a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "VOID"]), true, false)); "void; non-strict")]
+    #[test_case("void a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "void; compile fail")]
+    #[test_case("typeof a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "TYPEOF"]), true, false)); "typeof; strict")]
+    #[test_case("typeof a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "TYPEOF"]), true, false)); "typeof; non-strict")]
+    #[test_case("typeof a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "typeof; compile fail")]
+    #[test_case("delete a", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "DELETE"]), true, false)); "delete; strict")]
+    #[test_case("delete a", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "DELETE"]), true, false)); "delete; non-strict")]
+    #[test_case("delete a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "delete; compile fail")]
+    #[test_case("await a", true, None => panics "not yet implemented"; "await; strict")]
+    #[test_case("await a", false, None => panics "not yet implemented"; "await; non-strict")]
+    fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).unary_expression();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict).unwrap();
-        c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c, strict)
+            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map_err(|e| e.to_string())
     }
 }
 
