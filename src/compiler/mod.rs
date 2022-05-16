@@ -74,6 +74,10 @@ pub enum Insn {
     Delete,
     Void,
     TypeOf,
+    UnaryPlus,
+    UnaryMinus,
+    UnaryComplement,
+    UnaryNot,
 }
 
 impl fmt::Display for Insn {
@@ -119,6 +123,10 @@ impl fmt::Display for Insn {
             Insn::Delete => "DELETE",
             Insn::Void => "VOID",
             Insn::TypeOf => "TYPEOF",
+            Insn::UnaryPlus => "UNARY_PLUS",
+            Insn::UnaryMinus => "UNARY_MINUS",
+            Insn::UnaryComplement => "UNARY_COMPLEMENT",
+            Insn::UnaryNot => "UNARY_NOT",
         })
     }
 }
@@ -808,27 +816,20 @@ impl UpdateExpression {
 
 impl UnaryExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+        fn unary_op(exp: &Rc<UnaryExpression>, chunk: &mut Chunk, strict: bool, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+            exp.compile(chunk, strict)?;
+            chunk.op(insn);
+            Ok(CompilerStatusFlags::new().abrupt())
+        }
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.compile(chunk, strict),
-            UnaryExpression::Delete(exp) => {
-                exp.compile(chunk, strict)?;
-                chunk.op(Insn::Delete);
-                Ok(CompilerStatusFlags::new().abrupt())
-            }
-            UnaryExpression::Void(exp) => {
-                exp.compile(chunk, strict)?;
-                chunk.op(Insn::Void);
-                Ok(CompilerStatusFlags::new().abrupt())
-            }
-            UnaryExpression::Typeof(exp) => {
-                exp.compile(chunk, strict)?;
-                chunk.op(Insn::TypeOf);
-                Ok(CompilerStatusFlags::new().abrupt())
-            }
-            UnaryExpression::NoOp(_) => todo!(),
-            UnaryExpression::Negate(_) => todo!(),
-            UnaryExpression::Complement(_) => todo!(),
-            UnaryExpression::Not(_) => todo!(),
+            UnaryExpression::Delete(exp) => unary_op(exp, chunk, strict, Insn::Delete),
+            UnaryExpression::Void(exp) => unary_op(exp, chunk, strict, Insn::Void),
+            UnaryExpression::Typeof(exp) => unary_op(exp, chunk, strict, Insn::TypeOf),
+            UnaryExpression::NoOp(exp) => unary_op(exp, chunk, strict, Insn::UnaryPlus),
+            UnaryExpression::Negate(exp) => unary_op(exp, chunk, strict, Insn::UnaryMinus),
+            UnaryExpression::Complement(exp) => unary_op(exp, chunk, strict, Insn::UnaryComplement),
+            UnaryExpression::Not(exp) => unary_op(exp, chunk, strict, Insn::UnaryNot),
             UnaryExpression::Await(_) => todo!(),
         }
     }
