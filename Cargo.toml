@@ -12,7 +12,7 @@ edition = "2021"
 cc = "1.0"
 
 [dependencies]
-num = "0.3"
+num = { version = "0.4", features = ["num-bigint"] }
 libc = "0.2"
 itertools = "0.10.0"
 #lasso = "0.5.0"

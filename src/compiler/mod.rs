@@ -78,6 +78,10 @@ pub enum Insn {
     UnaryMinus,
     UnaryComplement,
     UnaryNot,
+    Exponentiate,
+    Multiply,
+    Divide,
+    Modulo,
 }
 
 impl fmt::Display for Insn {
@@ -127,6 +131,10 @@ impl fmt::Display for Insn {
             Insn::UnaryMinus => "UNARY_MINUS",
             Insn::UnaryComplement => "UNARY_COMPLEMENT",
             Insn::UnaryNot => "UNARY_NOT",
+            Insn::Exponentiate => "EXPONENTIATE",
+            Insn::Multiply => "MULTIPLY",
+            Insn::Divide => "DIVIDE",
+            Insn::Modulo => "MODULO",
         })
     }
 }
@@ -835,11 +843,52 @@ impl UnaryExpression {
     }
 }
 
+macro_rules! compile_binary_expression {
+    ( $chunk:expr, $strict:expr, $left:expr, $right:expr, $op:expr ) => {{
+        // Stack: ...
+        let left_status = $left.compile($chunk, $strict)?;
+        // Stack: err/ref/val ...
+        if left_status.can_be_reference {
+            $chunk.op(Insn::GetValue);
+        }
+        // Stack: err/val
+        let first_exit = if left_status.can_be_reference || left_status.can_be_abrupt { Some($chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        // Stack: val
+        let right_status = $right.compile($chunk, $strict)?;
+        // Stack: err/ref/val val ...
+        if right_status.can_be_reference {
+            $chunk.op(Insn::GetValue);
+        }
+        // Stack: err/val val ...
+        let second_exit = if right_status.can_be_reference || right_status.can_be_abrupt {
+            let nearby = $chunk.op_jump(Insn::JumpIfNormal);
+            // Stack: err val ...
+            $chunk.op_plus_arg(Insn::Unwind, 1);
+            // Stack: err ...
+            let exit = $chunk.op_jump(Insn::Jump);
+            $chunk.fixup(nearby).unwrap();
+            Some(exit)
+        } else {
+            None
+        };
+        // Stack: val val ...
+        $chunk.op($op);
+        // Stack: result/err ...
+        if let Some(mark) = first_exit {
+            $chunk.fixup(mark)?;
+        }
+        if let Some(mark) = second_exit {
+            $chunk.fixup(mark).unwrap();
+        }
+        Ok(CompilerStatusFlags::new().abrupt())
+    }};
+}
+
 impl ExponentiationExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict),
-            _ => todo!(),
+            ExponentiationExpression::Exponentiation(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Exponentiate),
         }
     }
 }
@@ -848,7 +897,17 @@ impl MultiplicativeExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict),
-            _ => todo!(),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(left, op, right) => compile_binary_expression!(
+                chunk,
+                strict,
+                left,
+                right,
+                match **op {
+                    MultiplicativeOperator::Multiply => Insn::Multiply,
+                    MultiplicativeOperator::Divide => Insn::Divide,
+                    MultiplicativeOperator::Modulo => Insn::Modulo,
+                }
+            ),
         }
     }
 }
