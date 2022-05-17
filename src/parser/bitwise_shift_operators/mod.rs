@@ -39,7 +39,9 @@ impl PrettyPrint for ShiftExpression {
         writeln!(writer, "{}ShiftExpression: {}", first, self)?;
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ShiftExpression::LeftShift(se, ae) | ShiftExpression::SignedRightShift(se, ae) | ShiftExpression::UnsignedRightShift(se, ae) => {
+            ShiftExpression::LeftShift(se, ae)
+            | ShiftExpression::SignedRightShift(se, ae)
+            | ShiftExpression::UnsignedRightShift(se, ae) => {
                 se.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -82,16 +84,21 @@ impl ShiftExpression {
         AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ae, after_ae)| {
             let mut current = Rc::new(ShiftExpression::AdditiveExpression(ae));
             let mut current_scan = after_ae;
-            while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt])
-                .and_then(|(shift_op, after_op)| {
-                    let make_se = match shift_op {
-                        Punctuator::GtGt => ShiftExpression::SignedRightShift,
-                        Punctuator::LtLt => ShiftExpression::LeftShift,
-                        _ => ShiftExpression::UnsignedRightShift,
-                    };
-                    AdditiveExpression::parse(parser, after_op, yield_flag, await_flag).map(|(ae2, after_ae2)| (make_se, ae2, after_ae2))
-                })
-            {
+            while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(
+                current_scan,
+                parser.source,
+                ScanGoal::InputElementDiv,
+                &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt],
+            )
+            .and_then(|(shift_op, after_op)| {
+                let make_se = match shift_op {
+                    Punctuator::GtGt => ShiftExpression::SignedRightShift,
+                    Punctuator::LtLt => ShiftExpression::LeftShift,
+                    _ => ShiftExpression::UnsignedRightShift,
+                };
+                AdditiveExpression::parse(parser, after_op, yield_flag, await_flag)
+                    .map(|(ae2, after_ae2)| (make_se, ae2, after_ae2))
+            }) {
                 current = Rc::new(make_se(current, ae2));
                 current_scan = after_ae2;
             }
@@ -124,9 +131,15 @@ impl ShiftExpression {
         //  2. Return true.
         match self {
             ShiftExpression::AdditiveExpression(n) => n.all_private_identifiers_valid(names),
-            ShiftExpression::LeftShift(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            ShiftExpression::SignedRightShift(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            ShiftExpression::UnsignedRightShift(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            ShiftExpression::LeftShift(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            ShiftExpression::SignedRightShift(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            ShiftExpression::UnsignedRightShift(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -143,16 +156,18 @@ impl ShiftExpression {
         //  2. Return false.
         match self {
             ShiftExpression::AdditiveExpression(ae) => ae.contains_arguments(),
-            ShiftExpression::LeftShift(se, ae) | ShiftExpression::SignedRightShift(se, ae) | ShiftExpression::UnsignedRightShift(se, ae) => {
-                se.contains_arguments() || ae.contains_arguments()
-            }
+            ShiftExpression::LeftShift(se, ae)
+            | ShiftExpression::SignedRightShift(se, ae)
+            | ShiftExpression::UnsignedRightShift(se, ae) => se.contains_arguments() || ae.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.early_errors(agent, errs, strict),
-            ShiftExpression::LeftShift(l, r) | ShiftExpression::SignedRightShift(l, r) | ShiftExpression::UnsignedRightShift(l, r) => {
+            ShiftExpression::LeftShift(l, r)
+            | ShiftExpression::SignedRightShift(l, r)
+            | ShiftExpression::UnsignedRightShift(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }

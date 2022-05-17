@@ -4,7 +4,9 @@ use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, Norm
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
 use super::errors::*;
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
-use super::object::{call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
+use super::object::{
+    call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor,
+};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
 use super::parser::class_definitions::ClassDeclaration;
@@ -64,19 +66,49 @@ impl Agent {
             obj_id: 1,
             execution_context_stack: vec![],
             symbols: WellKnownSymbols {
-                async_iterator_: Symbol(Rc::new(SymbolInternals { id: 1, description: Some(JSString::from("Symbol.asyncIterator")) })),
-                has_instance_: Symbol(Rc::new(SymbolInternals { id: 2, description: Some(JSString::from("Symbol.hasInstance")) })),
-                is_concat_spreadable_: Symbol(Rc::new(SymbolInternals { id: 3, description: Some(JSString::from("Symbol.isConcatSpreadable")) })),
-                iterator_: Symbol(Rc::new(SymbolInternals { id: 4, description: Some(JSString::from("Symbol.iterator")) })),
+                async_iterator_: Symbol(Rc::new(SymbolInternals {
+                    id: 1,
+                    description: Some(JSString::from("Symbol.asyncIterator")),
+                })),
+                has_instance_: Symbol(Rc::new(SymbolInternals {
+                    id: 2,
+                    description: Some(JSString::from("Symbol.hasInstance")),
+                })),
+                is_concat_spreadable_: Symbol(Rc::new(SymbolInternals {
+                    id: 3,
+                    description: Some(JSString::from("Symbol.isConcatSpreadable")),
+                })),
+                iterator_: Symbol(Rc::new(SymbolInternals {
+                    id: 4,
+                    description: Some(JSString::from("Symbol.iterator")),
+                })),
                 match_: Symbol(Rc::new(SymbolInternals { id: 5, description: Some(JSString::from("Symbol.match")) })),
-                match_all_: Symbol(Rc::new(SymbolInternals { id: 6, description: Some(JSString::from("Symbol.matchAll")) })),
-                replace_: Symbol(Rc::new(SymbolInternals { id: 7, description: Some(JSString::from("Symbol.replace")) })),
+                match_all_: Symbol(Rc::new(SymbolInternals {
+                    id: 6,
+                    description: Some(JSString::from("Symbol.matchAll")),
+                })),
+                replace_: Symbol(Rc::new(SymbolInternals {
+                    id: 7,
+                    description: Some(JSString::from("Symbol.replace")),
+                })),
                 search_: Symbol(Rc::new(SymbolInternals { id: 8, description: Some(JSString::from("Symbol.search")) })),
-                species_: Symbol(Rc::new(SymbolInternals { id: 9, description: Some(JSString::from("Symbol.species")) })),
+                species_: Symbol(Rc::new(SymbolInternals {
+                    id: 9,
+                    description: Some(JSString::from("Symbol.species")),
+                })),
                 split_: Symbol(Rc::new(SymbolInternals { id: 10, description: Some(JSString::from("Symbol.split")) })),
-                to_primitive_: Symbol(Rc::new(SymbolInternals { id: 11, description: Some(JSString::from("Symbol.toPrimitive")) })),
-                to_string_tag_: Symbol(Rc::new(SymbolInternals { id: 12, description: Some(JSString::from("Symbol.toStringTag")) })),
-                unscopables_: Symbol(Rc::new(SymbolInternals { id: 13, description: Some(JSString::from("Symbol.unscopables")) })),
+                to_primitive_: Symbol(Rc::new(SymbolInternals {
+                    id: 11,
+                    description: Some(JSString::from("Symbol.toPrimitive")),
+                })),
+                to_string_tag_: Symbol(Rc::new(SymbolInternals {
+                    id: 12,
+                    description: Some(JSString::from("Symbol.toStringTag")),
+                })),
+                unscopables_: Symbol(Rc::new(SymbolInternals {
+                    id: 13,
+                    description: Some(JSString::from("Symbol.unscopables")),
+                })),
             },
             symbol_id: 14,
             gsr,
@@ -204,7 +236,11 @@ impl Agent {
                     self,
                     &global,
                     $name,
-                    PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+                    PotentialPropertyDescriptor::new()
+                        .value(ECMAScriptValue::from($value))
+                        .writable($writable)
+                        .enumerable($enumerable)
+                        .configurable($configurable),
                 )
                 .unwrap();
             };
@@ -357,7 +393,11 @@ impl Agent {
                         self,
                         &global,
                         $name,
-                        PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+                        PotentialPropertyDescriptor::new()
+                            .value(ECMAScriptValue::from($value))
+                            .writable($writable)
+                            .enumerable($enumerable)
+                            .configurable($configurable),
                     )
                     .unwrap();
                 };
@@ -437,7 +477,9 @@ impl Agent {
                 Insn::True => self.execution_context_stack[index].stack.push(Ok(true.into())),
                 Insn::False => self.execution_context_stack[index].stack.push(Ok(false.into())),
                 Insn::Empty => self.execution_context_stack[index].stack.push(Ok(NormalCompletion::Empty)),
-                Insn::Undefined => self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Undefined.into())),
+                Insn::Undefined => {
+                    self.execution_context_stack[index].stack.push(Ok(ECMAScriptValue::Undefined.into()))
+                }
                 Insn::This => {
                     let this_resolved = self.resolve_this_binding().map(NormalCompletion::from);
                     self.execution_context_stack[index].stack.push(this_resolved);
@@ -532,13 +574,15 @@ impl Agent {
                     let strict = instruction == Insn::StrictRef;
                     // Stack: name base ...
                     let name = {
-                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let result: Result<ECMAScriptValue, _> =
+                            self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
                         let value: Result<PropertyKey, _> = result.unwrap().try_into();
                         value.unwrap()
                     };
                     // Stack: base ...
                     let base = {
-                        let result: Result<ECMAScriptValue, _> = self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
+                        let result: Result<ECMAScriptValue, _> =
+                            self.execution_context_stack[index].stack.pop().unwrap().unwrap().try_into();
                         result.unwrap()
                     };
                     // Stack: ...
@@ -562,7 +606,8 @@ impl Agent {
                     assert!(stack_size >= 2);
                     let value = self.execution_context_stack[index].stack.pop().unwrap();
                     let lhs = self.execution_context_stack[index].stack.pop().unwrap();
-                    let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap())).map(NormalCompletion::from);
+                    let result = initialize_referenced_binding(self, lhs, value.map(|nc| nc.try_into().unwrap()))
+                        .map(NormalCompletion::from);
                     self.execution_context_stack[index].stack.push(result);
                 }
                 Insn::Object => {
@@ -683,7 +728,10 @@ impl Agent {
                     let arg_count: usize = (f64::try_from(arg_count_val).unwrap().round() as i64).try_into().unwrap();
                     let mut arguments = Vec::with_capacity(arg_count);
                     for _ in 1..=arg_count {
-                        let nc = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+                        let nc = ECMAScriptValue::try_from(
+                            self.execution_context_stack[index].stack.pop().unwrap().unwrap(),
+                        )
+                        .unwrap();
                         arguments.push(nc);
                     }
                     arguments.reverse();
@@ -761,13 +809,20 @@ impl Agent {
             .unwrap_or(Ok(ECMAScriptValue::Undefined))
     }
 
-    fn evaluate_call(&mut self, func: ECMAScriptValue, reference: NormalCompletion, arguments: &[ECMAScriptValue]) -> FullCompletion {
+    fn evaluate_call(
+        &mut self,
+        func: ECMAScriptValue,
+        reference: NormalCompletion,
+        arguments: &[ECMAScriptValue],
+    ) -> FullCompletion {
         let this_value = match &reference {
             NormalCompletion::Empty => unreachable!(),
             NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
             NormalCompletion::Reference(r) => match &r.base {
                 Base::Unresolvable => unreachable!(),
-                Base::Environment(e) => e.with_base_object().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined),
+                Base::Environment(e) => {
+                    e.with_base_object().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined)
+                }
                 Base::Value(_) => r.get_this_value(),
             },
         };
@@ -861,14 +916,21 @@ impl Agent {
     }
 
     fn binary_operation(&mut self, index: usize, op: BinOp) {
-        let rval = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
-        let lval = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+        let rval =
+            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+        let lval =
+            ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
         let result = self.apply_string_or_numeric_binary_operator(lval, rval, op);
         self.execution_context_stack[index].stack.push(result);
     }
 
     #[allow(unused_variables)]
-    fn apply_string_or_numeric_binary_operator(&mut self, lval: ECMAScriptValue, rval: ECMAScriptValue, op: BinOp) -> FullCompletion {
+    fn apply_string_or_numeric_binary_operator(
+        &mut self,
+        lval: ECMAScriptValue,
+        rval: ECMAScriptValue,
+        op: BinOp,
+    ) -> FullCompletion {
         let (lval, rval) = if op == BinOp::Add {
             let lprim = to_primitive(self, lval, None)?;
             let rprim = to_primitive(self, rval, None)?;
@@ -884,12 +946,20 @@ impl Agent {
         let lnum = to_numeric(self, lval)?;
         let rnum = to_numeric(self, rval)?;
         match (lnum, rnum, op) {
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => Ok(NormalCompletion::from(left.powf(right))),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Multiply) => Ok(NormalCompletion::from(left * right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => {
+                Ok(NormalCompletion::from(left.powf(right)))
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Multiply) => {
+                Ok(NormalCompletion::from(left * right))
+            }
             (Numeric::Number(left), Numeric::Number(right), BinOp::Divide) => Ok(NormalCompletion::from(left / right)),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Remainder) => Ok(NormalCompletion::from(left % right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Remainder) => {
+                Ok(NormalCompletion::from(left % right))
+            }
             (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => Ok(NormalCompletion::from(left + right)),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => Ok(NormalCompletion::from(left - right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => {
+                Ok(NormalCompletion::from(left - right))
+            }
             (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
@@ -897,14 +967,19 @@ impl Agent {
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {
-                let exponent = BigUint::try_from(&*right).map_err(|_| create_range_error(self, "Exponent must be positive"))?;
+                let exponent =
+                    BigUint::try_from(&*right).map_err(|_| create_range_error(self, "Exponent must be positive"))?;
                 let base = (*left).clone();
                 Ok(NormalCompletion::from(Rc::new(base.pow(exponent))))
             }
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Multiply) => Ok(NormalCompletion::from(Rc::new(&*left * &*right))),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => {
-                left.checked_div(&*right).map(NormalCompletion::from).map(Ok).unwrap_or_else(|| Err(create_range_error(self, "Division by zero")))
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Multiply) => {
+                Ok(NormalCompletion::from(Rc::new(&*left * &*right)))
             }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => left
+                .checked_div(&*right)
+                .map(NormalCompletion::from)
+                .map(Ok)
+                .unwrap_or_else(|| Err(create_range_error(self, "Division by zero"))),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Remainder) => {
                 if right.is_zero() {
                     Err(create_range_error(self, "Division by zero"))
@@ -913,7 +988,9 @@ impl Agent {
                 }
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Add) => Ok(NormalCompletion::from(&*left + &*right)),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => Ok(NormalCompletion::from(&*left - &*right)),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => {
+                Ok(NormalCompletion::from(&*left - &*right))
+            }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),
@@ -977,7 +1054,11 @@ pub struct WellKnownSymbols {
     pub unscopables_: Symbol,
 }
 
-pub fn parse_script(agent: &mut Agent, source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
+pub fn parse_script(
+    agent: &mut Agent,
+    source_text: &str,
+    realm: Rc<RefCell<Realm>>,
+) -> Result<ScriptRecord, Vec<Object>> {
     let script = parse_text(agent, source_text, ParseGoal::Script);
     match script {
         ParsedText::Errors(errs) => Err(errs),
@@ -1026,7 +1107,11 @@ impl TryFrom<VarScopeDecl> for TopLevelFcnDef {
     }
 }
 
-pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, env: Rc<GlobalEnvironmentRecord>) -> Completion<()> {
+pub fn global_declaration_instantiation(
+    agent: &mut Agent,
+    script: Rc<Script>,
+    env: Rc<GlobalEnvironmentRecord>,
+) -> Completion<()> {
     println!("Creating Globals...");
     let lex_names = script.lexically_declared_names();
     let var_names = script.var_declared_names();
@@ -1056,7 +1141,10 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
         .filter(|pn| {
             matches!(
                 pn,
-                VarScopeDecl::FunctionDeclaration(_) | VarScopeDecl::GeneratorDeclaration(_) | VarScopeDecl::AsyncFunctionDeclaration(_) | VarScopeDecl::AsyncGeneratorDeclaration(_)
+                VarScopeDecl::FunctionDeclaration(_)
+                    | VarScopeDecl::GeneratorDeclaration(_)
+                    | VarScopeDecl::AsyncFunctionDeclaration(_)
+                    | VarScopeDecl::AsyncGeneratorDeclaration(_)
             )
         })
         .cloned()
@@ -1078,7 +1166,12 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
         }
     }
     let mut declared_var_names = vec![];
-    for d in var_declarations.into_iter().filter(|pn| matches!(pn, VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_))) {
+    for d in var_declarations.into_iter().filter(|pn| {
+        matches!(
+            pn,
+            VarScopeDecl::VariableDeclaration(_) | VarScopeDecl::ForBinding(_) | VarScopeDecl::BindingIdentifier(_)
+        )
+    }) {
         for vn in match d {
             VarScopeDecl::VariableDeclaration(vd) => vd.bound_names(),
             VarScopeDecl::ForBinding(fb) => fb.bound_names(),
@@ -1096,7 +1189,8 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
             }
         }
     }
-    let lex_declarations = script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
+    let lex_declarations =
+        script.lexically_scoped_declarations().into_iter().map(|d| TopLevelLexDecl::try_from(d).unwrap());
     let private_env = None;
     for d in lex_declarations {
         let (names, is_constant) = match &d {
@@ -1115,10 +1209,22 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
     }
     for f in functions_to_initialize {
         let (name, func_obj) = match f {
-            TopLevelFcnDef::Function(fd) => (fd.bound_names()[0].clone(), fd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
-            TopLevelFcnDef::Generator(gd) => (gd.bound_names()[0].clone(), gd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
-            TopLevelFcnDef::AsyncFun(afd) => (afd.bound_names()[0].clone(), afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
-            TopLevelFcnDef::AsyncGen(agd) => (agd.bound_names()[0].clone(), agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env)),
+            TopLevelFcnDef::Function(fd) => (
+                fd.bound_names()[0].clone(),
+                fd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
+            ),
+            TopLevelFcnDef::Generator(gd) => (
+                gd.bound_names()[0].clone(),
+                gd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
+            ),
+            TopLevelFcnDef::AsyncFun(afd) => (
+                afd.bound_names()[0].clone(),
+                afd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
+            ),
+            TopLevelFcnDef::AsyncGen(agd) => (
+                agd.bound_names()[0].clone(),
+                agd.instantiate_function_object(agent, env.clone() as Rc<dyn EnvironmentRecord>, private_env),
+            ),
         };
         println!("   function:  {name}");
         env.create_global_function_binding(agent, name, func_obj, false)?;
@@ -1134,7 +1240,8 @@ pub fn global_declaration_instantiation(agent: &mut Agent, script: Rc<Script>, e
 
 pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMAScriptValue> {
     let global_env = sr.realm.borrow().global_env.clone();
-    let mut script_context = ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
+    let mut script_context =
+        ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
     script_context.lexical_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
     script_context.variable_environment = global_env.clone().map(|g| g as Rc<dyn EnvironmentRecord>);
 
@@ -1142,7 +1249,8 @@ pub fn script_evaluation(agent: &mut Agent, sr: ScriptRecord) -> Completion<ECMA
 
     let script = sr.ecmascript_code.clone();
 
-    let result = global_declaration_instantiation(agent, script, global_env.unwrap()).and_then(|_| agent.evaluate(sr.compiled));
+    let result =
+        global_declaration_instantiation(agent, script, global_env.unwrap()).and_then(|_| agent.evaluate(sr.compiled));
 
     agent.pop_execution_context();
 

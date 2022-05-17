@@ -106,7 +106,12 @@ impl ObjectInterface for SymbolObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -136,7 +141,13 @@ impl ObjectInterface for SymbolObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -169,7 +180,12 @@ impl SymbolObjectInterface for SymbolObject {
 
 impl SymbolObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, SYMBOL_OBJECT_SLOTS)), symbol_data: RefCell::new(None) }) }
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, SYMBOL_OBJECT_SLOTS)),
+                symbol_data: RefCell::new(None),
+            }),
+        }
     }
 }
 
@@ -217,8 +233,28 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &symbol_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &symbol_constructor,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
     constructor_function!(symbol_for, "for", 1.0);
@@ -231,7 +267,11 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
                 agent,
                 &symbol_constructor,
                 $name,
-                PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+                PotentialPropertyDescriptor::new()
+                    .value(ECMAScriptValue::from($value))
+                    .writable($writable)
+                    .enumerable($enumerable)
+                    .configurable($configurable),
             )
             .unwrap();
         };
@@ -262,8 +302,28 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &symbol_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &symbol_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
     prototype_function!(symbol_to_string, "toString", 0.0);
@@ -275,7 +335,11 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
                 agent,
                 &symbol_prototype,
                 $name,
-                PotentialPropertyDescriptor::new().value(ECMAScriptValue::from($value)).writable($writable).enumerable($enumerable).configurable($configurable),
+                PotentialPropertyDescriptor::new()
+                    .value(ECMAScriptValue::from($value))
+                    .writable($writable)
+                    .enumerable($enumerable)
+                    .configurable($configurable),
             )
             .unwrap();
         };
@@ -295,13 +359,40 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         Some(function_prototype.clone()),
         Some("get".into()),
     );
-    define_property_or_throw(agent, &symbol_prototype, "description", PotentialPropertyDescriptor::new().get(descriptor_getter).enumerable(false).configurable(true)).unwrap();
+    define_property_or_throw(
+        agent,
+        &symbol_prototype,
+        "description",
+        PotentialPropertyDescriptor::new().get(descriptor_getter).enumerable(false).configurable(true),
+    )
+    .unwrap();
     let to_prop_sym = agent.wks(WksId::ToPrimitive);
-    let to_primitive_func =
-        create_builtin_function(agent, symbol_value_of, false, 1.0, PropertyKey::from(to_prop_sym.clone()), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype), None);
-    define_property_or_throw(agent, &symbol_prototype, to_prop_sym, PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true)).unwrap();
+    let to_primitive_func = create_builtin_function(
+        agent,
+        symbol_value_of,
+        false,
+        1.0,
+        PropertyKey::from(to_prop_sym.clone()),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype),
+        None,
+    );
+    define_property_or_throw(
+        agent,
+        &symbol_prototype,
+        to_prop_sym,
+        PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true),
+    )
+    .unwrap();
     let to_tag_sym = agent.wks(WksId::ToStringTag);
-    define_property_or_throw(agent, &symbol_prototype, to_tag_sym, PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false)).unwrap();
+    define_property_or_throw(
+        agent,
+        &symbol_prototype,
+        to_tag_sym,
+        PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false),
+    )
+    .unwrap();
 
     realm.borrow_mut().intrinsics.symbol = symbol_constructor;
     realm.borrow_mut().intrinsics.symbol_prototype = symbol_prototype;
@@ -319,7 +410,12 @@ pub fn provision_symbol_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
 /// the same Symbol for a given value of `"key"`. When `Symbol.for("key")` is called, if a Symbol with the given key
 /// can be found in the global Symbol registry, that Symbol is returned. Otherwise, a new Symbol is created, added to
 /// the global Symbol registry under the given key, and returned.
-fn symbol_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_constructor_function(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     // Symbol ( [ description ] )
     // When Symbol is called with optional argument description, the following steps are taken:
     //
@@ -347,7 +443,12 @@ fn symbol_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
 /// returns it if found. Otherwise a new symbol gets created in the global symbol registry with this key.
 ///
 /// See [Symbol.for](https://tc39.es/ecma262/#sec-symbol.for) in ECMA-262.
-fn symbol_for(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_for(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     // Symbol.for ( key )
     // When Symbol.for is called with argument key it performs the following steps:
     //
@@ -392,7 +493,12 @@ fn symbol_for(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Opti
 /// The Symbol.keyFor(sym) method retrieves a shared symbol key from the global symbol registry for the given symbol.
 ///
 /// See [Symbol.keyFor](https://tc39.es/ecma262/#sec-symbol.keyfor) in ECMA-262.
-fn symbol_key_for(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_key_for(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     // Symbol.keyFor ( sym )
     // When Symbol.keyFor is called with argument sym it performs the following steps:
     //
@@ -427,16 +533,31 @@ fn this_symbol_value(agent: &mut Agent, this_value: ECMAScriptValue) -> Completi
     }
 }
 
-fn symbol_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_to_string(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let sym = this_symbol_value(agent, this_value)?;
     Ok(sym.descriptive_string().into())
 }
 
-fn symbol_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_value_of(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Ok(this_symbol_value(agent, this_value)?.into())
 }
 
-fn symbol_description(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn symbol_description(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let sym = this_symbol_value(agent, this_value)?;
     Ok(sym.description().map(ECMAScriptValue::from).unwrap_or(ECMAScriptValue::Undefined))
 }

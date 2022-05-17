@@ -1,4 +1,6 @@
-use super::testhelp::{check, check_parse_error, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_parse_error, chk_scan, newparser, set, Maker, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -210,7 +212,8 @@ mod identifier {
         #[test_case("yield", false => Ok(()); "yield non-strict")]
         fn strict(id: &str, strict: bool) -> Result<(), String> {
             let mut agent = test_agent();
-            let (identifier, _) = Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
+            let (identifier, _) =
+                Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
             identifier.early_errors(&mut agent, &mut errs, strict, false);
             if errs.is_empty() {
@@ -259,7 +262,8 @@ mod identifier {
         #[test_case("with" => String::from("‘with’ is a reserved word and may not be used as an identifier"); "keyword with")]
         fn keyword(id: &str) -> String {
             let mut agent = test_agent();
-            let (identifier, _) = Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
+            let (identifier, _) =
+                Identifier::parse(&mut newparser(uify_first_ch(id).as_str()), Scanner::new()).unwrap();
             let mut errs = vec![];
             identifier.early_errors(&mut agent, &mut errs, false, false);
             assert_eq!(errs.len(), 1);
@@ -301,7 +305,8 @@ mod identifier {
     #[test]
     fn successful_japanese() {
         let text = "手がける黒田征太郎さんです";
-        let (identifier, scanner) = check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
+        let (identifier, scanner) =
+            check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
         assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
         let data = &identifier.name;
         assert!(data.string_value == "手がける黒田征太郎さんです");
@@ -321,12 +326,28 @@ mod identifier {
 
 #[test]
 fn identifier_reference_test_debug() {
-    assert_ne!(format!("{:?}", IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module: false, yield_flag: false, await_flag: false }), "");
+    assert_ne!(
+        format!(
+            "{:?}",
+            IdentifierReference {
+                kind: IdentifierReferenceKind::Yield,
+                in_module: false,
+                yield_flag: false,
+                await_flag: false
+            }
+        ),
+        ""
+    );
 }
 fn idref_create(text: &str) -> Rc<IdentifierReference> {
     let yield_syntax = false;
     let await_syntax = false;
-    let result = IdentifierReference::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = IdentifierReference::parse(
+        &mut Parser::new(text, false, ParseGoal::Script),
+        Scanner::new(),
+        yield_syntax,
+        await_syntax,
+    );
     assert!(result.is_ok());
     let (idref, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -486,10 +507,22 @@ mod identifier_reference {
     #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
     #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
     #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
-    fn early_errors(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
+    fn early_errors(
+        src: &str,
+        strict: bool,
+        in_module: bool,
+        yield_expr_allowed: bool,
+        await_expr_allowed: bool,
+    ) -> AHashSet<String> {
         let mut agent = test_agent();
         let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-        let (item, _) = IdentifierReference::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+        let (item, _) = IdentifierReference::parse(
+            &mut Parser::new(src, false, goal),
+            Scanner::new(),
+            yield_expr_allowed,
+            await_expr_allowed,
+        )
+        .unwrap();
         let mut errs = vec![];
         item.early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
@@ -522,7 +555,12 @@ mod identifier_reference {
 fn bindingid_create(text: &str, y: bool, a: bool) -> Rc<BindingIdentifier> {
     let yield_syntax = y;
     let await_syntax = a;
-    let result = BindingIdentifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new(), yield_syntax, await_syntax);
+    let result = BindingIdentifier::parse(
+        &mut Parser::new(text, false, ParseGoal::Script),
+        Scanner::new(),
+        yield_syntax,
+        await_syntax,
+    );
     assert!(result.is_ok());
     let (bid, scanner) = result.unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: text.len() as u32 + 1, start_idx: text.len() });
@@ -754,10 +792,22 @@ mod binding_identifier {
         #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
         #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
         #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
-        fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
+        fn f(
+            src: &str,
+            strict: bool,
+            in_module: bool,
+            yield_expr_allowed: bool,
+            await_expr_allowed: bool,
+        ) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = BindingIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = BindingIdentifier::parse(
+                &mut Parser::new(src, false, goal),
+                Scanner::new(),
+                yield_expr_allowed,
+                await_expr_allowed,
+            )
+            .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
@@ -823,7 +873,10 @@ fn label_identifier_test_yield_noyield_noawait() {
 }
 #[test]
 fn label_identifier_test_yield_yield_noawait() {
-    check_parse_error(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, false), "‘yield’ is a reserved word and may not be used as an identifier");
+    check_parse_error(
+        LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, false),
+        "‘yield’ is a reserved word and may not be used as an identifier",
+    );
 }
 #[test]
 fn label_identifier_test_yield_noyield_await() {
@@ -838,7 +891,10 @@ fn label_identifier_test_yield_noyield_await() {
 }
 #[test]
 fn label_identifier_test_yield_yield_await() {
-    check_parse_error(LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, true), "‘yield’ is a reserved word and may not be used as an identifier");
+    check_parse_error(
+        LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, true),
+        "‘yield’ is a reserved word and may not be used as an identifier",
+    );
 }
 #[test]
 fn label_identifier_test_await_noyield_noawait() {
@@ -864,11 +920,17 @@ fn label_identifier_test_await_yield_noawait() {
 }
 #[test]
 fn label_identifier_test_await_noyield_await() {
-    check_parse_error(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, true), "‘await’ is a reserved word and may not be used as an identifier");
+    check_parse_error(
+        LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, true),
+        "‘await’ is a reserved word and may not be used as an identifier",
+    );
 }
 #[test]
 fn label_identifier_test_await_yield_await() {
-    check_parse_error(LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, true), "‘await’ is a reserved word and may not be used as an identifier");
+    check_parse_error(
+        LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, true),
+        "‘await’ is a reserved word and may not be used as an identifier",
+    );
 }
 #[test]
 fn label_identifier_prettycheck_1() {
@@ -978,10 +1040,22 @@ mod label_identifier {
         #[test_case("\\u{61}wait", false, false, true, false => AHashSet::<String>::new(); "id-await; yield")]
         #[test_case("\\u{61}wait", false, false, false, true => set(&["identifier 'await' not allowed when await expressions are valid"]); "id-await; await")]
         #[test_case("\\u{61}wait", false, false, false, false => AHashSet::<String>::new(); "id-await; ")]
-        fn f(src: &str, strict: bool, in_module: bool, yield_expr_allowed: bool, await_expr_allowed: bool) -> AHashSet<String> {
+        fn f(
+            src: &str,
+            strict: bool,
+            in_module: bool,
+            yield_expr_allowed: bool,
+            await_expr_allowed: bool,
+        ) -> AHashSet<String> {
             let mut agent = test_agent();
             let goal = if in_module { ParseGoal::Module } else { ParseGoal::Script };
-            let (item, _) = LabelIdentifier::parse(&mut Parser::new(src, false, goal), Scanner::new(), yield_expr_allowed, await_expr_allowed).unwrap();
+            let (item, _) = LabelIdentifier::parse(
+                &mut Parser::new(src, false, goal),
+                Scanner::new(),
+                yield_expr_allowed,
+                await_expr_allowed,
+            )
+            .unwrap();
             let mut errs = vec![];
             item.early_errors(&mut agent, &mut errs, strict);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))

@@ -8,14 +8,30 @@ use test_case::test_case;
 // WITH STATEMENT
 #[test]
 fn with_statement_test_01() {
-    let (node, scanner) = check(WithStatement::parse(&mut newparser("with ( x in obj ) { x.used = true; }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(WithStatement::parse(
+        &mut newparser("with ( x in obj ) { x.used = true; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 36);
     format!("{:?}", node);
-    pretty_check(&*node, "WithStatement: with ( x in obj ) { x . used = true ; }", vec!["Expression: x in obj", "Statement: { x . used = true ; }"]);
+    pretty_check(
+        &*node,
+        "WithStatement: with ( x in obj ) { x . used = true ; }",
+        vec!["Expression: x in obj", "Statement: { x . used = true ; }"],
+    );
     concise_check(
         &*node,
         "WithStatement: with ( x in obj ) { x . used = true ; }",
-        vec!["Keyword: with", "Punctuator: (", "RelationalExpression: x in obj", "Punctuator: )", "Block: { x . used = true ; }"],
+        vec![
+            "Keyword: with",
+            "Punctuator: (",
+            "RelationalExpression: x in obj",
+            "Punctuator: )",
+            "Block: { x . used = true ; }",
+        ],
     );
 }
 #[test]
@@ -28,7 +44,12 @@ fn with_statement_test_err_02() {
 }
 #[test]
 fn with_statement_test_err_03() {
-    check_err(WithStatement::parse(&mut newparser("with("), Scanner::new(), false, false, true), "Expression expected", 1, 6);
+    check_err(
+        WithStatement::parse(&mut newparser("with("), Scanner::new(), false, false, true),
+        "Expression expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn with_statement_test_err_04() {
@@ -36,16 +57,35 @@ fn with_statement_test_err_04() {
 }
 #[test]
 fn with_statement_test_err_05() {
-    check_err(WithStatement::parse(&mut newparser("with(a)"), Scanner::new(), false, false, true), "Statement expected", 1, 8);
+    check_err(
+        WithStatement::parse(&mut newparser("with(a)"), Scanner::new(), false, false, true),
+        "Statement expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn with_statement_prettycheck_1() {
-    let (item, _) = WithStatement::parse(&mut newparser("with (returns_an_object()) { obj = 12; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = WithStatement::parse(
+        &mut newparser("with (returns_an_object()) { obj = 12; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn with_statement_concisecheck_1() {
-    let (item, _) = WithStatement::parse(&mut newparser("with (returns_an_object()) { obj = 12; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = WithStatement::parse(
+        &mut newparser("with (returns_an_object()) { obj = 12; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -72,14 +112,18 @@ fn with_statement_test_contains() {
 
 #[test]
 fn with_statement_test_contains_duplicate_labels() {
-    let (item, _) = WithStatement::parse(&mut newparser("with(0) lbl: { 0; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        WithStatement::parse(&mut newparser("with(0) lbl: { 0; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("lbl")]), true);
 }
 #[test_case("with(0)continue x;" => (false, true); "with (0) continue x;")]
 fn with_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = WithStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("with (a.#valid) {}" => true; "Expression valid")]
 #[test_case("with (a) {a.#valid}" => true; "Statement valid")]

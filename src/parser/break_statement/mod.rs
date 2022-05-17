@@ -56,11 +56,13 @@ impl BreakStatement {
     // no cache needed
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_break = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
-        scan_for_auto_semi(after_break, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(BreakStatement::Bare), after_semi)).otherwise(|| {
-            let (li, after_li) = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
-            let after_semi = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
-            Ok((Rc::new(BreakStatement::Labelled(li)), after_semi))
-        })
+        scan_for_auto_semi(after_break, parser.source, ScanGoal::InputElementDiv)
+            .map(|after_semi| (Rc::new(BreakStatement::Bare), after_semi))
+            .otherwise(|| {
+                let (li, after_li) = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
+                let after_semi = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
+                Ok((Rc::new(BreakStatement::Labelled(li)), after_semi))
+            })
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
@@ -86,7 +88,10 @@ impl BreakStatement {
         match self {
             BreakStatement::Bare => {
                 if !within_breakable {
-                    errs.push(create_syntax_error_object(agent, "break statement must lie within iteration or switch statement"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "break statement must lie within iteration or switch statement",
+                    ));
                 }
             }
             BreakStatement::Labelled(lbl) => lbl.early_errors(agent, errs, strict),

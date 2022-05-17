@@ -86,7 +86,8 @@ impl AsyncArrowFunction {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Rc<AsyncArrowHead>, Scanner, Rc<AsyncConciseBody>, Scanner), ParseError> {
-        let (_cceaaah, after_params) = CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
+        let (_cceaaah, after_params) =
+            CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
         no_line_terminator(after_params, parser.source)?;
@@ -95,12 +96,20 @@ impl AsyncArrowFunction {
         Ok((real_params, after_params, body, after_body))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let pot_norm = Self::parse_normal_form(parser, scanner, in_flag, yield_flag);
         let pot_covered = Self::parse_covered_form(parser, scanner, in_flag, yield_flag, await_flag);
         match (pot_norm, pot_covered) {
             (Err(err1), Err(err2)) => Err(cmp::max_by(err2, err1, ParseError::compare)),
-            (Err(_), Ok((real_params, _, body, after_covered))) => Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered)),
+            (Err(_), Ok((real_params, _, body, after_covered))) => {
+                Ok((Rc::new(AsyncArrowFunction::Formals(real_params, body)), after_covered))
+            }
             // (Ok(norm), Ok(covered)) can never happen, given the particulars of the productions
             (norm, covered) => {
                 assert!(covered.is_err() && norm.is_ok());
@@ -110,7 +119,11 @@ impl AsyncArrowFunction {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        (kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall || kind == ParseNodeKind::Super || kind == ParseNodeKind::This)
+        (kind == ParseNodeKind::NewTarget
+            || kind == ParseNodeKind::SuperProperty
+            || kind == ParseNodeKind::SuperCall
+            || kind == ParseNodeKind::Super
+            || kind == ParseNodeKind::This)
             && match self {
                 AsyncArrowFunction::IdentOnly(_, body) => body.contains(kind),
                 AsyncArrowFunction::Formals(params, body) => params.contains(kind) || body.contains(kind),
@@ -126,7 +139,9 @@ impl AsyncArrowFunction {
         //  2. Return true.
         match self {
             AsyncArrowFunction::IdentOnly(_, node) => node.all_private_identifiers_valid(names),
-            AsyncArrowFunction::Formals(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            AsyncArrowFunction::Formals(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -281,9 +296,11 @@ impl AsyncConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AsyncConciseBody), scanner))
             .otherwise(|| {
-                let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+                let after_curly =
+                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
-                let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_rb =
+                    scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(AsyncConciseBody::Function(fb)), after_rb))
             })
             .otherwise(|| {

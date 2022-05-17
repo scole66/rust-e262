@@ -72,7 +72,9 @@ impl PrettyPrint for MemberExpression {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            MemberExpression::IdentifierName(me, _) | MemberExpression::PrivateId(me, _) => me.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MemberExpression::IdentifierName(me, _) | MemberExpression::PrivateId(me, _) => {
+                me.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             MemberExpression::TemplateLiteral(me, tl) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -177,7 +179,13 @@ where
     Ok((Rc::new(T::to_member_expression_kind(node)), scanner))
 }
 
-fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await_flag: bool, me: Rc<MemberExpression>, scan: Scanner) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
+fn member_expression_head_recursive(
+    parser: &mut Parser,
+    yield_flag: bool,
+    await_flag: bool,
+    me: Rc<MemberExpression>,
+    scan: Scanner,
+) -> Result<(Rc<MemberExpression>, Scanner), ParseError> {
     enum After {
         Exp(Rc<Expression>),
         Id(IdentifierData),
@@ -186,16 +194,31 @@ fn member_expression_head_recursive(parser: &mut Parser, yield_flag: bool, await
     }
     let mut current_me = me;
     let mut after_scan = scan;
-    while let Ok((parts, after_production)) = TemplateLiteral::parse(parser, after_scan, yield_flag, await_flag, true).map(|(tl, after_tl)| (After::TLit(tl), after_tl)).otherwise(|| {
-        scan_for_punct_set(after_scan, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::Dot, Punctuator::LeftBracket]).and_then(|(punct, after)| match punct {
-            Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp)
-                .map(|(id, after_id)| (After::Id(id), after_id))
-                .otherwise(|| scan_for_private_identifier(after, parser.source, ScanGoal::InputElementRegExp).map(|(id, after_id)| (After::Pid(id), after_id))),
-            _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(|(expression, after_exp)| {
-                scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket).map(|after_bracket| (After::Exp(expression), after_bracket))
-            }),
+    while let Ok((parts, after_production)) = TemplateLiteral::parse(parser, after_scan, yield_flag, await_flag, true)
+        .map(|(tl, after_tl)| (After::TLit(tl), after_tl))
+        .otherwise(|| {
+            scan_for_punct_set(
+                after_scan,
+                parser.source,
+                ScanGoal::InputElementRegExp,
+                &[Punctuator::Dot, Punctuator::LeftBracket],
+            )
+            .and_then(|(punct, after)| match punct {
+                Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp)
+                    .map(|(id, after_id)| (After::Id(id), after_id))
+                    .otherwise(|| {
+                        scan_for_private_identifier(after, parser.source, ScanGoal::InputElementRegExp)
+                            .map(|(id, after_id)| (After::Pid(id), after_id))
+                    }),
+                _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(
+                    |(expression, after_exp)| {
+                        scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)
+                            .map(|after_bracket| (After::Exp(expression), after_bracket))
+                    },
+                ),
+            })
         })
-    }) {
+    {
         current_me = match parts {
             After::TLit(tl) => Rc::new(MemberExpression::TemplateLiteral(current_me, tl)),
             After::Exp(exp) => Rc::new(MemberExpression::Expression(current_me, exp)),
@@ -226,11 +249,19 @@ impl MemberExpression {
             .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).and_then(me_boxer))
             .otherwise(|| MetaProperty::parse(parser, scanner).and_then(me_boxer))
-            .otherwise(|| Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag).map(|(me, args, after)| (Rc::new(MemberExpression::NewArguments(me, args)), after)))
+            .otherwise(|| {
+                Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag)
+                    .map(|(me, args, after)| (Rc::new(MemberExpression::NewArguments(me, args)), after))
+            })
             // And then all the head-recursive productions.
             .and_then(|(me, scan)| member_expression_head_recursive(parser, yield_flag, await_flag, me, scan))
     }
-    fn new_memberexpression_arguments(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Rc<MemberExpression>, Rc<Arguments>, Scanner), ParseError> {
+    fn new_memberexpression_arguments(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(Rc<MemberExpression>, Rc<Arguments>, Scanner), ParseError> {
         let after_new = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
         let (me, after_me) = MemberExpression::parse(parser, after_new, yield_flag, await_flag)?;
         let (args, after_args) = Arguments::parse(parser, after_me, yield_flag, await_flag)?;
@@ -265,18 +296,26 @@ impl MemberExpression {
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
             MemberExpression::PrimaryExpression(n) => n.all_private_identifiers_valid(names),
-            MemberExpression::Expression(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::Expression(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
             MemberExpression::IdentifierName(n, _) => n.all_private_identifiers_valid(names),
-            MemberExpression::TemplateLiteral(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::TemplateLiteral(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
             MemberExpression::SuperProperty(n) => n.all_private_identifiers_valid(names),
             MemberExpression::MetaProperty(_) => true,
-            MemberExpression::NewArguments(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MemberExpression::NewArguments(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
 
             // MemberExpression : MemberExpression . PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of MemberExpression with argument names.
             //  2. Return false.
-            MemberExpression::PrivateId(n, id) => names.contains(&id.string_value) && n.all_private_identifiers_valid(names),
+            MemberExpression::PrivateId(n, id) => {
+                names.contains(&id.string_value) && n.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -445,11 +484,17 @@ impl PrettyPrint for SuperProperty {
 impl SuperProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_super = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
-        let (punct, after_punct) = scan_for_punct_set(after_super, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::Dot, Punctuator::LeftBracket])?;
+        let (punct, after_punct) = scan_for_punct_set(
+            after_super,
+            parser.source,
+            ScanGoal::InputElementRegExp,
+            &[Punctuator::Dot, Punctuator::LeftBracket],
+        )?;
         match punct {
             Punctuator::LeftBracket => {
                 let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
-                let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                let after_rb =
+                    scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                 Ok((Rc::new(SuperProperty::Expression(exp)), after_rb))
             }
             _ => {
@@ -564,7 +609,8 @@ impl MetaProperty {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (kwd, after_kwd) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
+        let (kwd, after_kwd) =
+            scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
             Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaProperty::NewTarget),
             _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaProperty::ImportMeta(parser.goal)),
@@ -623,7 +669,9 @@ impl PrettyPrint for Arguments {
         writeln!(writer, "{}Arguments: {}", first, self)?;
         match self {
             Arguments::Empty => Ok(()),
-            Arguments::ArgumentList(boxed) | Arguments::ArgumentListComma(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Arguments::ArgumentList(boxed) | Arguments::ArgumentListComma(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -651,17 +699,29 @@ impl Arguments {
     // Arguments has many parents. It needs caching.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen).map(|after_rp| (Rc::new(Arguments::Empty), after_rp)).otherwise(|| {
-            let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
-            let (punct, after_punct) = scan_for_punct_set(after_args, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightParen])?;
-            match punct {
-                Punctuator::RightParen => Ok((Rc::new(Arguments::ArgumentList(args)), after_punct)),
-                _ => {
-                    let after_rp = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-                    Ok((Rc::new(Arguments::ArgumentListComma(args)), after_rp))
+        scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)
+            .map(|after_rp| (Rc::new(Arguments::Empty), after_rp))
+            .otherwise(|| {
+                let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
+                let (punct, after_punct) = scan_for_punct_set(
+                    after_args,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::Comma, Punctuator::RightParen],
+                )?;
+                match punct {
+                    Punctuator::RightParen => Ok((Rc::new(Arguments::ArgumentList(args)), after_punct)),
+                    _ => {
+                        let after_rp = scan_for_punct(
+                            after_punct,
+                            parser.source,
+                            ScanGoal::InputElementRegExp,
+                            Punctuator::RightParen,
+                        )?;
+                        Ok((Rc::new(Arguments::ArgumentListComma(args)), after_rp))
+                    }
                 }
-            }
-        })
+            })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -754,7 +814,12 @@ impl ArgumentList {
     // returning one of:
     //    * an ArgumentList that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
-    pub fn parse_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
+    pub fn parse_assignment_expression(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(Self, Scanner), ParseError> {
         AssignmentExpression::parse(parser, scanner, true, yield_flag, await_flag).and_then(Self::ae_bundle)
     }
 
@@ -764,8 +829,14 @@ impl ArgumentList {
     //    * an ArgumentList that contains all the relevant info
     //    * an Err with a human readable message about what went wrong
     // Note: It is an error for ... to appear during an ArgumentList parse without being followed by an AssignmentExpression.
-    pub fn parse_dots_assignment_expression(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Self, Scanner), ParseError> {
-        let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+    pub fn parse_dots_assignment_expression(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(Self, Scanner), ParseError> {
+        let after_ellipsis =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Self::Dots(ae), after_ae))
     }
@@ -776,7 +847,12 @@ impl ArgumentList {
     // returning one of:
     //    * a pair: (Rc<AssignmentExpression>, Scanner)
     //    * an Err with a human readable message about what went wrong
-    fn parse_al_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<AssignmentExpression> {
+    fn parse_al_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<AssignmentExpression> {
         let after_comma = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         AssignmentExpression::parse(parser, after_comma, true, yield_flag, await_flag)
     }
@@ -787,9 +863,15 @@ impl ArgumentList {
     // returning one of:
     //    * a pair: (Rc<AssignmentExpression>, Scanner)
     //    * an Err with a human readable message about what went wrong
-    fn parse_al_dots_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<AssignmentExpression> {
+    fn parse_al_dots_ae(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<AssignmentExpression> {
         let after_comma = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
-        let after_ellipsis = scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let after_ellipsis =
+            scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)
     }
 }
@@ -813,7 +895,9 @@ impl PrettyPrint for ArgumentList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArgumentList: {}", first, self)?;
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -864,9 +948,13 @@ impl ArgumentList {
                     Dots,
                     NoDots,
                 }
-                while let Ok((ae, scan, dotstate)) = ArgumentList::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
-                    .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
-                    .otherwise(|| ArgumentList::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag).map(|(ae, after_ae)| (ae, after_ae, Dots::Dots)))
+                while let Ok((ae, scan, dotstate)) =
+                    ArgumentList::parse_al_ae(parser, top_scanner, yield_flag, await_flag)
+                        .map(|(ae, after_ae)| (ae, after_ae, Dots::NoDots))
+                        .otherwise(|| {
+                            ArgumentList::parse_al_dots_ae(parser, top_scanner, yield_flag, await_flag)
+                                .map(|(ae, after_ae)| (ae, after_ae, Dots::Dots))
+                        })
                 {
                     top_box = Rc::new(match dotstate {
                         Dots::Dots => ArgumentList::ArgumentListDots(top_box, ae),
@@ -897,8 +985,12 @@ impl ArgumentList {
         match self {
             ArgumentList::FallThru(boxed) => boxed.all_private_identifiers_valid(names),
             ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
-            ArgumentList::ArgumentList(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
-            ArgumentList::ArgumentListDots(list, exp) => list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            ArgumentList::ArgumentList(list, exp) => {
+                list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
+            }
+            ArgumentList::ArgumentListDots(list, exp) => {
+                list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -915,7 +1007,9 @@ impl ArgumentList {
         //  2. Return false.
         match self {
             ArgumentList::FallThru(ae) | ArgumentList::Dots(ae) => ae.contains_arguments(),
-            ArgumentList::ArgumentList(al, ae) | ArgumentList::ArgumentListDots(al, ae) => al.contains_arguments() || ae.contains_arguments(),
+            ArgumentList::ArgumentList(al, ae) | ArgumentList::ArgumentListDots(al, ae) => {
+                al.contains_arguments() || ae.contains_arguments()
+            }
         }
     }
 
@@ -1146,7 +1240,8 @@ impl CallMemberExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.member_expression.all_private_identifiers_valid(names) && self.arguments.all_private_identifiers_valid(names)
+        self.member_expression.all_private_identifiers_valid(names)
+            && self.arguments.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1280,7 +1375,8 @@ impl PrettyPrint for ImportCall {
 impl ImportCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_import = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Import)?;
-        let after_lp = scan_for_punct(after_import, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+        let after_lp =
+            scan_for_punct(after_import, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let after_rp = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
         Ok((Rc::new(Self { assignment_expression: ae }), after_rp))
@@ -1348,7 +1444,9 @@ impl fmt::Display for CallExpression {
             CallExpression::ImportCall(boxed) => write!(f, "{}", boxed),
             CallExpression::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
             CallExpression::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
-            CallExpression::CallExpressionIdentifierName(ce, id) | CallExpression::CallExpressionPrivateId(ce, id) => write!(f, "{} . {}", ce, id),
+            CallExpression::CallExpressionIdentifierName(ce, id) | CallExpression::CallExpressionPrivateId(ce, id) => {
+                write!(f, "{} . {}", ce, id)
+            }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
         }
     }
@@ -1373,7 +1471,9 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::CallExpressionIdentifierName(ce, _) => {
+                ce.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -1426,9 +1526,18 @@ impl PrettyPrint for CallExpression {
 impl CallExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::CallExpression), scanner))
-            .otherwise(|| CallMemberExpression::parse(parser, scanner, yield_arg, await_arg).map(|(cme, after_cme)| (Rc::new(CallExpression::CallMemberExpression(cme)), after_cme)))
-            .otherwise(|| SuperCall::parse(parser, scanner, yield_arg, await_arg).map(|(sc, after_sc)| (Rc::new(CallExpression::SuperCall(sc)), after_sc)))
-            .otherwise(|| ImportCall::parse(parser, scanner, yield_arg, await_arg).map(|(ic, after_ic)| (Rc::new(CallExpression::ImportCall(ic)), after_ic)))
+            .otherwise(|| {
+                CallMemberExpression::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(cme, after_cme)| (Rc::new(CallExpression::CallMemberExpression(cme)), after_cme))
+            })
+            .otherwise(|| {
+                SuperCall::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(sc, after_sc)| (Rc::new(CallExpression::SuperCall(sc)), after_sc))
+            })
+            .otherwise(|| {
+                ImportCall::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(ic, after_ic)| (Rc::new(CallExpression::ImportCall(ic)), after_ic))
+            })
             .map(|(ce, after_ce)| {
                 enum Follow {
                     Args(Rc<Arguments>),
@@ -1441,16 +1550,39 @@ impl CallExpression {
                 let mut top_scanner = after_ce;
                 while let Ok((follow, scan)) = Arguments::parse(parser, top_scanner, yield_arg, await_arg)
                     .map(|(args, after_args)| (Follow::Args(args), after_args))
-                    .otherwise(|| TemplateLiteral::parse(parser, top_scanner, yield_arg, await_arg, true).map(|(tl, after_tl)| (Follow::TLit(tl), after_tl)))
                     .otherwise(|| {
-                        let (punct, after_punct) = scan_for_punct_set(top_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
+                        TemplateLiteral::parse(parser, top_scanner, yield_arg, await_arg, true)
+                            .map(|(tl, after_tl)| (Follow::TLit(tl), after_tl))
+                    })
+                    .otherwise(|| {
+                        let (punct, after_punct) = scan_for_punct_set(
+                            top_scanner,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            &[Punctuator::Dot, Punctuator::LeftBracket],
+                        )?;
                         match punct {
-                            Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
-                                .map(|(id, after_id)| (Follow::Id(id), after_id))
-                                .otherwise(|| scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv).map(|(pid, after_pid)| (Follow::Pid(pid), after_pid))),
+                            Punctuator::Dot => {
+                                scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
+                                    .map(|(id, after_id)| (Follow::Id(id), after_id))
+                                    .otherwise(|| {
+                                        scan_for_private_identifier(
+                                            after_punct,
+                                            parser.source,
+                                            ScanGoal::InputElementDiv,
+                                        )
+                                        .map(|(pid, after_pid)| (Follow::Pid(pid), after_pid))
+                                    })
+                            }
                             _ => {
-                                let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
-                                let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                                let (exp, after_exp) =
+                                    Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
+                                let after_rb = scan_for_punct(
+                                    after_exp,
+                                    parser.source,
+                                    ScanGoal::InputElementDiv,
+                                    Punctuator::RightBracket,
+                                )?;
                                 Ok((Follow::Exp(exp), after_rb))
                             }
                         }
@@ -1488,7 +1620,9 @@ impl CallExpression {
             CallExpression::ImportCall(boxed) => boxed.contains(kind),
             CallExpression::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
             CallExpression::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
-            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => ce.contains(kind),
+            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => {
+                ce.contains(kind)
+            }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }
@@ -1504,16 +1638,24 @@ impl CallExpression {
             CallExpression::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
             CallExpression::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
             CallExpression::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpression::CallExpressionArguments(ce, args) => ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names),
-            CallExpression::CallExpressionExpression(ce, exp) => ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionArguments(ce, args) => {
+                ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names)
+            }
+            CallExpression::CallExpressionExpression(ce, exp) => {
+                ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
+            }
             CallExpression::CallExpressionIdentifierName(ce, _) => ce.all_private_identifiers_valid(names),
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
+                ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names)
+            }
 
             // CallExpression : CallExpression . PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of CallExpression with argument names.
             //  2. Return false.
-            CallExpression::CallExpressionPrivateId(ce, id) => names.contains(&id.string_value) && ce.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionPrivateId(ce, id) => {
+                names.contains(&id.string_value) && ce.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1534,7 +1676,9 @@ impl CallExpression {
             CallExpression::ImportCall(ic) => ic.contains_arguments(),
             CallExpression::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
             CallExpression::CallExpressionExpression(ce, e) => ce.contains_arguments() || e.contains_arguments(),
-            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => ce.contains_arguments(),
+            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => {
+                ce.contains_arguments()
+            }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
         }
     }
@@ -1575,7 +1719,9 @@ impl CallExpression {
             | CallExpression::ImportCall(_)
             | CallExpression::CallExpressionArguments(..)
             | CallExpression::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
-            CallExpression::CallExpressionExpression(..) | CallExpression::CallExpressionIdentifierName(..) | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
+            CallExpression::CallExpressionExpression(..)
+            | CallExpression::CallExpressionIdentifierName(..)
+            | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
 }
@@ -1638,9 +1784,18 @@ impl IsFunctionDefinition for LeftHandSideExpression {
 impl LeftHandSideExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_arg: bool, await_arg: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), scanner))
-            .otherwise(|| OptionalExpression::parse(parser, scanner, yield_arg, await_arg).map(|(opt, after_opt)| (Rc::new(Self::Optional(opt)), after_opt)))
-            .otherwise(|| CallExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ce, after_ce)| (Rc::new(Self::Call(ce)), after_ce)))
-            .otherwise(|| NewExpression::parse(parser, scanner, yield_arg, await_arg).map(|(ne, after_ne)| (Rc::new(Self::New(ne)), after_ne)))
+            .otherwise(|| {
+                OptionalExpression::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(opt, after_opt)| (Rc::new(Self::Optional(opt)), after_opt))
+            })
+            .otherwise(|| {
+                CallExpression::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(ce, after_ce)| (Rc::new(Self::Call(ce)), after_ce))
+            })
+            .otherwise(|| {
+                NewExpression::parse(parser, scanner, yield_arg, await_arg)
+                    .map(|(ne, after_ne)| (Rc::new(Self::New(ne)), after_ne))
+            })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -1863,9 +2018,15 @@ impl OptionalExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            OptionalExpression::Member(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            OptionalExpression::Call(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
-            OptionalExpression::Opt(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            OptionalExpression::Member(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            OptionalExpression::Call(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
+            OptionalExpression::Opt(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1906,7 +2067,9 @@ impl OptionalExpression {
 
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
-            OptionalExpression::Member(_, chain) | OptionalExpression::Call(_, chain) | OptionalExpression::Opt(_, chain) => chain.is_strictly_deletable(),
+            OptionalExpression::Member(_, chain)
+            | OptionalExpression::Call(_, chain)
+            | OptionalExpression::Opt(_, chain) => chain.is_strictly_deletable(),
         }
     }
 }
@@ -1945,7 +2108,9 @@ impl fmt::Display for OptionalChain {
             OptionalChain::Template(node) => write!(f, "?. {}", node),
             OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
             OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),
-            OptionalChain::PlusIdent(lst, item) | OptionalChain::PlusPrivateId(lst, item) => write!(f, "{} . {}", lst, item),
+            OptionalChain::PlusIdent(lst, item) | OptionalChain::PlusPrivateId(lst, item) => {
+                write!(f, "{} . {}", lst, item)
+            }
             OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
         }
     }
@@ -1961,9 +2126,13 @@ impl PrettyPrint for OptionalChain {
         match self {
             OptionalChain::Args(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::Ident(node) => pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final),
+            OptionalChain::Ident(node) => {
+                pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final)
+            }
             OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::PrivateId(node) => pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final),
+            OptionalChain::PrivateId(node) => {
+                pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final)
+            }
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -2057,16 +2226,21 @@ impl OptionalChain {
                 Ok((Rc::new(OptionalChain::Template(tl)), after_tl))
             })
             .otherwise(|| {
-                let after_lb = scan_for_punct(after_opt, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBracket)?;
+                let after_lb =
+                    scan_for_punct(after_opt, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBracket)?;
                 let (exp, after_exp) = Expression::parse(parser, after_lb, true, yield_flag, await_flag)?;
-                let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                let after_rb =
+                    scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                 Ok((Rc::new(OptionalChain::Exp(exp)), after_rb))
             })
             .otherwise(|| {
                 let (id, after_id) = scan_for_identifiername(after_opt, parser.source, ScanGoal::InputElementDiv)?;
                 Ok((Rc::new(OptionalChain::Ident(id)), after_id))
             })
-            .otherwise(|| scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv).map(|(id, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id)))?;
+            .otherwise(|| {
+                scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv)
+                    .map(|(id, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id))
+            })?;
 
         enum Follow {
             Args(Rc<Arguments>),
@@ -2085,14 +2259,27 @@ impl OptionalChain {
                 Ok((Follow::TLit(tl), after_tl))
             })
             .otherwise(|| {
-                let (punct, after_punct) = scan_for_punct_set(current_scan, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Dot, Punctuator::LeftBracket])?;
+                let (punct, after_punct) = scan_for_punct_set(
+                    current_scan,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::Dot, Punctuator::LeftBracket],
+                )?;
                 match punct {
                     Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
                         .map(|(id, after_id)| (Follow::Id(id), after_id))
-                        .otherwise(|| scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv).map(|(id, after_id)| (Follow::Pid(id), after_id))),
+                        .otherwise(|| {
+                            scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv)
+                                .map(|(id, after_id)| (Follow::Pid(id), after_id))
+                        }),
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
-                        let after_rb = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                        let after_rb = scan_for_punct(
+                            after_exp,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightBracket,
+                        )?;
                         Ok((Follow::Exp(exp), after_rb))
                     }
                 }
@@ -2137,10 +2324,16 @@ impl OptionalChain {
             OptionalChain::Exp(node) => node.all_private_identifiers_valid(names),
             OptionalChain::Ident(_) => true,
             OptionalChain::Template(node) => node.all_private_identifiers_valid(names),
-            OptionalChain::PlusArgs(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
-            OptionalChain::PlusExp(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            OptionalChain::PlusArgs(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
+            OptionalChain::PlusExp(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
             OptionalChain::PlusIdent(lst, _) => lst.all_private_identifiers_valid(names),
-            OptionalChain::PlusTemplate(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            OptionalChain::PlusTemplate(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
 
             // OptionalChain : ?. PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, return true.
@@ -2150,7 +2343,9 @@ impl OptionalChain {
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of OptionalChain with argument names.
             //  2. Return false.
-            OptionalChain::PlusPrivateId(lst, pid) => names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names),
+            OptionalChain::PlusPrivateId(lst, pid) => {
+                names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -2214,7 +2409,9 @@ impl OptionalChain {
                 node.early_errors(agent, errs, strict);
                 exp.early_errors(agent, errs, strict);
             }
-            OptionalChain::PlusIdent(node, _) | OptionalChain::PlusPrivateId(node, _) => node.early_errors(agent, errs, strict),
+            OptionalChain::PlusIdent(node, _) | OptionalChain::PlusPrivateId(node, _) => {
+                node.early_errors(agent, errs, strict)
+            }
         }
     }
 

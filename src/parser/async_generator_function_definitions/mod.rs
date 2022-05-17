@@ -91,7 +91,9 @@ impl AsyncGeneratorMethod {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.name.all_private_identifiers_valid(names)
+            && self.params.all_private_identifiers_valid(names)
+            && self.body.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -190,7 +192,13 @@ impl IsFunctionDefinition for AsyncGeneratorDeclaration {
 
 impl AsyncGeneratorDeclaration {
     // No caching needed. Parent: HoistableDeclaration
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let after_func = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;

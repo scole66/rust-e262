@@ -29,7 +29,12 @@ mod arguments {
 
     #[test]
     fn remaining() {
-        let arguments: &[ECMAScriptValue] = &[ECMAScriptValue::from("first"), ECMAScriptValue::from(1), ECMAScriptValue::from(2), ECMAScriptValue::from(3)];
+        let arguments: &[ECMAScriptValue] = &[
+            ECMAScriptValue::from("first"),
+            ECMAScriptValue::from(1),
+            ECMAScriptValue::from(2),
+            ECMAScriptValue::from(3),
+        ];
         let mut args = Arguments::from(arguments);
 
         let first = args.next_arg();

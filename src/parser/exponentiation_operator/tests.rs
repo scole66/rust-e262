@@ -21,21 +21,36 @@ mod exponentiation_expression {
     }
     #[test]
     fn parse_02() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
+        let (se, scanner) =
+            check(ExponentiationExpression::parse(&mut newparser("a ** b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(&*se, ExponentiationExpression::Exponentiation(..)));
-        pretty_check(&*se, "ExponentiationExpression: a ** b", vec!["UpdateExpression: a", "ExponentiationExpression: b"]);
-        concise_check(&*se, "ExponentiationExpression: a ** b", vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"]);
+        pretty_check(
+            &*se,
+            "ExponentiationExpression: a ** b",
+            vec!["UpdateExpression: a", "ExponentiationExpression: b"],
+        );
+        concise_check(
+            &*se,
+            "ExponentiationExpression: a ** b",
+            vec!["IdentifierName: a", "Punctuator: **", "IdentifierName: b"],
+        );
         format!("{:?}", se);
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
-        check_err(ExponentiationExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+        check_err(
+            ExponentiationExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "ExponentiationExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn parse_04() {
-        let (se, scanner) = check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
+        let (se, scanner) =
+            check(ExponentiationExpression::parse(&mut newparser("a ** @"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*se, ExponentiationExpression::UnaryExpression(_)));
         pretty_check(&*se, "ExponentiationExpression: a", vec!["UnaryExpression: a"]);
@@ -75,17 +90,20 @@ mod exponentiation_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("this ** 1"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            ExponentiationExpression::parse(&mut newparser("this ** 1"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("1 ** this"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            ExponentiationExpression::parse(&mut newparser("1 ** this"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = ExponentiationExpression::parse(&mut newparser("1 ** 1"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            ExponentiationExpression::parse(&mut newparser("1 ** 1"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("'string'" => Some(String::from("string")); "String Token")]
@@ -111,7 +129,10 @@ mod exponentiation_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -119,7 +140,10 @@ mod exponentiation_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a ** 0" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+        ExponentiationExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]

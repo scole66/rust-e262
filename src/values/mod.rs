@@ -664,7 +664,11 @@ pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHi
 //          objects may over-ride this behaviour by defining a @@toPrimitive method. Of the objects defined in this
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
-pub fn to_primitive(agent: &mut Agent, input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+pub fn to_primitive(
+    agent: &mut Agent,
+    input: ECMAScriptValue,
+    preferred_type: Option<ConversionHint>,
+) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(obj) = &input {
         let exotic_to_prim = get_method(agent, &input, &PropertyKey::from(agent.wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
@@ -778,8 +782,12 @@ pub fn to_number(agent: &mut Agent, value: impl Into<ECMAScriptValue>) -> Comple
         ECMAScriptValue::Boolean(b) => Ok(if b { 1_f64 } else { 0_f64 }),
         ECMAScriptValue::Number(n) => Ok(n),
         ECMAScriptValue::String(s) => Ok(string_to_number(s)),
-        ECMAScriptValue::BigInt(_) => Err(create_type_error(agent, "BigInt values cannot be converted to Number values")),
-        ECMAScriptValue::Symbol(_) => Err(create_type_error(agent, "Symbol values cannot be converted to Number values")),
+        ECMAScriptValue::BigInt(_) => {
+            Err(create_type_error(agent, "BigInt values cannot be converted to Number values"))
+        }
+        ECMAScriptValue::Symbol(_) => {
+            Err(create_type_error(agent, "Symbol values cannot be converted to Number values"))
+        }
         ECMAScriptValue::Object(o) => {
             let prim_value = to_primitive(agent, ECMAScriptValue::from(o), Some(ConversionHint::Number))?;
             to_number(agent, prim_value)
@@ -792,15 +800,26 @@ fn string_to_number(string: JSString) -> f64 {
         static ref STR_WHITE_SPACE: &'static str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
         static ref DECIMAL_DIGITS: &'static str = "(?:[0-9]+)";
         static ref EXPONENT_PART: &'static str = "(?:[eE][-+]?[0-9]+)";
-        static ref STR_UNSIGNED_DECIMAL_LITERAL: String =
-            format!(r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)", *DECIMAL_DIGITS, *DECIMAL_DIGITS, *EXPONENT_PART, *DECIMAL_DIGITS, *EXPONENT_PART, *DECIMAL_DIGITS, *EXPONENT_PART);
+        static ref STR_UNSIGNED_DECIMAL_LITERAL: String = format!(
+            r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)",
+            *DECIMAL_DIGITS,
+            *DECIMAL_DIGITS,
+            *EXPONENT_PART,
+            *DECIMAL_DIGITS,
+            *EXPONENT_PART,
+            *DECIMAL_DIGITS,
+            *EXPONENT_PART
+        );
         static ref STR_DECIMAL_LITERAL: String = format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL);
         static ref BINARY_INTEGER_LITERAL: &'static str = "(?:0[bB](?P<binary>[01]+))";
         static ref OCTAL_INTEGER_LITERAL: &'static str = "(?:0[oO](?P<octal>[0-7]+))";
         static ref HEX_INTEGER_LITERAL: &'static str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
-        static ref NONDECIMAL_INTEGER_LITERAL: String = format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
-        static ref STR_NUMERIC_LITERAL: String = format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
-        static ref STRING_NUMERIC_LITERAL: String = format!("^(?:{}?|{}?{}{}?)$", *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE);
+        static ref NONDECIMAL_INTEGER_LITERAL: String =
+            format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
+        static ref STR_NUMERIC_LITERAL: String =
+            format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
+        static ref STRING_NUMERIC_LITERAL: String =
+            format!("^(?:{}?|{}?{}{}?)$", *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE);
         static ref MATCHER: Regex = Regex::new(&*STRING_NUMERIC_LITERAL).unwrap();
     }
 
@@ -812,7 +831,11 @@ fn string_to_number(string: JSString) -> f64 {
                 captures.name("binary").map_or_else(
                     || {
                         captures.name("octal").map_or_else(
-                            || captures.name("hex").map_or(0.0, |hex| BigUint::from_str_radix(hex.as_str(), 16).unwrap().to_f64().unwrap()),
+                            || {
+                                captures.name("hex").map_or(0.0, |hex| {
+                                    BigUint::from_str_radix(hex.as_str(), 16).unwrap().to_f64().unwrap()
+                                })
+                            },
                             |octal| BigUint::from_str_radix(octal.as_str(), 8).unwrap().to_f64().unwrap(),
                         )
                     },
@@ -1058,7 +1081,9 @@ impl TryFrom<ECMAScriptValue> for JSString {
 // +---------------+-------------------------------------------------------------------------------------+
 pub fn to_object(agent: &mut Agent, val: impl Into<ECMAScriptValue>) -> Completion<Object> {
     match val.into() {
-        ECMAScriptValue::Null | ECMAScriptValue::Undefined => Err(create_type_error(agent, "Undefined and null cannot be converted to objects")),
+        ECMAScriptValue::Null | ECMAScriptValue::Undefined => {
+            Err(create_type_error(agent, "Undefined and null cannot be converted to objects"))
+        }
         ECMAScriptValue::Boolean(b) => Ok(create_boolean_object(agent, b)),
         ECMAScriptValue::Number(n) => Ok(create_number_object(agent, n)),
         ECMAScriptValue::String(s) => Ok(create_string_object(agent, s)),

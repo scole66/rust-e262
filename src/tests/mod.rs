@@ -2,9 +2,10 @@ use super::agent::Agent;
 use super::cr::{AbruptCompletion, Completion};
 use super::errors::create_type_error;
 use super::object::{
-    get, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible,
-    ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, Object, ObjectInterface, PotentialPropertyDescriptor,
-    PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
+    get, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
+    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys,
+    ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, Object, ObjectInterface,
+    PotentialPropertyDescriptor, PropertyDescriptor, ORDINARY_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::symbol_object::SymbolRegistry;
@@ -200,7 +201,12 @@ impl ObjectInterface for TestObject {
             Ok(ordinary_get_own_property(self, key))
         }
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         if self.define_own_property_throws.0 && self.define_own_property_throws.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error(agent, "[[DefineOwnProperty]] called on TestObject"))
         } else {
@@ -221,7 +227,13 @@ impl ObjectInterface for TestObject {
             ordinary_get(agent, self, key, receiver)
         }
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        value: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         if self.set_throws.0 && self.set_throws.1.as_ref().map_or(true, |k| *k == key) {
             Err(create_type_error(agent, "[[Set]] called on TestObject"))
         } else {
@@ -276,7 +288,10 @@ impl TestObject {
     matcher_gen!(define_own_match, DefineOwnProperty);
     matcher_gen!(has_prop_match, HasProperty);
     matcher_gen!(delete_match, Delete);
-    fn check_for_key(matcher: fn(&FunctionId) -> (bool, Option<PropertyKey>), throwers: &[FunctionId]) -> (bool, Option<PropertyKey>) {
+    fn check_for_key(
+        matcher: fn(&FunctionId) -> (bool, Option<PropertyKey>),
+        throwers: &[FunctionId],
+    ) -> (bool, Option<PropertyKey>) {
         for item in throwers {
             match matcher(item) {
                 (true, rval) => {
@@ -312,11 +327,28 @@ type GetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> C
 type SetPrototypeOfFunction = fn(agent: &mut Agent, this: &AdaptableObject, obj: Option<Object>) -> Completion<bool>;
 type IsExtensibleFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<bool>;
 type PreventExtensionsFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<bool>;
-type GetOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>>;
-type DefineOwnPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>;
+type GetOwnPropertyFunction =
+    fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>>;
+type DefineOwnPropertyFunction = fn(
+    agent: &mut Agent,
+    this: &AdaptableObject,
+    key: PropertyKey,
+    desc: PotentialPropertyDescriptor,
+) -> Completion<bool>;
 type HasPropertyFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<bool>;
-type GetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>;
-type SetFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>;
+type GetFunction = fn(
+    agent: &mut Agent,
+    this: &AdaptableObject,
+    key: &PropertyKey,
+    receiver: &ECMAScriptValue,
+) -> Completion<ECMAScriptValue>;
+type SetFunction = fn(
+    agent: &mut Agent,
+    this: &AdaptableObject,
+    key: PropertyKey,
+    value: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool>;
 type DeleteFunction = fn(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<bool>;
 type OwnPropertyKeysFunction = fn(agent: &mut Agent, this: &AdaptableObject) -> Completion<Vec<PropertyKey>>;
 
@@ -403,7 +435,12 @@ impl ObjectInterface for AdaptableObject {
             None => Ok(ordinary_get_own_property(self, key)),
         }
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         match &self.define_own_property_override {
             Some(func) => func(agent, self, key, desc),
             None => ordinary_define_own_property(agent, self, key, desc),
@@ -421,7 +458,13 @@ impl ObjectInterface for AdaptableObject {
             None => ordinary_get(agent, self, key, receiver),
         }
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        value: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         match &self.set_override {
             Some(func) => func(agent, self, key, value, receiver),
             None => ordinary_set(agent, self, key, value, receiver),
@@ -480,7 +523,12 @@ impl AdaptableObject {
 }
 
 // error
-pub fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+pub fn faux_errors(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 
@@ -490,7 +538,13 @@ use crate::realm::{create_realm, Realm};
 pub fn create_named_realm(agent: &mut Agent, name: &str) -> Rc<RefCell<Realm>> {
     let r = create_realm(agent);
     let op = r.borrow().intrinsics.get(IntrinsicId::ObjectPrototype);
-    define_property_or_throw(agent, &op, "name", PotentialPropertyDescriptor::new().value(name).writable(false).enumerable(false).configurable(false)).unwrap();
+    define_property_or_throw(
+        agent,
+        &op,
+        "name",
+        PotentialPropertyDescriptor::new().value(name).writable(false).enumerable(false).configurable(false),
+    )
+    .unwrap();
 
     r
 }

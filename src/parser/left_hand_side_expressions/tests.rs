@@ -41,13 +41,22 @@ fn member_expression_test_super_property() {
 }
 #[test]
 fn member_expression_test_new_me_args() {
-    let (me, scanner) = check(MemberExpression::parse(&mut newparser("new shoes('red', 'leather')"), Scanner::new(), false, false));
+    let (me, scanner) =
+        check(MemberExpression::parse(&mut newparser("new shoes('red', 'leather')"), Scanner::new(), false, false));
     chk_scan(&scanner, 27);
     assert!(matches!(&*me, MemberExpression::NewArguments(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"]);
-    concise_check(&*me, "MemberExpression: new shoes ( 'red' , 'leather' )", vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"]);
+    pretty_check(
+        &*me,
+        "MemberExpression: new shoes ( 'red' , 'leather' )",
+        vec!["MemberExpression: shoes", "Arguments: ( 'red' , 'leather' )"],
+    );
+    concise_check(
+        &*me,
+        "MemberExpression: new shoes ( 'red' , 'leather' )",
+        vec!["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -58,7 +67,11 @@ fn member_expression_test_me_expression() {
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: bill [ a ]", vec!["MemberExpression: bill", "Expression: a"]);
-    concise_check(&*me, "MemberExpression: bill [ a ]", vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    concise_check(
+        &*me,
+        "MemberExpression: bill [ a ]",
+        vec!["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -69,7 +82,11 @@ fn member_expression_test_me_ident() {
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: alice . name", vec!["MemberExpression: alice"]);
-    concise_check(&*me, "MemberExpression: alice . name", vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"]);
+    concise_check(
+        &*me,
+        "MemberExpression: alice . name",
+        vec!["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -80,7 +97,11 @@ fn member_expression_test_me_private() {
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
     pretty_check(&*me, "MemberExpression: alice . #name", vec!["MemberExpression: alice"]);
-    concise_check(&*me, "MemberExpression: alice . #name", vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"]);
+    concise_check(
+        &*me,
+        "MemberExpression: alice . #name",
+        vec!["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
@@ -90,17 +111,35 @@ fn member_expression_test_me_template() {
     assert!(matches!(&*me, MemberExpression::TemplateLiteral(..)));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", me);
-    pretty_check(&*me, "MemberExpression: alice `${ a }`", vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"]);
-    concise_check(&*me, "MemberExpression: alice `${ a }`", vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"]);
+    pretty_check(
+        &*me,
+        "MemberExpression: alice `${ a }`",
+        vec!["MemberExpression: alice", "TemplateLiteral: `${ a }`"],
+    );
+    concise_check(
+        &*me,
+        "MemberExpression: alice `${ a }`",
+        vec!["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"],
+    );
     assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_errs_01() {
-    check_err(MemberExpression::parse(&mut newparser(""), Scanner::new(), false, false), "MemberExpression expected", 1, 1);
+    check_err(
+        MemberExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+        "MemberExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn member_expression_test_errs_02() {
-    check_err(MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
+    check_err(
+        MemberExpression::parse(&mut newparser("super"), Scanner::new(), false, false),
+        "one of [‘.’, ‘[’] expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn member_expression_test_errs_04() {
@@ -354,7 +393,10 @@ mod member_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        MemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -416,7 +458,11 @@ fn super_property_test_expression() {
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
-    concise_check(&*sp, "SuperProperty: super [ a ]", vec!["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
+    concise_check(
+        &*sp,
+        "SuperProperty: super [ a ]",
+        vec!["Keyword: super", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
+    );
 }
 #[test]
 fn super_property_test_ident() {
@@ -449,7 +495,12 @@ fn super_property_test_incomplete_expression() {
 }
 #[test]
 fn super_property_test_bad_following_token() {
-    check_err(SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false), "one of [‘.’, ‘[’] expected", 1, 6);
+    check_err(
+        SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false),
+        "one of [‘.’, ‘[’] expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn super_property_test_prettyerrors_1() {
@@ -506,7 +557,10 @@ mod super_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SuperProperty::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -604,7 +658,10 @@ mod meta_property {
     fn early_errors(src: &str, goal: ParseGoal) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
+        MetaProperty::parse(&mut Parser::new(src, false, goal), Scanner::new())
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -626,7 +683,11 @@ fn arguments_test_trailing_comma() {
     assert!(matches!(*args, Arguments::ArgumentListComma(_)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
-    concise_check(&*args, "Arguments: ( a , )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"]);
+    concise_check(
+        &*args,
+        "Arguments: ( a , )",
+        vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: )"],
+    );
 }
 #[test]
 fn arguments_test_arglist() {
@@ -647,7 +708,12 @@ fn arguments_test_unclosed_01() {
 }
 #[test]
 fn arguments_test_unclosed_02() {
-    check_err(Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false), "one of [‘,’, ‘)’] expected", 1, 4);
+    check_err(
+        Arguments::parse(&mut newparser("(88"), Scanner::new(), false, false),
+        "one of [‘,’, ‘)’] expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn arguments_test_unclosed_03() {
@@ -729,7 +795,10 @@ mod arguments {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Arguments::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Arguments::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -778,15 +847,29 @@ fn argument_list_test_al_dots_ae() {
     assert!(matches!(*al, ArgumentList::ArgumentListDots(..)));
     format!("{:?}", al);
     pretty_check(&*al, "ArgumentList: ab , ... aba", vec!["ArgumentList: ab", "AssignmentExpression: aba"]);
-    concise_check(&*al, "ArgumentList: ab , ... aba", vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"]);
+    concise_check(
+        &*al,
+        "ArgumentList: ab , ... aba",
+        vec!["IdentifierName: ab", "Punctuator: ,", "Punctuator: ...", "IdentifierName: aba"],
+    );
 }
 #[test]
 fn argument_list_test_nomatch() {
-    check_err(ArgumentList::parse(&mut newparser("*"), Scanner::new(), false, false), "AssignmentExpression expected", 1, 1);
+    check_err(
+        ArgumentList::parse(&mut newparser("*"), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn argument_list_test_dotsonly() {
-    check_err(ArgumentList::parse(&mut newparser("..."), Scanner::new(), false, false), "AssignmentExpression expected", 1, 4);
+    check_err(
+        ArgumentList::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn argument_list_test_dots_term() {
@@ -921,7 +1004,10 @@ mod argument_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ArgumentList::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -972,12 +1058,21 @@ mod new_expression {
         assert!(matches!(*ne, NewExpression::MemberExpression(_)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob ( )", vec!["MemberExpression: new bob ( )"]);
-        concise_check(&*ne, "MemberExpression: new bob ( )", vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"]);
+        concise_check(
+            &*ne,
+            "MemberExpression: new bob ( )",
+            vec!["Keyword: new", "IdentifierName: bob", "Arguments: ( )"],
+        );
         assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
     fn nomatch() {
-        check_err(NewExpression::parse(&mut newparser("*"), Scanner::new(), false, false), "‘new’ or MemberExpression expected", 1, 1);
+        check_err(
+            NewExpression::parse(&mut newparser("*"), Scanner::new(), false, false),
+            "‘new’ or MemberExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn chopped() {
@@ -1049,7 +1144,10 @@ mod new_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        NewExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        NewExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1091,11 +1189,21 @@ mod call_member_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(CallMemberExpression::parse(&mut newparser("++"), Scanner::new(), false, false), "MemberExpression expected", 1, 1);
+        check_err(
+            CallMemberExpression::parse(&mut newparser("++"), Scanner::new(), false, false),
+            "MemberExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete() {
-        check_err(CallMemberExpression::parse(&mut newparser("pop"), Scanner::new(), false, false), "‘(’ expected", 1, 4);
+        check_err(
+            CallMemberExpression::parse(&mut newparser("pop"), Scanner::new(), false, false),
+            "‘(’ expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -1109,17 +1217,20 @@ mod call_member_expression {
     }
     #[test]
     fn contains_01() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("this.fcn()"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("this.fcn()"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_02() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("Math.sin(this.angle)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("Math.sin(this.angle)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_03() {
-        let (item, _) = CallMemberExpression::parse(&mut newparser("Math.sin(angle)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            CallMemberExpression::parse(&mut newparser("Math.sin(angle)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("a.#valid()" => true; "MemberExpression valid")]
@@ -1136,7 +1247,10 @@ mod call_member_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        CallMemberExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1203,7 +1317,10 @@ mod super_call {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SuperCall::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1225,7 +1342,11 @@ mod import_call {
         chk_scan(&scanner, 11);
         format!("{:?}", ic);
         pretty_check(&*ic, "ImportCall: import ( bob )", vec!["AssignmentExpression: bob"]);
-        concise_check(&*ic, "ImportCall: import ( bob )", vec!["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"]);
+        concise_check(
+            &*ic,
+            "ImportCall: import ( bob )",
+            vec!["Keyword: import", "Punctuator: (", "IdentifierName: bob", "Punctuator: )"],
+        );
     }
     #[test]
     fn nomatch() {
@@ -1237,7 +1358,12 @@ mod import_call {
     }
     #[test]
     fn incomplete2() {
-        check_err(ImportCall::parse(&mut newparser("import("), Scanner::new(), false, false), "AssignmentExpression expected", 1, 8);
+        check_err(
+            ImportCall::parse(&mut newparser("import("), Scanner::new(), false, false),
+            "AssignmentExpression expected",
+            1,
+            8,
+        );
     }
     #[test]
     fn incomplete3() {
@@ -1274,7 +1400,10 @@ mod import_call {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ImportCall::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1315,63 +1444,110 @@ mod call_expression {
         assert!(matches!(*ce, CallExpression::ImportCall(_)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: import ( pop )", vec!["ImportCall: import ( pop )"]);
-        concise_check(&*ce, "ImportCall: import ( pop )", vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"]);
+        concise_check(
+            &*ce,
+            "ImportCall: import ( pop )",
+            vec!["Keyword: import", "Punctuator: (", "IdentifierName: pop", "Punctuator: )"],
+        );
     }
     #[test]
     fn ce_args() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )", vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
+            vec!["CallExpression: blue ( pop ) ( snap ) ( 10 )", "Arguments: ( 20 )"],
+        );
     }
     #[test]
     fn ce_args2() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
         format!("{:?}", ce);
     }
     #[test]
     fn ce_exp() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionExpression(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallExpression: blue ( pop )", "Expression: snap"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) [ snap ]", vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) [ snap ]",
+            vec!["CallExpression: blue ( pop )", "Expression: snap"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) [ snap ]",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: [", "IdentifierName: snap", "Punctuator: ]"],
+        );
     }
     #[test]
     fn ce_ident() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
         assert!(matches!(*ce, CallExpression::CallExpressionIdentifierName(..)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallExpression: blue ( pop )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) . snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"]);
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) . snap",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "IdentifierName: snap"],
+        );
     }
     #[test]
     fn ce_pid() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionPrivateId(..)));
         format!("{:?}", ce);
         pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallExpression: blue ( pop )"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) . #snap", vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"]);
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) . #snap",
+            vec!["CallMemberExpression: blue ( pop )", "Punctuator: .", "PrivateIdentifier: #snap"],
+        );
     }
     #[test]
     fn ce_template() {
-        let (ce, scanner) = check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
+        let (ce, scanner) =
+            check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionTemplateLiteral(..)));
         format!("{:?}", ce);
-        pretty_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"]);
-        concise_check(&*ce, "CallExpression: blue ( pop ) `snap`", vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"]);
+        pretty_check(
+            &*ce,
+            "CallExpression: blue ( pop ) `snap`",
+            vec!["CallExpression: blue ( pop )", "TemplateLiteral: `snap`"],
+        );
+        concise_check(
+            &*ce,
+            "CallExpression: blue ( pop ) `snap`",
+            vec!["CallMemberExpression: blue ( pop )", "NoSubTemplate: `snap`"],
+        );
     }
     #[test]
     fn nomatch() {
-        check_err(CallExpression::parse(&mut newparser(""), Scanner::new(), false, false), "CallExpression expected", 1, 1);
+        check_err(
+            CallExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "CallExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete_01() {
@@ -1605,7 +1781,10 @@ mod call_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CallExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        CallExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1677,7 +1856,11 @@ mod optional_expression {
         assert!(matches!(*lhs, OptionalExpression::Call(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallExpression: a ( )", "OptionalChain: ?. b"]);
-        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ( ) ?. b",
+            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
+        );
     }
     #[test]
     fn parse_03() {
@@ -1685,12 +1868,25 @@ mod optional_expression {
         chk_scan(&scanner, 7);
         assert!(matches!(*lhs, OptionalExpression::Opt(..)));
         format!("{:?}", lhs);
-        pretty_check(&*lhs, "OptionalExpression: a ?. b ?. c", vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
-        concise_check(&*lhs, "OptionalExpression: a ?. b ?. c", vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
+        pretty_check(
+            &*lhs,
+            "OptionalExpression: a ?. b ?. c",
+            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
+        );
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ?. b ?. c",
+            vec!["OptionalExpression: a ?. b", "OptionalChain: ?. c"],
+        );
     }
     #[test]
     fn parse_04() {
-        check_err(OptionalExpression::parse(&mut newparser(""), Scanner::new(), false, false), "OptionalExpression expected", 1, 1);
+        check_err(
+            OptionalExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "OptionalExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn parse_05() {
@@ -1698,7 +1894,12 @@ mod optional_expression {
     }
     #[test]
     fn parse_06() {
-        check_err(OptionalExpression::parse(&mut newparser("u()"), Scanner::new(), false, false), "‘?.’ expected", 1, 4);
+        check_err(
+            OptionalExpression::parse(&mut newparser("u()"), Scanner::new(), false, false),
+            "‘?.’ expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -1747,12 +1948,14 @@ mod optional_expression {
     }
     #[test]
     fn contains_04() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(this)?.(b)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(this)?.(b)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(this)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(this)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
@@ -1762,17 +1965,20 @@ mod optional_expression {
     }
     #[test]
     fn contains_07() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(this)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(this)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_08() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(this)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(this)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_09() {
-        let (item, _) = OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            OptionalExpression::parse(&mut newparser("a(0)?.(0)?.(0)"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("a.#valid?.(b)" => true; "MemberExpression OptionalChain me valid")]
@@ -1801,7 +2007,10 @@ mod optional_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        OptionalExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1850,7 +2059,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::Exp(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", vec!["Expression: 1 in a"]);
-        concise_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", vec!["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. [ 1 in a ]",
+            vec!["Punctuator: ?.", "Punctuator: [", "RelationalExpression: 1 in a", "Punctuator: ]"],
+        );
     }
     #[test]
     fn parse_03() {
@@ -1886,7 +2099,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusExp(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", vec!["OptionalChain: ?. a", "Expression: 0 in b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", vec!["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a [ 0 in b ]",
+            vec!["OptionalChain: ?. a", "Punctuator: [", "RelationalExpression: 0 in b", "Punctuator: ]"],
+        );
     }
     #[test]
     fn parse_07() {
@@ -1895,7 +2112,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusIdent(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a . b", vec!["OptionalChain: ?. a", "IdentifierName: b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a . b", vec!["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a . b",
+            vec!["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"],
+        );
     }
     #[test]
     fn parse_08() {
@@ -1922,7 +2143,11 @@ mod optional_chain {
         assert!(matches!(*lhs, OptionalChain::PlusPrivateId(..)));
         format!("{:?}", lhs);
         pretty_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
-        concise_check(&*lhs, "OptionalChain: ?. a . #b", vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"]);
+        concise_check(
+            &*lhs,
+            "OptionalChain: ?. a . #b",
+            vec!["OptionalChain: ?. a", "Punctuator: .", "PrivateIdentifier: #b"],
+        );
     }
     #[test]
     fn err_1() {
@@ -1930,7 +2155,12 @@ mod optional_chain {
     }
     #[test]
     fn err_2() {
-        check_err(OptionalChain::parse(&mut newparser("?."), Scanner::new(), false, false), "‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)", 1, 3);
+        check_err(
+            OptionalChain::parse(&mut newparser("?."), Scanner::new(), false, false),
+            "‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)",
+            1,
+            3,
+        );
     }
     #[test]
     fn err_3() {
@@ -1952,7 +2182,12 @@ mod optional_chain {
     }
     #[test]
     fn err_6() {
-        check_err(OptionalChain::parse(&mut newparser("?.["), Scanner::new(), false, false), "Expression expected", 1, 4);
+        check_err(
+            OptionalChain::parse(&mut newparser("?.["), Scanner::new(), false, false),
+            "Expression expected",
+            1,
+            4,
+        );
     }
     #[test]
     fn err_7() {
@@ -2209,7 +2444,10 @@ mod optional_chain {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        OptionalChain::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2278,11 +2516,16 @@ mod left_hand_side_expression {
     }
     #[test]
     fn parse_03() {
-        let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
+        let (lhs, scanner) =
+            check(LeftHandSideExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, LeftHandSideExpression::Optional(_)));
         pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", vec!["OptionalExpression: a ( ) ?. b"]);
-        concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
+        concise_check(
+            &*lhs,
+            "OptionalExpression: a ( ) ?. b",
+            vec!["CallMemberExpression: a ( )", "OptionalChain: ?. b"],
+        );
         assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
@@ -2367,7 +2610,10 @@ mod left_hand_side_expression {
     #[test_case("a()" => false; "CallExpression")]
     #[test_case("blue?.green" => false; "OptionalExpression")]
     fn is_object_or_array_literal(src: &str) -> bool {
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_object_or_array_literal()
     }
 
     #[test_case("package", true => set(&[PACKAGE_NOT_ALLOWED]); "new expression")]
@@ -2376,7 +2622,10 @@ mod left_hand_side_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2387,7 +2636,10 @@ mod left_hand_side_expression {
     #[test_case("a?.b" => true; "optional expression")]
     #[test_case("a?.#u" => false; "optional with private id")]
     fn is_strictly_deletable(src: &str) -> bool {
-        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+        LeftHandSideExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "new exp (yes)")]

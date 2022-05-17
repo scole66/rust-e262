@@ -60,7 +60,13 @@ impl PrettyPrint for ClassDeclaration {
 }
 
 impl ClassDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let after_class = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
@@ -102,7 +108,9 @@ impl ClassDeclaration {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ClassDeclaration::Named(_, node) | ClassDeclaration::Unnamed(node) => node.all_private_identifiers_valid(names),
+            ClassDeclaration::Named(_, node) | ClassDeclaration::Unnamed(node) => {
+                node.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -348,7 +356,10 @@ impl ClassTail {
         match kind {
             ParseNodeKind::ClassBody => self.body.is_some(),
             ParseNodeKind::ClassHeritage => self.heritage.is_some(),
-            _ => self.heritage.as_ref().map_or(false, |n| n.contains(kind)) || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind)),
+            _ => {
+                self.heritage.as_ref().map_or(false, |n| n.contains(kind))
+                    || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind))
+            }
         }
     }
 
@@ -359,7 +370,8 @@ impl ClassTail {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)) && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+        self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+            && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -373,7 +385,8 @@ impl ClassTail {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.heritage.as_ref().map_or(false, |ch| ch.contains_arguments()) || self.body.as_ref().map_or(false, |cb| cb.contains_arguments())
+        self.heritage.as_ref().map_or(false, |ch| ch.contains_arguments())
+            || self.body.as_ref().map_or(false, |cb| cb.contains_arguments())
     }
 
     /// Add the early errors of this node and its children to the error list.
@@ -397,7 +410,10 @@ impl ClassTail {
             if let Some(body) = &self.body {
                 if let Some(constructor) = body.constructor_method() {
                     if constructor.has_direct_super() {
-                        errs.push(create_syntax_error_object(agent, "Cannot use super in a constructor with no parent class"));
+                        errs.push(create_syntax_error_object(
+                            agent,
+                            "Cannot use super in a constructor with no parent class",
+                        ));
                     }
                 }
             }
@@ -604,25 +620,37 @@ impl ClassBody {
                     errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", pid.name)));
                 }
                 Some(&HowSeen::Getter) if pid.usage != IdUsage::Setter => {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a getter method.", pid.name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ was previously defined as a getter method.", pid.name),
+                    ));
                 }
                 Some(&HowSeen::Getter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::Setter) if pid.usage != IdUsage::Getter => {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a setter method.", pid.name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ was previously defined as a setter method.", pid.name),
+                    ));
                 }
                 Some(&HowSeen::Setter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::StaticGetter) if pid.usage != IdUsage::StaticSetter => {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a static getter method.", pid.name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ was previously defined as a static getter method.", pid.name),
+                    ));
                 }
                 Some(&HowSeen::StaticGetter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
                 }
                 Some(&HowSeen::StaticSetter) if pid.usage != IdUsage::StaticGetter => {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ was previously defined as a static setter method.", pid.name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ was previously defined as a static setter method.", pid.name),
+                    ));
                 }
                 Some(&HowSeen::StaticSetter) => {
                     private_ids.insert(pid.name, HowSeen::Completely);
@@ -738,7 +766,9 @@ impl ClassElementList {
     pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElementList::Item(item) => item.computed_property_contains(kind),
-            ClassElementList::List(list, item) => list.computed_property_contains(kind) || item.computed_property_contains(kind),
+            ClassElementList::List(list, item) => {
+                list.computed_property_contains(kind) || item.computed_property_contains(kind)
+            }
         }
     }
 
@@ -773,7 +803,9 @@ impl ClassElementList {
         //  2. Return true.
         match self {
             ClassElementList::Item(node) => node.all_private_identifiers_valid(names),
-            ClassElementList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            ClassElementList::List(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -955,21 +987,36 @@ impl PrettyPrint for ClassElement {
 impl ClassElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElement), scanner))
-            .otherwise(|| ClassStaticBlock::parse(parser, scanner).map(|(sb, after_sb)| (Rc::new(ClassElement::StaticBlock(sb)), after_sb)))
+            .otherwise(|| {
+                ClassStaticBlock::parse(parser, scanner)
+                    .map(|(sb, after_sb)| (Rc::new(ClassElement::StaticBlock(sb)), after_sb))
+            })
             .otherwise(|| {
                 scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
                     .and_then(|after_static| {
-                        MethodDefinition::parse(parser, after_static, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md)).otherwise(|| {
-                            FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(|(fd, after_fd)| {
-                                scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+                        MethodDefinition::parse(parser, after_static, yield_flag, await_flag)
+                            .map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md))
+                            .otherwise(|| {
+                                FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(
+                                    |(fd, after_fd)| {
+                                        scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv)
+                                            .map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+                                    },
+                                )
                             })
-                        })
                     })
-                    .otherwise(|| scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon).map(|after_semi| (Rc::new(ClassElement::Empty), after_semi)))
-                    .otherwise(|| MethodDefinition::parse(parser, scanner, yield_flag, await_flag).map(|(md, after_md)| (Rc::new(ClassElement::Standard(md)), after_md)))
+                    .otherwise(|| {
+                        scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)
+                            .map(|after_semi| (Rc::new(ClassElement::Empty), after_semi))
+                    })
+                    .otherwise(|| {
+                        MethodDefinition::parse(parser, scanner, yield_flag, await_flag)
+                            .map(|(md, after_md)| (Rc::new(ClassElement::Standard(md)), after_md))
+                    })
                     .otherwise(|| {
                         FieldDefinition::parse(parser, scanner, yield_flag, await_flag).and_then(|(fd, after_fd)| {
-                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi))
+                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv)
+                                .map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi))
                         })
                     })
             })
@@ -977,7 +1024,9 @@ impl ClassElement {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ClassElement::Standard(n) | ClassElement::Static(n) => kind == ParseNodeKind::MethodDefinition || n.contains(kind),
+            ClassElement::Standard(n) | ClassElement::Static(n) => {
+                kind == ParseNodeKind::MethodDefinition || n.contains(kind)
+            }
             ClassElement::Empty => false,
             ClassElement::Field(n) | ClassElement::StaticField(n) => n.contains(kind),
             ClassElement::StaticBlock(sb) => sb.contains(),
@@ -1024,8 +1073,12 @@ impl ClassElement {
             // ClassElement : FieldDefinition
             // ClassElement : static FieldDefinition
             //  1. Return PrivateBoundIdentifiers of FieldDefinition.
-            ClassElement::Field(fd) => fd.private_bound_identifier().map(|name| PrivateIdInfo { name, usage: IdUsage::Public }),
-            ClassElement::StaticField(fd) => fd.private_bound_identifier().map(|name| PrivateIdInfo { name, usage: IdUsage::Static }),
+            ClassElement::Field(fd) => {
+                fd.private_bound_identifier().map(|name| PrivateIdInfo { name, usage: IdUsage::Public })
+            }
+            ClassElement::StaticField(fd) => {
+                fd.private_bound_identifier().map(|name| PrivateIdInfo { name, usage: IdUsage::Static })
+            }
         }
     }
 
@@ -1083,7 +1136,10 @@ impl ClassElement {
                 match md.prop_name() {
                     Some(s) if s == "constructor" => {
                         if md.special_method() {
-                            errs.push(create_syntax_error_object(agent, "special methods not allowed for constructors"));
+                            errs.push(create_syntax_error_object(
+                                agent,
+                                "special methods not allowed for constructors",
+                            ));
                         }
                     }
                     Some(_) | None => {
@@ -1119,8 +1175,12 @@ impl ClassElement {
                 //  * It is a Syntax Error if PropName of FieldDefinition is "prototype" or "constructor".
                 let pn = fd.prop_name();
                 match pn {
-                    Some(s) if s == "prototype" => errs.push(create_syntax_error_object(agent, "prototypes cannot be static")),
-                    Some(s) if s == "constructor" => errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields")),
+                    Some(s) if s == "prototype" => {
+                        errs.push(create_syntax_error_object(agent, "prototypes cannot be static"))
+                    }
+                    Some(s) if s == "constructor" => {
+                        errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields"))
+                    }
                     _ => (),
                 }
                 fd.early_errors(agent, errs, strict);
@@ -1144,8 +1204,14 @@ impl ClassElement {
         //  ClassElement : ;
         //      1. Return empty.
         match self {
-            ClassElement::Standard(md) if md.prop_name() == Some("constructor".into()) => Some(CEKind::ConstructorMethod),
-            ClassElement::Standard(_) | ClassElement::Field(_) | ClassElement::Static(_) | ClassElement::StaticField(_) | ClassElement::StaticBlock(_) => Some(CEKind::NonConstructorMethod),
+            ClassElement::Standard(md) if md.prop_name() == Some("constructor".into()) => {
+                Some(CEKind::ConstructorMethod)
+            }
+            ClassElement::Standard(_)
+            | ClassElement::Field(_)
+            | ClassElement::Static(_)
+            | ClassElement::StaticField(_)
+            | ClassElement::StaticBlock(_) => Some(CEKind::NonConstructorMethod),
             ClassElement::Empty => None,
         }
     }
@@ -1164,7 +1230,10 @@ impl ClassElement {
 
     pub fn has_direct_super(&self) -> bool {
         match self {
-            ClassElement::Empty | ClassElement::Field(_) | ClassElement::StaticField(_) | ClassElement::StaticBlock(_) => false,
+            ClassElement::Empty
+            | ClassElement::Field(_)
+            | ClassElement::StaticField(_)
+            | ClassElement::StaticBlock(_) => false,
             ClassElement::Standard(md) | ClassElement::Static(md) => md.has_direct_super(),
         }
     }
@@ -1258,7 +1327,8 @@ impl FieldDefinition {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.name.all_private_identifiers_valid(names) && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
+        self.name.all_private_identifiers_valid(names)
+            && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1337,7 +1407,9 @@ impl PrettyPrint for ClassElementName {
         writeln!(writer, "{}ClassElementName: {}", first, self)?;
         match self {
             ClassElementName::PropertyName(n) => n.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ClassElementName::PrivateIdentifier(n) => pprint_token(writer, n, TokenType::PrivateIdentifier, &successive, Spot::Final),
+            ClassElementName::PrivateIdentifier(n) => {
+                pprint_token(writer, n, TokenType::PrivateIdentifier, &successive, Spot::Final)
+            }
         }
     }
 
@@ -1347,7 +1419,9 @@ impl PrettyPrint for ClassElementName {
     {
         match self {
             ClassElementName::PropertyName(n) => n.concise_with_leftpad(writer, pad, state),
-            ClassElementName::PrivateIdentifier(id) => pprint_token(writer, id, TokenType::PrivateIdentifier, pad, state),
+            ClassElementName::PrivateIdentifier(id) => {
+                pprint_token(writer, id, TokenType::PrivateIdentifier, pad, state)
+            }
         }
     }
 }
@@ -1357,7 +1431,10 @@ impl ClassElementName {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElementName), scanner)).otherwise(|| {
             PropertyName::parse(parser, scanner, yield_flag, await_flag)
                 .map(|(item, scan)| (Rc::new(ClassElementName::PropertyName(item)), scan))
-                .otherwise(|| scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv).map(|(item, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan)))
+                .otherwise(|| {
+                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv)
+                        .map(|(item, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan))
+                })
         })
     }
 
@@ -1492,9 +1569,11 @@ impl PrettyPrint for ClassStaticBlock {
 impl ClassStaticBlock {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_static = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Static)?;
-        let after_lb = scan_for_punct(after_static, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let after_lb =
+            scan_for_punct(after_static, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (block, after_block) = ClassStaticBlockBody::parse(parser, after_lb);
-        let after_close = scan_for_punct(after_block, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let after_close =
+            scan_for_punct(after_block, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(ClassStaticBlock(block)), after_close))
     }
 

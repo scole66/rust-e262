@@ -89,7 +89,9 @@ impl GeneratorMethod {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.name.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.name.all_private_identifiers_valid(names)
+            && self.params.all_private_identifiers_valid(names)
+            && self.body.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -136,10 +138,16 @@ impl GeneratorMethod {
             errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
         }
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Yield expressions can't be parameter initializers in generators",
+            ));
         }
         if cus && !self.params.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+            ));
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
@@ -216,7 +224,13 @@ impl PrettyPrint for GeneratorDeclaration {
 }
 
 impl GeneratorDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
@@ -288,7 +302,10 @@ impl GeneratorDeclaration {
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if GeneratorBody Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Yield expressions can't be parameter initializers in generators",
+            ));
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
@@ -411,7 +428,10 @@ impl GeneratorExpression {
         //  * It is a Syntax Error if FormalParameters Contains SuperCall is true.
         //  * It is a Syntax Error if GeneratorBody Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::YieldExpression) {
-            errs.push(create_syntax_error_object(agent, "Yield expressions can't be parameter initializers in generators"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Yield expressions can't be parameter initializers in generators",
+            ));
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }

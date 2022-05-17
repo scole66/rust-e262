@@ -48,7 +48,12 @@ fn shift_expression_test_04() {
 }
 #[test]
 fn shift_expression_test_05() {
-    check_err(ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+    check_err(
+        ShiftExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ExponentiationExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn shift_expression_test_06() {
@@ -190,7 +195,10 @@ mod shift_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ShiftExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ShiftExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

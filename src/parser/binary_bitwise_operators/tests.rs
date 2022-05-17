@@ -21,17 +21,23 @@ mod bitwise_and_expression {
     }
     #[test]
     fn parse_02() {
-        let (pn, scanner) = check(BitwiseANDExpression::parse(&mut newparser("a&b"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(BitwiseANDExpression::parse(&mut newparser("a&b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*pn, BitwiseANDExpression::BitwiseAND(_, _)));
         pretty_check(&*pn, "BitwiseANDExpression: a & b", vec!["BitwiseANDExpression: a", "EqualityExpression: b"]);
-        concise_check(&*pn, "BitwiseANDExpression: a & b", vec!["IdentifierName: a", "Punctuator: &", "IdentifierName: b"]);
+        concise_check(
+            &*pn,
+            "BitwiseANDExpression: a & b",
+            vec!["IdentifierName: a", "Punctuator: &", "IdentifierName: b"],
+        );
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
-        let (pn, scanner) = check(BitwiseANDExpression::parse(&mut newparser("a&@"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(BitwiseANDExpression::parse(&mut newparser("a&@"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
         pretty_check(&*pn, "BitwiseANDExpression: a", vec!["EqualityExpression: a"]);
@@ -41,21 +47,29 @@ mod bitwise_and_expression {
     }
     #[test]
     fn parse_04() {
-        check_err(BitwiseANDExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+        check_err(
+            BitwiseANDExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+            "RelationalExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn prettyerrors() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test]
     fn conciseerrors() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("a & b"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(&*item);
     }
     #[test]
     fn contains_01() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
@@ -65,17 +79,20 @@ mod bitwise_and_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("this & 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("this & 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("0 & this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("0 & this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = BitwiseANDExpression::parse(&mut newparser("0 & 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            BitwiseANDExpression::parse(&mut newparser("0 & 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
@@ -100,7 +117,10 @@ mod bitwise_and_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -108,7 +128,10 @@ mod bitwise_and_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a & b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -117,7 +140,10 @@ mod bitwise_and_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy & bob" => false; "a & b (no)")]
     fn contains_arguments(src: &str) -> bool {
-        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        BitwiseANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("a&b", false => ATTKind::Invalid; "bitwise and")]
@@ -160,7 +186,12 @@ fn bitwise_xor_expression_test_03() {
 }
 #[test]
 fn bitwise_xor_expression_test_04() {
-    check_err(BitwiseXORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+    check_err(
+        BitwiseXORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "RelationalExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn bitwise_xor_expression_test_prettyerrors() {
@@ -184,12 +215,14 @@ fn bitwise_xor_expression_test_contains_02() {
 }
 #[test]
 fn bitwise_xor_expression_test_contains_03() {
-    let (item, _) = BitwiseXORExpression::parse(&mut newparser("this ^ 0"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        BitwiseXORExpression::parse(&mut newparser("this ^ 0"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn bitwise_xor_expression_test_contains_04() {
-    let (item, _) = BitwiseXORExpression::parse(&mut newparser("0 ^ this"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        BitwiseXORExpression::parse(&mut newparser("0 ^ this"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
@@ -222,7 +255,10 @@ mod bitwise_xor_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -230,7 +266,10 @@ mod bitwise_xor_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a ^ b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -239,7 +278,10 @@ mod bitwise_xor_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy ^ bob" => false; "a ^ b (no)")]
     fn contains_arguments(src: &str) -> bool {
-        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        BitwiseXORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("a^b", false => ATTKind::Invalid; "bitwise xor")]
@@ -290,7 +332,12 @@ fn bitwise_or_expression_test_cache_01() {
 }
 #[test]
 fn bitwise_or_expression_test_04() {
-    check_err(BitwiseORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+    check_err(
+        BitwiseORExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "RelationalExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn bitwise_or_expression_test_prettyerrors() {
@@ -352,7 +399,10 @@ mod bitwise_or_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -360,7 +410,10 @@ mod bitwise_or_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a | b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -369,7 +422,10 @@ mod bitwise_or_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy | bob" => false; "a | b (no)")]
     fn contains_arguments(src: &str) -> bool {
-        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        BitwiseORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("a|b", false => ATTKind::Invalid; "bitwise or")]

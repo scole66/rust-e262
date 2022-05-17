@@ -2,7 +2,9 @@ use super::*;
 use crate::errors::unwind_any_error;
 use crate::function_object::create_builtin_function;
 use crate::strings::JSString;
-use crate::tests::{printer_validate, test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
+use crate::tests::{
+    printer_validate, test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject,
+};
 use crate::values::to_object;
 use std::io::Write;
 
@@ -80,7 +82,10 @@ fn property_kind_eq() {
     let items: [PropertyKind; 4] = [
         PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }),
         PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
-        PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from("movies") }),
+        PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::from("movies"),
+        }),
         PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
     ];
     for (right_idx, right_value) in items.iter().enumerate() {
@@ -105,18 +110,53 @@ fn property_kind_default() {
 
 #[test]
 fn property_descriptor_debug() {
-    let p = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 10 };
+    let p = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: false,
+        spot: 10,
+    };
     assert_ne!(format!("{:?}", p), "");
 }
 #[test]
 fn property_descriptor_eq() {
     let items: [PropertyDescriptor; 6] = [
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 10 },
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: false }), enumerable: true, configurable: false, spot: 10 },
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: false, configurable: false, spot: 10 },
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 },
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: false, spot: 1 },
-        PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: true }), enumerable: false, configurable: true, spot: 1 },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+            enumerable: true,
+            configurable: false,
+            spot: 10,
+        },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: false }),
+            enumerable: true,
+            configurable: false,
+            spot: 10,
+        },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+            enumerable: false,
+            configurable: false,
+            spot: 10,
+        },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+            enumerable: true,
+            configurable: true,
+            spot: 10,
+        },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+            enumerable: true,
+            configurable: false,
+            spot: 1,
+        },
+        PropertyDescriptor {
+            property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(false), writable: true }),
+            enumerable: false,
+            configurable: true,
+            spot: 1,
+        },
     ];
     for (right_idx, right_value) in items.iter().enumerate() {
         for (left_idx, left_value) in items.iter().enumerate() {
@@ -127,7 +167,12 @@ fn property_descriptor_eq() {
 }
 #[test]
 fn property_descriptor_clone() {
-    let p1 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let p1 = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let p2 = p1.clone();
     assert_eq!(p1, p2);
 }
@@ -139,9 +184,17 @@ fn property_descriptor_default() {
 }
 #[test]
 fn property_descriptor_is_data_descriptor() {
-    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let d = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let a = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: true,
         configurable: true,
         spot: 10,
@@ -152,9 +205,17 @@ fn property_descriptor_is_data_descriptor() {
 }
 #[test]
 fn property_descriptor_is_accessor_descriptor() {
-    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let d = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let a = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: true,
         configurable: true,
         spot: 10,
@@ -165,9 +226,17 @@ fn property_descriptor_is_accessor_descriptor() {
 }
 #[test]
 fn property_descriptor_is_generic_descriptor() {
-    let d = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let d = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let a = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: true,
         configurable: true,
         spot: 10,
@@ -178,10 +247,23 @@ fn property_descriptor_is_generic_descriptor() {
 }
 #[test]
 fn property_descriptor_is_writable() {
-    let writable = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
-    let constant = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: true, configurable: true, spot: 10 };
+    let writable = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
+    let constant = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let accessor = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: true,
         configurable: true,
         spot: 10,
@@ -194,22 +276,40 @@ fn property_descriptor_is_writable() {
 
 #[test]
 fn concise_property_descriptor_from() {
-    let p = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
+    let p = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let c = ConcisePropertyDescriptor::from(&p);
     assert_eq!(*c.0, p);
 }
 #[test]
 fn concise_property_descriptor_debug() {
-    let p1 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }), enumerable: true, configurable: true, spot: 10 };
+    let p1 = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true }),
+        enumerable: true,
+        configurable: true,
+        spot: 10,
+    };
     let c1 = ConcisePropertyDescriptor::from(&p1);
     assert_eq!(format!("{:?}", c1), "{ true wec }");
     printer_validate(|w| write!(w, "{:?}", c1));
-    let p2 = PropertyDescriptor { property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }), enumerable: false, configurable: false, spot: 10 };
+    let p2 = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
+        enumerable: false,
+        configurable: false,
+        spot: 10,
+    };
     let c2 = ConcisePropertyDescriptor::from(&p2);
     assert_eq!(format!("{:?}", c2), "{ true --- }");
     printer_validate(|w| write!(w, "{:?}", c2));
     let p3 = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(true), set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::from(true),
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: false,
         configurable: true,
         spot: 10,
@@ -227,14 +327,45 @@ fn potential_property_descriptor_debug() {
 #[test]
 fn potential_property_descriptor_default() {
     let ppd: PotentialPropertyDescriptor = Default::default();
-    assert_eq!(ppd, PotentialPropertyDescriptor { value: None, writable: None, get: None, set: None, enumerable: None, configurable: None });
+    assert_eq!(
+        ppd,
+        PotentialPropertyDescriptor {
+            value: None,
+            writable: None,
+            get: None,
+            set: None,
+            enumerable: None,
+            configurable: None
+        }
+    );
 }
 #[test]
 fn potential_property_descriptor_partialeq() {
     let items: [PotentialPropertyDescriptor; 8] = [
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) },
-        PotentialPropertyDescriptor { value: None, writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) },
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: None, get: None, set: None, enumerable: Some(true), configurable: Some(true) },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: Some(true),
+            configurable: Some(true),
+        },
+        PotentialPropertyDescriptor {
+            value: None,
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: Some(true),
+            configurable: Some(true),
+        },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: None,
+            get: None,
+            set: None,
+            enumerable: Some(true),
+            configurable: Some(true),
+        },
         PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(true)),
             writable: Some(true),
@@ -251,9 +382,30 @@ fn potential_property_descriptor_partialeq() {
             enumerable: Some(true),
             configurable: Some(true),
         },
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: None, configurable: Some(true) },
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: None },
-        PotentialPropertyDescriptor { value: None, writable: None, get: None, set: None, enumerable: None, configurable: None },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: None,
+            configurable: Some(true),
+        },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            get: None,
+            set: None,
+            enumerable: Some(true),
+            configurable: None,
+        },
+        PotentialPropertyDescriptor {
+            value: None,
+            writable: None,
+            get: None,
+            set: None,
+            enumerable: None,
+            configurable: None,
+        },
     ];
     for (right_idx, right_value) in items.iter().enumerate() {
         for (left_idx, left_value) in items.iter().enumerate() {
@@ -264,7 +416,14 @@ fn potential_property_descriptor_partialeq() {
 }
 #[test]
 fn potential_property_descriptor_clone() {
-    let ppd1 = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), get: None, set: None, enumerable: Some(true), configurable: Some(true) };
+    let ppd1 = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(true)),
+        writable: Some(true),
+        get: None,
+        set: None,
+        enumerable: Some(true),
+        configurable: Some(true),
+    };
     let ppd2 = ppd1.clone();
     assert_eq!(ppd1, ppd2);
 }
@@ -477,7 +636,13 @@ fn ordinary_get_own_property_02() {
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), ppd).unwrap();
 
     let result = ordinary_get_own_property(&obj, &key).unwrap();
@@ -497,7 +662,13 @@ fn ordinary_define_own_property_01() {
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
 
     let result = ordinary_define_own_property(&mut agent, &obj, key.clone(), ppd).unwrap();
 
@@ -518,7 +689,13 @@ fn ordinary_define_own_property_02() {
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     obj.o.prevent_extensions(&mut agent).unwrap();
 
     let result = ordinary_define_own_property(&mut agent, &obj, key, ppd).unwrap();
@@ -532,7 +709,13 @@ fn ordinary_define_own_property_03() {
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
     let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let initial = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
     let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), ..Default::default() };
 
@@ -554,7 +737,13 @@ fn ordinary_define_own_property_04() {
     let mut agent = test_agent();
     let obj = TestObject::object(&mut agent, &[FunctionId::GetOwnProperty(None)]);
     let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
 
     let result = ordinary_define_own_property(&mut agent, &obj, key, ppd).unwrap_err();
 
@@ -567,7 +756,13 @@ fn ordinary_define_own_property_05() {
     let mut agent = test_agent();
     let obj = TestObject::object(&mut agent, &[FunctionId::IsExtensible]);
     let key = PropertyKey::from("a");
-    let ppd = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let ppd = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(10)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
 
     let result = ordinary_define_own_property(&mut agent, &obj, key, ppd).unwrap_err();
 
@@ -651,7 +846,13 @@ fn validate_and_apply_property_descriptor_05() {
     let pd = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
     assert_eq!(pd.configurable, true);
     assert_eq!(pd.enumerable, true);
-    assert_eq!(pd.property, PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), set: ECMAScriptValue::Undefined }));
+    assert_eq!(
+        pd.property,
+        PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)),
+            set: ECMAScriptValue::Undefined
+        })
+    );
 }
 #[test]
 fn validate_and_apply_property_descriptor_06() {
@@ -659,7 +860,13 @@ fn validate_and_apply_property_descriptor_06() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
-    let existing = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(99)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let existing = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(99)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     let key = PropertyKey::from("key");
     define_property_or_throw(&mut agent, &obj, key.clone(), existing).unwrap();
     let current = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
@@ -739,12 +946,24 @@ impl Iterator for VAPDIter {
             let result = Some((
                 self.id_name(),
                 PotentialPropertyDescriptor {
-                    value: if self.stage == Stage::Data { Some(ECMAScriptValue::from(self.value as i32)) } else { None },
+                    value: if self.stage == Stage::Data {
+                        Some(ECMAScriptValue::from(self.value as i32))
+                    } else {
+                        None
+                    },
                     writable: if self.stage == Stage::Data { Some(self.writable) } else { None },
                     enumerable: Some(self.enumerable),
                     configurable: Some(self.configurable),
-                    get: if self.stage == Stage::Accessor { Some(if self.get_throws { self.tte.clone() } else { ECMAScriptValue::Undefined }) } else { None },
-                    set: if self.stage == Stage::Accessor { Some(if self.set_throws { self.tte.clone() } else { ECMAScriptValue::Undefined }) } else { None },
+                    get: if self.stage == Stage::Accessor {
+                        Some(if self.get_throws { self.tte.clone() } else { ECMAScriptValue::Undefined })
+                    } else {
+                        None
+                    },
+                    set: if self.stage == Stage::Accessor {
+                        Some(if self.set_throws { self.tte.clone() } else { ECMAScriptValue::Undefined })
+                    } else {
+                        None
+                    },
                 },
             ));
 
@@ -863,13 +1082,17 @@ impl Iterator for VAPDCheck {
         }
     }
 }
-fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialPropertyDescriptor) -> Option<PropertyDescriptor> {
+fn figure_expectation(
+    current: &PropertyDescriptor,
+    incoming: &PotentialPropertyDescriptor,
+) -> Option<PropertyDescriptor> {
     let config_changed = current.configurable != incoming.configurable.unwrap_or(current.configurable);
     let enumerable_changed = current.enumerable != incoming.enumerable.unwrap_or(current.enumerable);
     let current_configurable = current.configurable;
     let current_enumurable = current.enumerable;
     let kind_changed =
-        current.is_data_descriptor() && incoming.is_accessor_descriptor() && !incoming.is_data_descriptor() || current.is_accessor_descriptor() && incoming.is_data_descriptor();
+        current.is_data_descriptor() && incoming.is_accessor_descriptor() && !incoming.is_data_descriptor()
+            || current.is_accessor_descriptor() && incoming.is_data_descriptor();
 
     match &current.property {
         PropertyKind::Data(dp) => {
@@ -891,7 +1114,10 @@ fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialProperty
                     })
                 } else {
                     Some(PropertyDescriptor {
-                        property: PropertyKind::Data(DataProperty { writable: incoming.writable.unwrap_or(dp.writable), value: new_value }),
+                        property: PropertyKind::Data(DataProperty {
+                            writable: incoming.writable.unwrap_or(dp.writable),
+                            value: new_value,
+                        }),
                         configurable: incoming.configurable.unwrap_or(current_configurable),
                         enumerable: incoming.enumerable.unwrap_or(current_enumurable),
                         spot: current.spot,
@@ -901,7 +1127,10 @@ fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialProperty
                 // Otherwise, if existing is writable, changes to writable and value are allowed (but not configurable or enumerable)
                 if !config_changed && !enumerable_changed && !kind_changed {
                     Some(PropertyDescriptor {
-                        property: PropertyKind::Data(DataProperty { writable: incoming.writable.unwrap_or(dp.writable), value: new_value }),
+                        property: PropertyKind::Data(DataProperty {
+                            writable: incoming.writable.unwrap_or(dp.writable),
+                            value: new_value,
+                        }),
                         configurable: current_configurable,
                         enumerable: current_enumurable,
                         spot: current.spot,
@@ -933,7 +1162,10 @@ fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialProperty
                 if kind_changed {
                     let new_value = if let Some(v) = &incoming.value { v.clone() } else { ECMAScriptValue::Undefined };
                     Some(PropertyDescriptor {
-                        property: PropertyKind::Data(DataProperty { value: new_value, writable: incoming.writable.unwrap_or(false) }),
+                        property: PropertyKind::Data(DataProperty {
+                            value: new_value,
+                            writable: incoming.writable.unwrap_or(false),
+                        }),
                         configurable: incoming.configurable.unwrap_or(current_configurable),
                         enumerable: incoming.enumerable.unwrap_or(current_enumurable),
                         spot: current.spot,
@@ -950,7 +1182,12 @@ fn figure_expectation(current: &PropertyDescriptor, incoming: &PotentialProperty
                 }
             } else {
                 // Otherwise, the function succeeds only if no changes are made
-                if !config_changed && !enumerable_changed && !get_changed && !set_changed && !incoming.is_data_descriptor() {
+                if !config_changed
+                    && !enumerable_changed
+                    && !get_changed
+                    && !set_changed
+                    && !incoming.is_data_descriptor()
+                {
                     Some(PropertyDescriptor {
                         property: PropertyKind::Accessor(AccessorProperty { get: ap.get.clone(), set: ap.set.clone() }),
                         configurable: current_configurable,
@@ -982,10 +1219,32 @@ fn validate_and_apply_property_descriptor_many() {
             let current = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
             let expected_prop = figure_expectation(&current, &check);
 
-            let result = validate_and_apply_property_descriptor(Some(&obj), Some(key.clone()), true, check.clone(), Some(&current));
-            assert_eq!(result, expected_prop.is_some(), "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?}", key, current, check, expected_prop);
+            let result = validate_and_apply_property_descriptor(
+                Some(&obj),
+                Some(key.clone()),
+                true,
+                check.clone(),
+                Some(&current),
+            );
+            assert_eq!(
+                result,
+                expected_prop.is_some(),
+                "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?}",
+                key,
+                current,
+                check,
+                expected_prop
+            );
             let after = obj.o.get_own_property(&mut agent, &key).unwrap().unwrap();
-            assert_eq!(&after, expected_prop.as_ref().unwrap_or(&current), "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?};", key, current, check, expected_prop);
+            assert_eq!(
+                &after,
+                expected_prop.as_ref().unwrap_or(&current),
+                "\nkey: {:?};\ncurrent: {:#?};\nPPD: {:#?};\nexpected: {:#?};",
+                key,
+                current,
+                check,
+                expected_prop
+            );
         }
     }
 }
@@ -995,7 +1254,13 @@ fn ordinary_has_property_01() {
     let mut agent = test_agent();
     let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(&mut agent, Some(object_proto), &[]);
-    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), configurable: Some(true), enumerable: Some(true), ..Default::default() };
+    let initial = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(true)),
+        writable: Some(true),
+        configurable: Some(true),
+        enumerable: Some(true),
+        ..Default::default()
+    };
     let key = PropertyKey::from("a");
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
     let key2 = PropertyKey::from("b");
@@ -1070,13 +1335,24 @@ fn ordinary_get_04() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let initial = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from(0)),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
 
     let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::Undefined).unwrap();
     assert_eq!(result, ECMAScriptValue::from(0));
 }
-fn test_getter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn test_getter(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     // This is a getter; it is essentially:
     // function() { return this.result; }
     let obj = to_object(agent, this_value)?;
@@ -1089,14 +1365,35 @@ fn ordinary_get_05() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
-    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let getter = create_builtin_function(
+        &mut agent,
+        test_getter,
+        false,
+        0_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("get")),
+    );
+    let initial = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::from(getter)),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
     define_property_or_throw(
         &mut agent,
         &obj,
         PropertyKey::from("result"),
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("sentinel value")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from("sentinel value")),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        },
     )
     .unwrap();
 
@@ -1109,8 +1406,23 @@ fn ordinary_get_06() {
     let mut agent = test_agent();
     let parent = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
-    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let getter = create_builtin_function(
+        &mut agent,
+        test_getter,
+        false,
+        0_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("get")),
+    );
+    let initial = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::from(getter)),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     // GETTER ON PARENT
     define_property_or_throw(&mut agent, &parent, key.clone(), initial).unwrap();
     let child = ordinary_object_create(&mut agent, Some(parent), &[]);
@@ -1119,7 +1431,13 @@ fn ordinary_get_06() {
         &mut agent,
         &child,
         PropertyKey::from("result"),
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("sentinel value")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from("sentinel value")),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        },
     )
     .unwrap();
 
@@ -1134,7 +1452,12 @@ fn ordinary_get_07() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::from("a");
-    let initial = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::Undefined), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let initial = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::Undefined),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), initial).unwrap();
 
     let result = ordinary_get(&mut agent, &obj, &key, &ECMAScriptValue::from(obj.clone())).unwrap();
@@ -1175,7 +1498,15 @@ fn ordinary_set_with_own_descriptor_01() {
     let obj = TestObject::object(&mut agent, &[FunctionId::GetPrototypeOf]);
     let key = PropertyKey::from("a");
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None).unwrap_err();
+    let result = ordinary_set_with_own_descriptor(
+        &mut agent,
+        &obj,
+        key,
+        ECMAScriptValue::Undefined,
+        &ECMAScriptValue::Null,
+        None,
+    )
+    .unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "[[GetPrototypeOf]] called on TestObject");
 }
 #[test]
@@ -1186,7 +1517,15 @@ fn ordinary_set_with_own_descriptor_02() {
     let obj = ordinary_object_create(&mut agent, Some(parent), &[]);
     let key = PropertyKey::from("a");
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None).unwrap_err();
+    let result = ordinary_set_with_own_descriptor(
+        &mut agent,
+        &obj,
+        key,
+        ECMAScriptValue::Undefined,
+        &ECMAScriptValue::Null,
+        None,
+    )
+    .unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "[[Set]] called on TestObject");
 }
 #[test]
@@ -1194,7 +1533,12 @@ fn ordinary_set_with_own_descriptor_03() {
     // ownDesc has writable:false; function should return false.
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
-    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: false, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+    let own_desc = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { writable: false, value: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -1234,11 +1578,32 @@ fn ordinary_set_with_own_descriptor_06() {
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
-    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("sentinel value")).unwrap();
-    let getter = create_builtin_function(&mut agent, test_getter, false, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
-    let accessor_prop = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(getter)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("sentinel value"))
+        .unwrap();
+    let getter = create_builtin_function(
+        &mut agent,
+        test_getter,
+        false,
+        0_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("get")),
+    );
+    let accessor_prop = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::from(getter)),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), accessor_prop).unwrap();
-    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+    let own_desc = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
 
     let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(own_desc)).unwrap();
     assert!(!result);
@@ -1251,10 +1616,20 @@ fn ordinary_set_with_own_descriptor_07() {
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
-    let readonly =
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("read and weep")), writable: Some(false), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let readonly = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from("read and weep")),
+        writable: Some(false),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), readonly).unwrap();
-    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }), enumerable: true, configurable: true, spot: 0 };
+    let own_desc = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::Undefined }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
 
     let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(own_desc)).unwrap();
     assert!(!result);
@@ -1267,12 +1642,24 @@ fn ordinary_set_with_own_descriptor_08() {
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
-    let previously =
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("initial")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+    let previously = PotentialPropertyDescriptor {
+        value: Some(ECMAScriptValue::from("initial")),
+        writable: Some(true),
+        enumerable: Some(true),
+        configurable: Some(true),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &obj, key.clone(), previously).unwrap();
-    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }), enumerable: true, configurable: true, spot: 0 };
+    let own_desc = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc)).unwrap();
+    let result =
+        ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc))
+            .unwrap();
     assert!(result);
 
     let item = get(&mut agent, &obj, &key).unwrap();
@@ -1286,15 +1673,27 @@ fn ordinary_set_with_own_descriptor_09() {
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
-    let own_desc = PropertyDescriptor { property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }), enumerable: true, configurable: true, spot: 0 };
+    let own_desc = PropertyDescriptor {
+        property: PropertyKind::Data(DataProperty { writable: true, value: ECMAScriptValue::from(0) }),
+        enumerable: true,
+        configurable: true,
+        spot: 0,
+    };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc)).unwrap();
+    let result =
+        ordinary_set_with_own_descriptor(&mut agent, &obj, key.clone(), value.clone(), &receiver, Some(own_desc))
+            .unwrap();
     assert!(result);
 
     let item = get(&mut agent, &obj, &key).unwrap();
     assert_eq!(item, value);
 }
-fn test_setter(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn test_setter(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     // This is a setter; it is essentially:
     // function(val) { this.value = val; }
     let obj = to_object(agent, this_value)?;
@@ -1312,16 +1711,31 @@ fn ordinary_set_with_own_descriptor_10() {
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
-    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("initial value")).unwrap();
-    let setter = create_builtin_function(&mut agent, test_setter, false, 1_f64, key.clone(), &[], None, None, Some(JSString::from("set")));
+    create_data_property(&mut agent, &obj, PropertyKey::from("result"), ECMAScriptValue::from("initial value"))
+        .unwrap();
+    let setter = create_builtin_function(
+        &mut agent,
+        test_setter,
+        false,
+        1_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("set")),
+    );
     let accessor_prop = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(setter) }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::from(setter),
+        }),
         enumerable: true,
         configurable: true,
         spot: 0,
     };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value.clone(), &receiver, Some(accessor_prop)).unwrap();
+    let result =
+        ordinary_set_with_own_descriptor(&mut agent, &obj, key, value.clone(), &receiver, Some(accessor_prop)).unwrap();
     assert!(result);
 
     let item = get(&mut agent, &obj, &PropertyKey::from("result")).unwrap();
@@ -1337,13 +1751,17 @@ fn ordinary_set_with_own_descriptor_11() {
     let receiver = ECMAScriptValue::from(obj.clone());
     let setter = agent.intrinsic(IntrinsicId::ThrowTypeError);
     let accessor_prop = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::from(setter) }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::from(setter),
+        }),
         enumerable: true,
         configurable: true,
         spot: 0,
     };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap_err();
+    let result =
+        ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Generic TypeError");
 }
 #[test]
@@ -1355,13 +1773,17 @@ fn ordinary_set_with_own_descriptor_12() {
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
     let accessor_prop = PropertyDescriptor {
-        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, set: ECMAScriptValue::Undefined }),
+        property: PropertyKind::Accessor(AccessorProperty {
+            get: ECMAScriptValue::Undefined,
+            set: ECMAScriptValue::Undefined,
+        }),
         enumerable: true,
         configurable: true,
         spot: 0,
     };
 
-    let result = ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap();
+    let result =
+        ordinary_set_with_own_descriptor(&mut agent, &obj, key, value, &receiver, Some(accessor_prop)).unwrap();
     assert!(!result);
 }
 
@@ -1396,7 +1818,13 @@ fn ordinary_delete_03() {
         &mut agent,
         &obj,
         key.clone(),
-        PotentialPropertyDescriptor { value: Some(value.clone()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+        PotentialPropertyDescriptor {
+            value: Some(value.clone()),
+            writable: Some(false),
+            enumerable: Some(true),
+            configurable: Some(false),
+            ..Default::default()
+        },
     )
     .unwrap();
 
@@ -1634,7 +2062,11 @@ fn ordinary_object_create_03c() {
     let proto = ordinary_object_create(&mut agent, None, &[]);
 
     // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(&mut agent, Some(proto.clone()), &[InternalSlotName::Prototype, InternalSlotName::Extensible]);
+    let obj = ordinary_object_create(
+        &mut agent,
+        Some(proto.clone()),
+        &[InternalSlotName::Prototype, InternalSlotName::Extensible],
+    );
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
@@ -1654,7 +2086,11 @@ fn make_basic_object_01() {
 #[should_panic(expected = "Nonsense")]
 fn make_basic_object_02() {
     let mut agent = test_agent();
-    let _obj = make_basic_object(&mut agent, &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible], None);
+    let _obj = make_basic_object(
+        &mut agent,
+        &[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible],
+        None,
+    );
 }
 
 #[test]
@@ -1776,7 +2212,14 @@ fn get_own_property_02() {
     let obj = ordinary_object_create(&mut agent, None, &[]);
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(89.0);
-    let desc = PotentialPropertyDescriptor { value: Some(value), writable: Some(false), enumerable: Some(true), configurable: None, get: None, set: None };
+    let desc = PotentialPropertyDescriptor {
+        value: Some(value),
+        writable: Some(false),
+        enumerable: Some(true),
+        configurable: None,
+        get: None,
+        set: None,
+    };
     obj.o.define_own_property(&mut agent, key.clone(), desc).unwrap();
 
     let result = obj.o.get_own_property(&mut agent, &key);
@@ -1823,9 +2266,18 @@ mod private_element_find {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement { key: names[0].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
-            elements.push(Rc::new(PrivateElement { key: names[1].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) } }));
-            elements.push(Rc::new(PrivateElement { key: names[2].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) } }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[0].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
+            }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[1].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
+            }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[2].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
+            }));
         }
 
         (obj, names)
@@ -1870,9 +2322,18 @@ mod private_field_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement { key: names[0].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
-            elements.push(Rc::new(PrivateElement { key: names[1].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) } }));
-            elements.push(Rc::new(PrivateElement { key: names[2].clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) } }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[0].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
+            }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[1].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
+            }));
+            elements.push(Rc::new(PrivateElement {
+                key: names[2].clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
+            }));
         }
 
         (obj, names)
@@ -1920,7 +2381,10 @@ mod private_method_or_accessor_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement { key: name.clone(), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) } }));
+            elements.push(Rc::new(PrivateElement {
+                key: name.clone(),
+                kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
+            }));
         }
         (obj, name)
     }
@@ -1930,7 +2394,10 @@ mod private_method_or_accessor_add {
         let mut agent = test_agent();
         let (obj, _) = setup(&mut agent);
         let key = PrivateName::new("orange");
-        let method = Rc::new(PrivateElement { key: key.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
+        let method = Rc::new(PrivateElement {
+            key: key.clone(),
+            kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) },
+        });
 
         private_method_or_accessor_add(&mut agent, &obj, method).unwrap();
         let x = private_element_find(&obj, &key).map(|pe| match &pe.kind {
@@ -1946,7 +2413,8 @@ mod private_method_or_accessor_add {
     fn replace() {
         let mut agent = test_agent();
         let (obj, key) = setup(&mut agent);
-        let method = Rc::new(PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
+        let method =
+            Rc::new(PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
 
         let err = private_method_or_accessor_add(&mut agent, &obj, method).unwrap_err();
         assert_eq!(unwind_type_error(&mut agent, err), "PrivateName already defined");
@@ -1967,19 +2435,42 @@ mod private_get {
         let nogetter_name = PrivateName::new("nogetter");
 
         private_field_add(agent, &obj, field_name.clone(), ECMAScriptValue::from("FIELD")).unwrap();
-        let method = PrivateElement { key: method_name.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") } };
+        let method = PrivateElement {
+            key: method_name.clone(),
+            kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") },
+        };
         private_method_or_accessor_add(agent, &obj, Rc::new(method)).unwrap();
-        let getter_method = create_builtin_function(agent, test_getter, false, 0_f64, PropertyKey::from("getter"), &[], None, None, Some(JSString::from("get")));
-        let getter = PrivateElement { key: getter_name.clone(), kind: PrivateElementKind::Accessor { get: Some(getter_method), set: None } };
+        let getter_method = create_builtin_function(
+            agent,
+            test_getter,
+            false,
+            0_f64,
+            PropertyKey::from("getter"),
+            &[],
+            None,
+            None,
+            Some(JSString::from("get")),
+        );
+        let getter = PrivateElement {
+            key: getter_name.clone(),
+            kind: PrivateElementKind::Accessor { get: Some(getter_method), set: None },
+        };
         private_method_or_accessor_add(agent, &obj, Rc::new(getter)).unwrap();
         define_property_or_throw(
             agent,
             &obj,
             PropertyKey::from("result"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("GETTER")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from("GETTER")),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
-        let nogetter = PrivateElement { key: nogetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
+        let nogetter =
+            PrivateElement { key: nogetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
         private_method_or_accessor_add(agent, &obj, Rc::new(nogetter)).unwrap();
 
         (obj, field_name, method_name, getter_name, nogetter_name)
@@ -2026,21 +2517,54 @@ mod private_set {
         let nosetter_name = PrivateName::new("nosetter");
 
         private_field_add(agent, &obj, field_name.clone(), ECMAScriptValue::from("FIELD")).unwrap();
-        let method = PrivateElement { key: method_name.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") } };
+        let method = PrivateElement {
+            key: method_name.clone(),
+            kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") },
+        };
         private_method_or_accessor_add(agent, &obj, Rc::new(method)).unwrap();
-        let getter_method = create_builtin_function(agent, test_getter, false, 0_f64, PropertyKey::from("$state"), &[], None, None, Some(JSString::from("get")));
-        let setter_method = create_builtin_function(agent, test_setter, false, 1_f64, PropertyKey::from("$state"), &[], None, None, Some(JSString::from("set")));
+        let getter_method = create_builtin_function(
+            agent,
+            test_getter,
+            false,
+            0_f64,
+            PropertyKey::from("$state"),
+            &[],
+            None,
+            None,
+            Some(JSString::from("get")),
+        );
+        let setter_method = create_builtin_function(
+            agent,
+            test_setter,
+            false,
+            1_f64,
+            PropertyKey::from("$state"),
+            &[],
+            None,
+            None,
+            Some(JSString::from("set")),
+        );
 
-        let setter = PrivateElement { key: setter_name.clone(), kind: PrivateElementKind::Accessor { get: Some(getter_method), set: Some(setter_method) } };
+        let setter = PrivateElement {
+            key: setter_name.clone(),
+            kind: PrivateElementKind::Accessor { get: Some(getter_method), set: Some(setter_method) },
+        };
         private_method_or_accessor_add(agent, &obj, Rc::new(setter)).unwrap();
         define_property_or_throw(
             agent,
             &obj,
             PropertyKey::from("result"),
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("SETTER")), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from("SETTER")),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
-        let nosetter = PrivateElement { key: nosetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
+        let nosetter =
+            PrivateElement { key: nosetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
         private_method_or_accessor_add(agent, &obj, Rc::new(nosetter)).unwrap();
 
         (obj, field_name, method_name, setter_name, nosetter_name)
@@ -2292,7 +2816,12 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
 
-    fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn faux_errors(
+        agent: &mut Agent,
+        _this_value: ECMAScriptValue,
+        _new_target: Option<&Object>,
+        _arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
         Err(create_type_error(agent, "Test Sentinel"))
     }
 
@@ -2328,8 +2857,23 @@ mod to_property_descriptor {
         let obj = ordinary_object_create(agent, Some(object_prototype), &[]);
         let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
         let key = PropertyKey::from(name);
-        let getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
-        let desc = PotentialPropertyDescriptor { enumerable: Some(true), configurable: Some(true), get: Some(ECMAScriptValue::from(getter)), ..Default::default() };
+        let getter = create_builtin_function(
+            agent,
+            faux_errors,
+            false,
+            0_f64,
+            key.clone(),
+            BUILTIN_FUNCTION_SLOTS,
+            Some(realm),
+            Some(function_proto),
+            Some(JSString::from("get")),
+        );
+        let desc = PotentialPropertyDescriptor {
+            enumerable: Some(true),
+            configurable: Some(true),
+            get: Some(ECMAScriptValue::from(getter)),
+            ..Default::default()
+        };
         define_property_or_throw(agent, &obj, key, desc).unwrap();
         ECMAScriptValue::from(obj)
     }
@@ -2439,12 +2983,22 @@ mod enumerable_own_property_names {
             agent,
             &obj,
             "hidden",
-            PotentialPropertyDescriptor { value: Some("hidden".into()), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some("hidden".into()),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
     }
-    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn gop_override(
+        agent: &mut Agent,
+        this: &AdaptableObject,
+        key: &PropertyKey,
+    ) -> Completion<Option<PropertyDescriptor>> {
         if this.something.get() == 0 {
             this.something.set(1);
             Ok(ordinary_get_own_property(this, key))
@@ -2453,7 +3007,10 @@ mod enumerable_own_property_names {
         }
     }
     fn ownprop(agent: &mut Agent) -> Object {
-        let obj = AdaptableObject::object(agent, AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() });
+        let obj = AdaptableObject::object(
+            agent,
+            AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() },
+        );
         create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
         obj
     }
@@ -2466,7 +3023,10 @@ mod enumerable_own_property_names {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys(agent: &mut Agent) -> Object {
-        AdaptableObject::object(agent, AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() })
+        AdaptableObject::object(
+            agent,
+            AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() },
+        )
     }
 
     #[test_case(dead, EnumerationStyle::Key => Err("TypeError: own_property_keys called on DeadObject".to_string()); "own_property_keys throws")]
@@ -2523,7 +3083,10 @@ mod set_integrity_level {
         DeadObject::object(agent)
     }
     fn prevention_disabled(agent: &mut Agent) -> Object {
-        AdaptableObject::object(agent, AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() })
+        AdaptableObject::object(
+            agent,
+            AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() },
+        )
     }
     fn opk_throws(agent: &mut Agent) -> Object {
         TestObject::object(agent, &[FunctionId::OwnPropertyKeys])
@@ -2546,7 +3109,11 @@ mod set_integrity_level {
         create_data_property_or_throw(agent, &obj, "property", 99.0).unwrap();
         obj
     }
-    fn gop_override(agent: &mut Agent, this: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+    fn gop_override(
+        agent: &mut Agent,
+        this: &AdaptableObject,
+        key: &PropertyKey,
+    ) -> Completion<Option<PropertyDescriptor>> {
         if this.something.get() == 0 {
             this.something.set(1);
             Ok(ordinary_get_own_property(this, key))
@@ -2555,7 +3122,10 @@ mod set_integrity_level {
         }
     }
     fn gop_throws(agent: &mut Agent) -> Object {
-        let obj = AdaptableObject::object(agent, AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() });
+        let obj = AdaptableObject::object(
+            agent,
+            AdaptableMethods { get_own_property_override: Some(gop_override), ..Default::default() },
+        );
         create_data_property_or_throw(agent, &obj, "one", 1.0).unwrap();
         obj
     }
@@ -2563,7 +3133,10 @@ mod set_integrity_level {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
     fn lyingkeys(agent: &mut Agent) -> Object {
-        AdaptableObject::object(agent, AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() })
+        AdaptableObject::object(
+            agent,
+            AdaptableMethods { own_property_keys_override: Some(lying_ownprops), ..Default::default() },
+        )
     }
 
     #[test_case(normal, IntegrityLevel::Frozen => Ok((true, vec![
@@ -2616,6 +3189,8 @@ mod set_integrity_level {
     fn sil(make_obj: fn(&mut Agent) -> Object, level: IntegrityLevel) -> Result<(bool, Vec<PropertyInfo>), String> {
         let mut agent = test_agent();
         let obj = make_obj(&mut agent);
-        set_integrity_level(&mut agent, &obj, level).map(|success| (success, obj.o.common_object_data().borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+        set_integrity_level(&mut agent, &obj, level)
+            .map(|success| (success, obj.o.common_object_data().borrow().propdump()))
+            .map_err(|err| unwind_any_error(&mut agent, err))
     }
 }

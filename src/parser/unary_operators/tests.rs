@@ -101,18 +101,63 @@ mod unary_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false), "UnaryExpression expected", 1, 1);
+        check_err(
+            UnaryExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn incomplete() {
-        check_err(UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
-        check_err(UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false), "UnaryExpression expected", 1, 5);
-        check_err(UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false), "UnaryExpression expected", 1, 7);
-        check_err(UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false), "UnaryExpression expected", 1, 2);
-        check_err(UnaryExpression::parse(&mut newparser("await"), Scanner::new(), false, true), "UnaryExpression expected", 1, 6);
+        check_err(
+            UnaryExpression::parse(&mut newparser("delete"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            7,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("void"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            5,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("typeof"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            7,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("+"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("-"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("~"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("!"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            2,
+        );
+        check_err(
+            UnaryExpression::parse(&mut newparser("await"), Scanner::new(), false, true),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
 
     #[test]
@@ -356,7 +401,10 @@ mod unary_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        UnaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

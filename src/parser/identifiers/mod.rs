@@ -81,7 +81,9 @@ impl Identifier {
                 | Some(Keyword::Void)
                 | Some(Keyword::While)
                 | Some(Keyword::With)
-                | Some(Keyword::Yield) => Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), scanner)),
+                | Some(Keyword::Yield) => {
+                    Err(ParseError::new(PECode::KeywordUsedAsIdentifier(id.keyword_id.unwrap()), scanner))
+                }
                 _ => Ok((Rc::new(Identifier { name: id }), after_tok)),
             },
             _ => Err(ParseError::new(PECode::InvalidIdentifier, scanner)),
@@ -125,7 +127,10 @@ impl Identifier {
                 || id.string_value == "static"
                 || id.string_value == "yield")
         {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ not allowed as an identifier in strict mode", id.string_value).as_str()));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ not allowed as an identifier in strict mode", id.string_value).as_str(),
+            ));
         }
         if in_module && id.string_value == "await" {
             errs.push(create_syntax_error_object(agent, "‘await’ not allowed as an identifier in modules"));
@@ -167,7 +172,10 @@ impl Identifier {
             || id.string_value == "while"
             || id.string_value == "with"
         {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str()));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ is a reserved word and may not be used as an identifier", id.string_value).as_str(),
+            ));
         }
     }
 
@@ -234,24 +242,46 @@ impl fmt::Display for IdentifierReference {
 }
 
 impl IdentifierReference {
-    fn parse_core(parser: &mut Parser, initial_scanner: Scanner, arg_yield: bool, arg_await: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        initial_scanner: Scanner,
+        arg_yield: bool,
+        arg_await: bool,
+    ) -> ParseResult<Self> {
         let production = Identifier::parse(parser, initial_scanner);
         let in_module = parser.goal == ParseGoal::Module;
         match production {
             Ok((ident, scanner)) => {
-                let node = IdentifierReference { kind: IdentifierReferenceKind::Identifier(ident), in_module, yield_flag: arg_yield, await_flag: arg_await };
+                let node = IdentifierReference {
+                    kind: IdentifierReferenceKind::Identifier(ident),
+                    in_module,
+                    yield_flag: arg_yield,
+                    await_flag: arg_await,
+                };
                 let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
             Err(pe) => {
                 let (token, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Await, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
-                    }
-                    Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => {
-                        Ok((Rc::new(IdentifierReference { kind: IdentifierReferenceKind::Yield, in_module, yield_flag: arg_yield, await_flag: arg_await }), scan))
-                    }
+                    Token::Identifier(id) if !arg_await && id.matches(Keyword::Await) => Ok((
+                        Rc::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Await,
+                            in_module,
+                            yield_flag: arg_yield,
+                            await_flag: arg_await,
+                        }),
+                        scan,
+                    )),
+                    Token::Identifier(id) if !arg_yield && id.matches(Keyword::Yield) => Ok((
+                        Rc::new(IdentifierReference {
+                            kind: IdentifierReferenceKind::Yield,
+                            in_module,
+                            yield_flag: arg_yield,
+                            await_flag: arg_await,
+                        }),
+                        scan,
+                    )),
                     _ => Err(pe),
                 }
             }
@@ -287,10 +317,16 @@ impl IdentifierReference {
                 //  * It is a Syntax Error if this production has an [Await] parameter and StringValue of Identifier is "await".
                 let sv = id.string_value();
                 if self.yield_flag && sv == "yield" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'yield' not allowed when yield expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'yield' not allowed when yield expressions are valid",
+                    ));
                 }
                 if self.await_flag && sv == "await" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'await' not allowed when await expressions are valid",
+                    ));
                 }
                 id.early_errors(agent, errs, strict, self.in_module);
             }
@@ -415,20 +451,46 @@ impl PrettyPrint for BindingIdentifier {
 }
 
 impl BindingIdentifier {
-    fn parse_core(parser: &mut Parser, starting_scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        starting_scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let production = Identifier::parse(parser, starting_scanner);
         let in_module = parser.goal == ParseGoal::Module;
         match production {
             Ok((ident, scanner)) => {
-                let node = BindingIdentifier { kind: BindingIdentifierKind::Identifier(ident), yield_flag, await_flag, in_module };
+                let node = BindingIdentifier {
+                    kind: BindingIdentifierKind::Identifier(ident),
+                    yield_flag,
+                    await_flag,
+                    in_module,
+                };
                 let boxed = Rc::new(node);
                 Ok((boxed, scanner))
             }
             Err(pe) => {
                 let (token, scan) = scan_token(&starting_scanner, parser.source, ScanGoal::InputElementRegExp);
                 match token {
-                    Token::Identifier(id) if id.matches(Keyword::Await) => Ok((Rc::new(BindingIdentifier { kind: BindingIdentifierKind::Await, yield_flag, await_flag, in_module }), scan)),
-                    Token::Identifier(id) if id.matches(Keyword::Yield) => Ok((Rc::new(BindingIdentifier { kind: BindingIdentifierKind::Yield, yield_flag, await_flag, in_module }), scan)),
+                    Token::Identifier(id) if id.matches(Keyword::Await) => Ok((
+                        Rc::new(BindingIdentifier {
+                            kind: BindingIdentifierKind::Await,
+                            yield_flag,
+                            await_flag,
+                            in_module,
+                        }),
+                        scan,
+                    )),
+                    Token::Identifier(id) if id.matches(Keyword::Yield) => Ok((
+                        Rc::new(BindingIdentifier {
+                            kind: BindingIdentifierKind::Yield,
+                            yield_flag,
+                            await_flag,
+                            in_module,
+                        }),
+                        scan,
+                    )),
                     _ => Err(pe),
                 }
             }
@@ -475,13 +537,22 @@ impl BindingIdentifier {
                 //  * It is a Syntax Error if this production has an [Await] parameter and StringValue of Identifier is "await".
                 let sv = id.string_value();
                 if strict && [JSString::from("arguments"), JSString::from("eval")].contains(&sv) {
-                    errs.push(create_syntax_error_object(agent, format!("identifier not allowed in strict mode: {}", sv).as_str()));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("identifier not allowed in strict mode: {}", sv).as_str(),
+                    ));
                 }
                 if self.yield_flag && sv == "yield" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'yield' not allowed when yield expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'yield' not allowed when yield expressions are valid",
+                    ));
                 }
                 if self.await_flag && sv == "await" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'await' not allowed when await expressions are valid",
+                    ));
                 }
                 id.early_errors(agent, errs, strict, self.in_module);
             }
@@ -493,7 +564,10 @@ impl BindingIdentifier {
                     errs.push(create_syntax_error_object(agent, "identifier not allowed in strict mode: yield"));
                 }
                 if self.yield_flag {
-                    errs.push(create_syntax_error_object(agent, "identifier 'yield' not allowed when yield expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'yield' not allowed when yield expressions are valid",
+                    ));
                 }
             }
             BindingIdentifierKind::Await => {
@@ -504,7 +578,10 @@ impl BindingIdentifier {
                     errs.push(create_syntax_error_object(agent, "identifier not allowed in modules: await"));
                 }
                 if self.await_flag {
-                    errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'await' not allowed when await expressions are valid",
+                    ));
                 }
             }
         }
@@ -578,14 +655,38 @@ impl LabelIdentifier {
         let pot_id = Identifier::parse(parser, scanner);
         let in_module = parser.goal == ParseGoal::Module;
         match pot_id {
-            Ok((id, after_id)) => Ok((Rc::new(LabelIdentifier { kind: LabelIdentifierKind::Identifier(id), in_module, yield_flag, await_flag }), after_id)),
+            Ok((id, after_id)) => Ok((
+                Rc::new(LabelIdentifier {
+                    kind: LabelIdentifierKind::Identifier(id),
+                    in_module,
+                    yield_flag,
+                    await_flag,
+                }),
+                after_id,
+            )),
             Err(pe) => {
                 if !yield_flag || !await_flag {
                     let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
                     if !yield_flag && tok.matches_keyword(Keyword::Yield) {
-                        Ok((Rc::new(LabelIdentifier { kind: LabelIdentifierKind::Yield, in_module, yield_flag, await_flag }), after_tok))
+                        Ok((
+                            Rc::new(LabelIdentifier {
+                                kind: LabelIdentifierKind::Yield,
+                                in_module,
+                                yield_flag,
+                                await_flag,
+                            }),
+                            after_tok,
+                        ))
                     } else if !await_flag && tok.matches_keyword(Keyword::Await) {
-                        Ok((Rc::new(LabelIdentifier { kind: LabelIdentifierKind::Await, in_module, yield_flag, await_flag }), after_tok))
+                        Ok((
+                            Rc::new(LabelIdentifier {
+                                kind: LabelIdentifierKind::Await,
+                                in_module,
+                                yield_flag,
+                                await_flag,
+                            }),
+                            after_tok,
+                        ))
                     } else {
                         Err(pe)
                     }
@@ -633,10 +734,16 @@ impl LabelIdentifier {
                 //  * It is a Syntax Error if this production has an [Await] parameter and StringValue of Identifier is "await".
                 let sv = id.string_value();
                 if self.yield_flag && sv == "yield" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'yield' not allowed when yield expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'yield' not allowed when yield expressions are valid",
+                    ));
                 }
                 if self.await_flag && sv == "await" {
-                    errs.push(create_syntax_error_object(agent, "identifier 'await' not allowed when await expressions are valid"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "identifier 'await' not allowed when await expressions are valid",
+                    ));
                 }
                 id.early_errors(agent, errs, strict, self.in_module);
             }

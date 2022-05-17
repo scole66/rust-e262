@@ -16,7 +16,9 @@ impl fmt::Display for NormalCompletion {
         match self {
             NormalCompletion::Empty => write!(f, "[empty]"),
             NormalCompletion::Value(v) => v.concise(f),
-            NormalCompletion::Reference(r) => write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name),
+            NormalCompletion::Reference(r) => {
+                write!(f, "{}Ref({}->{})", if r.strict { "S" } else { "" }, r.base, r.referenced_name)
+            }
         }
     }
 }
@@ -37,7 +39,9 @@ impl fmt::Display for AbruptCompletion {
             AbruptCompletion::Break { value: v, target: Some(t) } => write!(f, "Break{{V:{v},T:{t}}}"),
             AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None } => write!(f, "Continue{{}}"),
             AbruptCompletion::Continue { value: v, target: None } => write!(f, "Continue{{V:{v}}}"),
-            AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(t) } => write!(f, "Continue{{T:{t}}}"),
+            AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(t) } => {
+                write!(f, "Continue{{T:{t}}}")
+            }
             AbruptCompletion::Continue { value: v, target: Some(t) } => write!(f, "Continue{{V:{v},T:{t}}}"),
             AbruptCompletion::Return { value } => write!(f, "Return{{{value}}}"),
             AbruptCompletion::Throw { value } => write!(f, "Throw{{{value}}}"),
@@ -120,11 +124,17 @@ impl TryFrom<NormalCompletion> for Numeric {
 pub fn update_empty(completion_record: FullCompletion, old_value: NormalCompletion) -> FullCompletion {
     match completion_record {
         Ok(NormalCompletion::Empty) => Ok(old_value),
-        Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target }) => Err(AbruptCompletion::Break { value: old_value, target }),
-        Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target }) => Err(AbruptCompletion::Continue { value: old_value, target }),
-        Ok(_) | Err(AbruptCompletion::Return { .. }) | Err(AbruptCompletion::Throw { .. }) | Err(AbruptCompletion::Break { .. }) | Err(AbruptCompletion::Continue { .. }) => {
-            completion_record
+        Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target }) => {
+            Err(AbruptCompletion::Break { value: old_value, target })
         }
+        Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target }) => {
+            Err(AbruptCompletion::Continue { value: old_value, target })
+        }
+        Ok(_)
+        | Err(AbruptCompletion::Return { .. })
+        | Err(AbruptCompletion::Throw { .. })
+        | Err(AbruptCompletion::Break { .. })
+        | Err(AbruptCompletion::Continue { .. }) => completion_record,
     }
 }
 

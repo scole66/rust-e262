@@ -8,7 +8,9 @@ use super::function_definitions::FunctionExpression;
 use super::generator_function_definitions::GeneratorExpression;
 use super::identifiers::{BindingIdentifier, IdentifierReference};
 use super::method_definitions::MethodDefinition;
-use super::scanner::{scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token};
+use super::scanner::{
+    scan_token, Keyword, Punctuator, RegularExpressionData, ScanGoal, Scanner, StringToken, TemplateData, Token,
+};
 use super::*;
 use crate::prettyprint::{pprint_token, prettypad, PrettyPrint, Spot, TokenType};
 use crate::values::{number_to_string, Numeric};
@@ -78,7 +80,9 @@ impl PrettyPrint for PrimaryExpression {
         writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
         match self {
             PrimaryExpression::This => Ok(()),
-            PrimaryExpression::IdentifierReference(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::IdentifierReference(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             PrimaryExpression::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
             PrimaryExpression::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -110,7 +114,9 @@ impl PrettyPrint for PrimaryExpression {
             PrimaryExpression::Generator(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpression::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
             PrimaryExpression::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::RegularExpression(item) => pprint_token(writer, item, TokenType::RegularExpression, pad, state),
+            PrimaryExpression::RegularExpression(item) => {
+                pprint_token(writer, item, TokenType::RegularExpression, pad, state)
+            }
         }
     }
 }
@@ -119,7 +125,13 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpression::*;
         match self {
-            This | IdentifierReference(_) | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) => false,
+            This
+            | IdentifierReference(_)
+            | Literal(_)
+            | ArrayLiteral(_)
+            | ObjectLiteral(_)
+            | TemplateLiteral(_)
+            | RegularExpression(_) => false,
             Parenthesized(exp) => exp.is_function_definition(),
             Function(node) => node.is_function_definition(),
             Class(node) => node.is_function_definition(),
@@ -218,12 +230,22 @@ impl PrimaryExpression {
         Literal::to_primary_expression_result(node, after)
     }
 
-    fn parse_array_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_array_literal(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (node, after) = ArrayLiteral::parse(parser, scanner, yield_flag, await_flag)?;
         ArrayLiteral::to_primary_expression_result(node, after)
     }
 
-    fn parse_object_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_object_literal(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (node, after) = ObjectLiteral::parse(parser, scanner, yield_flag, await_flag)?;
         ObjectLiteral::to_primary_expression_result(node, after)
     }
@@ -232,11 +254,21 @@ impl PrimaryExpression {
         let (node, after) = FunctionExpression::parse(parser, scanner)?;
         FunctionExpression::to_primary_expression_result(node, after)
     }
-    fn parse_parenthesized_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_parenthesized_exp(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (node, after) = ParenthesizedExpression::parse(parser, scanner, yield_flag, await_flag)?;
         ParenthesizedExpression::to_primary_expression_result(node, after)
     }
-    fn parse_template_literal(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_template_literal(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (node, after) = TemplateLiteral::parse(parser, scanner, yield_flag, await_flag, false)?;
         TemplateLiteral::to_primary_expression_result(node, after)
     }
@@ -406,8 +438,8 @@ impl PrimaryExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         use PrimaryExpression::*;
         match self {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_) | Function(_) | Class(_) | Generator(_) | AsyncFunction(_)
-            | AsyncGenerator(_) => ATTKind::Invalid,
+            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_)
+            | Function(_) | Class(_) | Generator(_) | AsyncFunction(_) | AsyncGenerator(_) => ATTKind::Invalid,
             IdentifierReference(id) => id.assignment_target_type(strict),
             Parenthesized(expr) => expr.assignment_target_type(strict),
         }
@@ -540,7 +572,8 @@ impl PrettyPrint for SpreadElement {
 
 impl SpreadElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_ellipsis = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let after_ellipsis =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
     }
@@ -718,7 +751,12 @@ enum ELItemKind {
 }
 
 impl ElementList {
-    fn non_recursive_part(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(Option<Rc<Elisions>>, ELItemKind, Scanner), ParseError> {
+    fn non_recursive_part(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(Option<Rc<Elisions>>, ELItemKind, Scanner), ParseError> {
         let pot_elision = Elisions::parse(parser, scanner);
         let (elision, after_e_scanner) = match pot_elision {
             Ok((boxed, after_elision)) => (Some(boxed), after_elision),
@@ -734,10 +772,16 @@ impl ElementList {
                 match pot_se {
                     Ok((boxed, after_se_scanner)) => Ok((elision, ELItemKind::SE(boxed), after_se_scanner)),
                     Err(pe) => {
-                        let err_default = Some(ParseError::new(PECode::AssignmentExpressionOrSpreadElementExpected, after_e_scanner));
+                        let err_default =
+                            Some(ParseError::new(PECode::AssignmentExpressionOrSpreadElementExpected, after_e_scanner));
                         let err_se = Some(pe);
-                        let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less { err_ae } else { err_default };
-                        let err2 = if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
+                        let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less {
+                            err_ae
+                        } else {
+                            err_default
+                        };
+                        let err2 =
+                            if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
                         Err(err2.unwrap())
                     }
                 }
@@ -753,12 +797,17 @@ impl ElementList {
         };
         let mut current_scanner = after;
 
-        while let Ok((elision, item, after)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
+        while let Ok((elision, item, after)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
         {
             current_production = match item {
-                ELItemKind::AE(boxed_ae) => Rc::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae))),
-                ELItemKind::SE(boxed_se) => Rc::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se))),
+                ELItemKind::AE(boxed_ae) => {
+                    Rc::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae)))
+                }
+                ELItemKind::SE(boxed_se) => {
+                    Rc::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se)))
+                }
             };
             current_scanner = after;
         }
@@ -767,10 +816,18 @@ impl ElementList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ElementList::AssignmentExpression((elisions, ae)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
-            ElementList::SpreadElement((elisions, se)) => elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
-            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind),
-            ElementList::ElementListSpreadElement((el, elisions, se)) => el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind),
+            ElementList::AssignmentExpression((elisions, ae)) => {
+                elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+            }
+            ElementList::SpreadElement((elisions, se)) => {
+                elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+            }
+            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => {
+                el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+            }
+            ElementList::ElementListSpreadElement((el, elisions, se)) => {
+                el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+            }
         }
     }
 
@@ -784,8 +841,12 @@ impl ElementList {
         match self {
             ElementList::AssignmentExpression((_, ae)) => ae.all_private_identifiers_valid(names),
             ElementList::SpreadElement((_, se)) => se.all_private_identifiers_valid(names),
-            ElementList::ElementListAssignmentExpression((el, _, ae)) => el.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names),
-            ElementList::ElementListSpreadElement((el, _, se)) => el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names),
+            ElementList::ElementListAssignmentExpression((el, _, ae)) => {
+                el.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names)
+            }
+            ElementList::ElementListSpreadElement((el, _, se)) => {
+                el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -803,7 +864,9 @@ impl ElementList {
         match self {
             ElementList::AssignmentExpression((_, ae)) => ae.contains_arguments(),
             ElementList::SpreadElement((_, se)) => se.contains_arguments(),
-            ElementList::ElementListAssignmentExpression((el, _, ae)) => el.contains_arguments() || ae.contains_arguments(),
+            ElementList::ElementListAssignmentExpression((el, _, ae)) => {
+                el.contains_arguments() || ae.contains_arguments()
+            }
             ElementList::ElementListSpreadElement((el, _, se)) => el.contains_arguments() || se.contains_arguments(),
         }
     }
@@ -865,7 +928,9 @@ impl PrettyPrint for ArrayLiteral {
         match self {
             ArrayLiteral::Empty(None) => Ok(()),
             ArrayLiteral::Empty(Some(elision)) => elision.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ArrayLiteral::ElementListElision(boxed, Some(elision)) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elision.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -917,7 +982,12 @@ impl ArrayLiteral {
         Err(ParseError::new(PECode::CommaLeftBracketElementListExpected, after))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(after_el, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Comma, Punctuator::RightBracket])?;
+                let (punct, after_punct) = scan_for_punct_set(
+                    after_el,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::Comma, Punctuator::RightBracket],
+                )?;
                 match punct {
                     Punctuator::RightBracket => Ok((Rc::new(ArrayLiteral::ElementList(el)), after_punct)),
                     _ => {
@@ -925,7 +995,12 @@ impl ArrayLiteral {
                             Ok((node, scan)) => (Some(node), scan),
                             Err(_) => (None, after_punct),
                         };
-                        let end_scan = scan_for_punct(after_elisions, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
+                        let end_scan = scan_for_punct(
+                            after_elisions,
+                            parser.source,
+                            ScanGoal::InputElementRegExp,
+                            Punctuator::RightBracket,
+                        )?;
                         Ok((Rc::new(ArrayLiteral::ElementListElision(el, elisions)), end_scan))
                     }
                 }
@@ -935,7 +1010,12 @@ impl ArrayLiteral {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after),
                 };
-                let end_scan = scan_for_punct(after_elisions, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
+                let end_scan = scan_for_punct(
+                    after_elisions,
+                    parser.source,
+                    ScanGoal::InputElementRegExp,
+                    Punctuator::RightBracket,
+                )?;
                 Ok((Rc::new(ArrayLiteral::Empty(elisions)), end_scan))
             })
     }
@@ -944,7 +1024,9 @@ impl ArrayLiteral {
         match self {
             ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
             ArrayLiteral::ElementList(boxed) => boxed.contains(kind),
-            ArrayLiteral::ElementListElision(boxed, pot_elision) => boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
+            ArrayLiteral::ElementListElision(boxed, pot_elision) => {
+                boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind))
+            }
         }
     }
 
@@ -982,7 +1064,9 @@ impl ArrayLiteral {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty(_) => {}
-            ArrayLiteral::ElementList(node) | ArrayLiteral::ElementListElision(node, _) => node.early_errors(agent, errs, strict),
+            ArrayLiteral::ElementList(node) | ArrayLiteral::ElementListElision(node, _) => {
+                node.early_errors(agent, errs, strict)
+            }
         }
     }
 }
@@ -1024,13 +1108,25 @@ impl PrettyPrint for Initializer {
 }
 
 impl Initializer {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Initializer> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Initializer> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Eq)?;
         let (boxed_ae, after_ae) = AssignmentExpression::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
         Ok((Rc::new(Initializer::AssignmentExpression(boxed_ae)), after_ae))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Initializer> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Initializer> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.initializer_cache.get(&key) {
             Some(result) => result.clone(),
@@ -1296,7 +1392,9 @@ impl LiteralPropertyName {
             Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
             Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
             Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
-            Token::BigInt(b) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(Rc::new(b)))), after_tok)),
+            Token::BigInt(b) => {
+                Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(Rc::new(b)))), after_tok))
+            }
             _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
         }
     }
@@ -1376,8 +1474,14 @@ impl PrettyPrint for PropertyName {
 impl PropertyName {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
-            .otherwise(|| LiteralPropertyName::parse(parser, scanner).map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn)))
-            .otherwise(|| ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag).map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn)))
+            .otherwise(|| {
+                LiteralPropertyName::parse(parser, scanner)
+                    .map(|(lpn, after_lpn)| (Rc::new(PropertyName::LiteralPropertyName(lpn)), after_lpn))
+            })
+            .otherwise(|| {
+                ComputedPropertyName::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(cpn, after_cpn)| (Rc::new(PropertyName::ComputedPropertyName(cpn)), after_cpn))
+            })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -1488,7 +1592,9 @@ impl PrettyPrint for PropertyDefinition {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
         match self {
-            PropertyDefinition::IdentifierReference(idref) => idref.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::IdentifierReference(idref) => {
+                idref.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             PropertyDefinition::CoverInitializedName(cin) => cin.pprint_with_leftpad(writer, &successive, Spot::Final),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
                 pn.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -1571,7 +1677,9 @@ impl PropertyDefinition {
             PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
             PropertyDefinition::CoverInitializedName(cin) => cin.contains(kind),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains(kind) || ae.contains(kind),
-            PropertyDefinition::MethodDefinition(md) => kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind),
+            PropertyDefinition::MethodDefinition(md) => {
+                kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind)
+            }
             PropertyDefinition::AssignmentExpression(ae) => ae.contains(kind),
         }
     }
@@ -1586,7 +1694,9 @@ impl PropertyDefinition {
         match self {
             PropertyDefinition::IdentifierReference(_) => true,
             PropertyDefinition::CoverInitializedName(cin) => cin.all_private_identifiers_valid(names),
-            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names)
+            }
             PropertyDefinition::MethodDefinition(md) => md.all_private_identifiers_valid(names),
             PropertyDefinition::AssignmentExpression(ae) => ae.all_private_identifiers_valid(names),
         }
@@ -1606,7 +1716,9 @@ impl PropertyDefinition {
         match self {
             PropertyDefinition::IdentifierReference(ir) => ir.contains_arguments(),
             PropertyDefinition::CoverInitializedName(_) => false, // This triggers a syntax error elsewhere; so ignore it now
-            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains_arguments() || ae.contains_arguments(),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.contains_arguments() || ae.contains_arguments()
+            }
             PropertyDefinition::MethodDefinition(md) => md.contains_arguments(),
             PropertyDefinition::AssignmentExpression(ae) => ae.contains_arguments(),
         }
@@ -1651,7 +1763,10 @@ impl PropertyDefinition {
 
                 // Programming Note. Since covered expressions always wind up getting uncovered before early errors are
                 // checked, if we _actually_ get here, this really is an error.
-                errs.push(create_syntax_error_object(agent, "Illegal destructuring syntax in non-destructuring context"));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    "Illegal destructuring syntax in non-destructuring context",
+                ));
                 cin.early_errors(agent, errs, strict);
             }
         }
@@ -1747,8 +1862,9 @@ impl PropertyDefinitionList {
         let (pd, after_pd) = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(PropertyDefinitionList::OneDef(pd));
         let mut current_scanner = after_pd;
-        while let Ok((pd2, after_pd2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
+        while let Ok((pd2, after_pd2)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_comma| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
             current_scanner = after_pd2;
@@ -1772,7 +1888,9 @@ impl PropertyDefinitionList {
         //  2. Return true.
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.all_private_identifiers_valid(names),
-            PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.all_private_identifiers_valid(names) && pd.all_private_identifiers_valid(names),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.all_private_identifiers_valid(names) && pd.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1842,7 +1960,9 @@ impl PrettyPrint for ObjectLiteral {
         writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
         match self {
             ObjectLiteral::Empty => Ok(()),
-            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+                pdl.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1871,15 +1991,26 @@ impl ObjectLiteral {
         let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
             Err(_) => {
-                let after_brace2 = scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_brace2 =
+                    scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(ObjectLiteral::Empty), after_brace2))
             }
             Ok((pdl, after_pdl)) => {
-                let (comma_or_brace, after_punct) = scan_for_punct_set(after_pdl, parser.source, ScanGoal::InputElementDiv, &[Punctuator::RightBrace, Punctuator::Comma])?;
+                let (comma_or_brace, after_punct) = scan_for_punct_set(
+                    after_pdl,
+                    parser.source,
+                    ScanGoal::InputElementDiv,
+                    &[Punctuator::RightBrace, Punctuator::Comma],
+                )?;
                 match comma_or_brace {
                     Punctuator::RightBrace => Ok((Rc::new(ObjectLiteral::Normal(pdl)), after_punct)),
                     _ => {
-                        let after_brace3 = scan_for_punct(after_punct, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                        let after_brace3 = scan_for_punct(
+                            after_punct,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightBrace,
+                        )?;
                         Ok((Rc::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))
                     }
                 }
@@ -1943,7 +2074,10 @@ impl ObjectLiteral {
                 // NOTE |   The List returned by PropertyNameList does not include property names defined using a
                 //          ComputedPropertyName.
                 if pdl.special_proto_count() >= 2 {
-                    errs.push(create_syntax_error_object(agent, "Duplicate __proto__ fields are not allowed in object literals"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Duplicate __proto__ fields are not allowed in object literals",
+                    ));
                 }
                 pdl.early_errors(agent, errs, strict);
             }
@@ -2041,11 +2175,21 @@ impl Literal {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
         let (token, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
-            Token::Identifier(id) if id.matches(Keyword::Null) => Ok((Rc::new(Literal { kind: LiteralKind::NullLiteral }), newscanner)),
-            Token::Identifier(id) if id.matches(Keyword::True) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner)),
-            Token::Identifier(id) if id.matches(Keyword::False) => Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner)),
-            Token::Number(num) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner)),
-            Token::BigInt(bi) => Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner)),
+            Token::Identifier(id) if id.matches(Keyword::Null) => {
+                Ok((Rc::new(Literal { kind: LiteralKind::NullLiteral }), newscanner))
+            }
+            Token::Identifier(id) if id.matches(Keyword::True) => {
+                Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner))
+            }
+            Token::Identifier(id) if id.matches(Keyword::False) => {
+                Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner))
+            }
+            Token::Number(num) => {
+                Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner))
+            }
+            Token::BigInt(bi) => {
+                Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner))
+            }
             Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
             Token::Debug(ch) => Ok((Rc::new(Literal { kind: LiteralKind::DebugLiteral(ch) }), newscanner)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
@@ -2132,7 +2276,9 @@ impl PrettyPrint for TemplateLiteral {
         T: Write,
     {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => pprint_token(writer, self, TokenType::NoSubTemplate, pad, state),
+            TemplateLiteral::NoSubstitutionTemplate(..) => {
+                pprint_token(writer, self, TokenType::NoSubTemplate, pad, state)
+            }
             TemplateLiteral::SubstitutionTemplate(st) => st.concise_with_leftpad(writer, pad, state),
         }
     }
@@ -2148,18 +2294,36 @@ impl TemplateLiteral {
         }
     }
 
-    fn parse_subst(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    fn parse_subst(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         let (node, after) = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
         Ok((Rc::new(TemplateLiteral::SubstitutionTemplate(node)), after))
     }
 
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateLiteral), scanner))
             .otherwise(|| Self::parse_nst(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitTaggedKey { scanner, yield_flag, await_flag, tagged_flag };
         match parser.template_literal_cache.get(&key) {
             Some(result) => result.clone(),
@@ -2291,19 +2455,40 @@ impl PrettyPrint for SubstitutionTemplate {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SubstitutionTemplate: {}", first, self)?;
-        pprint_token(writer, &format!("`{}${{", self.template_head), TokenType::TemplateHead, &successive, Spot::NotFinal)?;
+        pprint_token(
+            writer,
+            &format!("`{}${{", self.template_head),
+            TokenType::TemplateHead,
+            &successive,
+            Spot::NotFinal,
+        )?;
         self.expression.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         self.template_spans.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl SubstitutionTemplate {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         let (head, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::TemplateHead(td) = head {
             let (exp_boxed, after_exp) = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
-            let (spans_boxed, after_spans) = TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
-            Ok((Rc::new(SubstitutionTemplate { template_head: td, tagged: tagged_flag, expression: exp_boxed, template_spans: spans_boxed }), after_spans))
+            let (spans_boxed, after_spans) =
+                TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
+            Ok((
+                Rc::new(SubstitutionTemplate {
+                    template_head: td,
+                    tagged: tagged_flag,
+                    expression: exp_boxed,
+                    template_spans: spans_boxed,
+                }),
+                after_spans,
+            ))
         } else {
             Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::SubstitutionTemplate), scanner))
         }
@@ -2386,7 +2571,9 @@ impl fmt::Display for TemplateSpans {
             TemplateSpans::Tail(td, _) => {
                 write!(f, "}}{}`", format!("{}", td.trv).replace(char::is_control, "\u{2426}"))
             }
-            TemplateSpans::List(tml, td, _) => write!(f, "{} }}{}`", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}")),
+            TemplateSpans::List(tml, td, _) => {
+                write!(f, "{} }}{}`", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}"))
+            }
         }
     }
 }
@@ -2409,7 +2596,9 @@ impl PrettyPrint for TemplateSpans {
         T: Write,
     {
         match self {
-            TemplateSpans::Tail(td, _) => pprint_token(writer, &format!("}}{}`", td.trv), TokenType::TemplateTail, pad, state),
+            TemplateSpans::Tail(td, _) => {
+                pprint_token(writer, &format!("}}{}`", td.trv), TokenType::TemplateTail, pad, state)
+            }
             TemplateSpans::List(tml, td, _) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}TemplateSpans: {}", first, self)?;
@@ -2430,7 +2619,13 @@ impl TemplateSpans {
         }
     }
 
-    fn parse_tml_tail(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    fn parse_tml_tail(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         let (tml, after_tml) = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
         let (token, after_tmplt) = scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateTail(td) = token {
@@ -2439,7 +2634,13 @@ impl TemplateSpans {
             Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), after_tml))
         }
     }
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateSpans), scanner))
             .otherwise(|| Self::parse_tail(parser, scanner, tagged_flag))
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
@@ -2596,7 +2797,12 @@ impl PrettyPrint for TemplateMiddleList {
 }
 
 impl TemplateMiddleList {
-    fn parse_tm_exp_unboxed(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError> {
+    fn parse_tm_exp_unboxed(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError> {
         let (middle, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateMiddle(td) = middle {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
@@ -2606,14 +2812,28 @@ impl TemplateMiddleList {
         }
     }
 
-    fn parse_tm_exp(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
+    fn parse_tm_exp(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
         let (td, exp, after_exp) = Self::parse_tm_exp_unboxed(parser, scanner, yield_flag, await_flag)?;
         Ok((Rc::new(TemplateMiddleList::ListHead(td, exp, tagged_flag)), after_exp))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, tagged_flag: bool) -> ParseResult<Self> {
-        let (mut current_node, mut current_scanner) = Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag) {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        tagged_flag: bool,
+    ) -> ParseResult<Self> {
+        let (mut current_node, mut current_scanner) =
+            Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
+        while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag)
+        {
             current_node = Rc::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
             current_scanner = after;
         }
@@ -2636,7 +2856,9 @@ impl TemplateMiddleList {
         //  2. Return true.
         match self {
             TemplateMiddleList::ListHead(_, exp, _) => exp.all_private_identifiers_valid(names),
-            TemplateMiddleList::ListMid(tml, _, exp, _) => tml.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names),
+            TemplateMiddleList::ListMid(tml, _, exp, _) => {
+                tml.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -2868,10 +3090,18 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
         match self {
             CoverParenthesizedExpressionAndArrowParameterList::Empty => Ok(()),
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, next) => {
                 exp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 next.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -2934,23 +3164,33 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
             .otherwise(|| {
                 // ( )
-                let after_rparen = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
+                let after_rparen =
+                    scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
                 Ok((Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty), after_rparen))
             })
             .otherwise(|| {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
-                let after_ellipsis = scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+                let after_ellipsis =
+                    scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
                 Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
-                        .otherwise(|| BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag).map(|(bp, scan)| (BndType::Pat(bp), scan)))
-                        .and_then(|(bnd, scan)| scan_for_punct(scan, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen).map(|after_rp| (bnd, after_rp)))
+                        .otherwise(|| {
+                            BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag)
+                                .map(|(bp, scan)| (BndType::Pat(bp), scan))
+                        })
+                        .and_then(|(bnd, scan)| {
+                            scan_for_punct(scan, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
+                                .map(|after_rp| (bnd, after_rp))
+                        })
                         .map(|(bnd, scan)| {
                             (
                                 Rc::new(match bnd {
                                     BndType::Id(id) => CoverParenthesizedExpressionAndArrowParameterList::Ident(id),
-                                    BndType::Pat(pat) => CoverParenthesizedExpressionAndArrowParameterList::Pattern(pat),
+                                    BndType::Pat(pat) => {
+                                        CoverParenthesizedExpressionAndArrowParameterList::Pattern(pat)
+                                    }
                                 }),
                                 scan,
                             )
@@ -2968,32 +3208,61 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
                     .map(|after_rparen| (AfterExp::Empty, after_rparen))
                     .otherwise(|| {
-                        scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(|after_comma| {
-                            scan_for_punct(after_comma, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen).map(|after_rparen| (AfterExp::Comma, after_rparen)).otherwise(
-                                || {
-                                    scan_for_punct(after_comma, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis).and_then(|after_ellipsis| {
+                        scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                            |after_comma| {
+                                scan_for_punct(
+                                    after_comma,
+                                    parser.source,
+                                    ScanGoal::InputElementDiv,
+                                    Punctuator::RightParen,
+                                )
+                                .map(|after_rparen| (AfterExp::Comma, after_rparen))
+                                .otherwise(|| {
+                                    scan_for_punct(
+                                        after_comma,
+                                        parser.source,
+                                        ScanGoal::InputElementDiv,
+                                        Punctuator::Ellipsis,
+                                    )
+                                    .and_then(|after_ellipsis| {
                                         BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                                             .and_then(|(bi, after)| {
-                                                scan_for_punct(after, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen).map(|after_rp| (AfterExp::SpreadId(bi), after_rp))
+                                                scan_for_punct(
+                                                    after,
+                                                    parser.source,
+                                                    ScanGoal::InputElementDiv,
+                                                    Punctuator::RightParen,
+                                                )
+                                                .map(|after_rp| (AfterExp::SpreadId(bi), after_rp))
                                             })
                                             .otherwise(|| {
-                                                BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag).and_then(|(bp, after)| {
-                                                    scan_for_punct(after, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
+                                                BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag)
+                                                    .and_then(|(bp, after)| {
+                                                        scan_for_punct(
+                                                            after,
+                                                            parser.source,
+                                                            ScanGoal::InputElementDiv,
+                                                            Punctuator::RightParen,
+                                                        )
                                                         .map(|after_rp| (AfterExp::SpreadPat(bp), after_rp))
-                                                })
+                                                    })
                                             })
                                     })
-                                },
-                            )
-                        })
+                                })
+                            },
+                        )
                     })
                     .map(|(aftexp, scan)| {
                         (
                             Rc::new(match aftexp {
                                 AfterExp::Empty => CoverParenthesizedExpressionAndArrowParameterList::Expression(exp),
                                 AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma(exp),
-                                AfterExp::SpreadId(id) => CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id),
-                                AfterExp::SpreadPat(pat) => CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat),
+                                AfterExp::SpreadId(id) => {
+                                    CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id)
+                                }
+                                AfterExp::SpreadPat(pat) => {
+                                    CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat)
+                                }
                             }),
                             scan,
                         )
@@ -3020,14 +3289,20 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             CoverParenthesizedExpressionAndArrowParameterList::Empty => false,
             CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.contains(kind),
             CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => exp.contains(kind) || id.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => exp.contains(kind) || pat.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+                exp.contains(kind) || id.contains(kind)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+                exp.contains(kind) || pat.contains(kind)
+            }
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.early_errors(agent, errs, strict),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+                node.early_errors(agent, errs, strict)
+            }
             CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),
             CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
             CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, errs, strict),

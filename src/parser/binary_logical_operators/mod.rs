@@ -32,7 +32,9 @@ impl PrettyPrint for LogicalANDExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LogicalANDExpression: {}", first, self)?;
         match &self {
-            LogicalANDExpression::BitwiseORExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LogicalANDExpression::BitwiseORExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             LogicalANDExpression::LogicalAND(left, right) => {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -67,12 +69,19 @@ impl IsFunctionDefinition for LogicalANDExpression {
 
 impl LogicalANDExpression {
     // No need to cache. Only one parent.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         BitwiseORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
             let mut current = Rc::new(LogicalANDExpression::BitwiseORExpression(left));
             let mut current_scanner = after_left;
-            while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::AmpAmp)
-                .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            while let Ok((right, after_right)) =
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::AmpAmp)
+                    .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
                 current = Rc::new(LogicalANDExpression::LogicalAND(current, right));
                 current_scanner = after_right;
@@ -104,7 +113,9 @@ impl LogicalANDExpression {
         //  2. Return true.
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.all_private_identifiers_valid(names),
-            LogicalANDExpression::LogicalAND(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            LogicalANDExpression::LogicalAND(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -186,7 +197,9 @@ impl PrettyPrint for LogicalORExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}LogicalORExpression: {}", first, self)?;
         match &self {
-            LogicalORExpression::LogicalANDExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            LogicalORExpression::LogicalANDExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             LogicalORExpression::LogicalOR(left, right) => {
                 left.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 right.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -221,12 +234,19 @@ impl IsFunctionDefinition for LogicalORExpression {
 
 impl LogicalORExpression {
     // Only one parent, no need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         LogicalANDExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
             let mut current = Rc::new(LogicalORExpression::LogicalANDExpression(left));
             let mut current_scanner = after_left;
-            while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::PipePipe)
-                .and_then(|after_op| LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            while let Ok((right, after_right)) =
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::PipePipe)
+                    .and_then(|after_op| LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
                 current = Rc::new(LogicalORExpression::LogicalOR(current, right));
                 current_scanner = after_right;
@@ -258,7 +278,9 @@ impl LogicalORExpression {
         //  2. Return true.
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.all_private_identifiers_valid(names),
-            LogicalORExpression::LogicalOR(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            LogicalORExpression::LogicalOR(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -351,26 +373,44 @@ impl PrettyPrint for CoalesceExpression {
 }
 
 impl CoalesceExpression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         BitwiseORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).and_then(|(left, after_left)| {
             let mut current_head = CoalesceExpressionHead::BitwiseORExpression(left);
             let mut current_scanner = after_left;
             let mut exp_scanner = scanner;
-            while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ)
-                .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+            while let Ok((right, after_right)) =
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ)
+                    .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
             {
-                current_head = CoalesceExpressionHead::CoalesceExpression(Rc::new(CoalesceExpression { head: Rc::new(current_head), tail: right }));
+                current_head = CoalesceExpressionHead::CoalesceExpression(Rc::new(CoalesceExpression {
+                    head: Rc::new(current_head),
+                    tail: right,
+                }));
                 exp_scanner = after_right;
                 current_scanner = after_right;
             }
             match current_head {
-                CoalesceExpressionHead::BitwiseORExpression(_) => Err(ParseError::new(PECode::InvalidCoalesceExpression, scanner)),
+                CoalesceExpressionHead::BitwiseORExpression(_) => {
+                    Err(ParseError::new(PECode::InvalidCoalesceExpression, scanner))
+                }
                 CoalesceExpressionHead::CoalesceExpression(exp) => Ok((exp, exp_scanner)),
             }
         })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.coalesce_expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -442,8 +482,12 @@ impl PrettyPrint for CoalesceExpressionHead {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CoalesceExpressionHead: {}", first, self)?;
         match &self {
-            CoalesceExpressionHead::CoalesceExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CoalesceExpressionHead::BitwiseORExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CoalesceExpressionHead::CoalesceExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            CoalesceExpressionHead::BitwiseORExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -534,8 +578,12 @@ impl PrettyPrint for ShortCircuitExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ShortCircuitExpression: {}", first, self)?;
         match &self {
-            ShortCircuitExpression::LogicalORExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ShortCircuitExpression::CoalesceExpression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ShortCircuitExpression::LogicalORExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ShortCircuitExpression::CoalesceExpression(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -560,13 +608,21 @@ impl IsFunctionDefinition for ShortCircuitExpression {
 
 impl ShortCircuitExpression {
     // No need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ImproperExpression, scanner))
             .otherwise(|| {
-                CoalesceExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(coal, after_coal)| (Rc::new(ShortCircuitExpression::CoalesceExpression(coal)), after_coal))
+                CoalesceExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)
+                    .map(|(coal, after_coal)| (Rc::new(ShortCircuitExpression::CoalesceExpression(coal)), after_coal))
             })
             .otherwise(|| {
-                LogicalORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(lor, after_lor)| (Rc::new(ShortCircuitExpression::LogicalORExpression(lor)), after_lor))
+                LogicalORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)
+                    .map(|(lor, after_lor)| (Rc::new(ShortCircuitExpression::LogicalORExpression(lor)), after_lor))
             })
     }
 

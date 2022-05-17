@@ -2,9 +2,10 @@ use super::agent::Agent;
 use super::cr::Completion;
 use super::errors::create_type_error;
 use super::object::{
-    ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
-    ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
-    PotentialPropertyDescriptor, PropertyDescriptor, BOOLEAN_OBJECT_SLOTS,
+    ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get,
+    ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible,
+    ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData,
+    InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BOOLEAN_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::values::{ECMAScriptValue, PropertyKey};
@@ -94,7 +95,12 @@ impl ObjectInterface for BooleanObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -124,7 +130,13 @@ impl ObjectInterface for BooleanObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -157,7 +169,12 @@ impl BooleanObjectInterface for BooleanObject {
 
 impl BooleanObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, BOOLEAN_OBJECT_SLOTS)), boolean_data: RefCell::new(false) }) }
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, BOOLEAN_OBJECT_SLOTS)),
+                boolean_data: RefCell::new(false),
+            }),
+        }
     }
 }
 
@@ -170,7 +187,13 @@ impl BooleanObject {
 //  5. Return O.
 pub fn create_boolean_object(agent: &mut Agent, b: bool) -> Object {
     let constructor = agent.intrinsic(IntrinsicId::Boolean);
-    let o = ordinary_create_from_constructor(agent, &constructor, IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData]).unwrap();
+    let o = ordinary_create_from_constructor(
+        agent,
+        &constructor,
+        IntrinsicId::BooleanPrototype,
+        &[InternalSlotName::BooleanData],
+    )
+    .unwrap();
     *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
     o
 }

@@ -61,7 +61,13 @@ impl PrettyPrint for FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
             Ok((node, scan)) => Ok((Some(node), scan)),
@@ -82,7 +88,13 @@ impl FunctionDeclaration {
         Ok((Rc::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitDefaultKey { scanner, yield_flag, await_flag, default_flag };
         match parser.function_declaration_cache.get(&key) {
             Some(result) => result.clone(),
@@ -120,7 +132,14 @@ impl FunctionDeclaration {
     }
 }
 
-pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ident: Option<&Rc<BindingIdentifier>>, params: &Rc<FormalParameters>, body: &Rc<FunctionBody>) {
+pub fn function_early_errors(
+    agent: &mut Agent,
+    errs: &mut Vec<Object>,
+    strict: bool,
+    ident: Option<&Rc<BindingIdentifier>>,
+    params: &Rc<FormalParameters>,
+    body: &Rc<FunctionBody>,
+) {
     // Static Semantics: Early Errors
     //  FunctionDeclaration :
     //      function BindingIdentifier ( FormalParameters ) { FunctionBody }
@@ -153,7 +172,10 @@ pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: 
     }
 
     if body.function_body_contains_use_strict() && !params.is_simple_parameter_list() {
-        errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+        errs.push(create_syntax_error_object(
+            agent,
+            "Illegal 'use strict' directive in function with non-simple parameter list",
+        ));
     }
 
     let lexnames = body.lexically_declared_names();
@@ -163,7 +185,11 @@ pub fn function_early_errors(agent: &mut Agent, errs: &mut Vec<Object>, strict: 
         }
     }
 
-    if params.contains(ParseNodeKind::SuperProperty) || params.contains(ParseNodeKind::SuperCall) || body.contains(ParseNodeKind::SuperProperty) || body.contains(ParseNodeKind::SuperCall) {
+    if params.contains(ParseNodeKind::SuperProperty)
+        || params.contains(ParseNodeKind::SuperCall)
+        || body.contains(ParseNodeKind::SuperProperty)
+        || body.contains(ParseNodeKind::SuperCall)
+    {
         errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
     }
 
@@ -385,7 +411,10 @@ impl FunctionBody {
         let vdn = self.statements.var_declared_names();
         for name in vdn {
             if ldn.contains(&name) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name),
+                ));
             }
         }
         if self.statements.contains_duplicate_labels(&[]) {

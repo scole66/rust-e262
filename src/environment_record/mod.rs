@@ -3,7 +3,10 @@ use super::comparison::is_extensible;
 use super::cr::Completion;
 use super::errors::{create_reference_error, create_type_error};
 use super::function_object::ThisMode;
-use super::object::{define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object, PotentialPropertyDescriptor};
+use super::object::{
+    define_property_or_throw, get, has_own_property, has_property, set, DescriptorKind, Object,
+    PotentialPropertyDescriptor,
+};
 use super::reference::{Base, Reference};
 use super::strings::JSString;
 use super::values::{to_boolean, ECMAScriptValue, PrivateName, PropertyKey};
@@ -116,7 +119,13 @@ pub trait EnvironmentRecord: Debug {
     fn create_mutable_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> Completion<()>;
     fn create_immutable_binding(&self, agent: &mut Agent, name: JSString, strict: bool) -> Completion<()>;
     fn initialize_binding(&self, agent: &mut Agent, name: &JSString, value: ECMAScriptValue) -> Completion<()>;
-    fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> Completion<()>;
+    fn set_mutable_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        value: ECMAScriptValue,
+        strict: bool,
+    ) -> Completion<()>;
     fn get_binding_value(&self, agent: &mut Agent, name: &JSString, strict: bool) -> Completion<ECMAScriptValue>;
     fn delete_binding(&self, agent: &mut Agent, name: &JSString) -> Completion<bool>;
     fn has_this_binding(&self) -> bool;
@@ -188,7 +197,11 @@ pub struct DeclarativeEnvironmentRecord {
 impl fmt::Debug for DeclarativeEnvironmentRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
-            f.debug_struct("DeclarativeEnvironmentRecord").field("bindings", &self.bindings).field("outer_env", &self.outer_env).field("name", &self.name).finish()
+            f.debug_struct("DeclarativeEnvironmentRecord")
+                .field("bindings", &self.bindings)
+                .field("outer_env", &self.outer_env)
+                .field("name", &self.name)
+                .finish()
         } else {
             let name = &self.name;
             write!(f, "DeclarativeEnvironmentRecord({name})")
@@ -283,7 +296,13 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
     //
     // NOTE     An example of ECMAScript code that results in a missing binding at step 1 is:
     //              function f() { eval("var x; x = (delete x, 0);"); }
-    fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> Completion<()> {
+    fn set_mutable_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        value: ECMAScriptValue,
+        strict: bool,
+    ) -> Completion<()> {
         let mut bindings = self.bindings.borrow_mut();
         let maybe_item = bindings.get_mut(&name);
         match maybe_item {
@@ -291,7 +310,10 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
                 if strict {
                     return Err(create_reference_error(agent, "Identifier not defined"));
                 }
-                bindings.insert(name, Binding { value: Some(value), mutability: Mutability::Mutable(Removability::Deletable) });
+                bindings.insert(
+                    name,
+                    Binding { value: Some(value), mutability: Mutability::Mutable(Removability::Deletable) },
+                );
                 return Ok(());
             }
             Some(item) => match item.value {
@@ -509,7 +531,11 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //          result in an existing binding being replaced or shadowed or cause an abrupt completion to be returned.
     fn create_mutable_binding(&self, agent: &mut Agent, name: JSString, deletable: bool) -> Completion<()> {
         let binding_object = &self.binding_object;
-        let desc = PotentialPropertyDescriptor::new().value(ECMAScriptValue::Undefined).writable(true).enumerable(true).configurable(deletable);
+        let desc = PotentialPropertyDescriptor::new()
+            .value(ECMAScriptValue::Undefined)
+            .writable(true)
+            .enumerable(true)
+            .configurable(deletable);
         define_property_or_throw(agent, binding_object, name, desc)
     }
 
@@ -548,7 +574,13 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //  2. Let stillExists be ? HasProperty(bindingObject, N).
     //  3. If stillExists is false and S is true, throw a ReferenceError exception.
     //  4. Return ? Set(bindingObject, N, V, S).
-    fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> Completion<()> {
+    fn set_mutable_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        value: ECMAScriptValue,
+        strict: bool,
+    ) -> Completion<()> {
         let name_key = PropertyKey::from(name);
         let binding_object = &self.binding_object;
         let still_exists = has_property(agent, binding_object, &name_key)?;
@@ -654,7 +686,12 @@ impl ObjectEnvironmentRecord {
     //  3. Set env.[[IsWithEnvironment]] to W.
     //  4. Set env.[[OuterEnv]] to E.
     //  5. Return env.
-    pub fn new(binding_object: Object, is_with_environment: bool, outer_env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
+    pub fn new(
+        binding_object: Object,
+        is_with_environment: bool,
+        outer_env: Option<Rc<dyn EnvironmentRecord>>,
+        name: impl Into<String>,
+    ) -> Self {
         ObjectEnvironmentRecord { binding_object, is_with_environment, outer_env, name: name.into() }
     }
 }
@@ -734,7 +771,13 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
     fn initialize_binding(&self, agent: &mut Agent, name: &JSString, value: ECMAScriptValue) -> Completion<()> {
         self.base.initialize_binding(agent, name, value)
     }
-    fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> Completion<()> {
+    fn set_mutable_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        value: ECMAScriptValue,
+        strict: bool,
+    ) -> Completion<()> {
         self.base.set_mutable_binding(agent, name, value, strict)
     }
     fn get_binding_value(&self, agent: &mut Agent, name: &JSString, strict: bool) -> Completion<ECMAScriptValue> {
@@ -870,12 +913,20 @@ impl FunctionEnvironmentRecord {
     //  9. Return env.
     pub fn new(f: Object, new_target: Option<Object>, name: impl Into<String>) -> Self {
         let fo = f.o.to_function_obj().unwrap();
-        let tbs = if fo.function_data().borrow().this_mode == ThisMode::Lexical { BindingStatus::Lexical } else { BindingStatus::Uninitialized };
+        let tbs = if fo.function_data().borrow().this_mode == ThisMode::Lexical {
+            BindingStatus::Lexical
+        } else {
+            BindingStatus::Uninitialized
+        };
         let outer = Some(fo.function_data().borrow().environment.clone());
         let name = name.into();
 
         FunctionEnvironmentRecord {
-            base: DeclarativeEnvironmentRecord { bindings: Default::default(), outer_env: outer, name: format!("{name}-inner") },
+            base: DeclarativeEnvironmentRecord {
+                bindings: Default::default(),
+                outer_env: outer,
+                name: format!("{name}-inner"),
+            },
             this_value: ECMAScriptValue::Undefined,
             this_binding_status: tbs,
             function_object: f,
@@ -1084,7 +1135,13 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
     //      a. Return DclRec.SetMutableBinding(N, V, S).
     //  3. Let ObjRec be envRec.[[ObjectRecord]].
     //  4. Return ? ObjRec.SetMutableBinding(N, V, S).
-    fn set_mutable_binding(&self, agent: &mut Agent, name: JSString, value: ECMAScriptValue, strict: bool) -> Completion<()> {
+    fn set_mutable_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        value: ECMAScriptValue,
+        strict: bool,
+    ) -> Completion<()> {
         if self.declarative_record.has_binding(agent, &name).unwrap() {
             self.declarative_record.set_mutable_binding(agent, name, value, strict)
         } else {
@@ -1285,7 +1342,10 @@ impl GlobalEnvironmentRecord {
         let existing_prop = global_object.o.get_own_property(agent, &name.clone().into())?;
         match existing_prop {
             None => is_extensible(agent, global_object),
-            Some(prop) => Ok(prop.configurable || (prop.is_data_descriptor() && prop.is_writable() == Some(true) && prop.enumerable)),
+            Some(prop) => {
+                Ok(prop.configurable
+                    || (prop.is_data_descriptor() && prop.is_writable() == Some(true) && prop.enumerable))
+            }
         }
     }
 
@@ -1345,11 +1405,18 @@ impl GlobalEnvironmentRecord {
     //          an existing own property is reconfigured to have a standard set of attribute values. Step 7 is
     //          equivalent to what calling the InitializeBinding concrete method would do and if globalObject is a Proxy
     //          will produce the same sequence of Proxy trap calls.
-    pub fn create_global_function_binding(&self, agent: &mut Agent, name: JSString, val: ECMAScriptValue, deletable: bool) -> Completion<()> {
+    pub fn create_global_function_binding(
+        &self,
+        agent: &mut Agent,
+        name: JSString,
+        val: ECMAScriptValue,
+        deletable: bool,
+    ) -> Completion<()> {
         let global_object = &self.object_record.binding_object;
         let prop_key = PropertyKey::from(name.clone());
         let existing_prop = global_object.o.get_own_property(agent, &prop_key)?;
-        let full_pd = |v, d| PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(d);
+        let full_pd =
+            |v, d| PotentialPropertyDescriptor::new().value(v).writable(true).enumerable(true).configurable(d);
         let desc = match existing_prop {
             None => full_pd(val.clone(), deletable),
             Some(prop) if prop.configurable => full_pd(val.clone(), deletable),
@@ -1379,7 +1446,13 @@ impl GlobalEnvironmentRecord {
         let name = name.into();
         let obj_rec = ObjectEnvironmentRecord::new(global, false, None, format!("{name}-obj"));
         let dcl_rec = DeclarativeEnvironmentRecord::new(None, format!("{name}-dcl"));
-        Self { object_record: obj_rec, global_this_value: this_value, declarative_record: dcl_rec, var_names: Default::default(), name }
+        Self {
+            object_record: obj_rec,
+            global_this_value: this_value,
+            declarative_record: dcl_rec,
+            var_names: Default::default(),
+            name,
+        }
     }
 }
 
@@ -1396,7 +1469,12 @@ impl GlobalEnvironmentRecord {
 //  4. Else,
 //      a. Let outer be env.[[OuterEnv]].
 //      b. Return ? GetIdentifierReference(outer, name, strict).
-pub fn get_identifier_reference(agent: &mut Agent, environment: Option<Rc<dyn EnvironmentRecord>>, name: JSString, strict: bool) -> Completion<Reference> {
+pub fn get_identifier_reference(
+    agent: &mut Agent,
+    environment: Option<Rc<dyn EnvironmentRecord>>,
+    name: JSString,
+    strict: bool,
+) -> Completion<Reference> {
     match environment {
         None => Ok(Reference::new(Base::Unresolvable, name, strict, None)),
         Some(env) => {

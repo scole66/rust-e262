@@ -1,6 +1,11 @@
-use super::testhelp::{check, check_err, chk_scan, expected_scan, newparser, set, sv, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, expected_scan, newparser, set, sv, svec, Maker, IMPLEMENTS_NOT_ALLOWED,
+    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PRIVATE_NOT_ALLOWED,
+};
 use super::*;
-use crate::prettyprint::testhelp::{concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate};
+use crate::prettyprint::testhelp::{
+    concise_check, concise_data, concise_error_validate, pretty_check, pretty_data, pretty_error_validate,
+};
 use crate::tests::{test_agent, unwind_syntax_error_object};
 use ahash::AHashSet;
 use test_case::test_case;
@@ -10,51 +15,89 @@ const A_LEXVARCLASH: &str = "‘a’ may not be declared both lexically and var-
 // ITERATION STATEMENT
 #[test]
 fn iteration_statement_test_01() {
-    let (node, scanner) = check(IterationStatement::parse(&mut newparser("do {} while (true);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(IterationStatement::parse(&mut newparser("do {} while (true);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 19);
-    pretty_check(&*node, "IterationStatement: do { } while ( true ) ;", vec!["DoWhileStatement: do { } while ( true ) ;"]);
+    pretty_check(
+        &*node,
+        "IterationStatement: do { } while ( true ) ;",
+        vec!["DoWhileStatement: do { } while ( true ) ;"],
+    );
     concise_check(
         &*node,
         "DoWhileStatement: do { } while ( true ) ;",
-        vec!["Keyword: do", "Block: { }", "Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: do",
+            "Block: { }",
+            "Keyword: while",
+            "Punctuator: (",
+            "Keyword: true",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn iteration_statement_test_02() {
-    let (node, scanner) = check(IterationStatement::parse(&mut newparser("while (true) {}"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(IterationStatement::parse(&mut newparser("while (true) {}"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 15);
     pretty_check(&*node, "IterationStatement: while ( true ) { }", vec!["WhileStatement: while ( true ) { }"]);
-    concise_check(&*node, "WhileStatement: while ( true ) { }", vec!["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"]);
+    concise_check(
+        &*node,
+        "WhileStatement: while ( true ) { }",
+        vec!["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn iteration_statement_test_03() {
-    let (node, scanner) = check(IterationStatement::parse(&mut newparser("for (;;) {}"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(IterationStatement::parse(&mut newparser("for (;;) {}"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 11);
     pretty_check(&*node, "IterationStatement: for ( ; ; ) { }", vec!["ForStatement: for ( ; ; ) { }"]);
-    concise_check(&*node, "ForStatement: for ( ; ; ) { }", vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( ; ; ) { }",
+        vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn iteration_statement_test_04() {
-    let (node, scanner) = check(IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "IterationStatement: for ( v in x ) ;", vec!["ForInOfStatement: for ( v in x ) ;"]);
     concise_check(
         &*node,
         "ForInOfStatement: for ( v in x ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: v", "Keyword: in", "IdentifierName: x", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "IdentifierName: v",
+            "Keyword: in",
+            "IdentifierName: x",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn iteration_statement_test_err_01() {
-    check_err(IterationStatement::parse(&mut newparser(""), Scanner::new(), true, true, true), "IterationStatement expected", 1, 1);
+    check_err(
+        IterationStatement::parse(&mut newparser(""), Scanner::new(), true, true, true),
+        "IterationStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn iteration_statement_test_prettyerrors_1() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -69,12 +112,14 @@ fn iteration_statement_test_prettyerrors_3() {
 }
 #[test]
 fn iteration_statement_test_prettyerrors_4() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn iteration_statement_test_conciseerrors_1() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -89,77 +134,92 @@ fn iteration_statement_test_conciseerrors_3() {
 }
 #[test]
 fn iteration_statement_test_conciseerrors_4() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn iteration_statement_test_var_declared_names_01() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do{var x;}while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do{var x;}while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["x"]);
 }
 #[test]
 fn iteration_statement_test_var_declared_names_02() {
-    let (item, _) = IterationStatement::parse(&mut newparser("while(0){var x;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("while(0){var x;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["x"]);
 }
 #[test]
 fn iteration_statement_test_var_declared_names_03() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(;;){var x;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(;;){var x;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["x"]);
 }
 #[test]
 fn iteration_statement_test_var_declared_names_04() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in z){var x;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in z){var x;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["x"]);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_02() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_03() {
-    let (item, _) = IterationStatement::parse(&mut newparser("while(0){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("while(0){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_04() {
-    let (item, _) = IterationStatement::parse(&mut newparser("while(0){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("while(0){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_05() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(;;){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(;;){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_06() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(;;){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(;;){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_07() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in z){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in z){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn iteration_statement_test_contains_undefined_break_target_08() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in z){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in z){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn iteration_statement_test_contains_01() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn iteration_statement_test_contains_02() {
-    let (item, _) = IterationStatement::parse(&mut newparser("do;while(a);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("do;while(a);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
@@ -184,12 +244,14 @@ fn iteration_statement_test_contains_06() {
 }
 #[test]
 fn iteration_statement_test_contains_07() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn iteration_statement_test_contains_08() {
-    let (item, _) = IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IterationStatement::parse(&mut newparser("for(v in x);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 fn istmt_check_cdl(src: &str) {
@@ -210,7 +272,10 @@ fn iteration_statement_test_contains_duplicate_labels() {
 #[test_case("for (a in b) continue x;" => (false, true); "for (a in b) continue x;")]
 fn iteration_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("do a.#valid; while (false);" => true; "DoWhile valid")]
 #[test_case("while (a.#valid) ;" => true; "While valid")]
@@ -235,7 +300,10 @@ mod iteration_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        IterationStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -263,18 +331,44 @@ mod iteration_statement {
 // DO WHILE STATEMENT
 #[test]
 fn do_while_statement_test_01() {
-    let (node, scanner) = check(DoWhileStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(DoWhileStatement::parse(&mut newparser("do;while(0);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Statement: ;", "Expression: 0"]);
-    concise_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Keyword: do", "Punctuator: ;", "Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "DoWhileStatement: do ; while ( 0 ) ;",
+        vec![
+            "Keyword: do",
+            "Punctuator: ;",
+            "Keyword: while",
+            "Punctuator: (",
+            "Numeric: 0",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn do_while_statement_test_02() {
-    let (node, scanner) = check(DoWhileStatement::parse(&mut newparser("do;while(0)"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(DoWhileStatement::parse(&mut newparser("do;while(0)"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 11);
     pretty_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Statement: ;", "Expression: 0"]);
-    concise_check(&*node, "DoWhileStatement: do ; while ( 0 ) ;", vec!["Keyword: do", "Punctuator: ;", "Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "DoWhileStatement: do ; while ( 0 ) ;",
+        vec![
+            "Keyword: do",
+            "Punctuator: ;",
+            "Keyword: while",
+            "Punctuator: (",
+            "Numeric: 0",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -283,23 +377,48 @@ fn do_while_statement_test_err_01() {
 }
 #[test]
 fn do_while_statement_test_err_02() {
-    check_err(DoWhileStatement::parse(&mut newparser("do"), Scanner::new(), true, true, true), "Statement expected", 1, 3);
+    check_err(
+        DoWhileStatement::parse(&mut newparser("do"), Scanner::new(), true, true, true),
+        "Statement expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn do_while_statement_test_err_03() {
-    check_err(DoWhileStatement::parse(&mut newparser("do;"), Scanner::new(), true, true, true), "‘while’ expected", 1, 4);
+    check_err(
+        DoWhileStatement::parse(&mut newparser("do;"), Scanner::new(), true, true, true),
+        "‘while’ expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn do_while_statement_test_err_04() {
-    check_err(DoWhileStatement::parse(&mut newparser("do;while"), Scanner::new(), true, true, true), "‘(’ expected", 1, 9);
+    check_err(
+        DoWhileStatement::parse(&mut newparser("do;while"), Scanner::new(), true, true, true),
+        "‘(’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn do_while_statement_test_err_05() {
-    check_err(DoWhileStatement::parse(&mut newparser("do;while("), Scanner::new(), true, true, true), "Expression expected", 1, 10);
+    check_err(
+        DoWhileStatement::parse(&mut newparser("do;while("), Scanner::new(), true, true, true),
+        "Expression expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn do_while_statement_test_err_06() {
-    check_err(DoWhileStatement::parse(&mut newparser("do;while(0"), Scanner::new(), true, true, true), "‘)’ expected", 1, 11);
+    check_err(
+        DoWhileStatement::parse(&mut newparser("do;while(0"), Scanner::new(), true, true, true),
+        "‘)’ expected",
+        1,
+        11,
+    );
 }
 #[test]
 fn do_while_statement_test_prettyerrors_1() {
@@ -313,18 +432,21 @@ fn do_while_statement_test_conciseerrors_1() {
 }
 #[test]
 fn do_while_statement_test_var_declared_names_01() {
-    let (item, _) = DoWhileStatement::parse(&mut newparser("do{var a;}while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        DoWhileStatement::parse(&mut newparser("do{var a;}while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["a"]);
 }
 #[test]
 fn do_while_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = DoWhileStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        DoWhileStatement::parse(&mut newparser("do{break t;}while(0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn do_while_statement_test_contains_01() {
-    let (item, _) = DoWhileStatement::parse(&mut newparser("do{0;}while(a);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        DoWhileStatement::parse(&mut newparser("do{0;}while(a);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -339,14 +461,18 @@ fn do_while_statement_test_contains_03() {
 }
 #[test]
 fn do_while_statement_test_contains_duplicate_labels() {
-    let (item, _) = DoWhileStatement::parse(&mut newparser("do t:;while(1);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        DoWhileStatement::parse(&mut newparser("do t:;while(1);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_duplicate_labels(&[]), false);
     assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
 }
 #[test_case("do continue x; while (true);" => (false, true); "do continue x; while (true);")]
 fn do_while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("do a.#valid; while (1);" => true; "stmt valid")]
 #[test_case("do ; while(a.#valid);" => true; "cond valid")]
@@ -364,7 +490,10 @@ mod do_while_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        DoWhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -387,7 +516,11 @@ fn while_statement_test_01() {
     let (node, scanner) = check(WhileStatement::parse(&mut newparser("while(0);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "WhileStatement: while ( 0 ) ;", vec!["Expression: 0", "Statement: ;"]);
-    concise_check(&*node, "WhileStatement: while ( 0 ) ;", vec!["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "WhileStatement: while ( 0 ) ;",
+        vec!["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -400,7 +533,12 @@ fn while_statement_test_err_02() {
 }
 #[test]
 fn while_statement_test_err_03() {
-    check_err(WhileStatement::parse(&mut newparser("while("), Scanner::new(), true, true, true), "Expression expected", 1, 7);
+    check_err(
+        WhileStatement::parse(&mut newparser("while("), Scanner::new(), true, true, true),
+        "Expression expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn while_statement_test_err_04() {
@@ -408,7 +546,12 @@ fn while_statement_test_err_04() {
 }
 #[test]
 fn while_statement_test_err_05() {
-    check_err(WhileStatement::parse(&mut newparser("while(0)"), Scanner::new(), true, true, true), "Statement expected", 1, 9);
+    check_err(
+        WhileStatement::parse(&mut newparser("while(0)"), Scanner::new(), true, true, true),
+        "Statement expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn while_statement_test_prettyerrors_1() {
@@ -427,7 +570,8 @@ fn while_statement_test_var_declared_names_01() {
 }
 #[test]
 fn while_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = WhileStatement::parse(&mut newparser("while(0) break t;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        WhileStatement::parse(&mut newparser("while(0) break t;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
@@ -455,7 +599,10 @@ fn while_statement_test_contains_duplicate_labels() {
 #[test_case("while (true) continue x;" => (false, true); "do continue x; while (true);")]
 fn while_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("while (a.#valid) ;" => true; "cond valid")]
 #[test_case("while (1) a.#valid;" => true; "stmt valid")]
@@ -473,7 +620,10 @@ mod while_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        WhileStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -495,11 +645,25 @@ mod while_statement {
 fn for_statement_test_01() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(x;y;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 11);
-    pretty_check(&*node, "ForStatement: for ( x ; y ; z ) ;", vec!["Expression: x", "Expression: y", "Expression: z", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( x ; y ; z ) ;",
+        vec!["Expression: x", "Expression: y", "Expression: z", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( x ; y ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Punctuator: ;", "IdentifierName: y", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -511,7 +675,16 @@ fn for_statement_test_02() {
     concise_check(
         &*node,
         "ForStatement: for ( ; y ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "IdentifierName: y", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Punctuator: ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -523,7 +696,16 @@ fn for_statement_test_03() {
     concise_check(
         &*node,
         "ForStatement: for ( x ; ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Punctuator: ;", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -535,7 +717,16 @@ fn for_statement_test_04() {
     concise_check(
         &*node,
         "ForStatement: for ( x ; y ; ) ;",
-        vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Punctuator: ;", "IdentifierName: y", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -544,7 +735,19 @@ fn for_statement_test_05() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(x;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ForStatement: for ( x ; ; ) ;", vec!["Expression: x", "Statement: ;"]);
-    concise_check(&*node, "ForStatement: for ( x ; ; ) ;", vec!["Keyword: for", "Punctuator: (", "IdentifierName: x", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( x ; ; ) ;",
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -552,7 +755,19 @@ fn for_statement_test_06() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;y;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ForStatement: for ( ; y ; ) ;", vec!["Expression: y", "Statement: ;"]);
-    concise_check(&*node, "ForStatement: for ( ; y ; ) ;", vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "IdentifierName: y", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( ; y ; ) ;",
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Punctuator: ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -560,7 +775,19 @@ fn for_statement_test_07() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ForStatement: for ( ; ; z ) ;", vec!["Expression: z", "Statement: ;"]);
-    concise_check(&*node, "ForStatement: for ( ; ; z ) ;", vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( ; ; z ) ;",
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Punctuator: ;",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -568,14 +795,23 @@ fn for_statement_test_08() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ForStatement: for ( ; ; ) ;", vec!["Statement: ;"]);
-    concise_check(&*node, "ForStatement: for ( ; ; ) ;", vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( ; ; ) ;",
+        vec!["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn for_statement_test_09() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(var x;y;z);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(var x;y;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "ForStatement: for ( var x ; y ; z ) ;", vec!["VariableDeclarationList: x", "Expression: y", "Expression: z", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( var x ; y ; z ) ;",
+        vec!["VariableDeclarationList: x", "Expression: y", "Expression: z", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; y ; z ) ;",
@@ -596,25 +832,55 @@ fn for_statement_test_09() {
 }
 #[test]
 fn for_statement_test_10() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(var x;;z);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(var x;;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "ForStatement: for ( var x ; ; z ) ;", vec!["VariableDeclarationList: x", "Expression: z", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( var x ; ; z ) ;",
+        vec!["VariableDeclarationList: x", "Expression: z", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Punctuator: ;", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Keyword: var",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn for_statement_test_11() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(var x;y;);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(var x;y;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "ForStatement: for ( var x ; y ; ) ;", vec!["VariableDeclarationList: x", "Expression: y", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( var x ; y ; ) ;",
+        vec!["VariableDeclarationList: x", "Expression: y", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( var x ; y ; ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Punctuator: ;", "IdentifierName: y", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Keyword: var",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -626,43 +892,92 @@ fn for_statement_test_12() {
     concise_check(
         &*node,
         "ForStatement: for ( var x ; ; ) ;",
-        vec!["Keyword: for", "Punctuator: (", "Keyword: var", "IdentifierName: x", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "Keyword: var",
+            "IdentifierName: x",
+            "Punctuator: ;",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn for_statement_test_13() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(let x;y;z);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(let x;y;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "ForStatement: for ( let x ; y ; z ) ;", vec!["LexicalDeclaration: let x ;", "Expression: y", "Expression: z", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( let x ; y ; z ) ;",
+        vec!["LexicalDeclaration: let x ;", "Expression: y", "Expression: z", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; y ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "LexicalDeclaration: let x ;", "IdentifierName: y", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "LexicalDeclaration: let x ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn for_statement_test_14() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(let x;;z);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(let x;;z);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "ForStatement: for ( let x ; ; z ) ;", vec!["LexicalDeclaration: let x ;", "Expression: z", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( let x ; ; z ) ;",
+        vec!["LexicalDeclaration: let x ;", "Expression: z", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; ; z ) ;",
-        vec!["Keyword: for", "Punctuator: (", "LexicalDeclaration: let x ;", "Punctuator: ;", "IdentifierName: z", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "LexicalDeclaration: let x ;",
+            "Punctuator: ;",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn for_statement_test_15() {
-    let (node, scanner) = check(ForStatement::parse(&mut newparser("for(let x;y;);"), Scanner::new(), true, true, true));
+    let (node, scanner) =
+        check(ForStatement::parse(&mut newparser("for(let x;y;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 14);
-    pretty_check(&*node, "ForStatement: for ( let x ; y ; ) ;", vec!["LexicalDeclaration: let x ;", "Expression: y", "Statement: ;"]);
+    pretty_check(
+        &*node,
+        "ForStatement: for ( let x ; y ; ) ;",
+        vec!["LexicalDeclaration: let x ;", "Expression: y", "Statement: ;"],
+    );
     concise_check(
         &*node,
         "ForStatement: for ( let x ; y ; ) ;",
-        vec!["Keyword: for", "Punctuator: (", "LexicalDeclaration: let x ;", "IdentifierName: y", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "LexicalDeclaration: let x ;",
+            "IdentifierName: y",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
     );
     format!("{:?}", node);
 }
@@ -671,7 +986,18 @@ fn for_statement_test_16() {
     let (node, scanner) = check(ForStatement::parse(&mut newparser("for(let x;;);"), Scanner::new(), true, true, true));
     chk_scan(&scanner, 13);
     pretty_check(&*node, "ForStatement: for ( let x ; ; ) ;", vec!["LexicalDeclaration: let x ;", "Statement: ;"]);
-    concise_check(&*node, "ForStatement: for ( let x ; ; ) ;", vec!["Keyword: for", "Punctuator: (", "LexicalDeclaration: let x ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "ForStatement: for ( let x ; ; ) ;",
+        vec![
+            "Keyword: for",
+            "Punctuator: (",
+            "LexicalDeclaration: let x ;",
+            "Punctuator: ;",
+            "Punctuator: )",
+            "Punctuator: ;",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -684,39 +1010,84 @@ fn for_statement_test_err_02() {
 }
 #[test]
 fn for_statement_test_err_03() {
-    check_err(ForStatement::parse(&mut newparser("for("), Scanner::new(), true, true, true), "‘var’, LexicalDeclaration, or Expression expected", 1, 5);
+    check_err(
+        ForStatement::parse(&mut newparser("for("), Scanner::new(), true, true, true),
+        "‘var’, LexicalDeclaration, or Expression expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn for_statement_test_err_04() {
-    check_err(ForStatement::parse(&mut newparser("for(var"), Scanner::new(), true, true, true), "VariableDeclaration expected", 1, 8);
+    check_err(
+        ForStatement::parse(&mut newparser("for(var"), Scanner::new(), true, true, true),
+        "VariableDeclaration expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn for_statement_test_err_05() {
-    check_err(ForStatement::parse(&mut newparser("for(var a"), Scanner::new(), true, true, true), "‘;’ expected", 1, 10);
+    check_err(
+        ForStatement::parse(&mut newparser("for(var a"), Scanner::new(), true, true, true),
+        "‘;’ expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn for_statement_test_err_06() {
-    check_err(ForStatement::parse(&mut newparser("for(var a;"), Scanner::new(), true, true, true), "‘;’ expected", 1, 11);
+    check_err(
+        ForStatement::parse(&mut newparser("for(var a;"), Scanner::new(), true, true, true),
+        "‘;’ expected",
+        1,
+        11,
+    );
 }
 #[test]
 fn for_statement_test_err_07() {
-    check_err(ForStatement::parse(&mut newparser("for(var a;;"), Scanner::new(), true, true, true), "‘)’ expected", 1, 12);
+    check_err(
+        ForStatement::parse(&mut newparser("for(var a;;"), Scanner::new(), true, true, true),
+        "‘)’ expected",
+        1,
+        12,
+    );
 }
 #[test]
 fn for_statement_test_err_08() {
-    check_err(ForStatement::parse(&mut newparser("for(var a;;)"), Scanner::new(), true, true, true), "Statement expected", 1, 13);
+    check_err(
+        ForStatement::parse(&mut newparser("for(var a;;)"), Scanner::new(), true, true, true),
+        "Statement expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn for_statement_test_err_09() {
-    check_err(ForStatement::parse(&mut newparser("for(let a;"), Scanner::new(), true, true, true), "‘;’ expected", 1, 11);
+    check_err(
+        ForStatement::parse(&mut newparser("for(let a;"), Scanner::new(), true, true, true),
+        "‘;’ expected",
+        1,
+        11,
+    );
 }
 #[test]
 fn for_statement_test_err_10() {
-    check_err(ForStatement::parse(&mut newparser("for(let a;;"), Scanner::new(), true, true, true), "‘)’ expected", 1, 12);
+    check_err(
+        ForStatement::parse(&mut newparser("for(let a;;"), Scanner::new(), true, true, true),
+        "‘)’ expected",
+        1,
+        12,
+    );
 }
 #[test]
 fn for_statement_test_err_11() {
-    check_err(ForStatement::parse(&mut newparser("for(let a;;)"), Scanner::new(), true, true, true), "Statement expected", 1, 13);
+    check_err(
+        ForStatement::parse(&mut newparser("for(let a;;)"), Scanner::new(), true, true, true),
+        "Statement expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn for_statement_test_err_12() {
@@ -728,11 +1099,21 @@ fn for_statement_test_err_13() {
 }
 #[test]
 fn for_statement_test_err_14() {
-    check_err(ForStatement::parse(&mut newparser("for(;;)"), Scanner::new(), true, true, true), "Statement expected", 1, 8);
+    check_err(
+        ForStatement::parse(&mut newparser("for(;;)"), Scanner::new(), true, true, true),
+        "Statement expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn for_statement_test_err_15() {
-    check_err(ForStatement::parse(&mut newparser("for(let["), Scanner::new(), true, true, true), "BindingElement expected", 1, 9);
+    check_err(
+        ForStatement::parse(&mut newparser("for(let["), Scanner::new(), true, true, true),
+        "BindingElement expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn for_statement_test_prettyerrors_01() {
@@ -901,29 +1282,34 @@ fn for_statement_test_var_declared_names_01() {
 }
 #[test]
 fn for_statement_test_var_declared_names_02() {
-    let (item, _) = ForStatement::parse(&mut newparser("for(var a; b; c) { var d; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForStatement::parse(&mut newparser("for(var a; b; c) { var d; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["a", "d"]);
 }
 #[test]
 fn for_statement_test_var_declared_names_03() {
-    let (item, _) = ForStatement::parse(&mut newparser("for(let a; b; c) { var d; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForStatement::parse(&mut newparser("for(let a; b; c) { var d; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["d"]);
 }
 #[test]
 fn for_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = ForStatement::parse(&mut newparser("for(;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForStatement::parse(&mut newparser("for(;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn for_statement_test_contains_undefined_break_target_02() {
-    let (item, _) = ForStatement::parse(&mut newparser("for(var a;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForStatement::parse(&mut newparser("for(var a;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn for_statement_test_contains_undefined_break_target_03() {
-    let (item, _) = ForStatement::parse(&mut newparser("for(let a;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForStatement::parse(&mut newparser("for(let a;;) { break t; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
@@ -1023,7 +1409,10 @@ fn for_statement_test_contains_duplicate_labels() {
 #[test_case("for (let a;;) continue x;" => (false, true); "for (let a;;) continue x;")]
 fn for_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("for (;;) a.#valid;" => true; "xxx valid")]
 #[test_case("for (a.#valid;;) stmt;" => true; "Cxx init valid")]
@@ -1141,7 +1530,10 @@ mod for_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        ForStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1229,52 +1621,62 @@ fn for_in_of_statement_test_prettyerrors_02() {
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_03() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a in b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_04() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_05() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a in b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_06() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_07() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_08() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_09() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_10() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_11() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_prettyerrors_12() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -1289,190 +1691,232 @@ fn for_in_of_statement_test_conciseerrors_02() {
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_03() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a in b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_04() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_05() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a in b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_06() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_07() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_08() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_09() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_10() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_11() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_conciseerrors_12() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_01() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_02() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_03() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_04() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_05() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_06() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b){var c;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_07() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a in b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["a", "c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_08() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["a", "c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_09() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b){var c;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.var_declared_names(), &["a", "c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_10() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_11() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b){var c;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_var_declared_names_12() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b){var c;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await({a} of b){var c;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.var_declared_names(), &["c"]);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_02() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_03() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_04() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(let a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(let a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_05() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b){break t;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_06() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b){break t;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_07() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a in b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_08() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for(var a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for(var a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_09() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b){break t;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_10() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_11() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b){break t;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_undefined_break_target_12() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b){break t;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await({a} of b){break t;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[] as &[JSString]), true);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("t")]), false);
 }
 
 #[test]
 fn for_in_of_statement_test_contains_01() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (a[0] in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (a[0] in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -1482,7 +1926,8 @@ fn for_in_of_statement_test_contains_02() {
 }
 #[test]
 fn for_in_of_statement_test_contains_03() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (a in b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (a in b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -1492,47 +1937,56 @@ fn for_in_of_statement_test_contains_04() {
 }
 #[test]
 fn for_in_of_statement_test_contains_05() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var [a=0] in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var [a=0] in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_06() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a in 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a in 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_07() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a in b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a in b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_08() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_09() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let [a=0] in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let [a=0] in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_10() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a in 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a in 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_11() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a in b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a in b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_12() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_13() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (a[0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (a[0] of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -1542,7 +1996,8 @@ fn for_in_of_statement_test_contains_14() {
 }
 #[test]
 fn for_in_of_statement_test_contains_15() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -1552,132 +2007,160 @@ fn for_in_of_statement_test_contains_16() {
 }
 #[test]
 fn for_in_of_statement_test_contains_17() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a[0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a[0] of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_18() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_19() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_20() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_21() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_22() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a of 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a of 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_23() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_24() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (var a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_25() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var [a=0] of b);"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_26() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_27() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_28() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(var a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_29() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_30() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a of 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a of 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_31() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_32() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for (let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for (let a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_33() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let [a=0] of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let [a=0] of b);"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_34() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of 0);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of 0);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_35() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_36() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await(let a of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_37() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_38() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_39() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_40() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for ({a} in b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn for_in_of_statement_test_contains_41() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await({a} of b)0;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn for_in_of_statement_test_contains_42() {
-    let (item, _) = ForInOfStatement::parse(&mut newparser("for await({a} of b);"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ForInOfStatement::parse(&mut newparser("for await({a} of b);"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 
@@ -1721,7 +2204,10 @@ mod for_in_of_statement {
     #[test_case("for await (let a of b) continue x;" => (false, true); "for await (let a of b) continue x;")]
     fn contains_undefined_continue_target(src: &str) -> (bool, bool) {
         let (item, _) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-        (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+        (
+            item.contains_undefined_continue_target(&[JSString::from("x")]),
+            item.contains_undefined_continue_target(&[JSString::from("y")]),
+        )
     }
     #[test_case("for ([a=x.#valid] in c) stmt;" => true; "dstr in init valid")]
     #[test_case("for ([a=b] in x.#valid) stmt;" => true; "dstr in target valid")]
@@ -1801,7 +2287,13 @@ mod for_in_of_statement {
     }
     #[test]
     fn debug() {
-        assert_ne!(format!("{:?}", ForInOfStatement::parse(&mut newparser("for (x in y);"), Scanner::new(), true, true, true).unwrap().0), "");
+        assert_ne!(
+            format!(
+                "{:?}",
+                ForInOfStatement::parse(&mut newparser("for (x in y);"), Scanner::new(), true, true, true).unwrap().0
+            ),
+            ""
+        );
     }
 
     #[test_case("for(x in y);", true => Ok((
@@ -1901,7 +2393,8 @@ mod for_in_of_statement {
     #[test_case("for await(", false => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), -7)); "not await mode")]
     fn parse(src: &str, await_flag: bool) -> Result<(Scanner, Vec<String>, Vec<String>), (PECode, i32)> {
         let after_idx = src.len() as u32 + 1;
-        let (node, scanner) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, await_flag, true).map_err(|pe| pe.unpack(after_idx))?;
+        let (node, scanner) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, await_flag, true)
+            .map_err(|pe| pe.unpack(after_idx))?;
         let pretty_elements = pretty_data(&*node);
         let concise_elements = concise_data(&*node);
         Ok((scanner, pretty_elements, concise_elements))
@@ -1938,7 +2431,10 @@ mod for_in_of_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false);
+        ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2030,7 +2526,12 @@ fn for_declaration_test_02() {
 }
 #[test]
 fn for_declaration_test_err_01() {
-    check_err(ForDeclaration::parse(&mut newparser(""), Scanner::new(), true, true), "one of [‘let’, ‘const’] expected", 1, 1);
+    check_err(
+        ForDeclaration::parse(&mut newparser(""), Scanner::new(), true, true),
+        "one of [‘let’, ‘const’] expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn for_declaration_test_err_02() {

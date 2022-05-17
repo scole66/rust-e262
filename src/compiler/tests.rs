@@ -359,7 +359,13 @@ mod property_definition_list {
         let node = Maker::new(src).property_definition_list();
         let mut c = Chunk::new("x");
         node.property_definition_evaluation(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -405,11 +411,25 @@ mod property_definition {
     ]), true, false)); "rest object, non-strict")]
     #[test_case("...a", false, Some(0) => serr("Out of room for strings in this compilation unit"); "rest object, ae errs")]
     #[test_case("...true", false, None => Ok((svec(&["TRUE", "COPY_DATA_PROPS"]), true, false)); "rest object, not reference")]
-    fn compile(src: &str, strict: bool, string_spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    fn compile(
+        src: &str,
+        strict: bool,
+        string_spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition();
-        let mut c = if let Some(spot_count) = string_spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c = if let Some(spot_count) = string_spots_avail {
+            almost_full_chunk("x", spot_count)
+        } else {
+            Chunk::new("x")
+        };
         node.property_definition_evaluation(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -423,9 +443,16 @@ mod property_name {
     #[test_case("[a]", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true, false)); "computed property name; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_name();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 
@@ -458,8 +485,17 @@ mod literal_property_name {
     #[test_case("1", Some(0) => serr("Out of room for strings in this compilation unit"); "number; err")]
     fn compile(src: &str, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).literal_property_name();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c).map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference)).map_err(|e| e.to_string())
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        node.compile(&mut c)
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -473,9 +509,16 @@ mod computed_property_name {
     #[test_case("[1]", true, None => Ok((svec(&["FLOAT 0 (1)", "TO_KEY"]), true, false)); "error-free expr")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).computed_property_name();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -550,9 +593,16 @@ mod member_expression {
     #[test_case("a.#pid", true, None => panics "not yet implemented"; "private")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).member_expression();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -587,9 +637,16 @@ mod call_expression {
     #[test_case("a().#pid", true, None => panics "not yet implemented"; "private-on-call")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).call_expression();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -608,9 +665,16 @@ mod call_member_expression {
     #[test_case("a(@@@)", true, None => serr("out of range integral type conversion attempted"); "bad jump (args too complex)")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).call_member_expression();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -663,11 +727,22 @@ mod arguments {
     #[test_case("(999)", true, Some(1) => serr("Out of room for floats in this compilation unit"); "no room for length")]
     #[test_case("(a,)", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; strict")]
     #[test_case("(a,)", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)"]), true, false)); "error-able args; non-strict")]
-    fn argument_list_evaluation(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
+    fn argument_list_evaluation(
+        src: &str,
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arguments();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.argument_list_evaluation(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -688,11 +763,23 @@ mod argument_list {
     #[test_case("a,b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no room for last item")]
     #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
     #[test_case("a,...b", true, None => panics "not yet implemented"; "list + rest")]
-    fn argument_list_evaluation(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, u16, bool, bool), String> {
+    fn argument_list_evaluation(
+        src: &str,
+        strict: bool,
+        spots_avail: Option<usize>,
+    ) -> Result<(Vec<String>, u16, bool, bool), String> {
         let node = Maker::new(src).argument_list();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.argument_list_evaluation(&mut c, strict)
-            .map(|(count, status)| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), count, status.can_be_abrupt, status.can_be_reference))
+            .map(|(count, status)| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    count,
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }
@@ -822,9 +909,16 @@ mod unary_expression {
     #[test_case("await a", false, None => panics "not yet implemented"; "await; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).unary_expression();
-        let mut c = if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
+        let mut c =
+            if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         node.compile(&mut c, strict)
-            .map(|status| (c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(), status.can_be_abrupt, status.can_be_reference))
+            .map(|status| {
+                (
+                    c.disassemble().into_iter().filter_map(disasm_filt).collect::<Vec<_>>(),
+                    status.can_be_abrupt,
+                    status.can_be_reference,
+                )
+            })
             .map_err(|e| e.to_string())
     }
 }

@@ -39,7 +39,9 @@ impl PrettyPrint for AdditiveExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AdditiveExpression: {}", first, self)?;
         match &self {
-            AdditiveExpression::MultiplicativeExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AdditiveExpression::MultiplicativeExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => {
                 ae.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 me.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -82,9 +84,16 @@ impl AdditiveExpression {
         let (me, after_me) = MultiplicativeExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(AdditiveExpression::MultiplicativeExpression(me));
         let mut current_scanner = after_me;
-        while let Ok((punct, me, after_me)) = scan_for_punct_set(current_scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Plus, Punctuator::Minus])
-            .and_then(|(token, after_op)| MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag).map(|(node, after_node)| (token, node, after_node)))
-        {
+        while let Ok((punct, me, after_me)) = scan_for_punct_set(
+            current_scanner,
+            parser.source,
+            ScanGoal::InputElementDiv,
+            &[Punctuator::Plus, Punctuator::Minus],
+        )
+        .and_then(|(token, after_op)| {
+            MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag)
+                .map(|(node, after_node)| (token, node, after_node))
+        }) {
             current = Rc::new(match punct {
                 Punctuator::Plus => AdditiveExpression::Add(current, me),
                 _ => AdditiveExpression::Subtract(current, me),
@@ -118,8 +127,12 @@ impl AdditiveExpression {
         //  2. Return true.
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.all_private_identifiers_valid(names),
-            AdditiveExpression::Add(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            AdditiveExpression::Subtract(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            AdditiveExpression::Add(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            AdditiveExpression::Subtract(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -136,7 +149,9 @@ impl AdditiveExpression {
         //  2. Return false.
         match self {
             AdditiveExpression::MultiplicativeExpression(me) => me.contains_arguments(),
-            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => ae.contains_arguments() || me.contains_arguments(),
+            AdditiveExpression::Add(ae, me) | AdditiveExpression::Subtract(ae, me) => {
+                ae.contains_arguments() || me.contains_arguments()
+            }
         }
     }
 

@@ -7,13 +7,26 @@ use test_case::test_case;
 // ASYNC GENERATOR METHOD
 #[test]
 fn async_generator_method_test_01() {
-    let (node, scanner) = check(AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6 + 6);
-    pretty_check(&*node, "AsyncGeneratorMethod: async * a (  ) {  }", vec!["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "AsyncGeneratorMethod: async * a (  ) {  }",
+        vec!["ClassElementName: a", "UniqueFormalParameters: ", "AsyncGeneratorBody: "],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorMethod: async * a (  ) {  }",
-        vec!["Keyword: async", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
 }
@@ -27,72 +40,117 @@ fn async_generator_method_test_02() {
 }
 #[test]
 fn async_generator_method_test_03() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *"), Scanner::new(), false, false), "ClassElementName expected", 1, 2 + 6);
+    check_err(
+        AsyncGeneratorMethod::parse(&mut newparser("async *"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        2 + 6,
+    );
 }
 #[test]
 fn async_generator_method_test_04() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *a"), Scanner::new(), false, false), "‘(’ expected", 1, 3 + 6);
+    check_err(
+        AsyncGeneratorMethod::parse(&mut newparser("async *a"), Scanner::new(), false, false),
+        "‘(’ expected",
+        1,
+        3 + 6,
+    );
 }
 #[test]
 fn async_generator_method_test_05() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *a("), Scanner::new(), false, false), "‘)’ expected", 1, 4 + 6);
+    check_err(
+        AsyncGeneratorMethod::parse(&mut newparser("async *a("), Scanner::new(), false, false),
+        "‘)’ expected",
+        1,
+        4 + 6,
+    );
 }
 #[test]
 fn async_generator_method_test_06() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *a()"), Scanner::new(), false, false), "‘{’ expected", 1, 5 + 6);
+    check_err(
+        AsyncGeneratorMethod::parse(&mut newparser("async *a()"), Scanner::new(), false, false),
+        "‘{’ expected",
+        1,
+        5 + 6,
+    );
 }
 #[test]
 fn async_generator_method_test_07() {
-    check_err(AsyncGeneratorMethod::parse(&mut newparser("async *a(){"), Scanner::new(), false, false), "‘}’ expected", 1, 6 + 6);
+    check_err(
+        AsyncGeneratorMethod::parse(&mut newparser("async *a(){"), Scanner::new(), false, false),
+        "‘}’ expected",
+        1,
+        6 + 6,
+    );
 }
 #[test]
 fn async_generator_method_test_prettyerrors_1() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = AsyncGeneratorMethod::parse(
+        &mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_generator_method_test_conciseerrors_1() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = AsyncGeneratorMethod::parse(
+        &mut newparser("async * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_generator_method_test_contains_01() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * [10]() { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * [10]() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn async_generator_method_test_contains_02() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a(b=10) { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a(b=10) { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn async_generator_method_test_contains_03() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return 10; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a() { return 10; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn async_generator_method_test_contains_04() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_method_test_computed_property_contains_01() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * [10]() { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * [10]() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn async_generator_method_test_comptued_property_contains_02() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a(b=10) { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a(b=10) { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_method_test_comptued_property_contains_03() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return 10; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a() { return 10; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_method_test_comptued_property_contains_04() {
-    let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
+    let (item, _) =
+        AsyncGeneratorMethod::parse(&mut newparser("async * a() { return; }"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.computed_property_contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async *[item.#valid](){}" => true; "Name valid")]
@@ -120,12 +178,16 @@ mod async_generator_method {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut test_agent(), &mut vec![], true);
     }
 
     #[test]
     fn prop_name() {
-        let (item, _) = AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap();
+        let (item, _) =
+            AsyncGeneratorMethod::parse(&mut newparser("async *a(){}"), Scanner::new(), true, true).unwrap();
         assert_eq!(item.prop_name(), Some(JSString::from("a")));
     }
 
@@ -145,120 +207,296 @@ mod async_generator_method {
 // ASYNC GENERATOR DECLARATION
 #[test]
 fn async_generator_declaration_test_01() {
-    let (node, scanner) = check(AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function *a(){}"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 15 + 6);
-    pretty_check(&*node, "AsyncGeneratorDeclaration: async function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "AsyncGeneratorDeclaration: async function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * a (  ) {  }",
-        vec!["Keyword: async", "Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_declaration_test_02() {
-    let (node, scanner) = check(AsyncGeneratorDeclaration::parse(&mut newparser("async function *(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function *(){}"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 14 + 6);
-    pretty_check(&*node, "AsyncGeneratorDeclaration: async function * (  ) {  }", vec!["FormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "AsyncGeneratorDeclaration: async function * (  ) {  }",
+        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorDeclaration: async function * (  ) {  }",
-        vec!["Keyword: async", "Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Keyword: function",
+            "Punctuator: *",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_declaration_test_03() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘async’ expected", 1, 1);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘async’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn async_generator_declaration_test_04() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true), "‘*’ expected", 1, 9 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true),
+        "‘*’ expected",
+        1,
+        9 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_041() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async \nfunction"), Scanner::new(), false, false, true),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_05() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function *"), Scanner::new(), false, false, true), "‘(’ expected", 1, 11 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function *"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        11 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_06() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h"), Scanner::new(), false, false, true), "‘(’ expected", 1, 13 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function * h"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        13 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_07() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 15 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        15 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_075() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 13 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        13 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_076() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        11 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_08() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ( u"), Scanner::new(), false, false, true), "‘)’ expected", 1, 17 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ( u"), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        17 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_09() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ( u )"), Scanner::new(), false, false, true), "‘{’ expected", 1, 19 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(
+            &mut newparser("async function * h ( u )"),
+            Scanner::new(),
+            false,
+            false,
+            true,
+        ),
+        "‘{’ expected",
+        1,
+        19 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_10() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ( u ) {"), Scanner::new(), false, false, true), "‘}’ expected", 1, 21 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(
+            &mut newparser("async function * h ( u ) {"),
+            Scanner::new(),
+            false,
+            false,
+            true,
+        ),
+        "‘}’ expected",
+        1,
+        21 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_11() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async function * h ( u ) { z;"), Scanner::new(), false, false, true), "‘}’ expected", 1, 24 + 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(
+            &mut newparser("async function * h ( u ) { z;"),
+            Scanner::new(),
+            false,
+            false,
+            true,
+        ),
+        "‘}’ expected",
+        1,
+        24 + 6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_12() {
-    check_err(AsyncGeneratorDeclaration::parse(&mut newparser("async"), Scanner::new(), false, false, true), "‘function’ expected", 1, 6);
+    check_err(
+        AsyncGeneratorDeclaration::parse(&mut newparser("async"), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_generator_declaration_test_prettyerrors_1() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_generator_declaration_test_prettyerrors_2() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_generator_declaration_test_conciseerrors_1() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_generator_declaration_test_conciseerrors_2() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_generator_declaration_test_contains_01() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * a(b=10) { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * a(b=10) { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_declaration_test_contains_02() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * (b=10) { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * (b=10) { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_declaration_test_bound_names_01() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * a() { return; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * a() { return; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["a"]);
 }
 #[test]
 fn async_generator_declaration_test_bound_names_02() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(&mut newparser("async function * () { return; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncGeneratorDeclaration::parse(
+        &mut newparser("async function * () { return; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["*default*"]);
 }
 #[test_case("async function *f(arg=item.#valid){}" => true; "Params valid")]
@@ -275,33 +513,63 @@ mod async_generator_declaration {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        AsyncGeneratorDeclaration::parse(&mut newparser("async function *a(){}"), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
 // ASYNC GENERATOR EXPRESSION
 #[test]
 fn async_generator_expression_test_01() {
-    let (node, scanner) = check(AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()));
+    let (node, scanner) =
+        check(AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()));
     chk_scan(&scanner, 15 + 6);
-    pretty_check(&*node, "AsyncGeneratorExpression: async function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "AsyncGeneratorExpression: async function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "AsyncGeneratorBody: "],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * a (  ) {  }",
-        vec!["Keyword: async", "Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_expression_test_02() {
-    let (node, scanner) = check(AsyncGeneratorExpression::parse(&mut newparser("async function *(){}"), Scanner::new()));
+    let (node, scanner) =
+        check(AsyncGeneratorExpression::parse(&mut newparser("async function *(){}"), Scanner::new()));
     chk_scan(&scanner, 14 + 6);
-    pretty_check(&*node, "AsyncGeneratorExpression: async function * (  ) {  }", vec!["FormalParameters: ", "AsyncGeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "AsyncGeneratorExpression: async function * (  ) {  }",
+        vec!["FormalParameters: ", "AsyncGeneratorBody: "],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * (  ) {  }",
-        vec!["Keyword: async", "Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Keyword: function",
+            "Punctuator: *",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
@@ -316,68 +584,133 @@ fn async_generator_expression_test_031() {
 }
 #[test]
 fn async_generator_expression_test_04() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function"), Scanner::new()), "‘*’ expected", 1, 9 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function"), Scanner::new()),
+        "‘*’ expected",
+        1,
+        9 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_041() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async \nfunction"), Scanner::new()),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_generator_expression_test_05() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function *"), Scanner::new()), "‘(’ expected", 1, 11 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function *"), Scanner::new()),
+        "‘(’ expected",
+        1,
+        11 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_06() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h"), Scanner::new()), "‘(’ expected", 1, 13 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h"), Scanner::new()),
+        "‘(’ expected",
+        1,
+        13 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_07() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h ("), Scanner::new()), "‘)’ expected", 1, 15 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h ("), Scanner::new()),
+        "‘)’ expected",
+        1,
+        15 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_08() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u"), Scanner::new()), "‘)’ expected", 1, 17 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u"), Scanner::new()),
+        "‘)’ expected",
+        1,
+        17 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_09() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u )"), Scanner::new()), "‘{’ expected", 1, 19 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u )"), Scanner::new()),
+        "‘{’ expected",
+        1,
+        19 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_10() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u ) {"), Scanner::new()), "‘}’ expected", 1, 21 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u ) {"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        21 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_11() {
-    check_err(AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u ) { z;"), Scanner::new()), "‘}’ expected", 1, 24 + 6);
+    check_err(
+        AsyncGeneratorExpression::parse(&mut newparser("async function * h ( u ) { z;"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        24 + 6,
+    );
 }
 #[test]
 fn async_generator_expression_test_prettyerrors_1() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncGeneratorExpression::parse(
+        &mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_generator_expression_test_prettyerrors_2() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncGeneratorExpression::parse(
+        &mut newparser("async function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_generator_expression_test_conciseerrors_1() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncGeneratorExpression::parse(
+        &mut newparser("async function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_generator_expression_test_conciseerrors_2() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncGeneratorExpression::parse(
+        &mut newparser("async function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_generator_expresion_test_contains_01() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * a(b=10) { return 10; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncGeneratorExpression::parse(&mut newparser("async function * a(b=10) { return 10; }"), Scanner::new())
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_generator_expresion_test_contains_02() {
-    let (item, _) = AsyncGeneratorExpression::parse(&mut newparser("async function * (b=10) { return 10; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncGeneratorExpression::parse(&mut newparser("async function * (b=10) { return 10; }"), Scanner::new())
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async function *f(arg=item.#valid){}" => true; "Params valid")]
@@ -393,7 +726,10 @@ mod async_generator_expression {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new()).unwrap().0.early_errors(&mut test_agent(), &mut vec![], true);
+        AsyncGeneratorExpression::parse(&mut newparser("async function *a(){}"), Scanner::new())
+            .unwrap()
+            .0
+            .early_errors(&mut test_agent(), &mut vec![], true);
     }
 }
 
@@ -445,6 +781,10 @@ mod async_generator_body {
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn early_errors() {
-        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(&mut test_agent(), &mut vec![], true);
+        AsyncGeneratorBody::parse(&mut newparser("yield 3;"), Scanner::new()).0.early_errors(
+            &mut test_agent(),
+            &mut vec![],
+            true,
+        );
     }
 }

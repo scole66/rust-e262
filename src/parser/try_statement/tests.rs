@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
+    PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -8,26 +11,50 @@ use test_case::test_case;
 // TRY STATEMENT
 #[test]
 fn try_statement_test_01() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } catch {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(TryStatement::parse(&mut newparser("try { a; } catch {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 19);
     pretty_check(&*node, "TryStatement: try { a ; } catch { }", vec!["Block: { a ; }", "Catch: catch { }"]);
-    concise_check(&*node, "TryStatement: try { a ; } catch { }", vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"]);
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } catch { }",
+        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn try_statement_test_02() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } finally {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(TryStatement::parse(&mut newparser("try { a; } finally {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 21);
     pretty_check(&*node, "TryStatement: try { a ; } finally { }", vec!["Block: { a ; }", "Finally: finally { }"]);
-    concise_check(&*node, "TryStatement: try { a ; } finally { }", vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"]);
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } finally { }",
+        vec!["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn try_statement_test_03() {
-    let (node, scanner) = check(TryStatement::parse(&mut newparser("try { a; } catch { b; } finally { c; }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(TryStatement::parse(
+        &mut newparser("try { a; } catch { b; } finally { c; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 38);
-    pretty_check(&*node, "TryStatement: try { a ; } catch { b ; } finally { c ; }", vec!["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"]);
-    concise_check(&*node, "TryStatement: try { a ; } catch { b ; } finally { c ; }", vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"]);
+    pretty_check(
+        &*node,
+        "TryStatement: try { a ; } catch { b ; } finally { c ; }",
+        vec!["Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+    );
+    concise_check(
+        &*node,
+        "TryStatement: try { a ; } catch { b ; } finally { c ; }",
+        vec!["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -40,36 +67,73 @@ fn try_statement_test_err_02() {
 }
 #[test]
 fn try_statement_test_err_03() {
-    check_err(TryStatement::parse(&mut newparser("try {}"), Scanner::new(), false, false, true), "Catch or Finally block expected", 1, 7);
+    check_err(
+        TryStatement::parse(&mut newparser("try {}"), Scanner::new(), false, false, true),
+        "Catch or Finally block expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn try_statement_test_prettyerrors_1() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_prettyerrors_2() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_prettyerrors_3() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_1() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch (e) { console.log(`Got the error ${e}.`); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_2() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        TryStatement::parse(&mut newparser("try { return 3; } finally { a; }"), Scanner::new(), false, false, true)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn try_statement_test_conciseerrors_3() {
-    let (item, _) = TryStatement::parse(&mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = TryStatement::parse(
+        &mut newparser("try { return 3; } catch(foo) { print(foo); } finally { a; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 fn try_vdn_check(src: &str, expected: &[&str]) {
@@ -138,7 +202,10 @@ fn try_statement_test_contains_duplicate_labels() {
 #[test_case("try { } catch { } finally { continue x; }" => (false, true); "try { } catch { } finally { continue x; }")]
 fn try_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = TryStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("try {a.#valid;} catch{}" => true; "tc: block valid")]
 #[test_case("try {} catch{a.#valid;}" => true; "tc: catch valid")]
@@ -208,7 +275,11 @@ fn catch_test_02() {
     let (node, scanner) = check(Catch::parse(&mut newparser("catch (e) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "Catch: catch ( e ) { }", vec!["CatchParameter: e", "Block: { }"]);
-    concise_check(&*node, "Catch: catch ( e ) { }", vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"]);
+    concise_check(
+        &*node,
+        "Catch: catch ( e ) { }",
+        vec!["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -217,11 +288,21 @@ fn catch_test_err_01() {
 }
 #[test]
 fn catch_test_err_02() {
-    check_err(Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true), "one of [‘(’, ‘{’] expected", 1, 6);
+    check_err(
+        Catch::parse(&mut newparser("catch"), Scanner::new(), false, false, true),
+        "one of [‘(’, ‘{’] expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn catch_test_err_03() {
-    check_err(Catch::parse(&mut newparser("catch("), Scanner::new(), false, false, true), "CatchParameter expected", 1, 7);
+    check_err(
+        Catch::parse(&mut newparser("catch("), Scanner::new(), false, false, true),
+        "CatchParameter expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn catch_test_err_04() {
@@ -284,7 +365,10 @@ fn catch_test_contains_duplicate_labels() {
 #[test_case("catch (e) { continue x; }" => (false, true); "catch (e) { continue x; }")]
 fn catch_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Catch::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("catch([a=b.#valid]){}" => true; "cpb: param valid")]
 #[test_case("catch([a=b]){c.#valid;}" => true; "cpb: block valid")]
@@ -386,7 +470,10 @@ fn finally_test_contains_duplicate_labels() {
 #[test_case("finally { continue x; }" => (false, true); "finally { continue x; }")]
 fn finally_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = Finally::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("finally {a.#valid;}" => true; "valid")]
 #[test_case("finally {a.#invalid;}" => false; "invalid")]

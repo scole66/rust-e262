@@ -1,5 +1,8 @@
 use super::scanner::StringDelimiter;
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
+    PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -13,7 +16,13 @@ const BAD_SUPER: &str = "‘super’ not allowed here";
 // FUNCTION DECLARATION
 #[test]
 fn function_declaration_test_01() {
-    let (node, scanner) = check(FunctionDeclaration::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(FunctionDeclaration::parse(
+        &mut newparser("function bob(a,b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 38);
     pretty_check(
         &*node,
@@ -38,58 +47,133 @@ fn function_declaration_test_01() {
 }
 #[test]
 fn function_declaration_test_02() {
-    let (node, scanner) = check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(FunctionDeclaration::parse(&mut newparser("function (z) {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
     pretty_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
-    concise_check(&*node, "FunctionDeclaration: function ( z ) {  }", vec!["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionDeclaration: function ( z ) {  }",
+        vec![
+            "Keyword: function",
+            "Punctuator: (",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn function_declaration_test_err_01() {
-    check_err(FunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘function’ expected", 1, 1);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn function_declaration_test_err_02() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true), "‘(’ expected", 1, 9);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn function_declaration_test_err_03() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false), "not an identifier", 1, 9);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        9,
+    );
 }
 #[test]
 fn function_declaration_test_err_04() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo"), Scanner::new(), false, false, true), "‘(’ expected", 1, 13);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn function_declaration_test_err_05() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo("), Scanner::new(), false, false, true), "‘)’ expected", 1, 14);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        14,
+    );
 }
 #[test]
 fn function_declaration_test_err_06() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo()"), Scanner::new(), false, false, true), "‘{’ expected", 1, 15);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo()"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn function_declaration_test_err_07() {
-    check_err(FunctionDeclaration::parse(&mut newparser("function foo(){"), Scanner::new(), false, false, true), "‘}’ expected", 1, 16);
+    check_err(
+        FunctionDeclaration::parse(&mut newparser("function foo(){"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        16,
+    );
 }
 #[test]
 fn function_declaration_test_prettyerrors_1() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function bob(a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_prettyerrors_2() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function (a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_conciseerrors_1() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function bob(a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn function_declaration_test_conciseerrors_2() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = FunctionDeclaration::parse(
+        &mut newparser("function (a, b) { return foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -102,17 +186,20 @@ fn function_declaration_test_cache_01() {
 }
 #[test]
 fn function_declaration_test_bound_names_01() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
 #[test]
 fn function_declaration_test_bound_names_02() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function (){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function (){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["*default*"]);
 }
 #[test]
 fn function_declaration_test_contains_01() {
-    let (item, _) = FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        FunctionDeclaration::parse(&mut newparser("function a(b=0){0;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("function a(a=b.#valid){}" => true; "Params valid")]
@@ -142,7 +229,10 @@ mod function_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -150,7 +240,8 @@ mod function_declaration {
 // FUNCTION EXPRESSION
 #[test]
 fn function_expression_test_01() {
-    let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new()));
+    let (node, scanner) =
+        check(FunctionExpression::parse(&mut newparser("function bob(a,b) { return foo(a+b); }"), Scanner::new()));
     chk_scan(&scanner, 38);
     pretty_check(
         &*node,
@@ -179,7 +270,18 @@ fn function_expression_test_02() {
     let (node, scanner) = check(FunctionExpression::parse(&mut newparser("function (z) {}"), Scanner::new()));
     chk_scan(&scanner, 15);
     pretty_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["FormalParameters: z", "FunctionBody: "]);
-    concise_check(&*node, "FunctionExpression: function ( z ) {  }", vec!["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionExpression: function ( z ) {  }",
+        vec![
+            "Keyword: function",
+            "Punctuator: (",
+            "IdentifierName: z",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -209,22 +311,26 @@ fn function_expression_test_err_07() {
 }
 #[test]
 fn function_expression_test_prettyerrors_1() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_prettyerrors_2() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_conciseerrors_1() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function bob(a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn function_expression_test_conciseerrors_2() {
-    let (item, _) = FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) =
+        FunctionExpression::parse(&mut newparser("function (a, b) { return foo(a+b); }"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -259,7 +365,10 @@ mod function_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        FunctionExpression::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        FunctionExpression::parse(&mut newparser(src), Scanner::new())
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, CONTINUE_ITER, DUPLICATE_LEXICAL, LEX_DUPED_BY_VAR,
+    PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::scanner::StringDelimiter;
@@ -63,12 +66,17 @@ mod var_scope_decl {
 // SCRIPT
 #[test]
 fn script_test_01() {
-    let (node, scanner) = check(Script::parse(&mut newparser("let a=1; /* a bunch more text */\n/* even new lines */"), Scanner::new()));
+    let (node, scanner) =
+        check(Script::parse(&mut newparser("let a=1; /* a bunch more text */\n/* even new lines */"), Scanner::new()));
     assert_eq!(scanner.line, 2);
     assert_eq!(scanner.column, 21);
     assert_eq!(scanner.start_idx, 53);
     pretty_check(&*node, "Script: let a = 1 ;", vec!["ScriptBody: let a = 1 ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a = 1 ;", vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: let a = 1 ;",
+        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -174,7 +182,11 @@ fn script_body_test_01() {
     let (node, scanner) = check(ScriptBody::parse(&mut newparser("let a=1;"), Scanner::new()));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ScriptBody: let a = 1 ;", vec!["StatementList: let a = 1 ;"]);
-    concise_check(&*node, "LexicalDeclaration: let a = 1 ;", vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: let a = 1 ;",
+        vec!["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -206,7 +218,11 @@ fn script_body_test_contains_02() {
 
 #[test]
 fn script_body_test_directive_prologue_01() {
-    let (item, _) = ScriptBody::parse(&mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"), Scanner::new()).unwrap();
+    let (item, _) = ScriptBody::parse(
+        &mut newparser("'blue'; 'green'; 'orange'; 'use\\x20strict'; print(12.0); 'dinosaur';"),
+        Scanner::new(),
+    )
+    .unwrap();
 
     let dp = item.directive_prologue();
     assert_eq!(
@@ -215,7 +231,11 @@ fn script_body_test_directive_prologue_01() {
             StringToken { value: JSString::from("blue"), delimiter: StringDelimiter::Single, raw: None },
             StringToken { value: JSString::from("green"), delimiter: StringDelimiter::Single, raw: None },
             StringToken { value: JSString::from("orange"), delimiter: StringDelimiter::Single, raw: None },
-            StringToken { value: JSString::from("use strict"), delimiter: StringDelimiter::Single, raw: Some(String::from("use\\x20strict")) }
+            StringToken {
+                value: JSString::from("use strict"),
+                delimiter: StringDelimiter::Single,
+                raw: Some(String::from("use\\x20strict"))
+            }
         ]
     );
 }
@@ -260,7 +280,10 @@ mod script_body {
     fn early_errors(src: &str, direct: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ScriptBody::parse(&mut directparser(src, direct), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs);
+        ScriptBody::parse(&mut directparser(src, direct), Scanner::new())
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

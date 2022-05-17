@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED,
+    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -27,72 +30,144 @@ fn method_definition_test_01() {
     let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*pn, MethodDefinition::NamedFunction(..)));
-    pretty_check(&*pn, "MethodDefinition: a ( b ) { c ; }", vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: a ( b ) { c ; }",
+        vec!["ClassElementName: a", "UniqueFormalParameters: b", "FunctionBody: c ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: a ( b ) { c ; }",
-        vec!["IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
+        vec![
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: b",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: c ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_02() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 21);
     assert!(matches!(&*pn, MethodDefinition::Getter(..)));
-    pretty_check(&*pn, "MethodDefinition: get a ( ) { return 1 ; }", vec!["ClassElementName: a", "FunctionBody: return 1 ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: get a ( ) { return 1 ; }",
+        vec!["ClassElementName: a", "FunctionBody: return 1 ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: get a ( ) { return 1 ; }",
-        vec!["Keyword: get", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "ReturnStatement: return 1 ;", "Punctuator: }"],
+        vec![
+            "Keyword: get",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ReturnStatement: return 1 ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_03() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 28);
     assert!(matches!(&*pn, MethodDefinition::Setter(..)));
-    pretty_check(&*pn, "MethodDefinition: set a ( blue ) { this . a = blue ; }", vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: set a ( blue ) { this . a = blue ; }",
+        vec!["ClassElementName: a", "PropertySetParameterList: blue", "FunctionBody: this . a = blue ;"],
+    );
     concise_check(
         &*pn,
         "MethodDefinition: set a ( blue ) { this . a = blue ; }",
-        vec!["Keyword: set", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Keyword: set",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_04() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 26);
     assert!(matches!(&*pn, MethodDefinition::Generator(..)));
-    pretty_check(&*pn, "MethodDefinition: * a ( blue ) { this . a = blue ; }", vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: * a ( blue ) { this . a = blue ; }",
+        vec!["GeneratorMethod: * a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "GeneratorMethod: * a ( blue ) { this . a = blue ; }",
-        vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_05() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 30);
     assert!(matches!(&*pn, MethodDefinition::Async(..)));
-    pretty_check(&*pn, "MethodDefinition: async a ( blue ) { this . a = blue ; }", vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: async a ( blue ) { this . a = blue ; }",
+        vec!["AsyncMethod: async a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "AsyncMethod: async a ( blue ) { this . a = blue ; }",
-        vec!["Keyword: async", "IdentifierName: a", "Punctuator: (", "IdentifierName: blue", "Punctuator: )", "Punctuator: {", "ExpressionStatement: this . a = blue ;", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: blue",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: this . a = blue ;",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", pn);
 }
 #[test]
 fn method_definition_test_06() {
-    let (pn, scanner) = check(MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false));
+    let (pn, scanner) =
+        check(MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false));
     chk_scan(&scanner, 31);
     assert!(matches!(&*pn, MethodDefinition::AsyncGenerator(..)));
-    pretty_check(&*pn, "MethodDefinition: async * a ( blue ) { this . a = blue ; }", vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"]);
+    pretty_check(
+        &*pn,
+        "MethodDefinition: async * a ( blue ) { this . a = blue ; }",
+        vec!["AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }"],
+    );
     concise_check(
         &*pn,
         "AsyncGeneratorMethod: async * a ( blue ) { this . a = blue ; }",
@@ -112,7 +187,12 @@ fn method_definition_test_06() {
 }
 #[test]
 fn method_definition_test_errs_01() {
-    check_err(MethodDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "MethodDefinition expected", 1, 1);
+    check_err(
+        MethodDefinition::parse(&mut newparser(""), Scanner::new(), false, false),
+        "MethodDefinition expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn method_definition_test_errs_02() {
@@ -136,7 +216,12 @@ fn method_definition_test_errs_06() {
 }
 #[test]
 fn method_definition_test_errs_07() {
-    check_err(MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
+    check_err(
+        MethodDefinition::parse(&mut newparser("get"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn method_definition_test_errs_08() {
@@ -156,7 +241,12 @@ fn method_definition_test_errs_11() {
 }
 #[test]
 fn method_definition_test_errs_12() {
-    check_err(MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false), "ClassElementName expected", 1, 4);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn method_definition_test_errs_13() {
@@ -164,11 +254,21 @@ fn method_definition_test_errs_13() {
 }
 #[test]
 fn method_definition_test_errs_14() {
-    check_err(MethodDefinition::parse(&mut newparser("set a("), Scanner::new(), false, false), "BindingElement expected", 1, 7);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a("), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn method_definition_test_errs_15() {
-    check_err(MethodDefinition::parse(&mut newparser("set a()"), Scanner::new(), false, false), "BindingElement expected", 1, 7);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a()"), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn method_definition_test_errs_16() {
@@ -176,7 +276,12 @@ fn method_definition_test_errs_16() {
 }
 #[test]
 fn method_definition_test_errs_17() {
-    check_err(MethodDefinition::parse(&mut newparser("set a(h){"), Scanner::new(), false, false), "‘}’ expected", 1, 10);
+    check_err(
+        MethodDefinition::parse(&mut newparser("set a(h){"), Scanner::new(), false, false),
+        "‘}’ expected",
+        1,
+        10,
+    );
 }
 #[test]
 fn method_definition_test_errs_18() {
@@ -189,27 +294,34 @@ fn method_definition_test_prettyerrors_1() {
 }
 #[test]
 fn method_definition_test_prettyerrors_2() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_3() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_4() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_5() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_prettyerrors_6() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -219,27 +331,34 @@ fn method_definition_test_conciseerrors_1() {
 }
 #[test]
 fn method_definition_test_conciseerrors_2() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("get a() { return 1; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_3() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("set a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_4() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("* a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_5() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn method_definition_test_conciseerrors_6() {
-    let (item, _) = MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        MethodDefinition::parse(&mut newparser("async *a(blue) { this.a=blue; }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -551,13 +670,22 @@ mod property_set_parameter_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new())
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("a" => vec!["a"]; "FormalParameter")]
     fn bound_names(src: &str) -> Vec<String> {
-        PropertySetParameterList::parse(&mut newparser(src), Scanner::new()).unwrap().0.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+        PropertySetParameterList::parse(&mut newparser(src), Scanner::new())
+            .unwrap()
+            .0
+            .bound_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a" => true; "simple")]

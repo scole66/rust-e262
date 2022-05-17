@@ -1,7 +1,9 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD, DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED,
-    PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER, PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR, SPECIAL_CONSTRUCTOR, STATIC_PROTO,
-    UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, svec, Maker, A_ALREADY_DEFN, BAD_SUPER, CONSTRUCTOR_FIELD,
+    DUPLICATE_CONSTRUCTOR, DUPLICATE_LABELS, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, PARENTLESS_SUPER,
+    PREV_GETTER, PREV_SETTER, PREV_STATIC_GETTER, PREV_STATIC_SETTER, PRIVATE_A_ALREADY_DEFN, PRIVATE_CONSTRUCTOR,
+    SPECIAL_CONSTRUCTOR, STATIC_PROTO, UNDEFINED_BREAK, UNDEF_CONT_TGT, UNEXPECTED_ARGS, UNEXPECTED_AWAIT,
+    UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -22,15 +24,21 @@ fn ss(s: &str) -> Option<String> {
 // CLASS DECLARATION
 #[test]
 fn class_declaration_test_01() {
-    let (node, scanner) = check(ClassDeclaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false, false));
+    let (node, scanner) =
+        check(ClassDeclaration::parse(&mut newparser("class a{}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassDeclaration: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(&*node, "ClassDeclaration: class a { }", vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    concise_check(
+        &*node,
+        "ClassDeclaration: class a { }",
+        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn class_declaration_test_02() {
-    let (node, scanner) = check(ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(ClassDeclaration::parse(&mut newparser("class {}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ClassDeclaration: class { }", vec!["ClassTail: { }"]);
     concise_check(&*node, "ClassDeclaration: class { }", vec!["Keyword: class", "ClassTail: { }"]);
@@ -38,19 +46,35 @@ fn class_declaration_test_02() {
 }
 #[test]
 fn class_declaration_test_err_01() {
-    check_err(ClassDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, false), "‘class’ expected", 1, 1);
+    check_err(
+        ClassDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "‘class’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn class_declaration_test_err_02() {
-    check_err(ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false), "not an identifier", 1, 6);
+    check_err(
+        ClassDeclaration::parse(&mut newparser("class"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        6,
+    );
 }
 #[test]
 fn class_declaration_test_err_03() {
-    check_err(ClassDeclaration::parse(&mut newparser("class a"), Scanner::new(), false, false, false), "‘{’ expected", 1, 8);
+    check_err(
+        ClassDeclaration::parse(&mut newparser("class a"), Scanner::new(), false, false, false),
+        "‘{’ expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn class_declaration_test_prettyerrors_1() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -60,7 +84,8 @@ fn class_declaration_test_prettyerrors_2() {
 }
 #[test]
 fn class_declaration_test_conciseerrors_1() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { }"), Scanner::new(), false, false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -80,22 +105,26 @@ fn class_declaration_test_bound_names_02() {
 }
 #[test]
 fn class_declaration_test_contains_01() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { [67](){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { [67](){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn class_declaration_test_contains_02() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class a { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class a { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn class_declaration_test_contains_03() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class { [67](){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class { [67](){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn class_declaration_test_contains_04() {
-    let (item, _) = ClassDeclaration::parse(&mut newparser("class { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        ClassDeclaration::parse(&mut newparser("class { b(c=9){} }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("class a { a(){item.#valid;} }" => true; "Named class valid")]
@@ -134,7 +163,11 @@ fn class_expression_test_01() {
     let (node, scanner) = check(ClassExpression::parse(&mut newparser("class a{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassExpression: class a { }", vec!["BindingIdentifier: a", "ClassTail: { }"]);
-    concise_check(&*node, "ClassExpression: class a { }", vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
+    concise_check(
+        &*node,
+        "ClassExpression: class a { }",
+        vec!["Keyword: class", "IdentifierName: a", "ClassTail: { }"],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -245,7 +278,11 @@ fn class_tail_test_03() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a { }"), Scanner::new(), false, false));
     chk_scan(&scanner, 13);
     pretty_check(&*node, "ClassTail: extends a { }", vec!["ClassHeritage: extends a"]);
-    concise_check(&*node, "ClassTail: extends a { }", vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ClassTail: extends a { }",
+        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -253,7 +290,11 @@ fn class_tail_test_04() {
     let (node, scanner) = check(ClassTail::parse(&mut newparser("extends a{;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 12);
     pretty_check(&*node, "ClassTail: extends a { ; }", vec!["ClassHeritage: extends a", "ClassBody: ;"]);
-    concise_check(&*node, "ClassTail: extends a { ; }", vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ClassTail: extends a { ; }",
+        vec!["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -276,13 +317,26 @@ fn class_tail_test_prettyerrors_2() {
 }
 #[test]
 fn class_tail_test_prettyerrors_3() {
-    let (item, _) =
-        ClassTail::parse(&mut newparser("extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(
+            "extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}",
+        ),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn class_tail_test_prettyerrors_4() {
-    let (item, _) = ClassTail::parse(&mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -297,13 +351,26 @@ fn class_tail_test_conciseerrors_2() {
 }
 #[test]
 fn class_tail_test_conciseerrors_3() {
-    let (item, _) =
-        ClassTail::parse(&mut newparser("extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(
+            "extends other_object { blue(left, right) { return { sum: left+right, difference: left-right }; }}",
+        ),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn class_tail_test_conciseerrors_4() {
-    let (item, _) = ClassTail::parse(&mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"), Scanner::new(), false, false).unwrap();
+    let (item, _) = ClassTail::parse(
+        &mut newparser(" { blue(left, right) { return { sum: left+right, difference: left-right }; }}"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -389,7 +456,12 @@ fn class_heritage_test_err_01() {
 }
 #[test]
 fn class_heritage_test_err_02() {
-    check_err(ClassHeritage::parse(&mut newparser("extends"), Scanner::new(), false, false), "LeftHandSideExpression expected", 1, 8);
+    check_err(
+        ClassHeritage::parse(&mut newparser("extends"), Scanner::new(), false, false),
+        "LeftHandSideExpression expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn class_heritage_test_prettyerrors_1() {
@@ -522,7 +594,12 @@ mod class_body {
 
     #[test_case("a(){} #b(){} async *#c(){}" => v(&[("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "mix")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
-        Maker::new(src).class_body().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_body()
+            .private_bound_identifiers()
+            .into_iter()
+            .map(|s| (String::from(s.name), s.usage))
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => ss("constructor ( foo ) {  }"); "constructor present")]
@@ -577,15 +654,28 @@ fn class_element_list_test_01() {
     let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ClassElementList: a (  ) {  }", vec!["ClassElement: a (  ) {  }"]);
-    concise_check(&*node, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "MethodDefinition: a (  ) {  }",
+        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn class_element_list_test_02() {
-    let (node, scanner) = check(ClassElementList::parse(&mut newparser("a(){} ; b(a){a;}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(ClassElementList::parse(&mut newparser("a(){} ; b(a){a;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 16);
-    pretty_check(&*node, "ClassElementList: a (  ) {  } ; b ( a ) { a ; }", vec!["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"]);
-    concise_check(&*node, "ClassElementList: a (  ) {  } ; b ( a ) { a ; }", vec!["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"]);
+    pretty_check(
+        &*node,
+        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
+        vec!["ClassElementList: a (  ) {  } ;", "ClassElement: b ( a ) { a ; }"],
+    );
+    concise_check(
+        &*node,
+        "ClassElementList: a (  ) {  } ; b ( a ) { a ; }",
+        vec!["ClassElementList: a (  ) {  } ;", "MethodDefinition: b ( a ) { a ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -688,7 +778,12 @@ mod class_element_list {
     #[test_case("#one_item(){}" => v(&[("#one_item", IdUsage::Public)]); "Item")]
     #[test_case("#a; #b; other; #c;" => v(&[("#a", IdUsage::Public), ("#b", IdUsage::Public), ("#c", IdUsage::Public)]); "List")]
     fn private_bound_identifiers(src: &str) -> Vec<(String, IdUsage)> {
-        Maker::new(src).class_element_list().private_bound_identifiers().into_iter().map(|s| (String::from(s.name), s.usage)).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_element_list()
+            .private_bound_identifiers()
+            .into_iter()
+            .map(|s| (String::from(s.name), s.usage))
+            .collect::<Vec<_>>()
     }
 
     #[test_case("static foo;" => svec(&[]); "item; static")]
@@ -698,7 +793,12 @@ mod class_element_list {
     #[test_case("a; b; [c];" => svec(&["a", "b"]); "List; no name")]
     #[test_case("a; b; c;" => svec(&["a", "b", "c"]); "List; named")]
     fn prototype_property_name_list(src: &str) -> Vec<String> {
-        Maker::new(src).class_element_list().prototype_property_name_list().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_element_list()
+            .prototype_property_name_list()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a;" => None; "Item: just a field")]
@@ -717,7 +817,11 @@ fn class_element_test_01() {
     let (node, scanner) = check(ClassElement::parse(&mut newparser("a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ClassElement: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
-    concise_check(&*node, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "MethodDefinition: a (  ) {  }",
+        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     assert_ne!(format!("{:?}", node), "");
 }
 #[test]
@@ -1090,7 +1194,12 @@ fn field_definition_test_02() {
 }
 #[test]
 fn field_definition_test_err_01() {
-    check_err(FieldDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+    check_err(
+        FieldDefinition::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn field_definition_test_prettyerrors_1() {
@@ -1217,7 +1326,12 @@ fn class_element_name_test_02() {
 }
 #[test]
 fn class_element_name_test_err_01() {
-    check_err(ClassElementName::parse(&mut newparser(""), Scanner::new(), false, false), "ClassElementName expected", 1, 1);
+    check_err(
+        ClassElementName::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn class_element_name_test_prettyerrors_1() {
@@ -1322,7 +1436,11 @@ mod class_static_block {
         let (node, scanner) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
         chk_scan(&scanner, 13);
         pretty_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["ClassStaticBlockBody: 0 ;"]);
-        concise_check(&*node, "ClassStaticBlock: static { 0 ; }", vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"]);
+        concise_check(
+            &*node,
+            "ClassStaticBlock: static { 0 ; }",
+            vec!["Keyword: static", "Punctuator: {", "ExpressionStatement: 0 ;", "Punctuator: }"],
+        );
         assert_ne!(format!("{:?}", node), "");
     }
     #[test_case("", "‘static’ expected", 1; "Empty Source")]
@@ -1519,12 +1637,22 @@ mod class_static_block_statement_list {
     #[test_case("var a; const q=1; function b(){}" => svec(&["a", "b"]); "names")]
     #[test_case("" => svec(&[]); "empty")]
     fn var_declared_names(src: &str) -> Vec<String> {
-        Maker::new(src).class_static_block_statement_list().var_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_static_block_statement_list()
+            .var_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
     #[test_case("" => svec(&[]); "empty")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        Maker::new(src).class_static_block_statement_list().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .class_static_block_statement_list()
+            .lexically_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 }

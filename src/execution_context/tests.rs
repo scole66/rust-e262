@@ -129,7 +129,10 @@ mod agent {
             let realm = agent.current_realm_record().unwrap();
             let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
             let mut script_context = ExecutionContext::new(None, Rc::clone(&realm), None);
-            script_context.lexical_environment = Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "child")) as Rc<dyn EnvironmentRecord>);
+            script_context.lexical_environment = Some(Rc::new(DeclarativeEnvironmentRecord::new(
+                Some(global_env),
+                "child",
+            )) as Rc<dyn EnvironmentRecord>);
             agent.push_execution_context(script_context);
 
             let env = agent.get_this_environment();
@@ -147,7 +150,8 @@ mod agent {
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
         let mut script_context = ExecutionContext::new(None, Rc::clone(&realm), None);
-        script_context.lexical_environment = Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "rtb")) as Rc<dyn EnvironmentRecord>);
+        script_context.lexical_environment =
+            Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "rtb")) as Rc<dyn EnvironmentRecord>);
         agent.push_execution_context(script_context);
 
         let this_binding_value = agent.resolve_this_binding().unwrap();
@@ -166,13 +170,18 @@ mod agent {
         env.initialize_binding(a, &"marker".into(), ECMAScriptValue::from(100)).unwrap();
         Some(Rc::new(env) as Rc<dyn EnvironmentRecord>)
     }, false => Ok(("Environment(DeclarativeEnvironmentRecord(test-decl-env))".to_string(), ReferencedName::from("marker"), false, None)); "Other env")]
-    fn resolve_binding(name: &str, env_maker: fn(&mut Agent) -> Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> Result<(String, ReferencedName, bool, Option<ECMAScriptValue>), String> {
+    fn resolve_binding(
+        name: &str,
+        env_maker: fn(&mut Agent) -> Option<Rc<dyn EnvironmentRecord>>,
+        strict: bool,
+    ) -> Result<(String, ReferencedName, bool, Option<ECMAScriptValue>), String> {
         let mut agent = test_agent();
         // Need to establish a lexical environment first.
         let realm = agent.current_realm_record().unwrap();
         let global_env = realm.borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
         let mut script_context = ExecutionContext::new(None, Rc::clone(&realm), None);
-        script_context.lexical_environment = Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "script")) as Rc<dyn EnvironmentRecord>);
+        script_context.lexical_environment =
+            Some(Rc::new(DeclarativeEnvironmentRecord::new(Some(global_env), "script")) as Rc<dyn EnvironmentRecord>);
         agent.push_execution_context(script_context);
 
         let env = env_maker(&mut agent);

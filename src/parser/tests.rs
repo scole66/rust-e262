@@ -23,7 +23,11 @@ impl From<(u32, u32)> for Location {
         // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
         // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
         // do we know? Making lines really long helps that intuition make better tests.)
-        Location { starting_line: line, starting_column: column, span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 } }
+        Location {
+            starting_line: line,
+            starting_column: column,
+            span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 },
+        }
     }
 }
 
@@ -140,9 +144,14 @@ fn parse_goal_04() {
 
 #[test]
 fn yield_await_key_01() {
-    let left = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false };
+    let left = YieldAwaitKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        yield_flag: false,
+        await_flag: false,
+    };
     let right = left.clone();
-    let third = YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true };
+    let third =
+        YieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -151,9 +160,19 @@ fn yield_await_key_01() {
 }
 #[test]
 fn yield_await_tagged_key_01() {
-    let left = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: false, tagged_flag: false };
+    let left = YieldAwaitTaggedKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        yield_flag: false,
+        await_flag: false,
+        tagged_flag: false,
+    };
     let right = left.clone();
-    let third = YieldAwaitTaggedKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: false, await_flag: true, tagged_flag: false };
+    let third = YieldAwaitTaggedKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        yield_flag: false,
+        await_flag: true,
+        tagged_flag: false,
+    };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -162,9 +181,19 @@ fn yield_await_tagged_key_01() {
 }
 #[test]
 fn in_yield_await_key_01() {
-    let left = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: false };
+    let left = InYieldAwaitKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        in_flag: true,
+        yield_flag: false,
+        await_flag: false,
+    };
     let right = left.clone();
-    let third = InYieldAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, yield_flag: false, await_flag: true };
+    let third = InYieldAwaitKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        in_flag: true,
+        yield_flag: false,
+        await_flag: true,
+    };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -184,9 +213,11 @@ fn in_key_01() {
 }
 #[test]
 fn in_await_key_01() {
-    let left = InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
+    let left =
+        InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
     let right = left.clone();
-    let third = InAwaitKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true, await_flag: false };
+    let third =
+        InAwaitKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true, await_flag: false };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -195,9 +226,19 @@ fn in_await_key_01() {
 }
 #[test]
 fn yield_await_return_key_01() {
-    let left = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
+    let left = YieldAwaitReturnKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        yield_flag: true,
+        await_flag: false,
+        return_flag: true,
+    };
     let right = left.clone();
-    let third = YieldAwaitReturnKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: false, return_flag: true };
+    let third = YieldAwaitReturnKey {
+        scanner: Scanner { line: 10, column: 22, start_idx: 11 },
+        yield_flag: true,
+        await_flag: false,
+        return_flag: true,
+    };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -217,9 +258,19 @@ fn yield_key_01() {
 }
 #[test]
 fn yield_await_default_key_01() {
-    let left = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
+    let left = YieldAwaitDefaultKey {
+        scanner: Scanner { line: 10, column: 12, start_idx: 11 },
+        yield_flag: true,
+        await_flag: true,
+        default_flag: true,
+    };
     let right = left.clone();
-    let third = YieldAwaitDefaultKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true, await_flag: true, default_flag: true };
+    let third = YieldAwaitDefaultKey {
+        scanner: Scanner { line: 10, column: 22, start_idx: 11 },
+        yield_flag: true,
+        await_flag: true,
+        default_flag: true,
+    };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -355,7 +406,12 @@ fn scan_for_punct_02() {
 #[test]
 fn scan_for_punct_set_01() {
     // Match at the end
-    let res = scan_for_punct_set(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]);
+    let res = scan_for_punct_set(
+        Scanner::new(),
+        ";;;;;",
+        ScanGoal::InputElementDiv,
+        &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
+    );
     assert!(res.is_ok());
     if let Ok((p, scanner)) = res {
         assert_eq!(scanner, Scanner { line: 1, column: 2, start_idx: 1 });
@@ -365,7 +421,12 @@ fn scan_for_punct_set_01() {
 #[test]
 fn scan_for_punct_set_02() {
     // Match at the beginning
-    let res = scan_for_punct_set(Scanner::new(), ":::::", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]);
+    let res = scan_for_punct_set(
+        Scanner::new(),
+        ":::::",
+        ScanGoal::InputElementDiv,
+        &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
+    );
     assert!(res.is_ok());
     if let Ok((p, scanner)) = res {
         assert_eq!(scanner, Scanner { line: 1, column: 2, start_idx: 1 });
@@ -375,7 +436,12 @@ fn scan_for_punct_set_02() {
 #[test]
 fn scan_for_punct_set_03() {
     // Match somewhere in the middle
-    let res = scan_for_punct_set(Scanner::new(), "[[[[[", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::LeftBracket, Punctuator::Semicolon]);
+    let res = scan_for_punct_set(
+        Scanner::new(),
+        "[[[[[",
+        ScanGoal::InputElementDiv,
+        &[Punctuator::Colon, Punctuator::LeftBracket, Punctuator::Semicolon],
+    );
     assert!(res.is_ok());
     if let Ok((p, scanner)) = res {
         assert_eq!(scanner, Scanner { line: 1, column: 2, start_idx: 1 });
@@ -385,8 +451,20 @@ fn scan_for_punct_set_03() {
 #[test]
 fn scan_for_punct_set_04() {
     // No match
-    let pe = scan_for_punct_set(Scanner::new(), "&&&&&", ScanGoal::InputElementDiv, &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]), 1));
+    let pe = scan_for_punct_set(
+        Scanner::new(),
+        "&&&&&",
+        ScanGoal::InputElementDiv,
+        &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
+    )
+    .unwrap_err();
+    assert_eq!(
+        pe,
+        ParseError::new(
+            PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]),
+            1
+        )
+    );
 }
 
 #[test]
@@ -435,14 +513,25 @@ fn scan_for_keyword_02() {
 #[test]
 fn scan_for_keywords_01() {
     // Match at the beginning
-    let (kwd, scan) = scan_for_keywords(Scanner::new(), "for (;;)", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]).unwrap();
+    let (kwd, scan) = scan_for_keywords(
+        Scanner::new(),
+        "for (;;)",
+        ScanGoal::InputElementDiv,
+        &[Keyword::For, Keyword::Class, Keyword::Break],
+    )
+    .unwrap();
     assert_eq!(kwd, Keyword::For);
     assert_eq!(scan, Scanner { line: 1, column: 4, start_idx: 3 });
 }
 #[test]
 fn scan_for_keywords_02() {
     // Match at the end
-    let res = scan_for_keywords(Scanner::new(), "break;", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]);
+    let res = scan_for_keywords(
+        Scanner::new(),
+        "break;",
+        ScanGoal::InputElementDiv,
+        &[Keyword::For, Keyword::Class, Keyword::Break],
+    );
     assert!(res.is_ok());
     if let Ok((kwd, scan)) = res {
         assert_eq!(kwd, Keyword::Break);
@@ -452,7 +541,12 @@ fn scan_for_keywords_02() {
 #[test]
 fn scan_for_keywords_03() {
     // Match in the middle
-    let res = scan_for_keywords(Scanner::new(), "class Transcendant", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]);
+    let res = scan_for_keywords(
+        Scanner::new(),
+        "class Transcendant",
+        ScanGoal::InputElementDiv,
+        &[Keyword::For, Keyword::Class, Keyword::Break],
+    );
     assert!(res.is_ok());
     if let Ok((kwd, scan)) = res {
         assert_eq!(kwd, Keyword::Class);
@@ -462,8 +556,17 @@ fn scan_for_keywords_03() {
 #[test]
 fn scan_for_keywords_04() {
     // No match
-    let res = scan_for_keywords(Scanner::new(), "import food", ScanGoal::InputElementDiv, &[Keyword::For, Keyword::Class, Keyword::Break]).unwrap_err();
-    assert_eq!(res, ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), 1));
+    let res = scan_for_keywords(
+        Scanner::new(),
+        "import food",
+        ScanGoal::InputElementDiv,
+        &[Keyword::For, Keyword::Class, Keyword::Break],
+    )
+    .unwrap_err();
+    assert_eq!(
+        res,
+        ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), 1)
+    );
 }
 
 #[test]
