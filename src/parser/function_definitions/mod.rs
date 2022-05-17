@@ -22,7 +22,9 @@ impl fmt::Display for FunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }
@@ -213,7 +215,9 @@ impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }

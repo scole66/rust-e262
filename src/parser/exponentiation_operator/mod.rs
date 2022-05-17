@@ -19,8 +19,12 @@ pub enum ExponentiationExpression {
 impl fmt::Display for ExponentiationExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            ExponentiationExpression::UnaryExpression(boxed) => write!(f, "{}", boxed),
-            ExponentiationExpression::Exponentiation(ue, ee) => write!(f, "{} ** {}", ue, ee),
+            ExponentiationExpression::UnaryExpression(boxed) => {
+                write!(f, "{}", boxed)
+            }
+            ExponentiationExpression::Exponentiation(ue, ee) => {
+                write!(f, "{} ** {}", ue, ee)
+            }
         }
     }
 }

@@ -19,7 +19,9 @@ impl fmt::Display for LogicalANDExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             LogicalANDExpression::BitwiseORExpression(pn) => write!(f, "{}", pn),
-            LogicalANDExpression::LogicalAND(left, right) => write!(f, "{} && {}", left, right),
+            LogicalANDExpression::LogicalAND(left, right) => {
+                write!(f, "{} && {}", left, right)
+            }
         }
     }
 }
@@ -184,7 +186,9 @@ impl fmt::Display for LogicalORExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             LogicalORExpression::LogicalANDExpression(node) => node.fmt(f),
-            LogicalORExpression::LogicalOR(left, right) => write!(f, "{} || {}", left, right),
+            LogicalORExpression::LogicalOR(left, right) => {
+                write!(f, "{} || {}", left, right)
+            }
         }
     }
 }

@@ -1360,7 +1360,9 @@ impl fmt::Display for LiteralPropertyName {
                 number_to_string(&mut s, *n).unwrap();
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
-            LiteralPropertyName::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", b),
+            LiteralPropertyName::NumericLiteral(Numeric::BigInt(b)) => {
+                write!(f, "{}", b)
+            }
         }
     }
 }
@@ -1577,7 +1579,9 @@ impl fmt::Display for PropertyDefinition {
         match self {
             PropertyDefinition::IdentifierReference(idref) => write!(f, "{}", idref),
             PropertyDefinition::CoverInitializedName(cin) => write!(f, "{}", cin),
-            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => write!(f, "{} : {}", pn, ae),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                write!(f, "{} : {}", pn, ae)
+            }
             PropertyDefinition::MethodDefinition(md) => write!(f, "{}", md),
             PropertyDefinition::AssignmentExpression(ae) => write!(f, "... {}", ae),
         }
@@ -1820,7 +1824,9 @@ impl fmt::Display for PropertyDefinitionList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PropertyDefinitionList::OneDef(pd) => write!(f, "{}", pd),
-            PropertyDefinitionList::ManyDefs(pdl, pd) => write!(f, "{} , {}", pdl, pd),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                write!(f, "{} , {}", pdl, pd)
+            }
         }
     }
 }
@@ -3066,11 +3072,21 @@ pub enum CoverParenthesizedExpressionAndArrowParameterList {
 impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => write!(f, "( {} )", node),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => write!(f, "( {} , )", node),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => write!(f, "( )"),
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => write!(f, "( ... {} )", node),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => write!(f, "( ... {} )", node),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+                write!(f, "( {} )", node)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+                write!(f, "( {} , )", node)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {
+                write!(f, "( )")
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+                write!(f, "( ... {} )", node)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+                write!(f, "( ... {} )", node)
+            }
             CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
                 write!(f, "( {} , ... {} )", exp, id)
             }

@@ -24,8 +24,12 @@ impl fmt::Display for TryStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TryStatement::Catch(block, catch) => write!(f, "try {} {}", block, catch),
-            TryStatement::Finally(block, finally) => write!(f, "try {} {}", block, finally),
-            TryStatement::Full(block, catch, finally) => write!(f, "try {} {} {}", block, catch, finally),
+            TryStatement::Finally(block, finally) => {
+                write!(f, "try {} {}", block, finally)
+            }
+            TryStatement::Full(block, catch, finally) => {
+                write!(f, "try {} {} {}", block, catch, finally)
+            }
         }
     }
 }

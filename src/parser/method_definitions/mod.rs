@@ -31,12 +31,18 @@ pub enum MethodDefinition {
 impl fmt::Display for MethodDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MethodDefinition::NamedFunction(name, params, body) => write!(f, "{} ( {} ) {{ {} }}", name, params, body),
+            MethodDefinition::NamedFunction(name, params, body) => {
+                write!(f, "{} ( {} ) {{ {} }}", name, params, body)
+            }
             MethodDefinition::Generator(node) => node.fmt(f),
             MethodDefinition::Async(node) => node.fmt(f),
             MethodDefinition::AsyncGenerator(node) => node.fmt(f),
-            MethodDefinition::Getter(name, body) => write!(f, "get {} ( ) {{ {} }}", name, body),
-            MethodDefinition::Setter(name, args, body) => write!(f, "set {} ( {} ) {{ {} }}", name, args, body),
+            MethodDefinition::Getter(name, body) => {
+                write!(f, "get {} ( ) {{ {} }}", name, body)
+            }
+            MethodDefinition::Setter(name, args, body) => {
+                write!(f, "set {} ( {} ) {{ {} }}", name, args, body)
+            }
         }
     }
 }

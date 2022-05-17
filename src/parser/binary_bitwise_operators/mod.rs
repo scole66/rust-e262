@@ -182,7 +182,9 @@ impl fmt::Display for BitwiseXORExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             BitwiseXORExpression::BitwiseANDExpression(band) => write!(f, "{}", band),
-            BitwiseXORExpression::BitwiseXOR(bxor, band) => write!(f, "{} ^ {}", bxor, band),
+            BitwiseXORExpression::BitwiseXOR(bxor, band) => {
+                write!(f, "{} ^ {}", bxor, band)
+            }
         }
     }
 }
@@ -347,7 +349,9 @@ impl fmt::Display for BitwiseORExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => write!(f, "{}", bxor),
-            BitwiseORExpression::BitwiseOR(bor, bxor) => write!(f, "{} | {}", bor, bxor),
+            BitwiseORExpression::BitwiseOR(bor, bxor) => {
+                write!(f, "{} | {}", bor, bxor)
+            }
         }
     }
 }

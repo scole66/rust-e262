@@ -129,7 +129,9 @@ impl fmt::Display for FormalParameters {
             FormalParameters::Rest(node) => node.fmt(f),
             FormalParameters::List(node) => node.fmt(f),
             FormalParameters::ListComma(node) => write!(f, "{} ,", node),
-            FormalParameters::ListRest(list, rest) => write!(f, "{} , {}", list, rest),
+            FormalParameters::ListRest(list, rest) => {
+                write!(f, "{} , {}", list, rest)
+            }
         }
     }
 }

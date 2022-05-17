@@ -461,25 +461,49 @@ impl fmt::Display for ForStatement {
             ForStatement::For(Some(e1), Some(e2), Some(e3), s) => {
                 write!(f, "for ( {} ; {} ; {} ) {}", e1, e2, e3, s)
             }
-            ForStatement::For(Some(e1), Some(e2), None, s) => write!(f, "for ( {} ; {} ; ) {}", e1, e2, s),
-            ForStatement::For(Some(e1), None, Some(e3), s) => write!(f, "for ( {} ; ; {} ) {}", e1, e3, s),
-            ForStatement::For(Some(e1), None, None, s) => write!(f, "for ( {} ; ; ) {}", e1, s),
-            ForStatement::For(None, Some(e2), Some(e3), s) => write!(f, "for ( ; {} ; {} ) {}", e2, e3, s),
-            ForStatement::For(None, Some(e2), None, s) => write!(f, "for ( ; {} ; ) {}", e2, s),
-            ForStatement::For(None, None, Some(e3), s) => write!(f, "for ( ; ; {} ) {}", e3, s),
+            ForStatement::For(Some(e1), Some(e2), None, s) => {
+                write!(f, "for ( {} ; {} ; ) {}", e1, e2, s)
+            }
+            ForStatement::For(Some(e1), None, Some(e3), s) => {
+                write!(f, "for ( {} ; ; {} ) {}", e1, e3, s)
+            }
+            ForStatement::For(Some(e1), None, None, s) => {
+                write!(f, "for ( {} ; ; ) {}", e1, s)
+            }
+            ForStatement::For(None, Some(e2), Some(e3), s) => {
+                write!(f, "for ( ; {} ; {} ) {}", e2, e3, s)
+            }
+            ForStatement::For(None, Some(e2), None, s) => {
+                write!(f, "for ( ; {} ; ) {}", e2, s)
+            }
+            ForStatement::For(None, None, Some(e3), s) => {
+                write!(f, "for ( ; ; {} ) {}", e3, s)
+            }
             ForStatement::For(None, None, None, s) => write!(f, "for ( ; ; ) {}", s),
             ForStatement::ForVar(v, Some(e1), Some(e2), s) => {
                 write!(f, "for ( var {} ; {} ; {} ) {}", v, e1, e2, s)
             }
-            ForStatement::ForVar(v, Some(e1), None, s) => write!(f, "for ( var {} ; {} ; ) {}", v, e1, s),
-            ForStatement::ForVar(v, None, Some(e2), s) => write!(f, "for ( var {} ; ; {} ) {}", v, e2, s),
-            ForStatement::ForVar(v, None, None, s) => write!(f, "for ( var {} ; ; ) {}", v, s),
+            ForStatement::ForVar(v, Some(e1), None, s) => {
+                write!(f, "for ( var {} ; {} ; ) {}", v, e1, s)
+            }
+            ForStatement::ForVar(v, None, Some(e2), s) => {
+                write!(f, "for ( var {} ; ; {} ) {}", v, e2, s)
+            }
+            ForStatement::ForVar(v, None, None, s) => {
+                write!(f, "for ( var {} ; ; ) {}", v, s)
+            }
             ForStatement::ForLex(lex, Some(e1), Some(e2), s) => {
                 write!(f, "for ( {} {} ; {} ) {}", lex, e1, e2, s)
             }
-            ForStatement::ForLex(lex, Some(e1), None, s) => write!(f, "for ( {} {} ; ) {}", lex, e1, s),
-            ForStatement::ForLex(lex, None, Some(e2), s) => write!(f, "for ( {} ; {} ) {}", lex, e2, s),
-            ForStatement::ForLex(lex, None, None, s) => write!(f, "for ( {} ; ) {}", lex, s),
+            ForStatement::ForLex(lex, Some(e1), None, s) => {
+                write!(f, "for ( {} {} ; ) {}", lex, e1, s)
+            }
+            ForStatement::ForLex(lex, None, Some(e2), s) => {
+                write!(f, "for ( {} ; {} ) {}", lex, e2, s)
+            }
+            ForStatement::ForLex(lex, None, None, s) => {
+                write!(f, "for ( {} ; ) {}", lex, s)
+            }
         }
     }
 }
@@ -850,18 +874,42 @@ pub enum ForInOfStatement {
 impl fmt::Display for ForInOfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ForInOfStatement::In(lhs, e, s) => write!(f, "for ( {} in {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringIn(pat, e, s) => write!(f, "for ( {} in {} ) {}", pat, e, s),
-            ForInOfStatement::VarIn(v, e, s) => write!(f, "for ( var {} in {} ) {}", v, e, s),
-            ForInOfStatement::LexIn(lex, e, s) => write!(f, "for ( {} in {} ) {}", lex, e, s),
-            ForInOfStatement::Of(lhs, e, s) => write!(f, "for ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringOf(pat, e, s) => write!(f, "for ( {} of {} ) {}", pat, e, s),
-            ForInOfStatement::VarOf(v, e, s) => write!(f, "for ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::LexOf(lex, e, s) => write!(f, "for ( {} of {} ) {}", lex, e, s),
-            ForInOfStatement::AwaitOf(lhs, e, s) => write!(f, "for await ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => write!(f, "for await ( {} of {} ) {}", pat, e, s),
-            ForInOfStatement::AwaitVarOf(v, e, s) => write!(f, "for await ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::AwaitLexOf(lex, e, s) => write!(f, "for await ( {} of {} ) {}", lex, e, s),
+            ForInOfStatement::In(lhs, e, s) => {
+                write!(f, "for ( {} in {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringIn(pat, e, s) => {
+                write!(f, "for ( {} in {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::VarIn(v, e, s) => {
+                write!(f, "for ( var {} in {} ) {}", v, e, s)
+            }
+            ForInOfStatement::LexIn(lex, e, s) => {
+                write!(f, "for ( {} in {} ) {}", lex, e, s)
+            }
+            ForInOfStatement::Of(lhs, e, s) => {
+                write!(f, "for ( {} of {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringOf(pat, e, s) => {
+                write!(f, "for ( {} of {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::VarOf(v, e, s) => {
+                write!(f, "for ( var {} of {} ) {}", v, e, s)
+            }
+            ForInOfStatement::LexOf(lex, e, s) => {
+                write!(f, "for ( {} of {} ) {}", lex, e, s)
+            }
+            ForInOfStatement::AwaitOf(lhs, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::AwaitVarOf(v, e, s) => {
+                write!(f, "for await ( var {} of {} ) {}", v, e, s)
+            }
+            ForInOfStatement::AwaitLexOf(lex, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", lex, e, s)
+            }
         }
     }
 }

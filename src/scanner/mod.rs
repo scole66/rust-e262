@@ -2097,7 +2097,6 @@ fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner
                 scan,
             ))
         }
-        Ok(None) => None,
     })
 }
 

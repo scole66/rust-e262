@@ -368,7 +368,9 @@ impl LabelledItem {
     /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
     pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
-            LabelledItem::Function(fd) => vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))],
+            LabelledItem::Function(fd) => {
+                vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))]
+            }
             LabelledItem::Statement(stmt) => match &**stmt {
                 Statement::Labelled(ls) => ls.top_level_var_scoped_declarations(),
                 _ => stmt.var_scoped_declarations(),

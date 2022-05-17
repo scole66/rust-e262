@@ -54,7 +54,9 @@ impl fmt::Display for MemberExpression {
             MemberExpression::TemplateLiteral(me, tl) => write!(f, "{} {}", me, tl),
             MemberExpression::SuperProperty(boxed) => write!(f, "{}", boxed),
             MemberExpression::MetaProperty(boxed) => write!(f, "{}", boxed),
-            MemberExpression::NewArguments(me, args) => write!(f, "new {} {}", me, args),
+            MemberExpression::NewArguments(me, args) => {
+                write!(f, "new {} {}", me, args)
+            }
         }
     }
 }
@@ -882,7 +884,9 @@ impl fmt::Display for ArgumentList {
             ArgumentList::FallThru(boxed) => write!(f, "{}", boxed),
             ArgumentList::Dots(boxed) => write!(f, "... {}", boxed),
             ArgumentList::ArgumentList(list, exp) => write!(f, "{} , {}", list, exp),
-            ArgumentList::ArgumentListDots(list, exp) => write!(f, "{} , ... {}", list, exp),
+            ArgumentList::ArgumentListDots(list, exp) => {
+                write!(f, "{} , ... {}", list, exp)
+            }
         }
     }
 }
@@ -1923,7 +1927,9 @@ pub enum OptionalExpression {
 impl fmt::Display for OptionalExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OptionalExpression::Member(left, right) => write!(f, "{} {}", left, right),
+            OptionalExpression::Member(left, right) => {
+                write!(f, "{} {}", left, right)
+            }
             OptionalExpression::Call(left, right) => write!(f, "{} {}", left, right),
             OptionalExpression::Opt(left, right) => write!(f, "{} {}", left, right),
         }
@@ -2104,7 +2110,9 @@ impl fmt::Display for OptionalChain {
         match self {
             OptionalChain::Args(node) => write!(f, "?. {}", node),
             OptionalChain::Exp(node) => write!(f, "?. [ {} ]", node),
-            OptionalChain::Ident(node) | OptionalChain::PrivateId(node) => write!(f, "?. {}", node),
+            OptionalChain::Ident(node) | OptionalChain::PrivateId(node) => {
+                write!(f, "?. {}", node)
+            }
             OptionalChain::Template(node) => write!(f, "?. {}", node),
             OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
             OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),

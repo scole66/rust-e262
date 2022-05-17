@@ -24,8 +24,12 @@ impl fmt::Display for ShiftExpression {
         match self {
             ShiftExpression::AdditiveExpression(ae) => write!(f, "{}", ae),
             ShiftExpression::LeftShift(se, ae) => write!(f, "{} << {}", se, ae),
-            ShiftExpression::SignedRightShift(se, ae) => write!(f, "{} >> {}", se, ae),
-            ShiftExpression::UnsignedRightShift(se, ae) => write!(f, "{} >>> {}", se, ae),
+            ShiftExpression::SignedRightShift(se, ae) => {
+                write!(f, "{} >> {}", se, ae)
+            }
+            ShiftExpression::UnsignedRightShift(se, ae) => {
+                write!(f, "{} >>> {}", se, ae)
+            }
         }
     }
 }

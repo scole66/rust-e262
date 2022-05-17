@@ -623,8 +623,12 @@ pub enum ConversionHint {
 }
 pub fn ordinary_to_primitive(agent: &mut Agent, obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
     let method_names = match hint {
-        ConversionHint::String => vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")],
-        ConversionHint::Number => vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")],
+        ConversionHint::String => {
+            vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")]
+        }
+        ConversionHint::Number => {
+            vec![PropertyKey::from("valueOf"), PropertyKey::from("toString")]
+        }
     };
     for name in method_names.iter() {
         let method = get(agent, obj, name)?;

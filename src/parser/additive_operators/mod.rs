@@ -20,7 +20,9 @@ pub enum AdditiveExpression {
 impl fmt::Display for AdditiveExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            AdditiveExpression::MultiplicativeExpression(boxed) => write!(f, "{}", boxed),
+            AdditiveExpression::MultiplicativeExpression(boxed) => {
+                write!(f, "{}", boxed)
+            }
             AdditiveExpression::Add(ae, me) => {
                 write!(f, "{} + {}", ae, me)
             }

@@ -34,8 +34,12 @@ impl fmt::Display for RelationalExpression {
             RelationalExpression::Less(re, se) => write!(f, "{} < {}", re, se),
             RelationalExpression::Greater(re, se) => write!(f, "{} > {}", re, se),
             RelationalExpression::LessEqual(re, se) => write!(f, "{} <= {}", re, se),
-            RelationalExpression::GreaterEqual(re, se) => write!(f, "{} >= {}", re, se),
-            RelationalExpression::InstanceOf(re, se) => write!(f, "{} instanceof {}", re, se),
+            RelationalExpression::GreaterEqual(re, se) => {
+                write!(f, "{} >= {}", re, se)
+            }
+            RelationalExpression::InstanceOf(re, se) => {
+                write!(f, "{} instanceof {}", re, se)
+            }
             RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
             RelationalExpression::PrivateIn(id, se) => write!(f, "{} in {}", id, se),
         }

@@ -152,9 +152,15 @@ impl fmt::Display for CaseBlock {
             CaseBlock::NoDefault(None) => write!(f, "{{ }}"),
             CaseBlock::NoDefault(Some(node)) => write!(f, "{{ {} }}", node),
             CaseBlock::HasDefault(None, def, None) => write!(f, "{{ {} }}", def),
-            CaseBlock::HasDefault(Some(pre), def, None) => write!(f, "{{ {} {} }}", pre, def),
-            CaseBlock::HasDefault(None, def, Some(post)) => write!(f, "{{ {} {} }}", def, post),
-            CaseBlock::HasDefault(Some(pre), def, Some(post)) => write!(f, "{{ {} {} {} }}", pre, def, post),
+            CaseBlock::HasDefault(Some(pre), def, None) => {
+                write!(f, "{{ {} {} }}", pre, def)
+            }
+            CaseBlock::HasDefault(None, def, Some(post)) => {
+                write!(f, "{{ {} {} }}", def, post)
+            }
+            CaseBlock::HasDefault(Some(pre), def, Some(post)) => {
+                write!(f, "{{ {} {} {} }}", pre, def, post)
+            }
         }
     }
 }

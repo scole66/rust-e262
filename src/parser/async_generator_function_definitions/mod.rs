@@ -143,7 +143,9 @@ pub struct AsyncGeneratorDeclaration {
 impl fmt::Display for AsyncGeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }
@@ -262,7 +264,9 @@ impl fmt::Display for AsyncGeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             Some(id) => write!(f, "async function * {} ( {} ) {{ {} }}", id, self.params, self.body),
-            None => write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function * ( {} ) {{ {} }}", self.params, self.body)
+            }
         }
     }
 }

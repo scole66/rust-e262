@@ -41,12 +41,24 @@ impl fmt::Display for AssignmentExpression {
             AssignmentExpression::Yield(node) => node.fmt(f),
             AssignmentExpression::Arrow(node) => node.fmt(f),
             AssignmentExpression::AsyncArrow(node) => node.fmt(f),
-            AssignmentExpression::Assignment(left, right) => write!(f, "{} = {}", left, right),
-            AssignmentExpression::OpAssignment(left, op, right) => write!(f, "{} {} {}", left, op, right),
-            AssignmentExpression::LandAssignment(left, right) => write!(f, "{} &&= {}", left, right),
-            AssignmentExpression::LorAssignment(left, right) => write!(f, "{} ||= {}", left, right),
-            AssignmentExpression::CoalAssignment(left, right) => write!(f, "{} ??= {}", left, right),
-            AssignmentExpression::Destructuring(left, right) => write!(f, "{} = {}", left, right),
+            AssignmentExpression::Assignment(left, right) => {
+                write!(f, "{} = {}", left, right)
+            }
+            AssignmentExpression::OpAssignment(left, op, right) => {
+                write!(f, "{} {} {}", left, op, right)
+            }
+            AssignmentExpression::LandAssignment(left, right) => {
+                write!(f, "{} &&= {}", left, right)
+            }
+            AssignmentExpression::LorAssignment(left, right) => {
+                write!(f, "{} ||= {}", left, right)
+            }
+            AssignmentExpression::CoalAssignment(left, right) => {
+                write!(f, "{} ??= {}", left, right)
+            }
+            AssignmentExpression::Destructuring(left, right) => {
+                write!(f, "{} = {}", left, right)
+            }
         }
     }
 }
@@ -664,8 +676,12 @@ impl fmt::Display for ObjectAssignmentPattern {
             ObjectAssignmentPattern::Empty => write!(f, "{{ }}"),
             ObjectAssignmentPattern::RestOnly(arp) => write!(f, "{{ {} }}", arp),
             ObjectAssignmentPattern::ListOnly(apl) => write!(f, "{{ {} }}", apl),
-            ObjectAssignmentPattern::ListRest(apl, None) => write!(f, "{{ {} , }}", apl),
-            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => write!(f, "{{ {} , {} }}", apl, arp),
+            ObjectAssignmentPattern::ListRest(apl, None) => {
+                write!(f, "{{ {} , }}", apl)
+            }
+            ObjectAssignmentPattern::ListRest(apl, Some(arp)) => {
+                write!(f, "{{ {} , {} }}", apl, arp)
+            }
         }
     }
 }
@@ -837,9 +853,15 @@ impl fmt::Display for ArrayAssignmentPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ArrayAssignmentPattern::RestOnly(None, None) => write!(f, "[ ]"),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => write!(f, "[ {} ]", elisions),
-            ArrayAssignmentPattern::RestOnly(None, Some(are)) => write!(f, "[ {} ]", are),
-            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => write!(f, "[ {} {} ]", elisions, are),
+            ArrayAssignmentPattern::RestOnly(Some(elisions), None) => {
+                write!(f, "[ {} ]", elisions)
+            }
+            ArrayAssignmentPattern::RestOnly(None, Some(are)) => {
+                write!(f, "[ {} ]", are)
+            }
+            ArrayAssignmentPattern::RestOnly(Some(elisions), Some(are)) => {
+                write!(f, "[ {} {} ]", elisions, are)
+            }
             ArrayAssignmentPattern::ListOnly(ael) => write!(f, "[ {} ]", ael),
             ArrayAssignmentPattern::ListRest(ael, None, None) => write!(f, "[ {} , ]", ael),
             ArrayAssignmentPattern::ListRest(ael, Some(elisions), None) => write!(f, "[ {} , {} ]", ael, elisions),
@@ -1130,7 +1152,9 @@ impl fmt::Display for AssignmentPropertyList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AssignmentPropertyList::Item(item) => item.fmt(f),
-            AssignmentPropertyList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            AssignmentPropertyList::List(lst, item) => {
+                write!(f, "{} , {}", lst, item)
+            }
         }
     }
 }
@@ -1245,7 +1269,9 @@ impl fmt::Display for AssignmentElementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AssignmentElementList::Item(item) => item.fmt(f),
-            AssignmentElementList::List(list, item) => write!(f, "{} , {}", list, item),
+            AssignmentElementList::List(list, item) => {
+                write!(f, "{} , {}", list, item)
+            }
         }
     }
 }

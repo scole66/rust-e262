@@ -184,7 +184,9 @@ impl fmt::Display for GeneratorDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }
@@ -324,7 +326,9 @@ impl fmt::Display for GeneratorExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
             None => write!(f, "function * ( {} ) {{ {} }}", self.params, self.body),
-            Some(id) => write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body),
+            Some(id) => {
+                write!(f, "function * {} ( {} ) {{ {} }}", id, self.params, self.body)
+            }
         }
     }
 }

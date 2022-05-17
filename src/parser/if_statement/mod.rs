@@ -20,7 +20,9 @@ pub enum IfStatement {
 impl fmt::Display for IfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IfStatement::WithElse(e, s1, s2) => write!(f, "if ( {} ) {} else {}", e, s1, s2),
+            IfStatement::WithElse(e, s1, s2) => {
+                write!(f, "if ( {} ) {} else {}", e, s1, s2)
+            }
             IfStatement::WithoutElse(e, s1) => write!(f, "if ( {} ) {}", e, s1),
         }
     }

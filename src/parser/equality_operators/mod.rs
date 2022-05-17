@@ -28,7 +28,9 @@ impl fmt::Display for EqualityExpression {
             EqualityExpression::Equal(ee, re) => write!(f, "{} == {}", ee, re),
             EqualityExpression::NotEqual(ee, re) => write!(f, "{} != {}", ee, re),
             EqualityExpression::StrictEqual(ee, re) => write!(f, "{} === {}", ee, re),
-            EqualityExpression::NotStrictEqual(ee, re) => write!(f, "{} !== {}", ee, re),
+            EqualityExpression::NotStrictEqual(ee, re) => {
+                write!(f, "{} !== {}", ee, re)
+            }
         }
     }
 }

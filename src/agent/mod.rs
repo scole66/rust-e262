@@ -963,9 +963,15 @@ impl Agent {
             (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => {
+                todo!()
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => {
+                todo!()
+            }
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => {
+                todo!()
+            }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {
                 let exponent =
                     BigUint::try_from(&*right).map_err(|_| create_range_error(self, "Exponent must be positive"))?;
@@ -994,9 +1000,15 @@ impl Agent {
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseOr) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseXor) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => {
+                todo!()
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseOr) => {
+                todo!()
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseXor) => {
+                todo!()
+            }
             (Numeric::BigInt(_), Numeric::Number(_), _) | (Numeric::Number(_), Numeric::BigInt(_), _) => {
                 Err(create_type_error(self, "Cannot mix BigInt and other types, use explicit conversions"))
             }

@@ -21,8 +21,12 @@ pub enum AsyncArrowFunction {
 impl fmt::Display for AsyncArrowFunction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AsyncArrowFunction::IdentOnly(id, body) => write!(f, "async {} => {}", id, body),
-            AsyncArrowFunction::Formals(params, body) => write!(f, "{} => {}", params, body),
+            AsyncArrowFunction::IdentOnly(id, body) => {
+                write!(f, "async {} => {}", id, body)
+            }
+            AsyncArrowFunction::Formals(params, body) => {
+                write!(f, "{} => {}", params, body)
+            }
         }
     }
 }

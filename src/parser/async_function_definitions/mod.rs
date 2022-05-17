@@ -24,7 +24,9 @@ pub struct AsyncFunctionDeclaration {
 impl fmt::Display for AsyncFunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }
@@ -216,7 +218,9 @@ pub struct AsyncFunctionExpression {
 impl fmt::Display for AsyncFunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }

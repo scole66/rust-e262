@@ -650,7 +650,9 @@ impl Declaration {
     pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             Declaration::Hoistable(_) => vec![],
-            Declaration::Class(_) | Declaration::Lexical(_) => vec![self.declaration_part()],
+            Declaration::Class(_) | Declaration::Lexical(_) => {
+                vec![self.declaration_part()]
+            }
         }
     }
 }

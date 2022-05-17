@@ -603,7 +603,9 @@ impl fmt::Display for VariableDeclarationList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VariableDeclarationList::Item(node) => node.fmt(f),
-            VariableDeclarationList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            VariableDeclarationList::List(lst, item) => {
+                write!(f, "{} , {}", lst, item)
+            }
         }
     }
 }
@@ -746,7 +748,9 @@ impl VariableDeclarationList {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
-            VariableDeclarationList::Item(vd) => vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))],
+            VariableDeclarationList::Item(vd) => {
+                vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))]
+            }
             VariableDeclarationList::List(vdl, vd) => {
                 let mut list = vdl.var_scoped_declarations();
                 list.push(VarScopeDecl::VariableDeclaration(Rc::clone(vd)));
@@ -1047,7 +1051,9 @@ impl fmt::Display for ObjectBindingPattern {
             ObjectBindingPattern::Empty => write!(f, "{{ }}"),
             ObjectBindingPattern::RestOnly(node) => write!(f, "{{ {} }}", node),
             ObjectBindingPattern::ListOnly(node) => write!(f, "{{ {} }}", node),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => write!(f, "{{ {} , {} }}", lst, rst),
+            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
+                write!(f, "{{ {} , {} }}", lst, rst)
+            }
             ObjectBindingPattern::ListRest(lst, None) => write!(f, "{{ {} , }}", lst),
         }
     }
@@ -1254,17 +1260,29 @@ pub enum ArrayBindingPattern {
 impl fmt::Display for ArrayBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => write!(f, "[ {} {} ]", elisions, node),
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => write!(f, "[ {} ]", elisions),
-            ArrayBindingPattern::RestOnly(None, Some(node)) => write!(f, "[ {} ]", node),
+            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+                write!(f, "[ {} {} ]", elisions, node)
+            }
+            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+                write!(f, "[ {} ]", elisions)
+            }
+            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+                write!(f, "[ {} ]", node)
+            }
             ArrayBindingPattern::RestOnly(None, None) => write!(f, "[ ]"),
             ArrayBindingPattern::ListOnly(node) => write!(f, "[ {} ]", node),
             ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
                 write!(f, "[ {} , {} {} ]", lst, elisions, rst)
             }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => write!(f, "[ {} , {} ]", lst, rst),
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => write!(f, "[ {} , {} ]", lst, elisions),
-            ArrayBindingPattern::ListRest(lst, None, None) => write!(f, "[ {} , ]", lst),
+            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+                write!(f, "[ {} , {} ]", lst, rst)
+            }
+            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+                write!(f, "[ {} , {} ]", lst, elisions)
+            }
+            ArrayBindingPattern::ListRest(lst, None, None) => {
+                write!(f, "[ {} , ]", lst)
+            }
         }
     }
 }
@@ -1848,7 +1866,9 @@ impl fmt::Display for BindingElisionElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingElisionElement::Element(None, elem) => elem.fmt(f),
-            BindingElisionElement::Element(Some(elision), elem) => write!(f, "{} {}", elision, elem),
+            BindingElisionElement::Element(Some(elision), elem) => {
+                write!(f, "{} {}", elision, elem)
+            }
         }
     }
 }
@@ -2077,7 +2097,9 @@ impl fmt::Display for BindingElement {
         match self {
             BindingElement::Single(node) => node.fmt(f),
             BindingElement::Pattern(node, None) => node.fmt(f),
-            BindingElement::Pattern(node, Some(init)) => write!(f, "{} {}", node, init),
+            BindingElement::Pattern(node, Some(init)) => {
+                write!(f, "{} {}", node, init)
+            }
         }
     }
 }
