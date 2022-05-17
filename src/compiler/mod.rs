@@ -82,6 +82,8 @@ pub enum Insn {
     Multiply,
     Divide,
     Modulo,
+    Add,
+    Subtract,
 }
 
 impl fmt::Display for Insn {
@@ -135,6 +137,8 @@ impl fmt::Display for Insn {
             Insn::Multiply => "MULTIPLY",
             Insn::Divide => "DIVIDE",
             Insn::Modulo => "MODULO",
+            Insn::Add => "ADD",
+            Insn::Subtract => "SUBTRACT",
         })
     }
 }
@@ -916,7 +920,8 @@ impl AdditiveExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
-            _ => todo!(),
+            AdditiveExpression::Add(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Add),
+            AdditiveExpression::Subtract(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Subtract),
         }
     }
 }

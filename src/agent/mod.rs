@@ -23,7 +23,7 @@ use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
 use itertools::Itertools;
 use num::pow::Pow;
-use num::BigUint;
+use num::{BigUint, Zero};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -745,6 +745,8 @@ impl Agent {
                 Insn::Multiply => self.binary_operation(index, BinOp::Multiply),
                 Insn::Divide => self.binary_operation(index, BinOp::Divide),
                 Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
+                Insn::Add => self.binary_operation(index, BinOp::Add),
+                Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
             }
         }
         self.execution_context_stack[index]
@@ -884,10 +886,10 @@ impl Agent {
         match (lnum, rnum, op) {
             (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => Ok(NormalCompletion::from(left.powf(right))),
             (Numeric::Number(left), Numeric::Number(right), BinOp::Multiply) => Ok(NormalCompletion::from(left * right)),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Divide) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Remainder) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => todo!(),
-            (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Divide) => Ok(NormalCompletion::from(left / right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Remainder) => Ok(NormalCompletion::from(left % right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => Ok(NormalCompletion::from(left + right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => Ok(NormalCompletion::from(left - right)),
             (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
@@ -900,10 +902,18 @@ impl Agent {
                 Ok(NormalCompletion::from(Rc::new(base.pow(exponent))))
             }
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Multiply) => Ok(NormalCompletion::from(Rc::new(&*left * &*right))),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Remainder) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Add) => todo!(),
-            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => {
+                left.checked_div(&*right).map(NormalCompletion::from).map(Ok).unwrap_or_else(|| Err(create_range_error(self, "Division by zero")))
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Remainder) => {
+                if right.is_zero() {
+                    Err(create_range_error(self, "Division by zero"))
+                } else {
+                    Ok(NormalCompletion::from(&*left % &*right))
+                }
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Add) => Ok(NormalCompletion::from(&*left + &*right)),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => Ok(NormalCompletion::from(&*left - &*right)),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
             (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),

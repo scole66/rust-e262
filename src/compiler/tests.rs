@@ -51,6 +51,16 @@ mod insn {
     #[test_case(Insn::Delete => "DELETE"; "Delete instruction")]
     #[test_case(Insn::Void => "VOID"; "Void instruction")]
     #[test_case(Insn::TypeOf => "TYPEOF"; "TypeOf instruction")]
+    #[test_case(Insn::UnaryPlus => "UNARY_PLUS"; "UnaryPlus instruction")]
+    #[test_case(Insn::UnaryMinus => "UNARY_MINUS"; "UnaryMinus instruction")]
+    #[test_case(Insn::UnaryComplement => "UNARY_COMPLEMENT"; "UnaryComplement instruction")]
+    #[test_case(Insn::UnaryNot => "UNARY_NOT"; "UnaryNot instruction")]
+    #[test_case(Insn::Exponentiate => "EXPONENTIATE"; "Exponentiate instruction")]
+    #[test_case(Insn::Multiply => "MULTIPLY"; "Multiply instruction")]
+    #[test_case(Insn::Divide => "DIVIDE"; "Divide instruction")]
+    #[test_case(Insn::Modulo => "MODULO"; "Modulo instruction")]
+    #[test_case(Insn::Add => "ADD"; "Add instruction")]
+    #[test_case(Insn::Subtract => "SUBTRACT"; "Subtract instruction")]
     fn display(insn: Insn) -> String {
         format!("{insn}")
     }
@@ -825,7 +835,7 @@ mod exponentiation_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a**8", true => panics "not yet implemented"; "exponent expr")]
+    #[test_case("a**8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "EXPONENTIATE"]); "exponent expr; non-strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).exponentiation_expression();
         let mut c = Chunk::new("x");
@@ -840,7 +850,9 @@ mod multiplicative_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a*8", true => panics "not yet implemented"; "multiply expr")]
+    #[test_case("a*8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MULTIPLY"]); "multiply expr; strict")]
+    #[test_case("a/8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "DIVIDE"]); "divide expr; strict")]
+    #[test_case("a%8", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (8)", "MODULO"]); "modulo expr; strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).multiplicative_expression();
         let mut c = Chunk::new("x");
@@ -855,7 +867,8 @@ mod additive_expression {
 
     #[test_case("id", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "fall-thru strict")]
     #[test_case("id", false => svec(&["STRING 0 (id)", "RESOLVE"]); "fall-thru non strict")]
-    #[test_case("a+3", true => panics "not yet implemented"; "add expr")]
+    #[test_case("a+3", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "ADD"]); "add expr")]
+    #[test_case("a-3", true => svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (3)", "SUBTRACT"]); "sub expr")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).additive_expression();
         let mut c = Chunk::new("x");
