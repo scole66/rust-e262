@@ -173,3 +173,20 @@ mod member_expression {
         process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
     }
 }
+
+mod exponentiation_expression {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("3**2" => vok(9); "Simple square")]
+    //#[test_case("NaN**NaN" => vok(f64::NAN); "NaN**NaN")]
+    #[test_case("NaN**0" => vok(1); "NaN**0")]
+    #[test_case("Infinity ** 1" => vok(f64::INFINITY); "Infinity**1")]
+    #[test_case("Infinity ** -3" => vok(0); "Infinity**-3")]
+    #[test_case("(-Infinity) ** 3" => vok(f64::NEG_INFINITY); "-Inf ** 3")]
+    #[test_case("(-Infinity) ** 8" => vok(f64::INFINITY) ; "-Inf ** 8")]
+    fn run(src: &str) -> Result<ECMAScriptValue, String> {
+        let mut agent = test_agent();
+        process_ecmascript(&mut agent, src).map_err(|e| e.to_string())
+    }
+}

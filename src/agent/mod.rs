@@ -2,7 +2,7 @@ use super::chunk::Chunk;
 use super::compiler::Insn;
 use super::cr::{update_empty, AbruptCompletion, Completion, FullCompletion, NormalCompletion};
 use super::environment_record::{EnvironmentRecord, GlobalEnvironmentRecord};
-use super::errors::{create_reference_error, create_syntax_error, create_type_error, unwind_any_error_object};
+use super::errors::*;
 use super::execution_context::{get_global_object, ExecutionContext, ScriptOrModule, ScriptRecord};
 use super::object::{call, copy_data_properties, define_property_or_throw, ordinary_object_create, Object, PotentialPropertyDescriptor};
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
@@ -22,6 +22,8 @@ use crate::object::create_data_property_or_throw;
 use crate::symbol_object::SymbolRegistry;
 use anyhow::anyhow;
 use itertools::Itertools;
+use num::pow::Pow;
+use num::{BigUint, Zero};
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -739,6 +741,12 @@ impl Agent {
                     };
                     self.execution_context_stack[index].stack.push(result);
                 }
+                Insn::Exponentiate => self.binary_operation(index, BinOp::Exponentiate),
+                Insn::Multiply => self.binary_operation(index, BinOp::Multiply),
+                Insn::Divide => self.binary_operation(index, BinOp::Divide),
+                Insn::Modulo => self.binary_operation(index, BinOp::Remainder),
+                Insn::Add => self.binary_operation(index, BinOp::Add),
+                Insn::Subtract => self.binary_operation(index, BinOp::Subtract),
             }
         }
         self.execution_context_stack[index]
@@ -851,6 +859,88 @@ impl Agent {
         };
         Ok(NormalCompletion::from(type_string))
     }
+
+    fn binary_operation(&mut self, index: usize, op: BinOp) {
+        let rval = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+        let lval = ECMAScriptValue::try_from(self.execution_context_stack[index].stack.pop().unwrap().unwrap()).unwrap();
+        let result = self.apply_string_or_numeric_binary_operator(lval, rval, op);
+        self.execution_context_stack[index].stack.push(result);
+    }
+
+    #[allow(unused_variables)]
+    fn apply_string_or_numeric_binary_operator(&mut self, lval: ECMAScriptValue, rval: ECMAScriptValue, op: BinOp) -> FullCompletion {
+        let (lval, rval) = if op == BinOp::Add {
+            let lprim = to_primitive(self, lval, None)?;
+            let rprim = to_primitive(self, rval, None)?;
+            if lprim.is_string() || rprim.is_string() {
+                let lstr = to_string(self, lprim)?;
+                let rstr = to_string(self, rprim)?;
+                return Ok(NormalCompletion::from(lstr.concat(rstr)));
+            }
+            (lprim, rprim)
+        } else {
+            (lval, rval)
+        };
+        let lnum = to_numeric(self, lval)?;
+        let rnum = to_numeric(self, rval)?;
+        match (lnum, rnum, op) {
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => Ok(NormalCompletion::from(left.powf(right))),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Multiply) => Ok(NormalCompletion::from(left * right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Divide) => Ok(NormalCompletion::from(left / right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Remainder) => Ok(NormalCompletion::from(left % right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Add) => Ok(NormalCompletion::from(left + right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::Subtract) => Ok(NormalCompletion::from(left - right)),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::LeftShift) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::SignedRightShift) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseAnd) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseOr) => todo!(),
+            (Numeric::Number(left), Numeric::Number(right), BinOp::BitwiseXor) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Exponentiate) => {
+                let exponent = BigUint::try_from(&*right).map_err(|_| create_range_error(self, "Exponent must be positive"))?;
+                let base = (*left).clone();
+                Ok(NormalCompletion::from(Rc::new(base.pow(exponent))))
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Multiply) => Ok(NormalCompletion::from(Rc::new(&*left * &*right))),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Divide) => {
+                left.checked_div(&*right).map(NormalCompletion::from).map(Ok).unwrap_or_else(|| Err(create_range_error(self, "Division by zero")))
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Remainder) => {
+                if right.is_zero() {
+                    Err(create_range_error(self, "Division by zero"))
+                } else {
+                    Ok(NormalCompletion::from(&*left % &*right))
+                }
+            }
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Add) => Ok(NormalCompletion::from(&*left + &*right)),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::Subtract) => Ok(NormalCompletion::from(&*left - &*right)),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::LeftShift) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::SignedRightShift) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::UnsignedRightShift) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseAnd) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseOr) => todo!(),
+            (Numeric::BigInt(left), Numeric::BigInt(right), BinOp::BitwiseXor) => todo!(),
+            (Numeric::BigInt(_), Numeric::Number(_), _) | (Numeric::Number(_), Numeric::BigInt(_), _) => {
+                Err(create_type_error(self, "Cannot mix BigInt and other types, use explicit conversions"))
+            }
+        }
+    }
+}
+
+#[derive(PartialEq)]
+enum BinOp {
+    Exponentiate,
+    Multiply,
+    Divide,
+    Remainder,
+    Add,
+    Subtract,
+    LeftShift,
+    SignedRightShift,
+    UnsignedRightShift,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
