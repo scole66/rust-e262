@@ -9,7 +9,10 @@ use super::function_object::{BuiltinFunctionInterface, CallableObject, Construct
 use super::number_object::{NumberObject, NumberObjectInterface};
 use super::realm::{IntrinsicId, Realm};
 use super::symbol_object::*;
-use super::values::{is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName, PropertyKey};
+use super::values::{
+    is_callable, to_boolean, to_object, to_string, ECMAScriptValue, PrivateElement, PrivateElementKind, PrivateName,
+    PropertyKey,
+};
 use ahash::{AHashMap, AHashSet};
 use anyhow::anyhow;
 use std::cell::RefCell;
@@ -88,9 +91,12 @@ impl TryFrom<PropertyDescriptor> for DataDescriptor {
     fn try_from(source: PropertyDescriptor) -> Result<Self, Self::Error> {
         match &source.property {
             PropertyKind::Accessor(..) => Err("Accessor Property cannot be formed into a DataDescriptor"),
-            PropertyKind::Data(DataProperty { value, writable }) => {
-                Ok(DataDescriptor { value: value.clone(), writable: *writable, enumerable: source.enumerable, configurable: source.configurable })
-            }
+            PropertyKind::Data(DataProperty { value, writable }) => Ok(DataDescriptor {
+                value: value.clone(),
+                writable: *writable,
+                enumerable: source.enumerable,
+                configurable: source.configurable,
+            }),
         }
     }
 }
@@ -481,7 +487,12 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(agent: &mut Agent, o: T, p: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>
+pub fn ordinary_define_own_property<'a, T>(
+    agent: &mut Agent,
+    o: T,
+    p: PropertyKey,
+    desc: PotentialPropertyDescriptor,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -546,7 +557,13 @@ where
 //      a. For each field of Desc that is present, set the corresponding attribute of the property named P of object O
 //         to the value of the field.
 //  10. Return true.
-fn validate_and_apply_property_descriptor<'a, T>(oo: Option<T>, p: Option<PropertyKey>, extensible: bool, desc: PotentialPropertyDescriptor, current: Option<&PropertyDescriptor>) -> bool
+fn validate_and_apply_property_descriptor<'a, T>(
+    oo: Option<T>,
+    p: Option<PropertyKey>,
+    extensible: bool,
+    desc: PotentialPropertyDescriptor,
+    current: Option<&PropertyDescriptor>,
+) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -561,9 +578,15 @@ where
                         enumerable: desc.enumerable.unwrap_or(false),
                         configurable: desc.configurable.unwrap_or(false),
                         property: if is_generic_descriptor(&desc) || is_data_descriptor(&desc) {
-                            PropertyKind::Data(DataProperty { value: desc.value.unwrap_or(ECMAScriptValue::Undefined), writable: desc.writable.unwrap_or(false) })
+                            PropertyKind::Data(DataProperty {
+                                value: desc.value.unwrap_or(ECMAScriptValue::Undefined),
+                                writable: desc.writable.unwrap_or(false),
+                            })
                         } else {
-                            PropertyKind::Accessor(AccessorProperty { get: desc.get.unwrap_or(ECMAScriptValue::Undefined), set: desc.set.unwrap_or(ECMAScriptValue::Undefined) })
+                            PropertyKind::Accessor(AccessorProperty {
+                                get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
+                                set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
+                            })
                         },
                         spot: data.next_spot,
                     };
@@ -574,9 +597,17 @@ where
             }
         }
         Some(cur) => {
-            if desc.configurable.is_none() && desc.enumerable.is_none() && desc.get.is_none() && desc.set.is_none() && desc.value.is_none() && desc.writable.is_none() {
+            if desc.configurable.is_none()
+                && desc.enumerable.is_none()
+                && desc.get.is_none()
+                && desc.set.is_none()
+                && desc.value.is_none()
+                && desc.writable.is_none()
+            {
                 true
-            } else if !cur.configurable && (desc.configurable.unwrap_or(false) || desc.enumerable.unwrap_or(cur.enumerable) != cur.enumerable) {
+            } else if !cur.configurable
+                && (desc.configurable.unwrap_or(false) || desc.enumerable.unwrap_or(cur.enumerable) != cur.enumerable)
+            {
                 false
             } else {
                 if is_generic_descriptor(&desc) {
@@ -626,9 +657,15 @@ where
                         pd.enumerable = enumerable;
                     }
                     if cur.is_data_descriptor() && desc.is_accessor_descriptor() && !desc.is_data_descriptor() {
-                        pd.property = PropertyKind::Accessor(AccessorProperty { get: desc.get.unwrap_or(ECMAScriptValue::Undefined), set: desc.set.unwrap_or(ECMAScriptValue::Undefined) });
+                        pd.property = PropertyKind::Accessor(AccessorProperty {
+                            get: desc.get.unwrap_or(ECMAScriptValue::Undefined),
+                            set: desc.set.unwrap_or(ECMAScriptValue::Undefined),
+                        });
                     } else if cur.is_accessor_descriptor() && desc.is_data_descriptor() {
-                        pd.property = PropertyKind::Data(DataProperty { writable: desc.writable.unwrap_or(false), value: desc.value.unwrap_or(ECMAScriptValue::Undefined) });
+                        pd.property = PropertyKind::Data(DataProperty {
+                            writable: desc.writable.unwrap_or(false),
+                            value: desc.value.unwrap_or(ECMAScriptValue::Undefined),
+                        });
                     } else {
                         match &mut pd.property {
                             PropertyKind::Accessor(acc_methods) => {
@@ -702,7 +739,12 @@ where
 //  6. Let getter be desc.[[Get]].
 //  7. If getter is undefined, return undefined.
 //  8. Return ? Call(getter, Receiver).
-pub fn ordinary_get<'a, T>(agent: &mut Agent, o: T, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>
+pub fn ordinary_get<'a, T>(
+    agent: &mut Agent,
+    o: T,
+    p: &PropertyKey,
+    receiver: &ECMAScriptValue,
+) -> Completion<ECMAScriptValue>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -754,7 +796,13 @@ pub fn get_agentless(o: &Object, p: &PropertyKey) -> Option<ECMAScriptValue> {
 //  1. Assert: IsPropertyKey(P) is true.
 //  2. Let ownDesc be ? O.[[GetOwnProperty]](P).
 //  3. Return OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
-pub fn ordinary_set<'a, T>(agent: &mut Agent, o: T, p: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>
+pub fn ordinary_set<'a, T>(
+    agent: &mut Agent,
+    o: T,
+    p: PropertyKey,
+    v: ECMAScriptValue,
+    receiver: &ECMAScriptValue,
+) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -812,9 +860,12 @@ where
                 Some(parent) => {
                     return parent.o.set(agent, p, v, receiver);
                 }
-                None => {
-                    PropertyDescriptor { configurable: true, enumerable: true, property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Undefined, writable: true }), spot: 0 }
-                }
+                None => PropertyDescriptor {
+                    configurable: true,
+                    enumerable: true,
+                    property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::Undefined, writable: true }),
+                    spot: 0,
+                },
             }
         }
         Some(x) => x,
@@ -1011,10 +1062,21 @@ pub trait ObjectInterface: Debug {
     fn is_extensible(&self, agent: &mut Agent) -> Completion<bool>;
     fn prevent_extensions(&self, agent: &mut Agent) -> Completion<bool>;
     fn get_own_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>>;
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool>;
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool>;
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool>;
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>;
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool>;
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        value: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool>;
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool>;
     fn own_property_keys(&self, agent: &mut Agent) -> Completion<Vec<PropertyKey>>;
 }
@@ -1049,7 +1111,15 @@ pub struct CommonObjectData {
 
 impl CommonObjectData {
     pub fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
-        Self { properties: Default::default(), prototype, extensible, next_spot: 0, objid: agent.next_object_id(), slots: Vec::from(slots), private_elements: vec![] }
+        Self {
+            properties: Default::default(),
+            prototype,
+            extensible,
+            next_spot: 0,
+            objid: agent.next_object_id(),
+            slots: Vec::from(slots),
+            private_elements: vec![],
+        }
     }
 
     pub fn propdump(&self) -> Vec<PropertyInfo> {
@@ -1065,8 +1135,12 @@ impl CommonObjectData {
                 enumerable: prop.enumerable,
                 configurable: prop.configurable,
                 kind: match &prop.property {
-                    PropertyKind::Data(DataProperty { value, writable }) => PropertyInfoKind::Data { value: value.clone(), writable: *writable },
-                    PropertyKind::Accessor(AccessorProperty { get, set }) => PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() },
+                    PropertyKind::Data(DataProperty { value, writable }) => {
+                        PropertyInfoKind::Data { value: value.clone(), writable: *writable }
+                    }
+                    PropertyKind::Accessor(AccessorProperty { get, set }) => {
+                        PropertyInfoKind::Accessor { getter: get.clone(), setter: set.clone() }
+                    }
                 },
             });
         }
@@ -1208,7 +1282,12 @@ impl ObjectInterface for OrdinaryObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -1238,7 +1317,13 @@ impl ObjectInterface for OrdinaryObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -1310,7 +1395,11 @@ impl fmt::Display for Object {
 
 impl Object {
     fn new(agent: &mut Agent, prototype: Option<Object>, extensible: bool) -> Self {
-        Self { o: Rc::new(OrdinaryObject { data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, ORDINARY_OBJECT_SLOTS)) }) }
+        Self {
+            o: Rc::new(OrdinaryObject {
+                data: RefCell::new(CommonObjectData::new(agent, prototype, extensible, ORDINARY_OBJECT_SLOTS)),
+            }),
+        }
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Object {}>", self.o.common_object_data().borrow().objid)
@@ -1370,12 +1459,22 @@ pub enum InternalSlotName {
     Nonsense,    // For testing purposes, for the time being.
 }
 pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
-pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
-pub const ERROR_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
-pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::InitialName, InternalSlotName::Realm];
-pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
-pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
-pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
+pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
+pub const ERROR_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
+pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::InitialName,
+    InternalSlotName::Realm,
+];
+pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
+pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
+pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1389,7 +1488,11 @@ pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalS
     true
 }
 
-pub fn make_basic_object(agent: &mut Agent, internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
+pub fn make_basic_object(
+    agent: &mut Agent,
+    internal_slots_list: &[InternalSlotName],
+    prototype: Option<Object>,
+) -> Object {
     let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
     for slot in internal_slots_list.iter() {
         slot_set.insert(slot);
@@ -1454,7 +1557,13 @@ pub fn getv(agent: &mut Agent, v: &ECMAScriptValue, p: &PropertyKey) -> Completi
 //  4. Let success be ? O.[[Set]](P, V, O).
 //  5. If success is false and Throw is true, throw a TypeError exception.
 //  6. Return success.
-pub fn set(agent: &mut Agent, obj: &Object, propkey: PropertyKey, value: ECMAScriptValue, throw: bool) -> Completion<bool> {
+pub fn set(
+    agent: &mut Agent,
+    obj: &Object,
+    propkey: PropertyKey,
+    value: ECMAScriptValue,
+    throw: bool,
+) -> Completion<bool> {
     let objval = ECMAScriptValue::Object(obj.clone());
     let success = obj.o.set(agent, propkey, value, &objval)?;
     if !success && throw {
@@ -1496,7 +1605,12 @@ pub fn create_data_property(agent: &mut Agent, obj: &Object, p: PropertyKey, v: 
 //          | properties created by the ECMAScript language assignment operator. Normally, the property will not
 //          | already exist. If it does exist and is not configurable or if O is not extensible, [[DefineOwnProperty]]
 //          | will return false causing this operation to throw a TypeError exception.
-pub fn create_data_property_or_throw(agent: &mut Agent, obj: &Object, p: impl Into<PropertyKey>, v: impl Into<ECMAScriptValue>) -> Completion<()> {
+pub fn create_data_property_or_throw(
+    agent: &mut Agent,
+    obj: &Object,
+    p: impl Into<PropertyKey>,
+    v: impl Into<ECMAScriptValue>,
+) -> Completion<()> {
     let success = create_data_property(agent, obj, p.into(), v.into())?;
     if !success {
         Err(create_type_error(agent, "Unable to create data property"))
@@ -1517,7 +1631,12 @@ pub fn create_data_property_or_throw(agent: &mut Agent, obj: &Object, p: impl In
 //  3. Let success be ? O.[[DefineOwnProperty]](P, desc).
 //  4. If success is false, throw a TypeError exception.
 //  5. Return success.
-pub fn define_property_or_throw(agent: &mut Agent, obj: &Object, p: impl Into<PropertyKey>, desc: PotentialPropertyDescriptor) -> Completion<()> {
+pub fn define_property_or_throw(
+    agent: &mut Agent,
+    obj: &Object,
+    p: impl Into<PropertyKey>,
+    desc: PotentialPropertyDescriptor,
+) -> Completion<()> {
     let success = obj.o.define_own_property(agent, p.into(), desc)?;
     if !success {
         Err(create_type_error(agent, "Property cannot be assigned to"))
@@ -1595,7 +1714,12 @@ pub fn to_callable(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
     }
 }
 
-pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptValue, args: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+pub fn call(
+    agent: &mut Agent,
+    func: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
+    args: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let maybe_callable = to_callable(func);
     match maybe_callable {
         None => Err(create_type_error(agent, "Value not callable")),
@@ -1621,7 +1745,12 @@ pub fn call(agent: &mut Agent, func: &ECMAScriptValue, this_value: &ECMAScriptVa
 //    5. Return ? F.[[Construct]](argumentsList, newTarget).
 //
 // NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
-pub fn construct(agent: &mut Agent, func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
+pub fn construct(
+    agent: &mut Agent,
+    func: &Object,
+    args: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+) -> Completion<ECMAScriptValue> {
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
     cstr.construct(agent, func, args, nt)
@@ -1720,7 +1849,12 @@ pub fn create_array_from_list(agent: &mut Agent, elements: &[ECMAScriptValue]) -
 //  2. If argumentsList is not present, set argumentsList to a new empty List.
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
-pub fn invoke(agent: &mut Agent, v: ECMAScriptValue, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+pub fn invoke(
+    agent: &mut Agent,
+    v: ECMAScriptValue,
+    p: &PropertyKey,
+    arguments_list: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let func = getv(agent, &v, p)?;
     call(agent, &func, &v, arguments_list)
 }
@@ -1753,7 +1887,11 @@ pub enum EnumerationStyle {
     Value,
     KeyPlusValue,
 }
-pub fn enumerable_own_property_names(agent: &mut Agent, obj: &Object, kind: EnumerationStyle) -> Completion<Vec<ECMAScriptValue>> {
+pub fn enumerable_own_property_names(
+    agent: &mut Agent,
+    obj: &Object,
+    kind: EnumerationStyle,
+) -> Completion<Vec<ECMAScriptValue>> {
     let own_keys = obj.o.own_property_keys(agent)?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
     for key in own_keys.into_iter() {
@@ -1796,7 +1934,11 @@ pub fn enumerable_own_property_names(agent: &mut Agent, obj: &Object, kind: Enum
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(agent: &mut Agent, proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
+pub fn ordinary_object_create(
+    agent: &mut Agent,
+    proto: Option<Object>,
+    additional_internal_slots_list: &[InternalSlotName],
+) -> Object {
     let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
     slots.extend_from_slice(additional_internal_slots_list);
     let o = make_basic_object(agent, slots.as_slice(), proto);
@@ -1816,7 +1958,12 @@ pub fn ordinary_object_create(agent: &mut Agent, proto: Option<Object>, addition
 //     corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 //  2. Let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
-pub fn ordinary_create_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId, internal_slots_list: &[InternalSlotName]) -> Completion<Object> {
+pub fn ordinary_create_from_constructor(
+    agent: &mut Agent,
+    constructor: &Object,
+    intrinsic_default_proto: IntrinsicId,
+    internal_slots_list: &[InternalSlotName],
+) -> Completion<Object> {
     let proto = get_prototype_from_constructor(agent, constructor, intrinsic_default_proto)?;
     Ok(ordinary_object_create(agent, Some(proto), internal_slots_list))
 }
@@ -1839,7 +1986,11 @@ pub fn ordinary_create_from_constructor(agent: &mut Agent, constructor: &Object,
 //
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
-fn get_prototype_from_constructor(agent: &mut Agent, constructor: &Object, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
+fn get_prototype_from_constructor(
+    agent: &mut Agent,
+    constructor: &Object,
+    intrinsic_default_proto: IntrinsicId,
+) -> Completion<Object> {
     let proto = get(agent, constructor, &PropertyKey::from("prototype"))?;
     match proto {
         ECMAScriptValue::Object(obj) => Ok(obj),
@@ -1881,7 +2032,12 @@ impl ObjectInterface for DeadObject {
     fn get_own_property(&self, agent: &mut Agent, _key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Err(create_type_error(agent, "get_own_property called on DeadObject"))
     }
-    fn define_own_property(&self, agent: &mut Agent, _key: PropertyKey, _desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        _key: PropertyKey,
+        _desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         Err(create_type_error(agent, "define_own_property called on DeadObject"))
     }
     fn has_property(&self, agent: &mut Agent, _key: &PropertyKey) -> Completion<bool> {
@@ -1890,7 +2046,13 @@ impl ObjectInterface for DeadObject {
     fn get(&self, agent: &mut Agent, _key: &PropertyKey, _receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         Err(create_type_error(agent, "get called on DeadObject"))
     }
-    fn set(&self, agent: &mut Agent, _key: PropertyKey, _value: ECMAScriptValue, _receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        _key: PropertyKey,
+        _value: ECMAScriptValue,
+        _receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         Err(create_type_error(agent, "set called on DeadObject"))
     }
     fn delete(&self, agent: &mut Agent, _key: &PropertyKey) -> Completion<bool> {
@@ -2003,7 +2165,12 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // Property Descriptor). It performs the following steps when called:
     //
     //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
 
@@ -2033,7 +2200,13 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
     //
     //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
 
@@ -2059,7 +2232,11 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 }
 
 pub fn immutable_prototype_exotic_object_create(agent: &mut Agent, proto: Option<&Object>) -> Object {
-    Object { o: Rc::new(ImmutablePrototypeExoticObject { data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, ORDINARY_OBJECT_SLOTS)) }) }
+    Object {
+        o: Rc::new(ImmutablePrototypeExoticObject {
+            data: RefCell::new(CommonObjectData::new(agent, proto.cloned(), true, ORDINARY_OBJECT_SLOTS)),
+        }),
+    }
 }
 
 // GetFunctionRealm ( obj )
@@ -2127,7 +2304,10 @@ pub fn private_field_add(agent: &mut Agent, obj: &Object, p: PrivateName, value:
         Some(_) => Err(create_type_error(agent, "PrivateName already defined")),
         None => {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement { key: p, kind: PrivateElementKind::Field { value: RefCell::new(value) } }));
+            elements.push(Rc::new(PrivateElement {
+                key: p,
+                kind: PrivateElementKind::Field { value: RefCell::new(value) },
+            }));
             Ok(())
         }
     }
@@ -2173,8 +2353,12 @@ pub fn private_get(agent: &mut Agent, obj: &Object, pn: &PrivateName) -> Complet
         Some(pe) => match &pe.kind {
             PrivateElementKind::Field { value } => Ok(value.borrow().clone()),
             PrivateElementKind::Method { value } => Ok(value.clone()),
-            PrivateElementKind::Accessor { get: None, set: _ } => Err(create_type_error(agent, "PrivateName has no getter")),
-            PrivateElementKind::Accessor { get: Some(getter), set: _ } => call(agent, &ECMAScriptValue::from(getter), &ECMAScriptValue::from(obj), &[]),
+            PrivateElementKind::Accessor { get: None, set: _ } => {
+                Err(create_type_error(agent, "PrivateName has no getter"))
+            }
+            PrivateElementKind::Accessor { get: Some(getter), set: _ } => {
+                call(agent, &ECMAScriptValue::from(getter), &ECMAScriptValue::from(obj), &[])
+            }
         },
     }
 }
@@ -2203,8 +2387,12 @@ pub fn private_set(agent: &mut Agent, obj: &Object, pn: &PrivateName, v: ECMAScr
                 *value.borrow_mut() = v;
                 Ok(())
             }
-            PrivateElementKind::Method { value: _ } => Err(create_type_error(agent, "PrivateName method may not be assigned")),
-            PrivateElementKind::Accessor { get: _, set: None } => Err(create_type_error(agent, "PrivateName has no setter")),
+            PrivateElementKind::Method { value: _ } => {
+                Err(create_type_error(agent, "PrivateName method may not be assigned"))
+            }
+            PrivateElementKind::Accessor { get: _, set: None } => {
+                Err(create_type_error(agent, "PrivateName has no setter"))
+            }
             PrivateElementKind::Accessor { get: _, set: Some(setter) } => {
                 call(agent, &ECMAScriptValue::from(setter), &ECMAScriptValue::from(obj), &[v])?;
                 Ok(())
@@ -2216,7 +2404,12 @@ pub fn private_set(agent: &mut Agent, obj: &Object, pn: &PrivateName, v: ECMAScr
 /// Copy enumerable data properties from a source to a target, potentially excluding some
 ///
 /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-pub fn copy_data_properties(agent: &mut Agent, target: &Object, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+pub fn copy_data_properties(
+    agent: &mut Agent,
+    target: &Object,
+    source: ECMAScriptValue,
+    excluded: &[PropertyKey],
+) -> Completion<()> {
     if !(source.is_undefined() || source.is_null()) {
         let from = to_object(agent, source).unwrap();
         let keys = from.o.own_property_keys(agent)?;

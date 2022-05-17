@@ -73,16 +73,26 @@ impl IsFunctionDefinition for ConditionalExpression {
 
 impl ConditionalExpression {
     // no need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
             .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
             .and_then(|(ae1, after_ae1)| {
                 scan_for_punct(after_ae1, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)
-                    .and_then(|after_colon| AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag))
+                    .and_then(|after_colon| {
+                        AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag)
+                    })
                     .map(|(ae2, after_ae2)| (ae1, ae2, after_ae2))
             }) {
-            Ok((thenish, elseish, after)) => Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after)),
+            Ok((thenish, elseish, after)) => {
+                Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after))
+            }
             Err(_) => Ok((Rc::new(ConditionalExpression::FallThru(left)), after_left)),
         }
     }
@@ -90,7 +100,9 @@ impl ConditionalExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ConditionalExpression::FallThru(node) => node.contains(kind),
-            ConditionalExpression::Conditional(cond, truthy, falsey) => cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind),
+            ConditionalExpression::Conditional(cond, truthy, falsey) => {
+                cond.contains(kind) || truthy.contains(kind) || falsey.contains(kind)
+            }
         }
     }
 
@@ -111,7 +123,9 @@ impl ConditionalExpression {
         match self {
             ConditionalExpression::FallThru(node) => node.all_private_identifiers_valid(names),
             ConditionalExpression::Conditional(cond, truthy, falsey) => {
-                cond.all_private_identifiers_valid(names) && truthy.all_private_identifiers_valid(names) && falsey.all_private_identifiers_valid(names)
+                cond.all_private_identifiers_valid(names)
+                    && truthy.all_private_identifiers_valid(names)
+                    && falsey.all_private_identifiers_valid(names)
             }
         }
     }
@@ -129,7 +143,9 @@ impl ConditionalExpression {
         //  2. Return false.
         match self {
             ConditionalExpression::FallThru(sce) => sce.contains_arguments(),
-            ConditionalExpression::Conditional(sce, ae1, ae2) => sce.contains_arguments() || ae1.contains_arguments() || ae2.contains_arguments(),
+            ConditionalExpression::Conditional(sce, ae1, ae2) => {
+                sce.contains_arguments() || ae1.contains_arguments() || ae2.contains_arguments()
+            }
         }
     }
 

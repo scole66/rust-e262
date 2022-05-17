@@ -48,7 +48,13 @@ impl PrettyPrint for SwitchStatement {
 }
 
 impl SwitchStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_switch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
         let after_open = scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -113,7 +119,10 @@ impl SwitchStatement {
             errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
         }
         for name in ldn.iter().filter(|&s| vdn.contains(s)) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ may not be declared both lexically and var-style", name),
+            ));
         }
 
         self.expression.early_errors(agent, errs, strict);
@@ -143,9 +152,15 @@ impl fmt::Display for CaseBlock {
             CaseBlock::NoDefault(None) => write!(f, "{{ }}"),
             CaseBlock::NoDefault(Some(node)) => write!(f, "{{ {} }}", node),
             CaseBlock::HasDefault(None, def, None) => write!(f, "{{ {} }}", def),
-            CaseBlock::HasDefault(Some(pre), def, None) => write!(f, "{{ {} {} }}", pre, def),
-            CaseBlock::HasDefault(None, def, Some(post)) => write!(f, "{{ {} {} }}", def, post),
-            CaseBlock::HasDefault(Some(pre), def, Some(post)) => write!(f, "{{ {} {} {} }}", pre, def, post),
+            CaseBlock::HasDefault(Some(pre), def, None) => {
+                write!(f, "{{ {} {} }}", pre, def)
+            }
+            CaseBlock::HasDefault(None, def, Some(post)) => {
+                write!(f, "{{ {} {} }}", def, post)
+            }
+            CaseBlock::HasDefault(Some(pre), def, Some(post)) => {
+                write!(f, "{{ {} {} {} }}", pre, def, post)
+            }
         }
     }
 }
@@ -207,7 +222,13 @@ impl PrettyPrint for CaseBlock {
 }
 
 impl CaseBlock {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (pre, after_pre) = match CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag) {
             Ok((node, scan)) => (Some(node), scan),
@@ -215,16 +236,19 @@ impl CaseBlock {
         };
         Err(ParseError::new(PECode::CaseBlockCloseExpected, after_pre))
             .otherwise(|| {
-                let after_close = scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_close =
+                    scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((None, after_close))
             })
             .otherwise(|| {
                 let (def, after_def) = DefaultClause::parse(parser, after_pre, yield_flag, await_flag, return_flag)?;
-                let (post, after_post) = match CaseClauses::parse(parser, after_def, yield_flag, await_flag, return_flag) {
-                    Ok((node, scan)) => (Some(node), scan),
-                    Err(_) => (None, after_def),
-                };
-                let after_close = scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let (post, after_post) =
+                    match CaseClauses::parse(parser, after_def, yield_flag, await_flag, return_flag) {
+                        Ok((node, scan)) => (Some(node), scan),
+                        Err(_) => (None, after_def),
+                    };
+                let after_close =
+                    scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Some((def, post)), after_close))
             })
             .map(|(post, scan)| {
@@ -290,7 +314,11 @@ impl CaseBlock {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             CaseBlock::NoDefault(opt) => opt.as_ref().map_or(false, |n| n.contains(kind)),
-            CaseBlock::HasDefault(opt1, def, opt2) => opt1.as_ref().map_or(false, |n| n.contains(kind)) || def.contains(kind) || opt2.as_ref().map_or(false, |n| n.contains(kind)),
+            CaseBlock::HasDefault(opt1, def, opt2) => {
+                opt1.as_ref().map_or(false, |n| n.contains(kind))
+                    || def.contains(kind)
+                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+            }
         }
     }
 
@@ -328,10 +356,16 @@ impl CaseBlock {
         match self {
             CaseBlock::NoDefault(Some(node)) => node.all_private_identifiers_valid(names),
             CaseBlock::HasDefault(None, node, None) => node.all_private_identifiers_valid(names),
-            CaseBlock::HasDefault(Some(node1), node2, None) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
-            CaseBlock::HasDefault(None, node1, Some(node2)) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(Some(node1), node2, None) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
+            CaseBlock::HasDefault(None, node1, Some(node2)) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
             CaseBlock::HasDefault(Some(node1), node2, Some(node3)) => {
-                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names) && node3.all_private_identifiers_valid(names)
+                node1.all_private_identifiers_valid(names)
+                    && node2.all_private_identifiers_valid(names)
+                    && node3.all_private_identifiers_valid(names)
             }
             _ => true,
         }
@@ -351,7 +385,9 @@ impl CaseBlock {
         match self {
             CaseBlock::NoDefault(occ) => occ.as_ref().map_or(false, |cc| cc.contains_arguments()),
             CaseBlock::HasDefault(occ1, dc, occ2) => {
-                occ1.as_ref().map_or(false, |cc| cc.contains_arguments()) || dc.contains_arguments() || occ2.as_ref().map_or(false, |cc| cc.contains_arguments())
+                occ1.as_ref().map_or(false, |cc| cc.contains_arguments())
+                    || dc.contains_arguments()
+                    || occ2.as_ref().map_or(false, |cc| cc.contains_arguments())
             }
         }
     }
@@ -445,11 +481,19 @@ impl PrettyPrint for CaseClauses {
 }
 
 impl CaseClauses {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (item, after_item) = CaseClause::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         let mut current = Rc::new(CaseClauses::Item(item));
         let mut current_scanner = after_item;
-        while let Ok((next, after_next)) = CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+        while let Ok((next, after_next)) =
+            CaseClause::parse(parser, current_scanner, yield_flag, await_flag, return_flag)
+        {
             current = Rc::new(CaseClauses::List(current, next));
             current_scanner = after_next;
         }
@@ -480,7 +524,9 @@ impl CaseClauses {
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_undefined_break_target(label_set),
-            CaseClauses::List(lst, item) => lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set),
+            CaseClauses::List(lst, item) => {
+                lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set)
+            }
         }
     }
 
@@ -494,14 +540,19 @@ impl CaseClauses {
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_duplicate_labels(label_set),
-            CaseClauses::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
+            CaseClauses::List(lst, item) => {
+                lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set)
+            }
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_undefined_continue_target(iteration_set),
-            CaseClauses::List(lst, item) => lst.contains_undefined_continue_target(iteration_set) || item.contains_undefined_continue_target(iteration_set),
+            CaseClauses::List(lst, item) => {
+                lst.contains_undefined_continue_target(iteration_set)
+                    || item.contains_undefined_continue_target(iteration_set)
+            }
         }
     }
 
@@ -514,7 +565,9 @@ impl CaseClauses {
         //  2. Return true.
         match self {
             CaseClauses::Item(node) => node.all_private_identifiers_valid(names),
-            CaseClauses::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            CaseClauses::List(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -613,7 +666,13 @@ impl PrettyPrint for CaseClause {
 }
 
 impl CaseClause {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_case = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
@@ -756,7 +815,13 @@ impl PrettyPrint for DefaultClause {
 }
 
 impl DefaultClause {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_def = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
         let after_colon = scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {

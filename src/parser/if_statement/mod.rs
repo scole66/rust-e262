@@ -20,7 +20,9 @@ pub enum IfStatement {
 impl fmt::Display for IfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            IfStatement::WithElse(e, s1, s2) => write!(f, "if ( {} ) {} else {}", e, s1, s2),
+            IfStatement::WithElse(e, s1, s2) => {
+                write!(f, "if ( {} ) {} else {}", e, s1, s2)
+            }
             IfStatement::WithoutElse(e, s1) => write!(f, "if ( {} ) {}", e, s1),
         }
     }
@@ -55,7 +57,8 @@ impl PrettyPrint for IfStatement {
         pprint_token(writer, "if", TokenType::Keyword, &successive, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         let condition = |writer: &mut T, exp: &Expression| {
-            exp.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal))
+            exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)
+                .and_then(|_| pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::NotFinal))
         };
         match self {
             IfStatement::WithoutElse(e, s1) => {
@@ -73,7 +76,13 @@ impl PrettyPrint for IfStatement {
 }
 
 impl IfStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_lead = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
         let after_open = scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -101,7 +110,9 @@ impl IfStatement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_break_target(label_set) || s2.contains_undefined_break_target(label_set),
+            IfStatement::WithElse(_, s1, s2) => {
+                s1.contains_undefined_break_target(label_set) || s2.contains_undefined_break_target(label_set)
+            }
             IfStatement::WithoutElse(_, s1) => s1.contains_undefined_break_target(label_set),
         }
     }
@@ -115,14 +126,19 @@ impl IfStatement {
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set),
+            IfStatement::WithElse(_, s1, s2) => {
+                s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set)
+            }
             IfStatement::WithoutElse(_, s1) => s1.contains_duplicate_labels(label_set),
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            IfStatement::WithElse(_, s1, s2) => s1.contains_undefined_continue_target(iteration_set, &[]) || s2.contains_undefined_continue_target(iteration_set, &[]),
+            IfStatement::WithElse(_, s1, s2) => {
+                s1.contains_undefined_continue_target(iteration_set, &[])
+                    || s2.contains_undefined_continue_target(iteration_set, &[])
+            }
             IfStatement::WithoutElse(_, s1) => s1.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
@@ -135,8 +151,14 @@ impl IfStatement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            IfStatement::WithElse(e, s1, s2) => e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names) && s2.all_private_identifiers_valid(names),
-            IfStatement::WithoutElse(e, s1) => e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names),
+            IfStatement::WithElse(e, s1, s2) => {
+                e.all_private_identifiers_valid(names)
+                    && s1.all_private_identifiers_valid(names)
+                    && s2.all_private_identifiers_valid(names)
+            }
+            IfStatement::WithoutElse(e, s1) => {
+                e.all_private_identifiers_valid(names) && s1.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -152,12 +174,21 @@ impl IfStatement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            IfStatement::WithElse(e, s1, s2) => e.contains_arguments() || s1.contains_arguments() || s2.contains_arguments(),
+            IfStatement::WithElse(e, s1, s2) => {
+                e.contains_arguments() || s1.contains_arguments() || s2.contains_arguments()
+            }
             IfStatement::WithoutElse(e, stmt) => e.contains_arguments() || stmt.contains_arguments(),
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         let (e, s1, s2) = match self {
             IfStatement::WithElse(e, s1, s2) => (e, s1, Some(s2)),
             IfStatement::WithoutElse(e, s1) => (e, s1, None),

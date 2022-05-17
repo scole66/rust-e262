@@ -128,7 +128,13 @@ impl PrettyPrint for Statement {
 }
 
 impl Statement {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Statement), scanner))
             .otherwise(|| {
                 let (block, after_block) = BlockStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -151,7 +157,8 @@ impl Statement {
                 Ok((Rc::new(Statement::If(if_node)), after_if))
             })
             .otherwise(|| {
-                let (bable_node, after_bable) = BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (bable_node, after_bable) =
+                    BreakableStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::Breakable(bable_node)), after_bable))
             })
             .otherwise(|| {
@@ -171,11 +178,13 @@ impl Statement {
                 }
             })
             .otherwise(|| {
-                let (with_node, after_with) = WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (with_node, after_with) =
+                    WithStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::With(with_node)), after_with))
             })
             .otherwise(|| {
-                let (lbl_node, after_lbl) = LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (lbl_node, after_lbl) =
+                    LabelledStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(Statement::Labelled(lbl_node)), after_lbl))
             })
             .otherwise(|| {
@@ -192,7 +201,13 @@ impl Statement {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.statement_cache.get(&key) {
             Some(result) => result.clone(),
@@ -225,7 +240,13 @@ impl Statement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            Statement::Variable(_) | Statement::Empty(_) | Statement::Expression(_) | Statement::Continue(_) | Statement::Return(_) | Statement::Throw(_) | Statement::Debugger(_) => false,
+            Statement::Variable(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Continue(_)
+            | Statement::Return(_)
+            | Statement::Throw(_)
+            | Statement::Debugger(_) => false,
             Statement::Block(node) => node.contains_undefined_break_target(label_set),
             Statement::If(node) => node.contains_undefined_break_target(label_set),
             Statement::Breakable(node) => node.contains_undefined_break_target(label_set),
@@ -337,7 +358,14 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
             Statement::Block(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             Statement::Break(node) => node.early_errors(agent, errs, strict, within_iteration || within_switch),
@@ -403,7 +431,13 @@ impl Statement {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
-            Statement::Empty(_) | Statement::Debugger(_) | Statement::Continue(_) | Statement::Break(_) | Statement::Expression(_) | Statement::Throw(_) | Statement::Return(_) => vec![],
+            Statement::Empty(_)
+            | Statement::Debugger(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Expression(_)
+            | Statement::Throw(_)
+            | Statement::Return(_) => vec![],
             Statement::Block(bs) => bs.var_scoped_declarations(),
             Statement::Variable(vs) => vs.var_scoped_declarations(),
             Statement::If(is) => is.var_scoped_declarations(),
@@ -616,7 +650,9 @@ impl Declaration {
     pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             Declaration::Hoistable(_) => vec![],
-            Declaration::Class(_) | Declaration::Lexical(_) => vec![self.declaration_part()],
+            Declaration::Class(_) | Declaration::Lexical(_) => {
+                vec![self.declaration_part()]
+            }
         }
     }
 }
@@ -674,22 +710,32 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::HoistableDeclaration), scanner))
             .otherwise(|| {
-                let (func, after_func) = FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (func, after_func) =
+                    FunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::Function(func)), after_func))
             })
             .otherwise(|| {
-                let (gen, after_gen) = GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (gen, after_gen) =
+                    GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::Generator(gen)), after_gen))
             })
             .otherwise(|| {
-                let (afun, after_afun) = AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (afun, after_afun) =
+                    AsyncFunctionDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::AsyncFunction(afun)), after_afun))
             })
             .otherwise(|| {
-                let (agen, after_agen) = AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
+                let (agen, after_agen) =
+                    AsyncGeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
                 Ok((Rc::new(HoistableDeclaration::AsyncGenerator(agen)), after_agen))
             })
     }
@@ -792,14 +838,22 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BreakableStatement), scanner))
             .otherwise(|| {
-                let (iter, after_iter) = IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (iter, after_iter) =
+                    IterationStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Iteration(iter)), after_iter))
             })
             .otherwise(|| {
-                let (switch, after_switch) = SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (switch, after_switch) =
+                    SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
     }
@@ -874,7 +928,14 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
             BreakableStatement::Iteration(node) => node.early_errors(agent, errs, strict, within_switch),
             BreakableStatement::Switch(node) => node.early_errors(agent, errs, strict, within_iteration),

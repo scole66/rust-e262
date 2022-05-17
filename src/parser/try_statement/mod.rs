@@ -24,8 +24,12 @@ impl fmt::Display for TryStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TryStatement::Catch(block, catch) => write!(f, "try {} {}", block, catch),
-            TryStatement::Finally(block, finally) => write!(f, "try {} {}", block, finally),
-            TryStatement::Full(block, catch, finally) => write!(f, "try {} {} {}", block, catch, finally),
+            TryStatement::Finally(block, finally) => {
+                write!(f, "try {} {}", block, finally)
+            }
+            TryStatement::Full(block, catch, finally) => {
+                write!(f, "try {} {} {}", block, catch, finally)
+            }
         }
     }
 }
@@ -80,7 +84,13 @@ impl PrettyPrint for TryStatement {
 }
 
 impl TryStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_try = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
         let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
@@ -135,10 +145,16 @@ impl TryStatement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set),
-            TryStatement::Finally(block, finally) => block.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set),
+            TryStatement::Catch(block, catch) => {
+                block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set)
+            }
+            TryStatement::Finally(block, finally) => {
+                block.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set)
+            }
             TryStatement::Full(block, catch, finally) => {
-                block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set) || finally.contains_undefined_break_target(label_set)
+                block.contains_undefined_break_target(label_set)
+                    || catch.contains_undefined_break_target(label_set)
+                    || finally.contains_undefined_break_target(label_set)
             }
         }
     }
@@ -147,24 +163,38 @@ impl TryStatement {
         match self {
             TryStatement::Catch(block, catch) => block.contains(kind) || catch.contains(kind),
             TryStatement::Finally(block, finally) => block.contains(kind) || finally.contains(kind),
-            TryStatement::Full(block, catch, finally) => block.contains(kind) || catch.contains(kind) || finally.contains(kind),
+            TryStatement::Full(block, catch, finally) => {
+                block.contains(kind) || catch.contains(kind) || finally.contains(kind)
+            }
         }
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set),
-            TryStatement::Finally(block, finally) => block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set),
+            TryStatement::Catch(block, catch) => {
+                block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set)
+            }
+            TryStatement::Finally(block, finally) => {
+                block.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
+            }
             TryStatement::Full(block, catch, finally) => {
-                block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set) || finally.contains_duplicate_labels(label_set)
+                block.contains_duplicate_labels(label_set)
+                    || catch.contains_duplicate_labels(label_set)
+                    || finally.contains_duplicate_labels(label_set)
             }
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            TryStatement::Catch(block, catch) => block.contains_undefined_continue_target(iteration_set, &[]) || catch.contains_undefined_continue_target(iteration_set),
-            TryStatement::Finally(block, finally) => block.contains_undefined_continue_target(iteration_set, &[]) || finally.contains_undefined_continue_target(iteration_set),
+            TryStatement::Catch(block, catch) => {
+                block.contains_undefined_continue_target(iteration_set, &[])
+                    || catch.contains_undefined_continue_target(iteration_set)
+            }
+            TryStatement::Finally(block, finally) => {
+                block.contains_undefined_continue_target(iteration_set, &[])
+                    || finally.contains_undefined_continue_target(iteration_set)
+            }
             TryStatement::Full(block, catch, finally) => {
                 block.contains_undefined_continue_target(iteration_set, &[])
                     || catch.contains_undefined_continue_target(iteration_set)
@@ -181,10 +211,16 @@ impl TryStatement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            TryStatement::Catch(block, catch) => block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names),
-            TryStatement::Finally(block, finally) => block.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names),
+            TryStatement::Catch(block, catch) => {
+                block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names)
+            }
+            TryStatement::Finally(block, finally) => {
+                block.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names)
+            }
             TryStatement::Full(block, catch, finally) => {
-                block.all_private_identifiers_valid(names) && catch.all_private_identifiers_valid(names) && finally.all_private_identifiers_valid(names)
+                block.all_private_identifiers_valid(names)
+                    && catch.all_private_identifiers_valid(names)
+                    && finally.all_private_identifiers_valid(names)
             }
         }
     }
@@ -207,7 +243,14 @@ impl TryStatement {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         let (block, catch, finally) = match self {
             TryStatement::Catch(block, catch) => (block, Some(catch), None),
             TryStatement::Finally(block, finally) => (block, None, Some(finally)),
@@ -290,20 +333,31 @@ impl PrettyPrint for Catch {
 }
 
 impl Catch {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
-        Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]), after_catch))
-            .otherwise(|| {
-                let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
-                Ok((Rc::new(Catch { parameter: None, block }), after_block))
-            })
-            .otherwise(|| {
-                let after_open = scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-                let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
-                let after_close = scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-                Ok((Rc::new(Catch { parameter: Some(cp), block }), after_block))
-            })
+        Err(ParseError::new(
+            PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]),
+            after_catch,
+        ))
+        .otherwise(|| {
+            let (block, after_block) = Block::parse(parser, after_catch, yield_flag, await_flag, return_flag)?;
+            Ok((Rc::new(Catch { parameter: None, block }), after_block))
+        })
+        .otherwise(|| {
+            let after_open =
+                scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+            let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
+            let after_close =
+                scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+            let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+            Ok((Rc::new(Catch { parameter: Some(cp), block }), after_block))
+        })
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -333,7 +387,8 @@ impl Catch {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)) && self.block.all_private_identifiers_valid(names)
+        self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+            && self.block.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -350,7 +405,14 @@ impl Catch {
         self.parameter.as_ref().map_or(false, |cp| cp.contains_arguments()) || self.block.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  Catch : catch ( CatchParameter ) Block
         //  * It is a Syntax Error if BoundNames of CatchParameter contains any duplicate elements.
@@ -417,7 +479,13 @@ impl PrettyPrint for Finally {
 }
 
 impl Finally {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_fin = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
         let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(Finally { block }), after_block))
@@ -467,7 +535,14 @@ impl Finally {
         self.block.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         self.block.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
 

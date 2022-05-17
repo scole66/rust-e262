@@ -129,7 +129,9 @@ impl fmt::Display for FormalParameters {
             FormalParameters::Rest(node) => node.fmt(f),
             FormalParameters::List(node) => node.fmt(f),
             FormalParameters::ListComma(node) => write!(f, "{} ,", node),
-            FormalParameters::ListRest(list, rest) => write!(f, "{} , {}", list, rest),
+            FormalParameters::ListRest(list, rest) => {
+                write!(f, "{} , {}", list, rest)
+            }
         }
     }
 }
@@ -144,7 +146,9 @@ impl PrettyPrint for FormalParameters {
         match self {
             FormalParameters::Empty => Ok(()),
             FormalParameters::Rest(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            FormalParameters::List(node) | FormalParameters::ListComma(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            FormalParameters::List(node) | FormalParameters::ListComma(node) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             FormalParameters::ListRest(list, rest) => {
                 list.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 rest.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -239,7 +243,9 @@ impl FormalParameters {
             FormalParameters::Rest(node) => node.all_private_identifiers_valid(names),
             FormalParameters::List(node) => node.all_private_identifiers_valid(names),
             FormalParameters::ListComma(node) => node.all_private_identifiers_valid(names),
-            FormalParameters::ListRest(list, rest) => list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names),
+            FormalParameters::ListRest(list, rest) => {
+                list.all_private_identifiers_valid(names) && rest.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -403,8 +409,9 @@ impl FormalParameterList {
         let (fp, after_fp) = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
-        while let Ok((next, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
+        while let Ok((next, after_next)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
         {
             current = Rc::new(FormalParameterList::List(current, next));
             current_scanner = after_next;
@@ -428,7 +435,9 @@ impl FormalParameterList {
         //  2. Return true.
         match self {
             FormalParameterList::Item(node) => node.all_private_identifiers_valid(names),
-            FormalParameterList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            FormalParameterList::List(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 

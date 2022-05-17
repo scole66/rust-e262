@@ -42,10 +42,12 @@ impl PrettyPrint for UpdateExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}UpdateExpression: {}", first, self)?;
         match &self {
-            UpdateExpression::LeftHandSideExpression(boxed) | UpdateExpression::PostIncrement(boxed) | UpdateExpression::PostDecrement(boxed) => {
+            UpdateExpression::LeftHandSideExpression(boxed)
+            | UpdateExpression::PostIncrement(boxed)
+            | UpdateExpression::PostDecrement(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            UpdateExpression::PreIncrement(boxed) | UpdateExpression::PreDecrement(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -57,12 +59,16 @@ impl PrettyPrint for UpdateExpression {
             writeln!(writer, "{}UpdateExpression: {}", first, self).and(Ok(successive))
         };
         let workafter = |writer: &mut T, node: &LeftHandSideExpression, op: &str| {
-            head(writer)
-                .and_then(|successive| node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final)))
+            head(writer).and_then(|successive| {
+                node.concise_with_leftpad(writer, &successive, Spot::NotFinal)
+                    .and_then(|_| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::Final))
+            })
         };
         let workbefore = |writer: &mut T, node: &UnaryExpression, op: &str| {
-            head(writer)
-                .and_then(|successive| pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal).and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final)))
+            head(writer).and_then(|successive| {
+                pprint_token(writer, op, TokenType::Punctuator, &successive, Spot::NotFinal)
+                    .and_then(|_| node.concise_with_leftpad(writer, &successive, Spot::Final))
+            })
         };
         match self {
             UpdateExpression::LeftHandSideExpression(node) => node.concise_with_leftpad(writer, pad, state),
@@ -78,7 +84,10 @@ impl IsFunctionDefinition for UpdateExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             UpdateExpression::LeftHandSideExpression(boxed) => boxed.is_function_definition(),
-            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => false,
+            UpdateExpression::PostIncrement(_)
+            | UpdateExpression::PostDecrement(_)
+            | UpdateExpression::PreIncrement(_)
+            | UpdateExpression::PreDecrement(_) => false,
         }
     }
 }
@@ -87,12 +96,14 @@ impl UpdateExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UpdateExpression), scanner))
             .otherwise(|| {
-                let after_plusses = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::PlusPlus)?;
+                let after_plusses =
+                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::PlusPlus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_plusses, yield_flag, await_flag)?;
                 Ok((Rc::new(UpdateExpression::PreIncrement(ue)), after_ue))
             })
             .otherwise(|| {
-                let after_minuses = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::MinusMinus)?;
+                let after_minuses =
+                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::MinusMinus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_minuses, yield_flag, await_flag)?;
                 Ok((Rc::new(UpdateExpression::PreDecrement(ue)), after_ue))
             })
@@ -105,7 +116,12 @@ impl UpdateExpression {
                 let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 no_line_terminator(after_lhs, parser.source)
                     .and_then(|()| {
-                        let (punct, after_punct) = scan_for_punct_set(after_lhs, parser.source, ScanGoal::InputElementDiv, &[Punctuator::PlusPlus, Punctuator::MinusMinus])?;
+                        let (punct, after_punct) = scan_for_punct_set(
+                            after_lhs,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            &[Punctuator::PlusPlus, Punctuator::MinusMinus],
+                        )?;
                         match punct {
                             Punctuator::PlusPlus => Ok((AftLHS::Inc, after_punct)),
                             _ => Ok((AftLHS::Dec, after_punct)),
@@ -162,8 +178,12 @@ impl UpdateExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            UpdateExpression::LeftHandSideExpression(n) | UpdateExpression::PostIncrement(n) | UpdateExpression::PostDecrement(n) => n.all_private_identifiers_valid(names),
-            UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => n.all_private_identifiers_valid(names),
+            UpdateExpression::LeftHandSideExpression(n)
+            | UpdateExpression::PostIncrement(n)
+            | UpdateExpression::PostDecrement(n) => n.all_private_identifiers_valid(names),
+            UpdateExpression::PreIncrement(n) | UpdateExpression::PreDecrement(n) => {
+                n.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -179,7 +199,9 @@ impl UpdateExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            UpdateExpression::LeftHandSideExpression(lhse) | UpdateExpression::PostIncrement(lhse) | UpdateExpression::PostDecrement(lhse) => lhse.contains_arguments(),
+            UpdateExpression::LeftHandSideExpression(lhse)
+            | UpdateExpression::PostIncrement(lhse)
+            | UpdateExpression::PostDecrement(lhse) => lhse.contains_arguments(),
             UpdateExpression::PreIncrement(ue) | UpdateExpression::PreDecrement(ue) => ue.contains_arguments(),
         }
     }
@@ -224,7 +246,10 @@ impl UpdateExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(strict),
-            UpdateExpression::PostIncrement(_) | UpdateExpression::PostDecrement(_) | UpdateExpression::PreIncrement(_) | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
+            UpdateExpression::PostIncrement(_)
+            | UpdateExpression::PostDecrement(_)
+            | UpdateExpression::PreIncrement(_)
+            | UpdateExpression::PreDecrement(_) => ATTKind::Invalid,
         }
     }
 

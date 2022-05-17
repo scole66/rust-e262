@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED, LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, DUPLICATE_LEXICAL, IMPLEMENTS_NOT_ALLOWED,
+    LEX_DUPED_BY_VAR, PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -20,12 +23,14 @@ fn block_statement_test_err_01() {
 }
 #[test]
 fn block_statement_test_prettyerrors_1() {
-    let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn block_statement_test_conciseerrors_1() {
-    let (item, _) = BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        BlockStatement::parse(&mut newparser("{ statement_list; }"), Scanner::new(), false, false, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -89,7 +94,10 @@ mod block_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        BlockStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -236,7 +244,13 @@ mod block {
     #[test_case("{let a, b, c;}" => vec!["a", "b", "c"]; "not-empty")]
     #[test_case("{}" => Vec::<String>::new(); "empty")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
-        Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.lexically_declared_names().into_iter().map(String::from).collect::<Vec<String>>()
+        Block::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .lexically_declared_names()
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<String>>()
     }
 
     #[test_case("{package;}", true => set(&[PACKAGE_NOT_ALLOWED]); "{ StatementList }")]
@@ -246,7 +260,10 @@ mod block {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Block::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        Block::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -291,26 +308,37 @@ fn statement_list_test_cache_01() {
 }
 #[test]
 fn statement_list_test_err_01() {
-    check_err(StatementList::parse(&mut newparser(""), Scanner::new(), false, false, true), "Declaration or Statement expected", 1, 1);
+    check_err(
+        StatementList::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "Declaration or Statement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn statement_list_test_prettyerrors_1() {
-    let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn statement_list_test_prettyerrors_2() {
-    let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn statement_list_test_conciseerrors_1() {
-    let (item, _) = StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn statement_list_test_conciseerrors_2() {
-    let (item, _) = StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("statement; statement; statement;"), Scanner::new(), false, false, true)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -355,7 +383,14 @@ fn statement_list_test_top_level_lexically_declared_names_01() {
 }
 #[test]
 fn statement_list_test_top_level_lexically_declared_names_02() {
-    let (item, _) = StatementList::parse(&mut newparser("let a=1, b=2; const alpha='q', beta='b';"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = StatementList::parse(
+        &mut newparser("let a=1, b=2; const alpha='q', beta='b';"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.top_level_lexically_declared_names(), &["a", "b", "alpha", "beta"]);
 }
 #[test]
@@ -365,7 +400,14 @@ fn statement_list_test_top_level_var_declared_names_01() {
 }
 #[test]
 fn statement_list_test_top_level_var_declared_names_02() {
-    let (item, _) = StatementList::parse(&mut newparser("var a=1, b=2; var alpha='q', beta='b';"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = StatementList::parse(
+        &mut newparser("var a=1, b=2; var alpha='q', beta='b';"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.top_level_var_declared_names(), &["a", "b", "alpha", "beta"]);
 }
 #[test]
@@ -375,7 +417,14 @@ fn statement_list_test_var_declared_names_01() {
 }
 #[test]
 fn statement_list_test_var_declared_names_02() {
-    let (item, _) = StatementList::parse(&mut newparser("var a=1, b=2; var alpha='q', beta='b';"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = StatementList::parse(
+        &mut newparser("var a=1, b=2; var alpha='q', beta='b';"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.var_declared_names(), &["a", "b", "alpha", "beta"]);
 }
 #[test]
@@ -390,17 +439,20 @@ fn statement_list_test_contains_undefined_break_target_02() {
 }
 #[test]
 fn statement_list_test_contains_undefined_break_target_03() {
-    let (item, _) = StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("b")]), true);
 }
 #[test]
 fn statement_list_test_contains_undefined_break_target_04() {
-    let (item, _) = StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("a")]), true);
 }
 #[test]
 fn statement_list_test_contains_undefined_break_target_05() {
-    let (item, _) = StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementList::parse(&mut newparser("break a; break b;"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("a"), JSString::from("b")]), false);
 }
 fn statement_list_cdl_check(src: &str) {
@@ -462,7 +514,10 @@ mod statement_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        StatementList::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
     #[test_case("arguments;" => true; "Item (yes)")]
@@ -483,13 +538,23 @@ mod statement_list {
     #[test_case("var rust='bob';" => svec(&["rust = 'bob'"]); "item")]
     #[test_case("a; function b(){}; var third;" => svec(&["function b (  ) {  }", "third"]); "list")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).statement_list().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .statement_list()
+            .top_level_var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("let dragon=xorn;" => svec(&["let dragon = xorn ;"]); "item")]
     #[test_case("const a=0; function b(){} class c{}" => svec(&["const a = 0 ;", "class c { }"]); "list")]
     fn top_level_lexically_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).statement_list().top_level_lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .statement_list()
+            .top_level_lexically_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 }
 
@@ -512,26 +577,35 @@ fn statement_list_item_test_02() {
 }
 #[test]
 fn statement_list_item_test_err_01() {
-    check_err(StatementListItem::parse(&mut newparser(""), Scanner::new(), false, false, true), "Declaration or Statement expected", 1, 1);
+    check_err(
+        StatementListItem::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "Declaration or Statement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn statement_list_item_test_prettyerrors_1() {
-    let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn statement_list_item_test_prettyerrors_2() {
-    let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn statement_list_item_test_conciseerrors_1() {
-    let (item, _) = StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("statement_list;"), Scanner::new(), false, false, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn statement_list_item_test_conciseerrors_2() {
-    let (item, _) = StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("const declaration = 0;"), Scanner::new(), false, false, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -542,7 +616,8 @@ fn statement_list_item_test_top_level_lexically_declared_names_01() {
 }
 #[test]
 fn statement_list_item_test_top_level_lexically_declared_names_02() {
-    let (item, _) = StatementListItem::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("function a(){}"), Scanner::new(), true, true, true).unwrap();
     let expected: &[JSString] = &[];
     assert_eq!(item.top_level_lexically_declared_names(), expected);
 }
@@ -553,18 +628,21 @@ fn statement_list_item_test_top_level_lexically_declared_names_03() {
 }
 #[test]
 fn statement_list_item_test_top_level_var_declared_names_01() {
-    let (item, _) = StatementListItem::parse(&mut newparser("a: function b(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("a: function b(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.top_level_var_declared_names(), &[JSString::from("b")]);
 }
 #[test]
 fn statement_list_item_test_top_level_var_declared_names_02() {
-    let (item, _) = StatementListItem::parse(&mut newparser("{ function b(){} }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("{ function b(){} }"), Scanner::new(), true, true, true).unwrap();
     let expected: &[JSString] = &[];
     assert_eq!(item.top_level_var_declared_names(), expected);
 }
 #[test]
 fn statement_list_item_test_top_level_var_declared_names_03() {
-    let (item, _) = StatementListItem::parse(&mut newparser("function b(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("function b(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.top_level_var_declared_names(), &[JSString::from("b")]);
 }
 #[test]
@@ -575,7 +653,8 @@ fn statement_list_item_test_top_level_var_declared_names_04() {
 }
 #[test]
 fn statement_list_item_test_var_declared_names_01() {
-    let (item, _) = StatementListItem::parse(&mut newparser("function b(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        StatementListItem::parse(&mut newparser("function b(){}"), Scanner::new(), true, true, true).unwrap();
     let expected: &[JSString] = &[];
     assert_eq!(item.var_declared_names(), expected);
 }
@@ -682,7 +761,10 @@ mod statement_list_item {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -706,12 +788,22 @@ mod statement_list_item {
     #[test_case("function abcd(efg){hij;}" => svec(&["function abcd ( efg ) { hij ; }"]); "decl")]
     #[test_case("const rust=10;" => svec(&[]); "not hoistable")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).statement_list_item().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .statement_list_item()
+            .top_level_var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("var a=27;" => svec(&[]); "statement")]
     #[test_case("class rocket{}" => svec(&["class rocket { }"]); "declaration")]
     fn top_level_lexically_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).statement_list_item().top_level_lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .statement_list_item()
+            .top_level_lexically_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 }

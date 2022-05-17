@@ -1,4 +1,6 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -10,7 +12,8 @@ const MISSING_INITIALIZER: &str = "Missing initializer in const declaration";
 // LEXICAL DECLARATION
 #[test]
 fn lexical_declaration_test_01() {
-    let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(LexicalDeclaration::parse(&mut newparser("let a;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 6);
     pretty_check(&*node, "LexicalDeclaration: let a ;", vec!["LetOrConst: let", "BindingList: a"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", vec!["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
@@ -18,10 +21,15 @@ fn lexical_declaration_test_01() {
 }
 #[test]
 fn lexical_declaration_test_02() {
-    let (node, scanner) = check(LexicalDeclaration::parse(&mut newparser("const a=0;"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(LexicalDeclaration::parse(&mut newparser("const a=0;"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 10);
     pretty_check(&*node, "LexicalDeclaration: const a = 0 ;", vec!["LetOrConst: const", "BindingList: a = 0"]);
-    concise_check(&*node, "LexicalDeclaration: const a = 0 ;", vec!["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"]);
+    concise_check(
+        &*node,
+        "LexicalDeclaration: const a = 0 ;",
+        vec!["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -42,15 +50,30 @@ fn lexical_declaration_test_asi_01() {
 }
 #[test]
 fn lexical_declaration_test_err_01() {
-    check_err(LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "one of [‘let’, ‘const’] expected", 1, 1);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "one of [‘let’, ‘const’] expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn lexical_declaration_test_err_02() {
-    check_err(LexicalDeclaration::parse(&mut newparser("let"), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 4);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser("let"), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn lexical_declaration_test_err_03() {
-    check_err(LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false), "‘;’ expected", 1, 6);
+    check_err(
+        LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false),
+        "‘;’ expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn lexical_declaration_test_prettyerrors_1() {
@@ -85,7 +108,10 @@ mod lexical_declaration {
     #[test_case("let a;" => false; "kwd let")]
     #[test_case("const a=0;" => true; "kwd const")]
     fn is_constant_declaration(src: &str) -> bool {
-        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_constant_declaration()
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_constant_declaration()
     }
 
     const LET_NOT_LEGAL: &str = "‘let’ is not a valid binding identifier";
@@ -99,7 +125,10 @@ mod lexical_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -172,7 +201,12 @@ fn binding_list_test_02() {
 }
 #[test]
 fn binding_list_test_err_01() {
-    check_err(BindingList::parse(&mut newparser(""), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 1);
+    check_err(
+        BindingList::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_list_test_bound_names_01() {
@@ -213,7 +247,12 @@ mod binding_list {
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
+        BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
+            &mut agent,
+            &mut errs,
+            strict,
+            is_constant_declaration,
+        );
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -263,7 +302,12 @@ fn lexical_binding_test_03() {
 }
 #[test]
 fn lexical_binding_test_err_01() {
-    check_err(LexicalBinding::parse(&mut newparser(""), Scanner::new(), true, false, false), "LexicalBinding expected", 1, 1);
+    check_err(
+        LexicalBinding::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "LexicalBinding expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn lexical_binding_test_err_02() {
@@ -329,7 +373,12 @@ mod lexical_binding {
     fn early_errors(src: &str, strict: bool, is_constant_declaration: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, is_constant_declaration);
+        LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(
+            &mut agent,
+            &mut errs,
+            strict,
+            is_constant_declaration,
+        );
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -371,7 +420,12 @@ fn variable_statement_test_err_01() {
 }
 #[test]
 fn variable_statement_test_err_02() {
-    check_err(VariableStatement::parse(&mut newparser("var"), Scanner::new(), false, false), "VariableDeclaration expected", 1, 4);
+    check_err(
+        VariableStatement::parse(&mut newparser("var"), Scanner::new(), false, false),
+        "VariableDeclaration expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn variable_statement_test_err_03() {
@@ -406,7 +460,10 @@ mod variable_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableStatement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -425,7 +482,8 @@ mod variable_statement {
 // VARIABLE DECLARATION LIST
 #[test]
 fn variable_declaration_list_test_01() {
-    let (node, scanner) = check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclarationList::parse(&mut newparser("a"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*node, VariableDeclarationList::Item(..)));
     pretty_check(&*node, "VariableDeclarationList: a", vec!["VariableDeclaration: a"]);
@@ -436,11 +494,20 @@ fn variable_declaration_list_test_01() {
 }
 #[test]
 fn variable_declaration_list_test_02() {
-    let (node, scanner) = check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclarationList::parse(&mut newparser("a,b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, VariableDeclarationList::List(..)));
-    pretty_check(&*node, "VariableDeclarationList: a , b", vec!["VariableDeclarationList: a", "VariableDeclaration: b"]);
-    concise_check(&*node, "VariableDeclarationList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    pretty_check(
+        &*node,
+        "VariableDeclarationList: a , b",
+        vec!["VariableDeclarationList: a", "VariableDeclaration: b"],
+    );
+    concise_check(
+        &*node,
+        "VariableDeclarationList: a , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -455,7 +522,12 @@ fn variable_declaration_list_test_cache_01() {
 }
 #[test]
 fn variable_declaration_list_test_err_01() {
-    check_err(VariableDeclarationList::parse(&mut newparser(""), Scanner::new(), true, false, false), "VariableDeclaration expected", 1, 1);
+    check_err(
+        VariableDeclarationList::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "VariableDeclaration expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn variable_declaration_list_test_bound_names_01() {
@@ -464,7 +536,8 @@ fn variable_declaration_list_test_bound_names_01() {
 }
 #[test]
 fn variable_declaration_list_test_bound_names_02() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["a", "b"]);
 }
 #[test]
@@ -479,17 +552,20 @@ fn variable_declaration_list_test_contains_02() {
 }
 #[test]
 fn variable_declaration_list_test_contains_03() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=0,b=x"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn variable_declaration_list_test_contains_04() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=x,b=0"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=x,b=0"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn variable_declaration_list_test_contains_05() {
-    let (item, _) = VariableDeclarationList::parse(&mut newparser("a=x,b=y"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        VariableDeclarationList::parse(&mut newparser("a=x,b=y"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("a=item.#valid" => true; "Item valid")]
@@ -511,7 +587,10 @@ mod variable_declaration_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -521,13 +600,21 @@ mod variable_declaration_list {
     #[test_case("a,b=arguments" => true; "List (right)")]
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
-        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        VariableDeclarationList::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("item" => svec(&["item"]); "just one")]
     #[test_case("left, center='ham', right" => svec(&["left", "center = 'ham'", "right"]); "a list")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).variable_declaration_list().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .variable_declaration_list()
+            .var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 }
 
@@ -556,7 +643,8 @@ fn variable_declaration_test_02() {
 }
 #[test]
 fn variable_declaration_test_03() {
-    let (node, scanner) = check(VariableDeclaration::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
+    let (node, scanner) =
+        check(VariableDeclaration::parse(&mut newparser("{a}=b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, VariableDeclaration::Pattern(..)));
     pretty_check(&*node, "VariableDeclaration: { a } = b", vec!["BindingPattern: { a }", "Initializer: = b"]);
@@ -567,11 +655,21 @@ fn variable_declaration_test_03() {
 }
 #[test]
 fn variable_declaration_test_err_01() {
-    check_err(VariableDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false), "VariableDeclaration expected", 1, 1);
+    check_err(
+        VariableDeclaration::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "VariableDeclaration expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn variable_declaration_test_err_02() {
-    check_err(VariableDeclaration::parse(&mut newparser("{a}"), Scanner::new(), true, false, false), "‘=’ expected", 1, 4)
+    check_err(
+        VariableDeclaration::parse(&mut newparser("{a}"), Scanner::new(), true, false, false),
+        "‘=’ expected",
+        1,
+        4,
+    )
 }
 #[test]
 fn variable_declaration_test_bound_names_01() {
@@ -634,7 +732,10 @@ mod variable_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -645,7 +746,10 @@ mod variable_declaration {
     #[test_case("{a}=arguments" => true; "Pattern (right)")]
     #[test_case("{a}=b" => false; "Pattern (none)")]
     fn contains_arguments(src: &str) -> bool {
-        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        VariableDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }
 
@@ -731,7 +835,10 @@ mod binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -762,7 +869,11 @@ fn object_binding_pattern_test_02() {
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, ObjectBindingPattern::RestOnly(..)));
     pretty_check(&*node, "ObjectBindingPattern: { ... a }", vec!["BindingRestProperty: ... a"]);
-    concise_check(&*node, "ObjectBindingPattern: { ... a }", vec!["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { ... a }",
+        vec!["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -783,8 +894,16 @@ fn object_binding_pattern_test_04() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,...b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, Some(_))));
-    pretty_check(&*node, "ObjectBindingPattern: { a , ... b }", vec!["BindingPropertyList: a", "BindingRestProperty: ... b"]);
-    concise_check(&*node, "ObjectBindingPattern: { a , ... b }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"]);
+    pretty_check(
+        &*node,
+        "ObjectBindingPattern: { a , ... b }",
+        vec!["BindingPropertyList: a", "BindingRestProperty: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { a , ... b }",
+        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -795,14 +914,23 @@ fn object_binding_pattern_test_05() {
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, None)));
     pretty_check(&*node, "ObjectBindingPattern: { a , }", vec!["BindingPropertyList: a"]);
-    concise_check(&*node, "ObjectBindingPattern: { a , }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "ObjectBindingPattern: { a , }",
+        vec!["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
 #[test]
 fn object_binding_pattern_test_err_01() {
-    check_err(ObjectBindingPattern::parse(&mut newparser(""), Scanner::new(), false, false), "ObjectBindingPattern expected", 1, 1);
+    check_err(
+        ObjectBindingPattern::parse(&mut newparser(""), Scanner::new(), false, false),
+        "ObjectBindingPattern expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn object_binding_pattern_test_err_02() {
@@ -822,7 +950,12 @@ fn object_binding_pattern_test_err_05() {
 }
 #[test]
 fn object_binding_pattern_test_err_06() {
-    check_err(ObjectBindingPattern::parse(&mut newparser("{b,...a"), Scanner::new(), false, false), "‘}’ expected", 1, 8);
+    check_err(
+        ObjectBindingPattern::parse(&mut newparser("{b,...a"), Scanner::new(), false, false),
+        "‘}’ expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn object_binding_pattern_test_bound_names_01() {
@@ -913,7 +1046,10 @@ mod object_binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -959,7 +1095,11 @@ fn array_binding_pattern_test_03() {
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, Some(_))));
     pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["BindingRestElement: ... a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ ... a ]",
+        vec!["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -970,7 +1110,11 @@ fn array_binding_pattern_test_04() {
     chk_scan(&scanner, 7);
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), Some(_))));
     pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Elisions: ,", "BindingRestElement: ... a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ , ... a ]",
+        vec!["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -992,7 +1136,11 @@ fn array_binding_pattern_test_06() {
     chk_scan(&scanner, 4);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, None)));
     pretty_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["BindingElementList: a"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1003,7 +1151,11 @@ fn array_binding_pattern_test_07() {
     chk_scan(&scanner, 5);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), None)));
     pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["BindingElementList: a", "Elisions: ,"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"]);
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1013,8 +1165,16 @@ fn array_binding_pattern_test_08() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, Some(_))));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , ... b ]", vec!["BindingElementList: a", "BindingRestElement: ... b"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , ... b ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"]);
+    pretty_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ... b ]",
+        vec!["BindingElementList: a", "BindingRestElement: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , ... b ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1024,8 +1184,23 @@ fn array_binding_pattern_test_09() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), Some(_))));
-    pretty_check(&*node, "ArrayBindingPattern: [ a , , ... b ]", vec!["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"]);
-    concise_check(&*node, "ArrayBindingPattern: [ a , , ... b ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "BindingRestElement: ... b", "Punctuator: ]"]);
+    pretty_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ... b ]",
+        vec!["BindingElementList: a", "Elisions: ,", "BindingRestElement: ... b"],
+    );
+    concise_check(
+        &*node,
+        "ArrayBindingPattern: [ a , , ... b ]",
+        vec![
+            "Punctuator: [",
+            "IdentifierName: a",
+            "Punctuator: ,",
+            "Elisions: ,",
+            "BindingRestElement: ... b",
+            "Punctuator: ]",
+        ],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1036,15 +1211,30 @@ fn array_binding_pattern_test_err_01() {
 }
 #[test]
 fn array_binding_pattern_test_err_02() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("["), Scanner::new(), false, false), "BindingElement expected", 1, 2);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("["), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_03() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘]’, ‘,’] expected", 1, 3);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[a"), Scanner::new(), false, false),
+        "one of [‘]’, ‘,’] expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_04() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[,"), Scanner::new(), false, false), "BindingElement expected", 1, 3);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[,"), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_05() {
@@ -1052,15 +1242,30 @@ fn array_binding_pattern_test_err_05() {
 }
 #[test]
 fn array_binding_pattern_test_err_06() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[,,,,,,,,,,,,,..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 18);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[,,,,,,,,,,,,,..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        18,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_07() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 16);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        16,
+    );
 }
 #[test]
 fn array_binding_pattern_test_err_08() {
-    check_err(ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,...ddd"), Scanner::new(), false, false), "‘]’ expected", 1, 19);
+    check_err(
+        ArrayBindingPattern::parse(&mut newparser("[abc,def,,,,...ddd"), Scanner::new(), false, false),
+        "‘]’ expected",
+        1,
+        19,
+    );
 }
 #[test]
 fn array_binding_pattern_test_bound_names_01() {
@@ -1217,7 +1422,10 @@ mod array_binding_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1269,7 +1477,12 @@ fn binding_rest_property_test_err_01() {
 }
 #[test]
 fn binding_rest_property_test_err_02() {
-    check_err(BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false), "not an identifier", 1, 4);
+    check_err(
+        BindingRestProperty::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "not an identifier",
+        1,
+        4,
+    );
 }
 #[test]
 fn binding_rest_property_test_bound_names_01() {
@@ -1289,7 +1502,10 @@ mod binding_rest_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -1312,7 +1528,11 @@ fn binding_property_list_test_02() {
     chk_scan(&scanner, 3);
     assert!(matches!(&*node, BindingPropertyList::List(..)));
     pretty_check(&*node, "BindingPropertyList: a , b", vec!["BindingPropertyList: a", "BindingProperty: b"]);
-    concise_check(&*node, "BindingPropertyList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    concise_check(
+        &*node,
+        "BindingPropertyList: a , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+    );
     format!("{:?}", node);
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
@@ -1330,7 +1550,12 @@ fn binding_property_list_test_03() {
 }
 #[test]
 fn binding_property_list_test_err_01() {
-    check_err(BindingPropertyList::parse(&mut newparser(""), Scanner::new(), false, false), "BindingProperty expected", 1, 1);
+    check_err(
+        BindingPropertyList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingProperty expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_property_list_test_bound_names_01() {
@@ -1386,7 +1611,10 @@ mod binding_property_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1436,7 +1664,12 @@ fn binding_element_list_test_03() {
 }
 #[test]
 fn binding_element_list_test_err_01() {
-    check_err(BindingElementList::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        BindingElementList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_element_list_test_bound_names_01() {
@@ -1492,7 +1725,10 @@ mod binding_element_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElementList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1531,7 +1767,12 @@ fn binding_elision_element_test_02() {
 }
 #[test]
 fn binding_elision_element_test_err_01() {
-    check_err(BindingElisionElement::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        BindingElisionElement::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_elision_element_test_bound_names_01() {
@@ -1575,7 +1816,10 @@ mod binding_elision_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1624,7 +1868,12 @@ fn binding_property_test_03() {
 }
 #[test]
 fn binding_property_test_err_01() {
-    check_err(BindingProperty::parse(&mut newparser(""), Scanner::new(), false, false), "BindingProperty expected", 1, 1);
+    check_err(
+        BindingProperty::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingProperty expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn binding_property_test_bound_names_01() {
@@ -1680,7 +1929,10 @@ mod binding_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1815,7 +2067,10 @@ mod binding_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1913,7 +2168,10 @@ mod single_name_binding {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1962,7 +2220,12 @@ fn binding_rest_element_test_err_01() {
 }
 #[test]
 fn binding_rest_element_test_err_02() {
-    check_err(BindingRestElement::parse(&mut newparser("..."), Scanner::new(), false, false), "‘[’, ‘{’, or an identifier expected", 1, 4);
+    check_err(
+        BindingRestElement::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "‘[’, ‘{’, or an identifier expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn binding_rest_element_test_bound_names_01() {
@@ -2005,7 +2268,10 @@ mod binding_rest_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

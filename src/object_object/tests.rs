@@ -3,7 +3,8 @@ use crate::cr::Completion;
 use crate::errors::{create_type_error, create_type_error_object, unwind_any_error};
 use crate::execution_context::ExecutionContext;
 use crate::object::{
-    create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject, PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
+    create_data_property_or_throw, has_own_property, ordinary_object_create, set, DataProperty, DeadObject,
+    PropertyDescriptor, PropertyInfo, PropertyInfoKind, PropertyKind,
 };
 use crate::realm::IntrinsicId;
 use crate::tests::{test_agent, unwind_type_error, AdaptableMethods, AdaptableObject, FunctionId, TestObject};
@@ -139,25 +140,50 @@ mod constructor {
                 &mut agent,
                 &limbs,
                 PropertyKey::from("not_visible"),
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), enumerable: Some(false), writable: Some(true), configurable: Some(true), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::Null),
+                    enumerable: Some(false),
+                    writable: Some(true),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
             )
             .unwrap();
-            let keys_not_props = ECMAScriptValue::from(AdaptableObject::object(&mut agent, AdaptableMethods { own_property_keys_override: Some(fake_keys), ..Default::default() }));
+            let keys_not_props = ECMAScriptValue::from(AdaptableObject::object(
+                &mut agent,
+                AdaptableMethods { own_property_keys_override: Some(fake_keys), ..Default::default() },
+            ));
 
             let result = object_assign(
                 &mut agent,
                 ECMAScriptValue::Undefined,
                 None,
-                &[ECMAScriptValue::from(target.clone()), ECMAScriptValue::Undefined, ECMAScriptValue::from(fruits), ECMAScriptValue::Null, ECMAScriptValue::from(limbs), keys_not_props],
+                &[
+                    ECMAScriptValue::from(target.clone()),
+                    ECMAScriptValue::Undefined,
+                    ECMAScriptValue::from(fruits),
+                    ECMAScriptValue::Null,
+                    ECMAScriptValue::from(limbs),
+                    keys_not_props,
+                ],
             )
             .unwrap();
 
             match result {
                 ECMAScriptValue::Object(to) => {
                     assert_eq!(to, target);
-                    assert_eq!(get(&mut agent, &to, &PropertyKey::from("round")).unwrap(), ECMAScriptValue::from("apple"));
-                    assert_eq!(get(&mut agent, &to, &PropertyKey::from("long")).unwrap(), ECMAScriptValue::from("banana"));
-                    assert_eq!(get(&mut agent, &to, &PropertyKey::from("bunch")).unwrap(), ECMAScriptValue::from("grapes"));
+                    assert_eq!(
+                        get(&mut agent, &to, &PropertyKey::from("round")).unwrap(),
+                        ECMAScriptValue::from("apple")
+                    );
+                    assert_eq!(
+                        get(&mut agent, &to, &PropertyKey::from("long")).unwrap(),
+                        ECMAScriptValue::from("banana")
+                    );
+                    assert_eq!(
+                        get(&mut agent, &to, &PropertyKey::from("bunch")).unwrap(),
+                        ECMAScriptValue::from("grapes")
+                    );
                     assert_eq!(get(&mut agent, &to, &PropertyKey::from("spider")).unwrap(), ECMAScriptValue::from(8));
                     assert_eq!(get(&mut agent, &to, &PropertyKey::from("bee")).unwrap(), ECMAScriptValue::from(6));
                     assert_eq!(get(&mut agent, &to, &PropertyKey::from("dog")).unwrap(), ECMAScriptValue::from(4));
@@ -182,12 +208,22 @@ mod constructor {
         fn own_prop_keys(_: &mut Agent, _: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("prop")])
         }
-        fn get_own_prop_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        fn get_own_prop_err(
+            agent: &mut Agent,
+            _: &AdaptableObject,
+            _: &PropertyKey,
+        ) -> Completion<Option<PropertyDescriptor>> {
             Err(create_type_error(agent, "Test Sentinel"))
         }
         fn get_own_property_throws(agent: &mut Agent) -> ECMAScriptValue {
-            let obj =
-                AdaptableObject::object(agent, AdaptableMethods { own_property_keys_override: Some(own_prop_keys), get_own_property_override: Some(get_own_prop_err), ..Default::default() });
+            let obj = AdaptableObject::object(
+                agent,
+                AdaptableMethods {
+                    own_property_keys_override: Some(own_prop_keys),
+                    get_own_property_override: Some(get_own_prop_err),
+                    ..Default::default()
+                },
+            );
             ECMAScriptValue::from(obj)
         }
         fn set_throws(agent: &mut Agent) -> ECMAScriptValue {
@@ -199,7 +235,11 @@ mod constructor {
             create_data_property_or_throw(agent, &obj, "something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
-        fn get_own_prop_ok(_: &mut Agent, _: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
+        fn get_own_prop_ok(
+            _: &mut Agent,
+            _: &AdaptableObject,
+            _: &PropertyKey,
+        ) -> Completion<Option<PropertyDescriptor>> {
             Ok(Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(22), writable: true }),
                 enumerable: true,
@@ -207,13 +247,23 @@ mod constructor {
                 ..Default::default()
             }))
         }
-        fn get_err(agent: &mut Agent, _: &AdaptableObject, _: &PropertyKey, _: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+        fn get_err(
+            agent: &mut Agent,
+            _: &AdaptableObject,
+            _: &PropertyKey,
+            _: &ECMAScriptValue,
+        ) -> Completion<ECMAScriptValue> {
             Err(create_type_error(agent, "[[Get]] throws from AdaptableObject"))
         }
         fn get_throws(agent: &mut Agent) -> ECMAScriptValue {
             let obj = AdaptableObject::object(
                 agent,
-                AdaptableMethods { own_property_keys_override: Some(own_prop_keys), get_own_property_override: Some(get_own_prop_ok), get_override: Some(get_err), ..Default::default() },
+                AdaptableMethods {
+                    own_property_keys_override: Some(own_prop_keys),
+                    get_own_property_override: Some(get_own_prop_ok),
+                    get_override: Some(get_err),
+                    ..Default::default()
+                },
             );
             ECMAScriptValue::from(obj)
         }
@@ -223,7 +273,10 @@ mod constructor {
         #[test_case(ordinary_obj, get_own_property_throws => "Test Sentinel"; "GetOwnProperty throws")]
         #[test_case(set_throws, obj_with_item => "[[Set]] called on TestObject"; "Set method throws")]
         #[test_case(ordinary_obj, get_throws => "[[Get]] throws from AdaptableObject"; "Get method throws")]
-        fn error(create_to: fn(&mut Agent) -> ECMAScriptValue, create_from: fn(&mut Agent) -> ECMAScriptValue) -> String {
+        fn error(
+            create_to: fn(&mut Agent) -> ECMAScriptValue,
+            create_from: fn(&mut Agent) -> ECMAScriptValue,
+        ) -> String {
             let mut agent = test_agent();
             let to = create_to(&mut agent);
             let from = create_from(&mut agent);
@@ -242,19 +295,22 @@ mod constructor {
         }
         fn normal_params(agent: &mut Agent) -> ECMAScriptValue {
             let obj = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            let emotion_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let emotion_descriptor =
+                ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &emotion_descriptor, "value", "happy").unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "writable", true).unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "enumerable", true).unwrap();
             create_data_property_or_throw(agent, &emotion_descriptor, "configurable", true).unwrap();
             create_data_property_or_throw(agent, &obj, "emotion", emotion_descriptor).unwrap();
-            let age_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let age_descriptor =
+                ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &age_descriptor, "value", 27).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "writable", true).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "enumerable", true).unwrap();
             create_data_property_or_throw(agent, &age_descriptor, "configurable", true).unwrap();
             create_data_property_or_throw(agent, &obj, "age", age_descriptor).unwrap();
-            let favorite_descriptor = ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let favorite_descriptor =
+                ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]);
             create_data_property_or_throw(agent, &favorite_descriptor, "value", "banana").unwrap();
             create_data_property_or_throw(agent, &favorite_descriptor, "writable", false).unwrap();
             create_data_property_or_throw(agent, &favorite_descriptor, "enumerable", true).unwrap();
@@ -264,7 +320,13 @@ mod constructor {
                 agent,
                 &obj,
                 PropertyKey::from("hidden"),
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(false), configurable: Some(false), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(ECMAScriptValue::from(true)),
+                    writable: Some(true),
+                    enumerable: Some(false),
+                    configurable: Some(false),
+                    ..Default::default()
+                },
             )
             .unwrap();
 
@@ -299,7 +361,10 @@ mod constructor {
                         create_data_property_or_throw(a, &obj, "key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("Must be an object")); "to_property_descriptor throws")]
-        fn f(create_target: fn(&mut Agent) -> Object, create_params: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+        fn f(
+            create_target: fn(&mut Agent) -> Object,
+            create_params: fn(&mut Agent) -> ECMAScriptValue,
+        ) -> Result<Vec<PropertyInfo>, String> {
             let mut agent = test_agent();
             let target = create_target(&mut agent);
             let params = create_params(&mut agent);
@@ -335,7 +400,10 @@ mod constructor {
                         create_data_property_or_throw(a, &obj, "emotion", emotion_descriptor).unwrap();
                         ECMAScriptValue::from(obj)
                     } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
-        fn f(make_proto: fn(&mut Agent) -> ECMAScriptValue, make_props: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+        fn f(
+            make_proto: fn(&mut Agent) -> ECMAScriptValue,
+            make_props: fn(&mut Agent) -> ECMAScriptValue,
+        ) -> Result<Vec<PropertyInfo>, String> {
             let mut agent = test_agent();
             let proto = make_proto(&mut agent);
             let props = make_props(&mut agent);
@@ -381,7 +449,10 @@ mod constructor {
                         create_data_property_or_throw(a, &obj, "key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err("Must be an object".to_string()); "bad props")]
-        fn f(make_obj: fn(&mut Agent) -> ECMAScriptValue, make_props: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+        fn f(
+            make_obj: fn(&mut Agent) -> ECMAScriptValue,
+            make_props: fn(&mut Agent) -> ECMAScriptValue,
+        ) -> Result<Vec<PropertyInfo>, String> {
             let mut agent = test_agent();
             let obj = make_obj(&mut agent);
             let props = make_props(&mut agent);
@@ -405,7 +476,12 @@ mod constructor {
         fn plain_obj(agent: &mut Agent) -> ECMAScriptValue {
             ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
         }
-        fn faux_errors(agent: &mut Agent, _: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        fn faux_errors(
+            agent: &mut Agent,
+            _: ECMAScriptValue,
+            _: Option<&Object>,
+            _: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
             Err(create_type_error(agent, "Test Sentinel"))
         }
         fn make_bad_property_key(agent: &mut Agent) -> ECMAScriptValue {
@@ -425,7 +501,13 @@ mod constructor {
                 agent,
                 &obj,
                 "toString",
-                PotentialPropertyDescriptor { value: Some(tostring_func.into()), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(tostring_func.into()),
+                    writable: Some(true),
+                    enumerable: Some(true),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
             )
             .unwrap();
             obj.into()
@@ -452,13 +534,18 @@ mod constructor {
         #[test_case(plain_obj, undefined, undefined => Err("Must be an object".to_string()); "bad descriptor")]
         #[test_case(frozen_obj, undefined, attrs => Err("Property cannot be assigned to".to_string()); "frozen starting object")]
         #[test_case(plain_obj, undefined, attrs => Ok(vec![PropertyInfo { name: PropertyKey::from("undefined"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from(99), writable: true } },]); "success")]
-        fn f(make_obj: fn(&mut Agent) -> ECMAScriptValue, make_key: fn(&mut Agent) -> ECMAScriptValue, make_attrs: fn(&mut Agent) -> ECMAScriptValue) -> Result<Vec<PropertyInfo>, String> {
+        fn f(
+            make_obj: fn(&mut Agent) -> ECMAScriptValue,
+            make_key: fn(&mut Agent) -> ECMAScriptValue,
+            make_attrs: fn(&mut Agent) -> ECMAScriptValue,
+        ) -> Result<Vec<PropertyInfo>, String> {
             let mut agent = test_agent();
             let obj = make_obj(&mut agent);
             let key = make_key(&mut agent);
             let attrs = make_attrs(&mut agent);
 
-            let result = object_define_property(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone(), key, attrs]);
+            let result =
+                object_define_property(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone(), key, attrs]);
             match result {
                 Ok(val) => match &val {
                     ECMAScriptValue::Object(o) => {
@@ -488,7 +575,8 @@ mod constructor {
         fn errs(make_arg: fn(&mut Agent) -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             let mut agent = test_agent();
             let arg = make_arg(&mut agent);
-            object_entries(&mut agent, ECMAScriptValue::Undefined, None, &[arg]).map_err(|err| unwind_any_error(&mut agent, err))
+            object_entries(&mut agent, ECMAScriptValue::Undefined, None, &[arg])
+                .map_err(|err| unwind_any_error(&mut agent, err))
         }
 
         #[test]
@@ -522,12 +610,18 @@ mod constructor {
         #[test]
         fn no_args() {
             let mut agent = test_agent();
-            assert_eq!(object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap(), ECMAScriptValue::Undefined);
+            assert_eq!(
+                object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[]).unwrap(),
+                ECMAScriptValue::Undefined
+            );
         }
         #[test]
         fn number() {
             let mut agent = test_agent();
-            assert_eq!(object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(), ECMAScriptValue::from(2003.25));
+            assert_eq!(
+                object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[2003.25.into()]).unwrap(),
+                ECMAScriptValue::from(2003.25)
+            );
         }
         #[test]
         fn dead() {
@@ -541,16 +635,27 @@ mod constructor {
             let mut agent = test_agent();
             let obj = ordinary_object_create(&mut agent, None, &[]);
             create_data_property_or_throw(&mut agent, &obj, "property", "holiday").unwrap();
-            let result: Object = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone().into()]).unwrap().try_into().unwrap();
+            let result: Object = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[obj.clone().into()])
+                .unwrap()
+                .try_into()
+                .unwrap();
             assert_eq!(
                 result.o.common_object_data().borrow().propdump(),
-                vec![PropertyInfo { name: "property".into(), kind: PropertyInfoKind::Data { value: "holiday".into(), writable: false }, enumerable: true, configurable: false }]
+                vec![PropertyInfo {
+                    name: "property".into(),
+                    kind: PropertyInfoKind::Data { value: "holiday".into(), writable: false },
+                    enumerable: true,
+                    configurable: false
+                }]
             );
         }
         #[test]
         fn prevention_prevented() {
             let mut agent = test_agent();
-            let obj = AdaptableObject::object(&mut agent, AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() });
+            let obj = AdaptableObject::object(
+                &mut agent,
+                AdaptableMethods { prevent_extensions_override: Some(|_, _| Ok(false)), ..Default::default() },
+            );
             let result = object_freeze(&mut agent, ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap_err();
             assert_eq!(unwind_any_error(&mut agent, result), "TypeError: Object cannot be frozen");
         }

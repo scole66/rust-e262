@@ -34,8 +34,12 @@ impl fmt::Display for RelationalExpression {
             RelationalExpression::Less(re, se) => write!(f, "{} < {}", re, se),
             RelationalExpression::Greater(re, se) => write!(f, "{} > {}", re, se),
             RelationalExpression::LessEqual(re, se) => write!(f, "{} <= {}", re, se),
-            RelationalExpression::GreaterEqual(re, se) => write!(f, "{} >= {}", re, se),
-            RelationalExpression::InstanceOf(re, se) => write!(f, "{} instanceof {}", re, se),
+            RelationalExpression::GreaterEqual(re, se) => {
+                write!(f, "{} >= {}", re, se)
+            }
+            RelationalExpression::InstanceOf(re, se) => {
+                write!(f, "{} instanceof {}", re, se)
+            }
             RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
             RelationalExpression::PrivateIn(id, se) => write!(f, "{} in {}", id, se),
         }
@@ -114,7 +118,13 @@ impl RelationalExpression {
             || (tok.matches_keyword(Keyword::In) && in_flag)
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RelationalExpression), scanner))
             .otherwise(|| {
                 ShiftExpression::parse(parser, scanner, yield_flag, await_flag).map(|(se, after_se)| {
@@ -127,7 +137,9 @@ impl RelationalExpression {
                             Token::Punctuator(Punctuator::Gt) => RelationalExpression::Greater,
                             Token::Punctuator(Punctuator::LtEq) => RelationalExpression::LessEqual,
                             Token::Punctuator(Punctuator::GtEq) => RelationalExpression::GreaterEqual,
-                            Token::Identifier(id) if id.matches(Keyword::Instanceof) => RelationalExpression::InstanceOf,
+                            Token::Identifier(id) if id.matches(Keyword::Instanceof) => {
+                                RelationalExpression::InstanceOf
+                            }
                             _ => RelationalExpression::In,
                         };
                         if Self::is_relational_token(&op, in_flag) {
@@ -149,11 +161,17 @@ impl RelationalExpression {
             })
             .otherwise(|| {
                 if in_flag {
-                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(|(pid, after_pid)| {
-                        scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(|after_in| {
-                            ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(|(se, after_se)| (Rc::new(RelationalExpression::PrivateIn(pid, se)), after_se))
-                        })
-                    })
+                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(
+                        |(pid, after_pid)| {
+                            scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(
+                                |after_in| {
+                                    ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(
+                                        |(se, after_se)| (Rc::new(RelationalExpression::PrivateIn(pid, se)), after_se),
+                                    )
+                                },
+                            )
+                        },
+                    )
                 } else {
                     Err(ParseError::new(PECode::Generic, scanner))
                 }
@@ -189,18 +207,32 @@ impl RelationalExpression {
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
             RelationalExpression::ShiftExpression(n) => n.all_private_identifiers_valid(names),
-            RelationalExpression::Less(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            RelationalExpression::Greater(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            RelationalExpression::LessEqual(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            RelationalExpression::GreaterEqual(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            RelationalExpression::InstanceOf(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
-            RelationalExpression::In(l, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            RelationalExpression::Less(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            RelationalExpression::Greater(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            RelationalExpression::LessEqual(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            RelationalExpression::GreaterEqual(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            RelationalExpression::InstanceOf(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
+            RelationalExpression::In(l, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
 
             // RelationalExpression : PrivateIdentifier in ShiftExpression
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of ShiftExpression with argument names.
             //  2. Return false.
-            RelationalExpression::PrivateIn(pid, r) => names.contains(&pid.string_value) && r.all_private_identifiers_valid(names),
+            RelationalExpression::PrivateIn(pid, r) => {
+                names.contains(&pid.string_value) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 

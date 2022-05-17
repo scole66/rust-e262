@@ -117,7 +117,11 @@ fn define_and_get_own_property_01() {
     let bool_obj = create_boolean_object(&mut agent, true);
     let res = bool_obj
         .o
-        .define_own_property(&mut agent, PropertyKey::from("rust"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("is awesome")), ..Default::default() })
+        .define_own_property(
+            &mut agent,
+            PropertyKey::from("rust"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("is awesome")), ..Default::default() },
+        )
         .unwrap();
     assert!(res);
     let val = bool_obj.o.get_own_property(&mut agent, &PropertyKey::from("rust")).unwrap().unwrap();

@@ -1,6 +1,8 @@
 use super::*;
 use crate::agent::WksId;
-use crate::object::{define_property_or_throw, ordinary_object_create, DeadObject, PotentialPropertyDescriptor, PropertyKind};
+use crate::object::{
+    define_property_or_throw, ordinary_object_create, DeadObject, PotentialPropertyDescriptor, PropertyKind,
+};
 use crate::realm::IntrinsicId;
 use crate::reference::ReferencedName;
 use crate::tests::{test_agent, unwind_reference_error, unwind_type_error, FunctionId, TestObject};
@@ -131,7 +133,13 @@ mod binding {
     use super::*;
     #[test]
     fn debug() {
-        assert_ne!(format!("{:?}", Binding { value: Some(ECMAScriptValue::Null), mutability: Mutability::Immutable(Strictness::Sloppy) }), "");
+        assert_ne!(
+            format!(
+                "{:?}",
+                Binding { value: Some(ECMAScriptValue::Null), mutability: Mutability::Immutable(Strictness::Sloppy) }
+            ),
+            ""
+        );
     }
 }
 
@@ -209,7 +217,8 @@ mod declarative_environment_record {
         let mut agent = test_agent();
         let der = DeclarativeEnvironmentRecord::new(None, "test");
 
-        let err = der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), true).unwrap_err();
+        let err =
+            der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), true).unwrap_err();
         let msg = unwind_reference_error(&mut agent, err);
         assert_eq!(msg, "Identifier not defined");
     }
@@ -231,7 +240,8 @@ mod declarative_environment_record {
         let der = DeclarativeEnvironmentRecord::new(None, "test");
         der.create_immutable_binding(&mut agent, JSString::from("a"), true).unwrap();
 
-        let err = der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), false).unwrap_err();
+        let err =
+            der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), false).unwrap_err();
         let msg = unwind_reference_error(&mut agent, err);
         assert_eq!(msg, "Binding not initialized");
     }
@@ -242,7 +252,8 @@ mod declarative_environment_record {
         der.create_immutable_binding(&mut agent, JSString::from("a"), true).unwrap();
         der.initialize_binding(&mut agent, &JSString::from("a"), ECMAScriptValue::from(1)).unwrap();
 
-        let err = der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), false).unwrap_err();
+        let err =
+            der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), false).unwrap_err();
         let msg = unwind_type_error(&mut agent, err);
         assert_eq!(msg, "Cannot change read-only value");
     }
@@ -253,7 +264,8 @@ mod declarative_environment_record {
         der.create_immutable_binding(&mut agent, JSString::from("a"), false).unwrap();
         der.initialize_binding(&mut agent, &JSString::from("a"), ECMAScriptValue::from(1)).unwrap();
 
-        let err = der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), true).unwrap_err();
+        let err =
+            der.set_mutable_binding(&mut agent, JSString::from("a"), ECMAScriptValue::from(10), true).unwrap_err();
         let msg = unwind_type_error(&mut agent, err);
         assert_eq!(msg, "Cannot change read-only value");
     }
@@ -361,7 +373,8 @@ mod declarative_environment_record {
         let mut agent = test_agent();
         let der = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         der.create_immutable_binding(&mut agent, JSString::from("sentinel"), true).unwrap();
-        der.initialize_binding(&mut agent, &JSString::from("sentinel"), ECMAScriptValue::from("very unique string")).unwrap();
+        der.initialize_binding(&mut agent, &JSString::from("sentinel"), ECMAScriptValue::from("very unique string"))
+            .unwrap();
         let der2 = DeclarativeEnvironmentRecord::new(Some(der), "inner");
 
         let outer = der2.get_outer_env().unwrap();
@@ -402,7 +415,13 @@ mod object_environment_record {
             &mut agent,
             &binding_object,
             "exists",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, false, None, "test");
@@ -419,7 +438,13 @@ mod object_environment_record {
             &mut agent,
             &binding_object,
             "exists",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(true)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
@@ -441,14 +466,26 @@ mod object_environment_record {
             &mut agent,
             &unscopables_obj,
             "hidden",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(10)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         define_property_or_throw(
             &mut agent,
             &unscopables_obj,
             "visible",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(false)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(false)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         // binding_object = {
@@ -502,7 +539,13 @@ mod object_environment_record {
             &mut agent,
             &binding_object,
             unscopables_sym,
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(unscopables_obj)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(unscopables_obj)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
@@ -534,10 +577,21 @@ mod object_environment_record {
         // }
         let tte = agent.intrinsic(IntrinsicId::ThrowTypeError);
         let pk = PropertyKey::from(agent.wks(WksId::Unscopables));
-        let property = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(tte)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            get: Some(ECMAScriptValue::from(tte)),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &binding_object, pk, property).unwrap();
         let pk = PropertyKey::from("field");
-        let property = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &binding_object, pk, property).unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
 
@@ -561,13 +615,29 @@ mod object_environment_record {
         let unscopables_obj = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let tte = agent.intrinsic(IntrinsicId::ThrowTypeError);
         let pk = PropertyKey::from("field");
-        let property = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(tte)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            get: Some(ECMAScriptValue::from(tte)),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &unscopables_obj, pk.clone(), property).unwrap();
-        let property = PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(true)),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &binding_object, pk, property).unwrap();
         let pk = PropertyKey::from(agent.wks(WksId::Unscopables));
-        let property =
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(unscopables_obj)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(unscopables_obj)),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &binding_object, pk, property).unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
 
@@ -699,7 +769,12 @@ mod object_environment_record {
         let name = JSString::from("vegetable");
         let key = PropertyKey::from(name.clone());
         let tte = agent.intrinsic(IntrinsicId::ThrowTypeError);
-        let property = PotentialPropertyDescriptor { set: Some(ECMAScriptValue::from(tte)), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+        let property = PotentialPropertyDescriptor {
+            set: Some(ECMAScriptValue::from(tte)),
+            enumerable: Some(true),
+            configurable: Some(true),
+            ..Default::default()
+        };
         define_property_or_throw(&mut agent, &binding_object, key, property).unwrap();
         let oer = ObjectEnvironmentRecord::new(binding_object, true, None, "test");
 
@@ -803,7 +878,8 @@ mod object_environment_record {
         let mut agent = test_agent();
         let der = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         der.create_immutable_binding(&mut agent, JSString::from("sentinel"), true).unwrap();
-        der.initialize_binding(&mut agent, &JSString::from("sentinel"), ECMAScriptValue::from("very unique string")).unwrap();
+        der.initialize_binding(&mut agent, &JSString::from("sentinel"), ECMAScriptValue::from("very unique string"))
+            .unwrap();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let binding_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
         let oer = ObjectEnvironmentRecord::new(binding_object, false, Some(der), "test");
@@ -817,7 +893,8 @@ mod object_environment_record {
 
 mod binding_status {
     use super::*;
-    const ALL_BINDINGSTATUS: &[BindingStatus] = &[BindingStatus::Lexical, BindingStatus::Initialized, BindingStatus::Uninitialized];
+    const ALL_BINDINGSTATUS: &[BindingStatus] =
+        &[BindingStatus::Lexical, BindingStatus::Initialized, BindingStatus::Uninitialized];
     #[test]
     fn debug() {
         for val in ALL_BINDINGSTATUS {
@@ -864,19 +941,48 @@ mod global_environment_record {
         ger.initialize_binding(agent, &lslop, ECMAScriptValue::from("LEXICAL SLOPPY")).unwrap();
         // configurable global var (in varnames), deletable, named "normal_var"
         ger.create_global_var_binding(agent, JSString::from("normal_var"), true).unwrap();
-        ger.object_record.set_mutable_binding(agent, JSString::from("normal_var"), ECMAScriptValue::from("NORMAL VAR"), true).unwrap();
+        ger.object_record
+            .set_mutable_binding(agent, JSString::from("normal_var"), ECMAScriptValue::from("NORMAL VAR"), true)
+            .unwrap();
         // param on global object that's not in varnames (like builtin props), named "non_config_var"
-        let desc =
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NON-CONFIG")), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() };
-        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_var").into(), desc).unwrap();
+        let desc = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from("NON-CONFIG")),
+            writable: Some(true),
+            enumerable: Some(true),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        ger.object_record
+            .binding_object
+            .o
+            .define_own_property(agent, JSString::from("non_config_var").into(), desc)
+            .unwrap();
         // Same thing, but not writable
-        let desc =
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("CONST")), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() };
-        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_permanent").into(), desc).unwrap();
+        let desc = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from("CONST")),
+            writable: Some(false),
+            enumerable: Some(true),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        ger.object_record
+            .binding_object
+            .o
+            .define_own_property(agent, JSString::from("non_config_permanent").into(), desc)
+            .unwrap();
         // Same thing, but not enumerable
-        let desc =
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("NO ENUM")), writable: Some(true), enumerable: Some(false), configurable: Some(false), ..Default::default() };
-        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_unlisted").into(), desc).unwrap();
+        let desc = PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from("NO ENUM")),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(false),
+            ..Default::default()
+        };
+        ger.object_record
+            .binding_object
+            .o
+            .define_own_property(agent, JSString::from("non_config_unlisted").into(), desc)
+            .unwrap();
         // Now a non-config accessor function
         let desc = PotentialPropertyDescriptor {
             get: Some(ECMAScriptValue::Undefined),
@@ -885,7 +991,11 @@ mod global_environment_record {
             configurable: Some(false),
             ..Default::default()
         };
-        ger.object_record.binding_object.o.define_own_property(agent, JSString::from("non_config_accessor").into(), desc).unwrap();
+        ger.object_record
+            .binding_object
+            .o
+            .define_own_property(agent, JSString::from("non_config_accessor").into(), desc)
+            .unwrap();
 
         ger
     }
@@ -915,8 +1025,13 @@ mod global_environment_record {
             let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let global_object = ordinary_object_create(&mut agent, Some(object_prototype.clone()), &[]);
             let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
-            let in_object_property =
-                PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(0)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() };
+            let in_object_property = PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(0)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            };
             define_property_or_throw(&mut agent, &global_object, in_object_key, in_object_property).unwrap();
             let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
             ger.create_mutable_binding(&mut agent, in_decl_name.clone(), true).unwrap();
@@ -1577,7 +1692,13 @@ mod global_environment_record {
             ger.create_global_var_binding(&mut agent, test_name.clone(), deletable).unwrap();
 
             assert!(ger.var_names.borrow().contains(&test_name));
-            let desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap().unwrap();
+            let desc = ger
+                .object_record
+                .binding_object
+                .o
+                .get_own_property(&mut agent, &PropertyKey::from(test_name))
+                .unwrap()
+                .unwrap();
             assert!(matches!(desc.property, PropertyKind::Data(_)));
             if let PropertyKind::Data(data) = desc.property {
                 (data.value, desc.configurable)
@@ -1599,7 +1720,8 @@ mod global_environment_record {
             ger.create_global_var_binding(&mut agent, test_name.clone(), deletable).unwrap();
 
             assert!(ger.var_names.borrow().contains(&test_name));
-            let opt_desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
+            let opt_desc =
+                ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
             match opt_desc {
                 None => None,
                 Some(desc) => {
@@ -1645,10 +1767,17 @@ mod global_environment_record {
             let ger = setup(&mut agent);
             let test_name = JSString::from(name);
 
-            ger.create_global_function_binding(&mut agent, test_name.clone(), ECMAScriptValue::from("unique"), deletable).unwrap();
+            ger.create_global_function_binding(
+                &mut agent,
+                test_name.clone(),
+                ECMAScriptValue::from("unique"),
+                deletable,
+            )
+            .unwrap();
 
             assert!(ger.var_names.borrow().contains(&test_name));
-            let opt_desc = ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
+            let opt_desc =
+                ger.object_record.binding_object.o.get_own_property(&mut agent, &PropertyKey::from(test_name)).unwrap();
             match opt_desc {
                 None => None,
                 Some(desc) => {
@@ -1672,7 +1801,14 @@ mod global_environment_record {
             let this_object = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
             let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
 
-            let err = ger.create_global_function_binding(&mut agent, JSString::from("anything"), ECMAScriptValue::Undefined, true).unwrap_err();
+            let err = ger
+                .create_global_function_binding(
+                    &mut agent,
+                    JSString::from("anything"),
+                    ECMAScriptValue::Undefined,
+                    true,
+                )
+                .unwrap_err();
             unwind_type_error(&mut agent, err)
         }
     }
@@ -1700,7 +1836,12 @@ mod get_identifier_reference {
     fn no_env(name: &str, strict: bool) -> (bool, ReferencedName, bool, Option<ECMAScriptValue>) {
         let mut agent = test_agent();
         let reference = get_identifier_reference(&mut agent, None, JSString::from(name), strict).unwrap();
-        (matches!(reference.base, Base::Unresolvable), reference.referenced_name, reference.strict, reference.this_value)
+        (
+            matches!(reference.base, Base::Unresolvable),
+            reference.referenced_name,
+            reference.strict,
+            reference.this_value,
+        )
     }
 
     #[derive(PartialEq, Debug)]
@@ -1729,7 +1870,8 @@ mod get_identifier_reference {
         let rcenv: Rc<dyn EnvironmentRecord> = Rc::new(env);
         let (rcenv_ptr, _) = Rc::as_ptr(&rcenv).to_raw_parts(); // Remove vtable for comparison
 
-        let result = get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from(name), strict).unwrap();
+        let result =
+            get_identifier_reference(&mut agent, Some(Rc::clone(&rcenv)), JSString::from(name), strict).unwrap();
         (
             match &result.base {
                 Base::Unresolvable => EnvResult::Unresolvable,

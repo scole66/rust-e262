@@ -43,7 +43,12 @@ impl PrettyPrint for MultiplicativeOperator {
 
 impl MultiplicativeOperator {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
-        let (op, after_op) = scan_for_punct_set(scanner, parser.source, ScanGoal::InputElementDiv, &[Punctuator::Star, Punctuator::Slash, Punctuator::Percent])?;
+        let (op, after_op) = scan_for_punct_set(
+            scanner,
+            parser.source,
+            ScanGoal::InputElementDiv,
+            &[Punctuator::Star, Punctuator::Slash, Punctuator::Percent],
+        )?;
         match op {
             Punctuator::Star => Ok((Rc::new(MultiplicativeOperator::Multiply), after_op)),
             Punctuator::Slash => Ok((Rc::new(MultiplicativeOperator::Divide), after_op)),
@@ -62,7 +67,11 @@ impl MultiplicativeOperator {
 #[derive(Debug)]
 pub enum MultiplicativeExpression {
     ExponentiationExpression(Rc<ExponentiationExpression>),
-    MultiplicativeExpressionExponentiationExpression(Rc<MultiplicativeExpression>, Rc<MultiplicativeOperator>, Rc<ExponentiationExpression>),
+    MultiplicativeExpressionExponentiationExpression(
+        Rc<MultiplicativeExpression>,
+        Rc<MultiplicativeOperator>,
+        Rc<ExponentiationExpression>,
+    ),
 }
 
 impl fmt::Display for MultiplicativeExpression {
@@ -93,7 +102,9 @@ impl PrettyPrint for MultiplicativeExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}MultiplicativeExpression: {}", first, self)?;
         match &self {
-            MultiplicativeExpression::ExponentiationExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            MultiplicativeExpression::ExponentiationExpression(boxed) => {
+                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, mo, ee) => {
                 me.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 mo.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -124,11 +135,14 @@ impl MultiplicativeExpression {
         let (ee, after_ee) = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(MultiplicativeExpression::ExponentiationExpression(ee));
         let mut current_scanner = after_ee;
-        while let Ok((op, ee2, scan)) = MultiplicativeOperator::parse(parser, current_scanner).and_then(|(op, after_op)| {
-            let (ee2, after_ee2) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
-            Ok((op, ee2, after_ee2))
-        }) {
-            current = Rc::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
+        while let Ok((op, ee2, scan)) =
+            MultiplicativeOperator::parse(parser, current_scanner).and_then(|(op, after_op)| {
+                let (ee2, after_ee2) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
+                Ok((op, ee2, after_ee2))
+            })
+        {
+            current =
+                Rc::new(MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(current, op, ee2));
             current_scanner = scan;
         }
         Ok((current, current_scanner))
@@ -137,7 +151,9 @@ impl MultiplicativeExpression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.contains(kind),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, op, r) => l.contains(kind) || op.contains(kind) || r.contains(kind),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, op, r) => {
+                l.contains(kind) || op.contains(kind) || r.contains(kind)
+            }
         }
     }
 
@@ -157,7 +173,9 @@ impl MultiplicativeExpression {
         //  2. Return true.
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.all_private_identifiers_valid(names),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => {
+                l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -174,7 +192,9 @@ impl MultiplicativeExpression {
         //  2. Return false.
         match self {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.contains_arguments(),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, _, ee) => me.contains_arguments() || ee.contains_arguments(),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, _, ee) => {
+                me.contains_arguments() || ee.contains_arguments()
+            }
         }
     }
 

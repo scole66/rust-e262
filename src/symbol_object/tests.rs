@@ -9,7 +9,10 @@ mod symbol_object {
     fn debug() {
         let mut agent = test_agent();
         let prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
-        let so = SymbolObject { common: RefCell::new(CommonObjectData::new(&mut agent, Some(prototype), true, SYMBOL_OBJECT_SLOTS)), symbol_data: RefCell::new(None) };
+        let so = SymbolObject {
+            common: RefCell::new(CommonObjectData::new(&mut agent, Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
+            symbol_data: RefCell::new(None),
+        };
         assert_ne!(format!("{:?}", so), "");
     }
 
@@ -18,7 +21,13 @@ mod symbol_object {
         let mut agent = test_agent();
         let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let prototype = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
-        define_property_or_throw(&mut agent, &prototype, "marker", PotentialPropertyDescriptor::new().value("sentinel")).unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &prototype,
+            "marker",
+            PotentialPropertyDescriptor::new().value("sentinel"),
+        )
+        .unwrap();
 
         let obj = SymbolObject::object(&mut agent, Some(prototype));
 
@@ -256,7 +265,14 @@ mod symbol_object {
         let mut agent = test_agent();
         let sym = agent.wks(WksId::ToPrimitive);
         let sym_obj = create_symbol_object(&mut agent, sym);
-        let res = sym_obj.o.define_own_property(&mut agent, PropertyKey::from("rust"), PotentialPropertyDescriptor::new().value("is awesome")).unwrap();
+        let res = sym_obj
+            .o
+            .define_own_property(
+                &mut agent,
+                PropertyKey::from("rust"),
+                PotentialPropertyDescriptor::new().value("is awesome"),
+            )
+            .unwrap();
         assert!(res);
         let val = sym_obj.o.get_own_property(&mut agent, &PropertyKey::from("rust")).unwrap().unwrap();
         assert_eq!(val.enumerable, false);
@@ -345,11 +361,15 @@ fn symbol_match(expected: &str) -> impl FnOnce(Result<ECMAScriptValue, String>) 
 #[test_case(|_| None, |_| vec![] => using symbol_match("Symbol()"); "empty description")]
 #[test_case(|_| None, |_| vec![ECMAScriptValue::from("giants")] => using symbol_match("Symbol(giants)"); "with description")]
 #[test_case(|_| None, |a| vec![ECMAScriptValue::from(a.wks(WksId::ToPrimitive))] => serr("TypeError: Symbols may not be converted to strings"); "with bad description")]
-fn symbol_constructor_function(tgt_maker: fn(&mut Agent) -> Option<Object>, arg_maker: fn(&mut Agent) -> Vec<ECMAScriptValue>) -> Result<ECMAScriptValue, String> {
+fn symbol_constructor_function(
+    tgt_maker: fn(&mut Agent) -> Option<Object>,
+    arg_maker: fn(&mut Agent) -> Vec<ECMAScriptValue>,
+) -> Result<ECMAScriptValue, String> {
     let mut agent = test_agent();
     let nt = tgt_maker(&mut agent);
     let args = arg_maker(&mut agent);
-    super::symbol_constructor_function(&mut agent, ECMAScriptValue::Undefined, nt.as_ref(), &args).map_err(|e| unwind_any_error(&mut agent, e))
+    super::symbol_constructor_function(&mut agent, ECMAScriptValue::Undefined, nt.as_ref(), &args)
+        .map_err(|e| unwind_any_error(&mut agent, e))
 }
 
 mod symbol_for {
@@ -429,7 +449,8 @@ mod symbol_key_for {
         let mut agent = test_agent();
         let this_value = ECMAScriptValue::Undefined;
         let new_target = None;
-        let registry_sym = symbol_for(&mut agent, ECMAScriptValue::Undefined, new_target, &["test_sentinel".into()]).unwrap();
+        let registry_sym =
+            symbol_for(&mut agent, ECMAScriptValue::Undefined, new_target, &["test_sentinel".into()]).unwrap();
         let arguments = &[registry_sym];
 
         let results = symbol_key_for(&mut agent, this_value, new_target, arguments);
@@ -597,7 +618,9 @@ mod symbol_to_string {
     fn normal(maker: fn(&mut Agent) -> ECMAScriptValue) -> Result<String, String> {
         let mut agent = test_agent();
         let this_value = maker(&mut agent);
-        symbol_to_string(&mut agent, this_value, None, &[]).map(|val| format!("{val}")).map_err(|ac| unwind_any_error(&mut agent, ac))
+        symbol_to_string(&mut agent, this_value, None, &[])
+            .map(|val| format!("{val}"))
+            .map_err(|ac| unwind_any_error(&mut agent, ac))
     }
 }
 

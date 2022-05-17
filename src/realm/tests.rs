@@ -49,7 +49,10 @@ fn intrinsic_id_hash() {
     let factory = RandomState::new();
     for (right_idx, right_value) in ALL_INTRINSIC_IDS.iter().enumerate() {
         for (left_idx, left_value) in ALL_INTRINSIC_IDS.iter().enumerate() {
-            assert_eq!(calculate_hash(&factory, &left_value) == calculate_hash(&factory, &right_value), left_idx == right_idx);
+            assert_eq!(
+                calculate_hash(&factory, &left_value) == calculate_hash(&factory, &right_value),
+                left_idx == right_idx
+            );
         }
     }
 }

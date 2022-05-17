@@ -28,7 +28,9 @@ impl fmt::Display for EqualityExpression {
             EqualityExpression::Equal(ee, re) => write!(f, "{} == {}", ee, re),
             EqualityExpression::NotEqual(ee, re) => write!(f, "{} != {}", ee, re),
             EqualityExpression::StrictEqual(ee, re) => write!(f, "{} === {}", ee, re),
-            EqualityExpression::NotStrictEqual(ee, re) => write!(f, "{} !== {}", ee, re),
+            EqualityExpression::NotStrictEqual(ee, re) => {
+                write!(f, "{} !== {}", ee, re)
+            }
         }
     }
 }
@@ -42,7 +44,10 @@ impl PrettyPrint for EqualityExpression {
         writeln!(writer, "{}EqualityExpression: {}", first, self)?;
         match &self {
             EqualityExpression::RelationalExpression(re) => re.pprint_with_leftpad(writer, &successive, Spot::Final),
-            EqualityExpression::Equal(ee, re) | EqualityExpression::NotEqual(ee, re) | EqualityExpression::StrictEqual(ee, re) | EqualityExpression::NotStrictEqual(ee, re) => {
+            EqualityExpression::Equal(ee, re)
+            | EqualityExpression::NotEqual(ee, re)
+            | EqualityExpression::StrictEqual(ee, re)
+            | EqualityExpression::NotStrictEqual(ee, re) => {
                 ee.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 re.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -81,7 +86,13 @@ impl IsFunctionDefinition for EqualityExpression {
 }
 
 impl EqualityExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (re1, after_re1) = RelationalExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         let mut current = Rc::new(EqualityExpression::RelationalExpression(re1));
         let mut current_scanner = after_re1;
@@ -136,7 +147,10 @@ impl EqualityExpression {
         //  2. Return true.
         match self {
             EqualityExpression::RelationalExpression(n) => n.all_private_identifiers_valid(names),
-            EqualityExpression::Equal(l, r) | EqualityExpression::NotEqual(l, r) | EqualityExpression::StrictEqual(l, r) | EqualityExpression::NotStrictEqual(l, r) => {
+            EqualityExpression::Equal(l, r)
+            | EqualityExpression::NotEqual(l, r)
+            | EqualityExpression::StrictEqual(l, r)
+            | EqualityExpression::NotStrictEqual(l, r) => {
                 l.all_private_identifiers_valid(names) && r.all_private_identifiers_valid(names)
             }
         }
@@ -155,16 +169,20 @@ impl EqualityExpression {
         //  2. Return false.
         match self {
             EqualityExpression::RelationalExpression(re) => re.contains_arguments(),
-            EqualityExpression::Equal(ee, re) | EqualityExpression::NotEqual(ee, re) | EqualityExpression::StrictEqual(ee, re) | EqualityExpression::NotStrictEqual(ee, re) => {
-                ee.contains_arguments() || re.contains_arguments()
-            }
+            EqualityExpression::Equal(ee, re)
+            | EqualityExpression::NotEqual(ee, re)
+            | EqualityExpression::StrictEqual(ee, re)
+            | EqualityExpression::NotStrictEqual(ee, re) => ee.contains_arguments() || re.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             EqualityExpression::RelationalExpression(n) => n.early_errors(agent, errs, strict),
-            EqualityExpression::Equal(l, r) | EqualityExpression::NotEqual(l, r) | EqualityExpression::StrictEqual(l, r) | EqualityExpression::NotStrictEqual(l, r) => {
+            EqualityExpression::Equal(l, r)
+            | EqualityExpression::NotEqual(l, r)
+            | EqualityExpression::StrictEqual(l, r)
+            | EqualityExpression::NotStrictEqual(l, r) => {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }

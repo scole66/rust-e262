@@ -2,9 +2,11 @@ use super::agent::Agent;
 use super::cr::{AbruptCompletion, Completion};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
-    define_property_or_throw, get, get_agentless, ordinary_create_from_constructor, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
-    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set,
-    ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
+    define_property_or_throw, get, get_agentless, ordinary_create_from_constructor, ordinary_define_own_property,
+    ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
+    ordinary_is_extensible, ordinary_object_create, ordinary_own_property_keys, ordinary_prevent_extensions,
+    ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
+    PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
 };
 use super::realm::IntrinsicId;
 use super::realm::Realm;
@@ -13,9 +15,16 @@ use super::values::{to_string, ECMAScriptValue, PropertyKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn create_native_error_object(agent: &mut Agent, message: impl Into<JSString>, error_constructor: Object, proto_id: IntrinsicId) -> Object {
-    let o = ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
-    let desc = PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
+fn create_native_error_object(
+    agent: &mut Agent,
+    message: impl Into<JSString>,
+    error_constructor: Object,
+    proto_id: IntrinsicId,
+) -> Object {
+    let o =
+        ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
+    let desc =
+        PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(agent, &o, "message", desc).unwrap();
     o
 }
@@ -81,7 +90,11 @@ pub struct ErrorObject {
 
 impl ErrorObject {
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, ERROR_OBJECT_SLOTS)) }) }
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, ERROR_OBJECT_SLOTS)),
+            }),
+        }
     }
 }
 
@@ -123,7 +136,12 @@ impl ObjectInterface for ErrorObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(&*self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, &*self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -132,7 +150,13 @@ impl ObjectInterface for ErrorObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, &*self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, &*self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -180,7 +204,13 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // Constructor Data Properties
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
-            define_property_or_throw(agent, &error_constructor, $name, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false)).unwrap();
+            define_property_or_throw(
+                agent,
+                &error_constructor,
+                $name,
+                PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false),
+            )
+            .unwrap();
         }};
     }
 
@@ -204,7 +234,13 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // Prototype Data Properties
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
-            define_property_or_throw(agent, &error_prototype, $name, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
+            define_property_or_throw(
+                agent,
+                &error_prototype,
+                $name,
+                PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true),
+            )
+            .unwrap();
         }};
     }
     // Error.prototype.constructor
@@ -226,8 +262,28 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &error_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &error_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
 
@@ -249,7 +305,12 @@ pub fn provision_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
 //             [[Configurable]]: true }.
 //          c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
 //      4. Return O.
-pub fn error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+pub fn error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::Error)
 }
 
@@ -266,7 +327,12 @@ pub fn error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue
 //      7. If name is the empty String, return msg.
 //      8. If msg is the empty String, return name.
 //      9. Return the string-concatenation of name, the code unit 0x003A (COLON), the code unit 0x0020 (SPACE), and msg.
-pub fn error_prototype_tostring(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+pub fn error_prototype_tostring(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     if let ECMAScriptValue::Object(o) = this_value {
         let name_prop = get(agent, &o, &PropertyKey::from("name"))?;
         let name = if name_prop.is_undefined() { JSString::from("Error") } else { to_string(agent, name_prop)? };
@@ -288,7 +354,12 @@ fn provision_native_error_intrinsics(
     agent: &mut Agent,
     realm: &Rc<RefCell<Realm>>,
     name: &str,
-    native_error_constructor_function: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    native_error_constructor_function: fn(
+        &mut Agent,
+        ECMAScriptValue,
+        Option<&Object>,
+        &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue>,
 ) -> (Object, Object) {
     let error = realm.borrow().intrinsics.error.clone();
     let error_prototype = realm.borrow().intrinsics.error_prototype.clone();
@@ -310,13 +381,27 @@ fn provision_native_error_intrinsics(
     //    * has a [[Prototype]] internal slot whose value is %Error%.
     //    * has a "name" property whose value is the String value "NativeError".
 
-    let native_error_constructor =
-        create_builtin_function(agent, native_error_constructor_function, true, 1_f64, PropertyKey::from("Error"), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(error), None);
+    let native_error_constructor = create_builtin_function(
+        agent,
+        native_error_constructor_function,
+        true,
+        1_f64,
+        PropertyKey::from("Error"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(error),
+        None,
+    );
     // Constructor Data Properties
     macro_rules! constructor_data {
         ( $value:expr, $name:expr ) => {{
-            define_property_or_throw(agent, &native_error_constructor, $name, PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false))
-                .unwrap();
+            define_property_or_throw(
+                agent,
+                &native_error_constructor,
+                $name,
+                PotentialPropertyDescriptor::new().value($value).writable(false).enumerable(false).configurable(false),
+            )
+            .unwrap();
         }};
     }
     constructor_data!(name, "name");
@@ -341,7 +426,13 @@ fn provision_native_error_intrinsics(
     // Prototype Data Properties
     macro_rules! prototype_data {
         ( $value:expr, $name:expr ) => {{
-            define_property_or_throw(agent, &native_error_prototype, $name, PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true)).unwrap();
+            define_property_or_throw(
+                agent,
+                &native_error_prototype,
+                $name,
+                PotentialPropertyDescriptor::new().value($value).writable(true).enumerable(false).configurable(true),
+            )
+            .unwrap();
         }};
     }
     // NativeError.prototype.constructor
@@ -402,58 +493,95 @@ fn native_error_constructor_function(
     let o = ordinary_create_from_constructor(agent, nt, intrinsic_id, &[InternalSlotName::ErrorData])?;
     if !message.is_undefined() {
         let msg = to_string(agent, message)?;
-        let msg_desc = PotentialPropertyDescriptor::new().value(msg).writable(true).enumerable(false).configurable(true);
+        let msg_desc =
+            PotentialPropertyDescriptor::new().value(msg).writable(true).enumerable(false).configurable(true);
         define_property_or_throw(agent, &o, "message", msg_desc).unwrap();
     }
     Ok(ECMAScriptValue::from(o))
 }
 
-fn type_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn type_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::TypeErrorPrototype)
 }
-fn eval_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn eval_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::EvalErrorPrototype)
 }
-fn range_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn range_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::RangeErrorPrototype)
 }
-fn reference_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn reference_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::ReferenceErrorPrototype)
 }
-fn syntax_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn syntax_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::SyntaxErrorPrototype)
 }
-fn uri_error_constructor_function(agent: &mut Agent, this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn uri_error_constructor_function(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     native_error_constructor_function(agent, this_value, new_target, arguments, IntrinsicId::URIErrorPrototype)
 }
 
 pub fn provision_type_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "TypeError", type_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "TypeError", type_error_constructor_function);
     realm.borrow_mut().intrinsics.type_error = constructor;
     realm.borrow_mut().intrinsics.type_error_prototype = prototype;
 }
 pub fn provision_eval_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "EvalError", eval_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "EvalError", eval_error_constructor_function);
     realm.borrow_mut().intrinsics.eval_error = constructor;
     realm.borrow_mut().intrinsics.eval_error_prototype = prototype;
 }
 pub fn provision_range_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "RangeError", range_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "RangeError", range_error_constructor_function);
     realm.borrow_mut().intrinsics.range_error = constructor;
     realm.borrow_mut().intrinsics.range_error_prototype = prototype;
 }
 pub fn provision_reference_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "ReferenceError", reference_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "ReferenceError", reference_error_constructor_function);
     realm.borrow_mut().intrinsics.reference_error = constructor;
     realm.borrow_mut().intrinsics.reference_error_prototype = prototype;
 }
 pub fn provision_syntax_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "SyntaxError", syntax_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "SyntaxError", syntax_error_constructor_function);
     realm.borrow_mut().intrinsics.syntax_error = constructor;
     realm.borrow_mut().intrinsics.syntax_error_prototype = prototype;
 }
 pub fn provision_uri_error_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) {
-    let (constructor, prototype) = provision_native_error_intrinsics(agent, realm, "URIError", uri_error_constructor_function);
+    let (constructor, prototype) =
+        provision_native_error_intrinsics(agent, realm, "URIError", uri_error_constructor_function);
     realm.borrow_mut().intrinsics.uri_error = constructor;
     realm.borrow_mut().intrinsics.uri_error_prototype = prototype;
 }

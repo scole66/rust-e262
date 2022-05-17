@@ -114,7 +114,12 @@ mod break_statement {
     fn early_errors(src: &str, strict: bool, within_breakable: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        BreakStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, within_breakable);
+        BreakStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
+            &mut agent,
+            &mut errs,
+            strict,
+            within_breakable,
+        );
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

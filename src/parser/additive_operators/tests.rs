@@ -25,7 +25,11 @@ mod additive_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Add(..)));
         pretty_check(&*ae, "AdditiveExpression: a + b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(&*ae, "AdditiveExpression: a + b", vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
+        concise_check(
+            &*ae,
+            "AdditiveExpression: a + b",
+            vec!["IdentifierName: a", "Punctuator: +", "IdentifierName: b"],
+        );
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -35,7 +39,11 @@ mod additive_expression {
         chk_scan(&scanner, 3);
         assert!(matches!(&*ae, AdditiveExpression::Subtract(..)));
         pretty_check(&*ae, "AdditiveExpression: a - b", vec!["AdditiveExpression: a", "MultiplicativeExpression: b"]);
-        concise_check(&*ae, "AdditiveExpression: a - b", vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
+        concise_check(
+            &*ae,
+            "AdditiveExpression: a - b",
+            vec!["IdentifierName: a", "Punctuator: -", "IdentifierName: b"],
+        );
         format!("{:?}", ae);
         assert_eq!(ae.is_function_definition(), false);
     }
@@ -51,7 +59,12 @@ mod additive_expression {
     }
     #[test]
     fn parse_05() {
-        check_err(AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+        check_err(
+            AdditiveExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "ExponentiationExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -142,7 +155,10 @@ mod additive_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AdditiveExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

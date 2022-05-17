@@ -22,17 +22,23 @@ mod logical_and_expression {
     }
     #[test]
     fn parse_02() {
-        let (pn, scanner) = check(LogicalANDExpression::parse(&mut newparser("a&&b"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(LogicalANDExpression::parse(&mut newparser("a&&b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*pn, LogicalANDExpression::LogicalAND(..)));
         pretty_check(&*pn, "LogicalANDExpression: a && b", vec!["LogicalANDExpression: a", "BitwiseORExpression: b"]);
-        concise_check(&*pn, "LogicalANDExpression: a && b", vec!["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"]);
+        concise_check(
+            &*pn,
+            "LogicalANDExpression: a && b",
+            vec!["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"],
+        );
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
-        let (pn, scanner) = check(LogicalANDExpression::parse(&mut newparser("a&&"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(LogicalANDExpression::parse(&mut newparser("a&&"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalANDExpression::BitwiseORExpression(..)));
         pretty_check(&*pn, "LogicalANDExpression: a", vec!["BitwiseORExpression: a"]);
@@ -47,7 +53,8 @@ mod logical_and_expression {
     }
     #[test]
     fn prettyerrors_2() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test]
@@ -57,12 +64,14 @@ mod logical_and_expression {
     }
     #[test]
     fn conciseerrors_2() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("3&&b"), Scanner::new(), true, false, false).unwrap();
         concise_error_validate(&*item);
     }
     #[test]
     fn contains_01() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
@@ -72,17 +81,20 @@ mod logical_and_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("this && 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("this && 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("0 && this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("0 && this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = LogicalANDExpression::parse(&mut newparser("0 && 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalANDExpression::parse(&mut newparser("0 && 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
@@ -107,7 +119,10 @@ mod logical_and_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -115,7 +130,10 @@ mod logical_and_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a && b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -124,7 +142,10 @@ mod logical_and_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy && bob" => false; "a and b (no)")]
     fn contains_arguments(src: &str) -> bool {
-        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        LogicalANDExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("eval", false => ATTKind::Simple; "simple eval")]
@@ -152,17 +173,23 @@ mod logical_or_expression {
     }
     #[test]
     fn parse_02() {
-        let (pn, scanner) = check(LogicalORExpression::parse(&mut newparser("a||b"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(LogicalORExpression::parse(&mut newparser("a||b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(&*pn, LogicalORExpression::LogicalOR(..)));
         pretty_check(&*pn, "LogicalORExpression: a || b", vec!["LogicalORExpression: a", "LogicalANDExpression: b"]);
-        concise_check(&*pn, "LogicalORExpression: a || b", vec!["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"]);
+        concise_check(
+            &*pn,
+            "LogicalORExpression: a || b",
+            vec!["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"],
+        );
         format!("{:?}", pn);
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
-        let (pn, scanner) = check(LogicalORExpression::parse(&mut newparser("a||"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(LogicalORExpression::parse(&mut newparser("a||"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(&*pn, LogicalORExpression::LogicalANDExpression(..)));
         pretty_check(&*pn, "LogicalORExpression: a", vec!["LogicalANDExpression: a"]);
@@ -202,17 +229,20 @@ mod logical_or_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = LogicalORExpression::parse(&mut newparser("this || 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalORExpression::parse(&mut newparser("this || 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = LogicalORExpression::parse(&mut newparser("0 || this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalORExpression::parse(&mut newparser("0 || this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_05() {
-        let (item, _) = LogicalORExpression::parse(&mut newparser("0 || 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            LogicalORExpression::parse(&mut newparser("0 || 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
@@ -237,7 +267,10 @@ mod logical_or_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -245,7 +278,10 @@ mod logical_or_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a || b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
     #[test_case("arguments" => true; "Exp (yes)")]
     #[test_case("arguments || bob" => true; "a or b (left)")]
@@ -253,7 +289,10 @@ mod logical_or_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy || bob" => false; "a or b (no)")]
     fn contains_arguments(src: &str) -> bool {
-        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        LogicalORExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("eval", false => ATTKind::Simple; "simple eval")]
@@ -271,18 +310,32 @@ mod coalesce_expression {
 
     #[test]
     fn parse_01() {
-        let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(CoalesceExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 4);
         pretty_check(&*pn, "CoalesceExpression: a ?? b", vec!["CoalesceExpressionHead: a", "BitwiseORExpression: b"]);
-        concise_check(&*pn, "CoalesceExpression: a ?? b", vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
+        concise_check(
+            &*pn,
+            "CoalesceExpression: a ?? b",
+            vec!["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"],
+        );
         format!("{:?}", pn);
     }
     #[test]
     fn parse_02() {
-        let (pn, scanner) = check(CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false));
+        let (pn, scanner) =
+            check(CoalesceExpression::parse(&mut newparser("z??a??b"), Scanner::new(), true, false, false));
         chk_scan(&scanner, 7);
-        pretty_check(&*pn, "CoalesceExpression: z ?? a ?? b", vec!["CoalesceExpressionHead: z ?? a", "BitwiseORExpression: b"]);
-        concise_check(&*pn, "CoalesceExpression: z ?? a ?? b", vec!["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"]);
+        pretty_check(
+            &*pn,
+            "CoalesceExpression: z ?? a ?? b",
+            vec!["CoalesceExpressionHead: z ?? a", "BitwiseORExpression: b"],
+        );
+        concise_check(
+            &*pn,
+            "CoalesceExpression: z ?? a ?? b",
+            vec!["CoalesceExpression: z ?? a", "Punctuator: ??", "IdentifierName: b"],
+        );
         format!("{:?}", pn);
     }
     #[test]
@@ -295,11 +348,21 @@ mod coalesce_expression {
     }
     #[test]
     fn parse_03() {
-        check_err(CoalesceExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "RelationalExpression expected", 1, 1);
+        check_err(
+            CoalesceExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+            "RelationalExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn parse_04() {
-        check_err(CoalesceExpression::parse(&mut newparser("a??"), Scanner::new(), true, false, false), "Invalid Coalesce Expression", 1, 1);
+        check_err(
+            CoalesceExpression::parse(&mut newparser("a??"), Scanner::new(), true, false, false),
+            "Invalid Coalesce Expression",
+            1,
+            1,
+        );
     }
     #[test]
     fn prettyerrors_1() {
@@ -313,17 +376,20 @@ mod coalesce_expression {
     }
     #[test]
     fn contains_01() {
-        let (item, _) = CoalesceExpression::parse(&mut newparser("this ?? 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            CoalesceExpression::parse(&mut newparser("this ?? 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_02() {
-        let (item, _) = CoalesceExpression::parse(&mut newparser("0 ?? this"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            CoalesceExpression::parse(&mut newparser("0 ?? this"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_03() {
-        let (item, _) = CoalesceExpression::parse(&mut newparser("0 ?? 0"), Scanner::new(), true, false, false).unwrap();
+        let (item, _) =
+            CoalesceExpression::parse(&mut newparser("0 ?? 0"), Scanner::new(), true, false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), false);
     }
     #[test_case("item.#valid ?? a" => true; "Left valid")]
@@ -339,7 +405,10 @@ mod coalesce_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -366,7 +435,11 @@ fn coalesce_expression_head_test_02() {
     let head = &*pn.head;
     chk_scan(&scanner, 7);
     pretty_check(&*head, "CoalesceExpressionHead: z ?? a", vec!["CoalesceExpression: z ?? a"]);
-    concise_check(&*head, "CoalesceExpression: z ?? a", vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"]);
+    concise_check(
+        &*head,
+        "CoalesceExpression: z ?? a",
+        vec!["IdentifierName: z", "Punctuator: ??", "IdentifierName: a"],
+    );
 }
 #[test]
 fn coalesce_expression_head_test_prettyerrors_1() {
@@ -390,7 +463,8 @@ fn coalesce_expression_head_test_conciseerrors_2() {
 }
 #[test]
 fn coalesce_expression_head_test_contains_01() {
-    let (item_ce, _) = CoalesceExpression::parse(&mut newparser("this ?? 0"), Scanner::new(), true, false, false).unwrap();
+    let (item_ce, _) =
+        CoalesceExpression::parse(&mut newparser("this ?? 0"), Scanner::new(), true, false, false).unwrap();
     let item = &item_ce.head;
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
@@ -402,13 +476,15 @@ fn coalesce_expression_head_test_contains_02() {
 }
 #[test]
 fn coalesce_expression_head_test_contains_03() {
-    let (item_ce, _) = CoalesceExpression::parse(&mut newparser("this ?? 0 ?? 1"), Scanner::new(), true, false, false).unwrap();
+    let (item_ce, _) =
+        CoalesceExpression::parse(&mut newparser("this ?? 0 ?? 1"), Scanner::new(), true, false, false).unwrap();
     let item = &item_ce.head;
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn coalesce_expression_head_test_contains_04() {
-    let (item_ce, _) = CoalesceExpression::parse(&mut newparser("a ?? 0 ?? 1"), Scanner::new(), true, false, false).unwrap();
+    let (item_ce, _) =
+        CoalesceExpression::parse(&mut newparser("a ?? 0 ?? 1"), Scanner::new(), true, false, false).unwrap();
     let item = &item_ce.head;
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
@@ -441,14 +517,19 @@ mod coalesce_expression_head {
     #[test_case("xyyzz??bob" => false; "Exp (no)")]
     #[test_case("xyyzz??bob??alice" => false; "Coal (no)")]
     fn contains_arguments(src: &str) -> bool {
-        CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.head.contains_arguments()
+        CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .head
+            .contains_arguments()
     }
 }
 
 // SHORT CIRCUIT EXPRESSION
 #[test]
 fn short_circuit_expression_test_01() {
-    let (pn, scanner) = check(ShortCircuitExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
+    let (pn, scanner) =
+        check(ShortCircuitExpression::parse(&mut newparser("a??b"), Scanner::new(), true, false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*pn, ShortCircuitExpression::CoalesceExpression(..)));
     pretty_check(&*pn, "ShortCircuitExpression: a ?? b", vec!["CoalesceExpression: a ?? b"]);
@@ -468,7 +549,12 @@ fn short_circuit_expression_test_02() {
 }
 #[test]
 fn short_circuit_expression_test_03() {
-    check_err(ShortCircuitExpression::parse(&mut newparser(""), Scanner::new(), true, false, false), "Improper Expression", 1, 1);
+    check_err(
+        ShortCircuitExpression::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "Improper Expression",
+        1,
+        1,
+    );
 }
 #[test]
 fn short_circuit_expression_test_prettyerrors_1() {
@@ -477,7 +563,8 @@ fn short_circuit_expression_test_prettyerrors_1() {
 }
 #[test]
 fn short_circuit_expression_test_prettyerrors_2() {
-    let (item, _) = ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -487,7 +574,8 @@ fn short_circuit_expression_test_conciseerrors_1() {
 }
 #[test]
 fn short_circuit_expression_test_conciseerrors_2() {
-    let (item, _) = ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ShortCircuitExpression::parse(&mut newparser("h || q"), Scanner::new(), true, false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -502,12 +590,14 @@ fn short_circuit_expression_test_contains_02() {
 }
 #[test]
 fn short_circuit_expression_test_contains_03() {
-    let (item, _) = ShortCircuitExpression::parse(&mut newparser("this ?? 1"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ShortCircuitExpression::parse(&mut newparser("this ?? 1"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn short_circuit_expression_test_contains_04() {
-    let (item, _) = ShortCircuitExpression::parse(&mut newparser("0 ?? 1"), Scanner::new(), true, false, false).unwrap();
+    let (item, _) =
+        ShortCircuitExpression::parse(&mut newparser("0 ?? 1"), Scanner::new(), true, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test_case("'string'" => Some(JSString::from("string")); "String Token")]
@@ -533,7 +623,10 @@ mod short_circuit_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -541,7 +634,10 @@ mod short_circuit_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a ?? b" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -549,7 +645,10 @@ mod short_circuit_expression {
     #[test_case("xyzzy" => false; "Exp (no)")]
     #[test_case("xyzzy??bob" => false; "Coal (no)")]
     fn contains_arguments(src: &str) -> bool {
-        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        ShortCircuitExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("eval", false => ATTKind::Simple; "simple eval")]

@@ -152,7 +152,10 @@ mod assignment_expression {
     #[test_case("a??=b" => false; "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
     #[test_case("[a]=[1]" => false; "AssignmentPattern = AssignmentExpression")]
     fn is_function_definition(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_function_definition()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_function_definition()
     }
 
     #[test_case("a", true => ATTKind::Simple; "Fall-thru (identifier)")]
@@ -375,7 +378,10 @@ mod assignment_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -383,7 +389,10 @@ mod assignment_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a=3" => true; "assignment op")]
     fn is_strictly_deletable(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.is_strictly_deletable()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]
@@ -413,7 +422,10 @@ mod assignment_expression {
     #[test_case("xyzzy ??= bob" => false; "Coal (no)")]
     #[test_case("{xyzzy} = bob" => false; "Destructuring (no)")]
     fn contains_arguments(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 
     #[test_case("function blue(){}" => false; "named function")]
@@ -642,7 +654,10 @@ mod assignment_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -761,7 +776,10 @@ mod object_assignment_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ObjectAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -934,7 +952,10 @@ mod array_assignment_pattern {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ArrayAssignmentPattern::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1015,7 +1036,10 @@ mod assignment_rest_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1093,7 +1117,10 @@ mod assignment_property_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1174,7 +1201,10 @@ mod assignment_element_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1252,7 +1282,10 @@ mod assignment_elision_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1346,7 +1379,10 @@ mod assignment_property {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1387,7 +1423,10 @@ mod assignment_element {
 
     #[test]
     fn debug() {
-        assert_ne!("", format!("{:?}", AssignmentElement::parse(&mut newparser("A"), Scanner::new(), false, false).unwrap()));
+        assert_ne!(
+            "",
+            format!("{:?}", AssignmentElement::parse(&mut newparser("A"), Scanner::new(), false, false).unwrap())
+        );
     }
 
     #[test_case("a")]
@@ -1429,7 +1468,10 @@ mod assignment_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1493,7 +1535,10 @@ mod assignment_rest_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1528,20 +1573,23 @@ mod destructuring_assignment_target {
     }
     #[test]
     fn debug() {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser("k"), Scanner::new(), false, false).unwrap();
         assert_ne!("", format!("{:?}", item));
     }
 
     #[test_case("blue")]
     #[test_case("{}"; "ObjectLiteral")]
     fn pretty_errors(src: &str) {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         pretty_error_validate(&*item);
     }
     #[test_case("blue")]
     #[test_case("{}"; "ObjectLiteral")]
     fn concise_errors(src: &str) {
-        let (item, _) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false).unwrap();
         concise_error_validate(&*item);
     }
 
@@ -1569,7 +1617,10 @@ mod destructuring_assignment_target {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1578,6 +1629,9 @@ mod destructuring_assignment_target {
     #[test_case("no" => false; "Exp (no)")]
     #[test_case("{no}" => false; "Pattern (no)")]
     fn contains_arguments(src: &str) -> bool {
-        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+        DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }

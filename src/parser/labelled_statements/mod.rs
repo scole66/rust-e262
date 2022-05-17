@@ -47,7 +47,13 @@ impl PrettyPrint for LabelledStatement {
 }
 
 impl LabelledStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
         let after_colon = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
@@ -122,7 +128,14 @@ impl LabelledStatement {
         self.item.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         self.identifier.early_errors(agent, errs, strict);
         self.item.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
@@ -202,7 +215,13 @@ impl PrettyPrint for LabelledItem {
 }
 
 impl LabelledItem {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LabelledItem), scanner))
             .otherwise(|| {
                 let (stmt, after_stmt) = Statement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
@@ -304,7 +323,14 @@ impl LabelledItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text is matched by this production.
@@ -342,7 +368,9 @@ impl LabelledItem {
     /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
     pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
-            LabelledItem::Function(fd) => vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))],
+            LabelledItem::Function(fd) => {
+                vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))]
+            }
             LabelledItem::Statement(stmt) => match &**stmt {
                 Statement::Labelled(ls) => ls.top_level_var_scoped_declarations(),
                 _ => stmt.var_scoped_declarations(),

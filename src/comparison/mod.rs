@@ -32,7 +32,9 @@ use crate::values::ECMAScriptValue;
 // https://tc39.es/ecma262/#sec-requireobjectcoercible
 pub fn require_object_coercible(agent: &mut Agent, argument: &ECMAScriptValue) -> Completion<()> {
     match argument {
-        ECMAScriptValue::Undefined | ECMAScriptValue::Null => Err(create_type_error(agent, "Undefined and null are not allowed in this context")),
+        ECMAScriptValue::Undefined | ECMAScriptValue::Null => {
+            Err(create_type_error(agent, "Undefined and null are not allowed in this context"))
+        }
         _ => Ok(()),
     }
 }

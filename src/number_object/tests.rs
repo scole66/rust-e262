@@ -8,7 +8,10 @@ use num::BigInt;
 #[test]
 fn number_object_debug() {
     let mut agent = test_agent();
-    let no = NumberObject { common: RefCell::new(CommonObjectData::new(&mut agent, None, false, NUMBER_OBJECT_SLOTS)), number_data: RefCell::new(0.0) };
+    let no = NumberObject {
+        common: RefCell::new(CommonObjectData::new(&mut agent, None, false, NUMBER_OBJECT_SLOTS)),
+        number_data: RefCell::new(0.0),
+    };
 
     assert_ne!(format!("{:?}", no), "");
 }
@@ -128,7 +131,13 @@ fn number_object_define_own_property() {
     let mut agent = test_agent();
     let no = create_number_object(&mut agent, 100.0);
 
-    let result = no.o.define_own_property(&mut agent, PropertyKey::from("a"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
+    let result =
+        no.o.define_own_property(
+            &mut agent,
+            PropertyKey::from("a"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
+        )
+        .unwrap();
     assert!(result);
 }
 #[test]
@@ -152,7 +161,9 @@ fn number_object_set() {
     let mut agent = test_agent();
     let no = create_number_object(&mut agent, 100.0);
 
-    let result = no.o.set(&mut agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
+    let result =
+        no.o.set(&mut agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone()))
+            .unwrap();
     assert!(result);
 }
 #[test]
@@ -247,7 +258,8 @@ fn number_constructor_called_as_function_02() {
     let mut agent = test_agent();
     let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
 
-    let result = call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(true)]).unwrap();
+    let result =
+        call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(true)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(1));
 }
 #[test]
@@ -258,7 +270,9 @@ fn number_constructor_called_as_function_03() {
     let mut agent = test_agent();
     let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
 
-    let result = call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(BigInt::from(10))]).unwrap();
+    let result =
+        call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(BigInt::from(10))])
+            .unwrap();
     assert_eq!(result, ECMAScriptValue::from(10));
 }
 #[test]
@@ -271,7 +285,8 @@ fn number_constructor_called_as_function_04() {
     let number_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Number));
 
     let sym = Symbol::new(&mut agent, None);
-    let result = call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(sym)]).unwrap_err();
+    let result =
+        call(&mut agent, &number_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from(sym)]).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Symbol values cannot be converted to Number values");
 }
 
@@ -321,7 +336,10 @@ fn number_constructor_throws() {
 
     // This hack is to get around the "not configurable" characteristic of Number.prototype.
     // (It replaces Number.prototype (a data property) with an accessor property that throws when "prototype" is gotten.)
-    let new_prop = PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), set: ECMAScriptValue::Undefined });
+    let new_prop = PropertyKind::Accessor(AccessorProperty {
+        get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)),
+        set: ECMAScriptValue::Undefined,
+    });
     {
         let mut cod = number_constructor.o.common_object_data().borrow_mut();
         let mut prop = cod.properties.get_mut(&PropertyKey::from("prototype")).unwrap();
@@ -352,7 +370,15 @@ fn number_is_finite_one_arg() {
     let is_finite = get(&mut agent, &number_constructor, &PropertyKey::from("isFinite")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor.clone());
 
-    for (arg, expected) in [(f64::INFINITY, false), (f64::NAN, false), (f64::NEG_INFINITY, false), (0.0, true), (-0.0, true), (89.3, true), (-89.3, true)] {
+    for (arg, expected) in [
+        (f64::INFINITY, false),
+        (f64::NAN, false),
+        (f64::NEG_INFINITY, false),
+        (0.0, true),
+        (-0.0, true),
+        (89.3, true),
+        (-89.3, true),
+    ] {
         let result = call(&mut agent, &is_finite, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
@@ -378,7 +404,17 @@ fn number_is_integer_one_arg() {
     let is_integer = get(&mut agent, &number_constructor, &PropertyKey::from("isInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor.clone());
 
-    for (arg, expected) in [(f64::INFINITY, false), (f64::NAN, false), (f64::NEG_INFINITY, false), (0.0, true), (-0.0, true), (89.3, false), (-89.3, false), (10.0, true), (3.33e200, true)] {
+    for (arg, expected) in [
+        (f64::INFINITY, false),
+        (f64::NAN, false),
+        (f64::NEG_INFINITY, false),
+        (0.0, true),
+        (-0.0, true),
+        (89.3, false),
+        (-89.3, false),
+        (10.0, true),
+        (3.33e200, true),
+    ] {
         let result = call(&mut agent, &is_integer, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
@@ -404,7 +440,14 @@ fn number_is_nan_one_arg() {
     let is_nan = get(&mut agent, &number_constructor, &PropertyKey::from("isNaN")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor.clone());
 
-    for (arg, expected) in [(f64::INFINITY, false), (f64::NAN, true), (f64::NEG_INFINITY, false), (0.0, false), (-0.0, false), (89.3, false)] {
+    for (arg, expected) in [
+        (f64::INFINITY, false),
+        (f64::NAN, true),
+        (f64::NEG_INFINITY, false),
+        (0.0, false),
+        (-0.0, false),
+        (89.3, false),
+    ] {
         let result = call(&mut agent, &is_nan, &this_value, &[ECMAScriptValue::from(arg)]).unwrap();
         assert_eq!(result, ECMAScriptValue::from(expected));
     }
@@ -594,7 +637,8 @@ fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(precision)]).unwrap();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(precision)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 #[test]
@@ -684,7 +728,8 @@ fn number_proto_to_precision_16() {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(0)]).unwrap_err();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(0)]).unwrap_err();
     assert_eq!(unwind_range_error(&mut agent, result), "Precision ‘0’ must lie within the range 1..100");
 }
 #[test]
@@ -694,7 +739,8 @@ fn number_proto_to_precision_17() {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(101)]).unwrap_err();
     assert_eq!(unwind_range_error(&mut agent, result), "Precision ‘101’ must lie within the range 1..100");
 }
 #[test]
@@ -705,7 +751,12 @@ fn number_proto_to_precision_18() {
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
     let result = invoke(&mut agent, number, &PropertyKey::from("toPrecision"), &[ECMAScriptValue::from(100)]).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("548.3329999999999699866748414933681488037109375000000000000000000000000000000000000000000000000000000"));
+    assert_eq!(
+        result,
+        ECMAScriptValue::from(
+            "548.3329999999999699866748414933681488037109375000000000000000000000000000000000000000000000000000000"
+        )
+    );
 }
 
 fn number_proto_to_exponent_test(value: f64, fraction_digits: u32, expected: &str) {
@@ -713,7 +764,9 @@ fn number_proto_to_exponent_test(value: f64, fraction_digits: u32, expected: &st
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(fraction_digits)])
+            .unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 #[test]
@@ -722,7 +775,11 @@ fn number_proto_to_exponential_01() {
 }
 #[test]
 fn number_proto_to_exponential_02() {
-    number_proto_to_exponent_test(0.1, 100, "1.0000000000000000555111512312578270211815834045410156250000000000000000000000000000000000000000000000e-1");
+    number_proto_to_exponent_test(
+        0.1,
+        100,
+        "1.0000000000000000555111512312578270211815834045410156250000000000000000000000000000000000000000000000e-1",
+    );
 }
 #[test]
 fn number_proto_to_exponential_03() {
@@ -765,7 +822,8 @@ fn number_proto_to_exponential_07() {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(101)]).unwrap_err();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(101)]).unwrap_err();
     assert_eq!(unwind_range_error(&mut agent, result), "FractionDigits ‘101’ must lie within the range 0..100");
 }
 #[test]
@@ -775,7 +833,8 @@ fn number_proto_to_exponential_08() {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(548.333)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(-1)]).unwrap_err();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toExponential"), &[ECMAScriptValue::from(-1)]).unwrap_err();
     assert_eq!(unwind_range_error(&mut agent, result), "FractionDigits ‘-1’ must lie within the range 0..100");
 }
 #[test]
@@ -788,7 +847,8 @@ fn number_proto_to_fixed_test(value: f64, fraction_digits: u32, expected: &str) 
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(value)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toFixed"), &[ECMAScriptValue::from(fraction_digits)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from(expected));
 }
 
@@ -897,7 +957,11 @@ fn number_proto_to_fixed_19() {
 #[test]
 fn number_proto_to_fixed_20() {
     // 100 digits
-    number_proto_to_fixed_test(0.7483901789587938, 100, "0.7483901789587937836145670189580414444208145141601562500000000000000000000000000000000000000000000000");
+    number_proto_to_fixed_test(
+        0.7483901789587938,
+        100,
+        "0.7483901789587937836145670189580414444208145141601562500000000000000000000000000000000000000000000000",
+    );
 }
 #[test]
 fn number_proto_to_fixed_21() {
@@ -942,7 +1006,8 @@ fn number_proto_to_locale_string_01() {
     let number_constructor = agent.intrinsic(IntrinsicId::Number);
 
     let number = construct(&mut agent, &number_constructor, &[ECMAScriptValue::from(10)], None).unwrap();
-    let result = invoke(&mut agent, number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
+    let result =
+        invoke(&mut agent, number, &PropertyKey::from("toLocaleString"), &[ECMAScriptValue::from(16)]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("10"));
 }
 

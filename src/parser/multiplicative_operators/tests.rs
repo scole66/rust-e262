@@ -34,7 +34,12 @@ fn multiplicative_operator_test_03() {
 }
 #[test]
 fn multiplicative_operator_test_04() {
-    check_err(MultiplicativeOperator::parse(&mut newparser("@"), Scanner::new()), "one of [‘*’, ‘/’, ‘%’] expected", 1, 1);
+    check_err(
+        MultiplicativeOperator::parse(&mut newparser("@"), Scanner::new()),
+        "one of [‘*’, ‘/’, ‘%’] expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn multiplicative_operator_test_prettycheck_1() {
@@ -92,23 +97,45 @@ mod multiplicative_expression {
         let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..)));
-        pretty_check(&*me, "MultiplicativeExpression: a / b", vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"]);
-        concise_check(&*me, "MultiplicativeExpression: a / b", vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"]);
+        pretty_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+        );
+        concise_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
+        );
         format!("{:?}", me);
         assert_eq!(me.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
-        let (me, scanner) = check(MultiplicativeExpression::parse(&mut newparser("a/b * @"), Scanner::new(), false, false));
+        let (me, scanner) =
+            check(MultiplicativeExpression::parse(&mut newparser("a/b * @"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(&*me, MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..)));
-        pretty_check(&*me, "MultiplicativeExpression: a / b", vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"]);
-        concise_check(&*me, "MultiplicativeExpression: a / b", vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"]);
+        pretty_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["MultiplicativeExpression: a", "MultiplicativeOperator: /", "ExponentiationExpression: b"],
+        );
+        concise_check(
+            &*me,
+            "MultiplicativeExpression: a / b",
+            vec!["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
+        );
         format!("{:?}", me);
     }
     #[test]
     fn parse_03() {
-        check_err(MultiplicativeExpression::parse(&mut newparser(""), Scanner::new(), false, false), "ExponentiationExpression expected", 1, 1);
+        check_err(
+            MultiplicativeExpression::parse(&mut newparser(""), Scanner::new(), false, false),
+            "ExponentiationExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn prettycheck_1() {
@@ -142,12 +169,14 @@ mod multiplicative_expression {
     }
     #[test]
     fn contains_03() {
-        let (item, _) = MultiplicativeExpression::parse(&mut newparser("this * 0"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            MultiplicativeExpression::parse(&mut newparser("this * 0"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
     fn contains_04() {
-        let (item, _) = MultiplicativeExpression::parse(&mut newparser("0 * this"), Scanner::new(), false, false).unwrap();
+        let (item, _) =
+            MultiplicativeExpression::parse(&mut newparser("0 * this"), Scanner::new(), false, false).unwrap();
         assert_eq!(item.contains(ParseNodeKind::This), true);
     }
     #[test]
@@ -182,7 +211,10 @@ mod multiplicative_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -190,7 +222,10 @@ mod multiplicative_expression {
     #[test_case("1" => true; "literal")]
     #[test_case("a * 0" => true; "expression")]
     fn is_strictly_deletable(src: &str) -> bool {
-        MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+        MultiplicativeExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("arguments" => true; "Exp (yes)")]

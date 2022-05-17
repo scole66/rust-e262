@@ -109,7 +109,10 @@ impl IsFunctionDefinition for UnaryExpression {
 impl UnaryExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (token, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
-        let mut unary_helper = |f: fn(Rc<Self>) -> Self| UnaryExpression::parse(parser, after_token, yield_flag, await_flag).map(|(boxed, after)| (Rc::new(f(boxed)), after));
+        let mut unary_helper = |f: fn(Rc<Self>) -> Self| {
+            UnaryExpression::parse(parser, after_token, yield_flag, await_flag)
+                .map(|(boxed, after)| (Rc::new(f(boxed)), after))
+        };
         match token {
             Token::Identifier(id) if id.matches(Keyword::Delete) => unary_helper(UnaryExpression::Delete),
             Token::Identifier(id) if id.matches(Keyword::Void) => unary_helper(UnaryExpression::Void),
@@ -121,12 +124,16 @@ impl UnaryExpression {
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UnaryExpression), scanner))
                 .otherwise(|| {
                     if await_flag {
-                        AwaitExpression::parse(parser, scanner, yield_flag).map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
+                        AwaitExpression::parse(parser, scanner, yield_flag)
+                            .map(|(ae, after)| (Rc::new(UnaryExpression::Await(ae)), after))
                     } else {
                         Err(ParseError::default())
                     }
                 })
-                .otherwise(|| UpdateExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))),
+                .otherwise(|| {
+                    UpdateExpression::parse(parser, scanner, yield_flag, await_flag)
+                        .map(|(ue, after)| (Rc::new(UnaryExpression::UpdateExpression(ue)), after))
+                }),
         }
     }
 
@@ -244,9 +251,12 @@ impl UnaryExpression {
                 }
                 n.early_errors(agent, errs, strict);
             }
-            UnaryExpression::Void(n) | UnaryExpression::Typeof(n) | UnaryExpression::NoOp(n) | UnaryExpression::Negate(n) | UnaryExpression::Complement(n) | UnaryExpression::Not(n) => {
-                n.early_errors(agent, errs, strict)
-            }
+            UnaryExpression::Void(n)
+            | UnaryExpression::Typeof(n)
+            | UnaryExpression::NoOp(n)
+            | UnaryExpression::Negate(n)
+            | UnaryExpression::Complement(n)
+            | UnaryExpression::Not(n) => n.early_errors(agent, errs, strict),
             UnaryExpression::Await(n) => n.early_errors(agent, errs, strict),
         }
     }

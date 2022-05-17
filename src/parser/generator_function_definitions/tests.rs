@@ -1,6 +1,6 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER,
-    UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
+    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, IMPLEMENTS_NOT_ALLOWED,
+    INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_SUPER, UNEXPECTED_SUPER2, YIELD_IN_GENPARAM,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -13,8 +13,16 @@ use test_case::test_case;
 fn generator_method_test_01() {
     let (node, scanner) = check(GeneratorMethod::parse(&mut newparser("*a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    pretty_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorMethod: * a (  ) {  }", vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    pretty_check(
+        &*node,
+        "GeneratorMethod: * a (  ) {  }",
+        vec!["ClassElementName: a", "UniqueFormalParameters: ", "GeneratorBody: "],
+    );
+    concise_check(
+        &*node,
+        "GeneratorMethod: * a (  ) {  }",
+        vec!["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -23,7 +31,12 @@ fn generator_method_test_02() {
 }
 #[test]
 fn generator_method_test_03() {
-    check_err(GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false), "ClassElementName expected", 1, 2);
+    check_err(
+        GeneratorMethod::parse(&mut newparser("*"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn generator_method_test_04() {
@@ -43,12 +56,24 @@ fn generator_method_test_07() {
 }
 #[test]
 fn generator_method_test_prettyerrors_1() {
-    let (item, _) = GeneratorMethod::parse(&mut newparser("* bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = GeneratorMethod::parse(
+        &mut newparser("* bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_method_test_conciseerrors_1() {
-    let (item, _) = GeneratorMethod::parse(&mut newparser("* bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false).unwrap();
+    let (item, _) = GeneratorMethod::parse(
+        &mut newparser("* bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -138,101 +163,206 @@ mod generator_method {
 // GENERATOR DECLARATION
 #[test]
 fn generator_declaration_test_01() {
-    let (node, scanner) = check(GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(GeneratorDeclaration::parse(&mut newparser("function *a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "GeneratorDeclaration: function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "GeneratorDeclaration: function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+    );
     concise_check(
         &*node,
         "GeneratorDeclaration: function * a (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn generator_declaration_test_02() {
-    let (node, scanner) = check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(GeneratorDeclaration::parse(&mut newparser("function *(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "GeneratorDeclaration: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorDeclaration: function * (  ) {  }", vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "GeneratorDeclaration: function * (  ) {  }",
+        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn generator_declaration_test_03() {
-    check_err(GeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘function’ expected", 1, 1);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn generator_declaration_test_04() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true), "‘*’ expected", 1, 9);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function"), Scanner::new(), false, false, true),
+        "‘*’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn generator_declaration_test_05() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function *"), Scanner::new(), false, false, true), "‘(’ expected", 1, 11);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function *"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        11,
+    );
 }
 #[test]
 fn generator_declaration_test_06() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h"), Scanner::new(), false, false, true), "‘(’ expected", 1, 13);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn generator_declaration_test_07() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 15);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn generator_declaration_test_075() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, true), "‘)’ expected", 1, 13);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        13,
+    );
 }
 #[test]
 fn generator_declaration_test_076() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false), "not an identifier", 1, 11);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * ("), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        11,
+    );
 }
 #[test]
 fn generator_declaration_test_08() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u"), Scanner::new(), false, false, true), "‘)’ expected", 1, 17);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u"), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        17,
+    );
 }
 #[test]
 fn generator_declaration_test_09() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u )"), Scanner::new(), false, false, true), "‘{’ expected", 1, 19);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u )"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        19,
+    );
 }
 #[test]
 fn generator_declaration_test_10() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u ) {"), Scanner::new(), false, false, true), "‘}’ expected", 1, 21);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u ) {"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn generator_declaration_test_11() {
-    check_err(GeneratorDeclaration::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new(), false, false, true), "‘}’ expected", 1, 24);
+    check_err(
+        GeneratorDeclaration::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        24,
+    );
 }
 #[test]
 fn generator_declaration_test_prettyerrors_1() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_prettyerrors_2() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_conciseerrors_1() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_conciseerrors_2() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = GeneratorDeclaration::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_declaration_test_bound_names_01() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * bob() {}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * bob() {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["bob"]);
 }
 #[test]
 fn generator_declaration_test_bound_names_02() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * () {}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * () {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["*default*"]);
 }
 #[test]
 fn generator_declaration_test_contains_01() {
-    let (item, _) = GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("function *a(b=c.#valid){}" => true; "params valid")]
@@ -273,11 +403,23 @@ mod generator_declaration {
 fn generator_expression_test_01() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *a(){}"), Scanner::new()));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "GeneratorExpression: function * a (  ) {  }", vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "]);
+    pretty_check(
+        &*node,
+        "GeneratorExpression: function * a (  ) {  }",
+        vec!["BindingIdentifier: a", "FormalParameters: ", "GeneratorBody: "],
+    );
     concise_check(
         &*node,
         "GeneratorExpression: function * a (  ) {  }",
-        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+        vec![
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
     );
     format!("{:?}", node);
     assert!(node.is_function_definition());
@@ -287,7 +429,11 @@ fn generator_expression_test_02() {
     let (node, scanner) = check(GeneratorExpression::parse(&mut newparser("function *(){}"), Scanner::new()));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "GeneratorExpression: function * (  ) {  }", vec!["FormalParameters: ", "GeneratorBody: "]);
-    concise_check(&*node, "GeneratorExpression: function * (  ) {  }", vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "GeneratorExpression: function * (  ) {  }",
+        vec!["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
     format!("{:?}", node);
     assert!(node.is_function_definition());
 }
@@ -321,30 +467,56 @@ fn generator_expression_test_09() {
 }
 #[test]
 fn generator_expression_test_10() {
-    check_err(GeneratorExpression::parse(&mut newparser("function * h ( u ) {"), Scanner::new()), "‘}’ expected", 1, 21);
+    check_err(
+        GeneratorExpression::parse(&mut newparser("function * h ( u ) {"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn generator_expression_test_11() {
-    check_err(GeneratorExpression::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new()), "‘}’ expected", 1, 24);
+    check_err(
+        GeneratorExpression::parse(&mut newparser("function * h ( u ) { z;"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        24,
+    );
 }
 #[test]
 fn generator_expression_test_prettyerrors_1() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_prettyerrors_2() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_conciseerrors_1() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * bob(blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn generator_expression_test_conciseerrors_2() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * (blue, red, green) { yield blue + red + green; }"), Scanner::new()).unwrap();
+    let (item, _) = GeneratorExpression::parse(
+        &mut newparser("function * (blue, red, green) { yield blue + red + green; }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]

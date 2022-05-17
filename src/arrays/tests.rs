@@ -26,7 +26,10 @@ mod array_object {
                 Err(err) => Err(unwind_any_error(&mut agent, err)),
                 Ok(obj) => {
                     assert!(obj.is_array(&mut agent).unwrap());
-                    assert_eq!(obj.o.get_prototype_of(&mut agent).unwrap(), Some(agent.intrinsic(IntrinsicId::ArrayPrototype)));
+                    assert_eq!(
+                        obj.o.get_prototype_of(&mut agent).unwrap(),
+                        Some(agent.intrinsic(IntrinsicId::ArrayPrototype))
+                    );
                     Ok(obj.o.common_object_data().borrow().propdump())
                 }
             }
@@ -92,7 +95,8 @@ mod array_object {
     fn get_own_property() {
         let mut agent = test_agent();
         let a = ArrayObject::create(&mut agent, 0, None).unwrap();
-        let desc: DataDescriptor = a.o.get_own_property(&mut agent, &"length".into()).unwrap().unwrap().try_into().unwrap();
+        let desc: DataDescriptor =
+            a.o.get_own_property(&mut agent, &"length".into()).unwrap().unwrap().try_into().unwrap();
 
         assert_eq!(desc.configurable, false);
         assert_eq!(desc.enumerable, false);
@@ -119,13 +123,25 @@ mod array_object {
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(1.0), writable: true}},
             PropertyInfo { name: PropertyKey::from("0"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from("zero"), writable: true}}
         ])); "zero")]
-        fn normal(key: &str, val: impl Into<ECMAScriptValue>, writable: bool, enumerable: bool, configurable: bool) -> Result<(bool, Vec<PropertyInfo>), String> {
+        fn normal(
+            key: &str,
+            val: impl Into<ECMAScriptValue>,
+            writable: bool,
+            enumerable: bool,
+            configurable: bool,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
             let mut agent = test_agent();
             let a = ArrayObject::create(&mut agent, 0, None).unwrap();
             let result = a.o.define_own_property(
                 &mut agent,
                 key.into(),
-                PotentialPropertyDescriptor { value: Some(val.into()), writable: Some(writable), enumerable: Some(enumerable), configurable: Some(configurable), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(val.into()),
+                    writable: Some(writable),
+                    enumerable: Some(enumerable),
+                    configurable: Some(configurable),
+                    ..Default::default()
+                },
             );
             match result {
                 Err(err) => Err(unwind_any_error(&mut agent, err)),
@@ -140,16 +156,33 @@ mod array_object {
         #[test_case("900", true, true, true, true => Ok((false, vec![
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(100.0), writable: false}},
         ])); "attempted length change")]
-        fn read_only_length(key: &str, val: impl Into<ECMAScriptValue>, writable: bool, enumerable: bool, configurable: bool) -> Result<(bool, Vec<PropertyInfo>), String> {
+        fn read_only_length(
+            key: &str,
+            val: impl Into<ECMAScriptValue>,
+            writable: bool,
+            enumerable: bool,
+            configurable: bool,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
             let mut agent = test_agent();
             let a = ArrayObject::create(&mut agent, 100, None).unwrap();
             // Make the length property read-only
-            a.o.define_own_property(&mut agent, "length".into(), PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            a.o.define_own_property(
+                &mut agent,
+                "length".into(),
+                PotentialPropertyDescriptor { writable: Some(false), ..Default::default() },
+            )
+            .unwrap();
             // Exercise function under test
             let result = a.o.define_own_property(
                 &mut agent,
                 key.into(),
-                PotentialPropertyDescriptor { value: Some(val.into()), writable: Some(writable), enumerable: Some(enumerable), configurable: Some(configurable), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(val.into()),
+                    writable: Some(writable),
+                    enumerable: Some(enumerable),
+                    configurable: Some(configurable),
+                    ..Default::default()
+                },
             );
             match result {
                 Err(err) => Err(unwind_any_error(&mut agent, err)),
@@ -165,7 +198,13 @@ mod array_object {
             a.o.define_own_property(
                 &mut agent,
                 "30".into(),
-                PotentialPropertyDescriptor { value: Some("blue".into()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some("blue".into()),
+                    writable: Some(false),
+                    enumerable: Some(true),
+                    configurable: Some(false),
+                    ..Default::default()
+                },
             )
             .unwrap();
             // Now exercise: try to overwrite that property
@@ -173,7 +212,13 @@ mod array_object {
                 a.o.define_own_property(
                     &mut agent,
                     "30".into(),
-                    PotentialPropertyDescriptor { value: Some("green".into()), writable: Some(false), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                    PotentialPropertyDescriptor {
+                        value: Some("green".into()),
+                        writable: Some(false),
+                        enumerable: Some(true),
+                        configurable: Some(false),
+                        ..Default::default()
+                    },
                 )
                 .unwrap();
 
@@ -246,7 +291,12 @@ mod array_object {
         use super::*;
         use test_case::test_case;
 
-        fn value_just_once(agent: &mut Agent, this_value: ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        fn value_just_once(
+            agent: &mut Agent,
+            this_value: ECMAScriptValue,
+            _: Option<&Object>,
+            _: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
             // The value 320 the first time, errors thrown all other times.
             let this: Object = this_value.try_into().unwrap();
             let previous = get(agent, &this, &"has_already_run".into()).unwrap();
@@ -262,12 +312,28 @@ mod array_object {
             let object_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
             let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
             let obj = ordinary_object_create(agent, Some(object_proto), &[]);
-            let value_of = create_builtin_function(agent, value_just_once, false, 0.0, "valueOf".into(), &[], None, Some(function_proto), None);
+            let value_of = create_builtin_function(
+                agent,
+                value_just_once,
+                false,
+                0.0,
+                "valueOf".into(),
+                &[],
+                None,
+                Some(function_proto),
+                None,
+            );
             define_property_or_throw(
                 agent,
                 &obj,
                 "valueOf",
-                PotentialPropertyDescriptor { value: Some(value_of.into()), writable: Some(false), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some(value_of.into()),
+                    writable: Some(false),
+                    enumerable: Some(false),
+                    configurable: Some(true),
+                    ..Default::default()
+                },
             )
             .unwrap();
             PotentialPropertyDescriptor { value: Some(obj.into()), ..Default::default() }
@@ -319,24 +385,37 @@ mod array_object {
                     kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(7000.0), writable: true },
                 }
             ])); "length increase")]
-        fn zero_elements(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+        fn zero_elements(
+            make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
             let mut agent = test_agent();
             let aobj = ArrayObject::create(&mut agent, 0, None).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc(&mut agent);
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(&mut agent, desc)
+                .map(|success| (success, a.common.borrow().propdump()))
+                .map_err(|err| unwind_any_error(&mut agent, err))
         }
 
         #[test]
         fn readonly_length() {
             let mut agent = test_agent();
             let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
-            define_property_or_throw(&mut agent, &aobj, "length", PotentialPropertyDescriptor { writable: Some(false), ..Default::default() }).unwrap();
+            define_property_or_throw(
+                &mut agent,
+                &aobj,
+                "length",
+                PotentialPropertyDescriptor { writable: Some(false), ..Default::default() },
+            )
+            .unwrap();
             let a = aobj.o.to_array_object().unwrap();
 
             let result = a
-                .set_length(&mut agent, PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() })
+                .set_length(
+                    &mut agent,
+                    PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() },
+                )
                 .map(|success| (success, a.common.borrow().propdump()))
                 .map_err(|err| unwind_any_error(&mut agent, err));
             assert_eq!(
@@ -413,7 +492,9 @@ mod array_object {
                 kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0), writable: false },
             },
         ])); "delete them all and lock")]
-        fn three_elements(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+        fn three_elements(
+            make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
             let mut agent = test_agent();
             let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
             set(&mut agent, &aobj, "0".into(), "blue".into(), true).unwrap();
@@ -422,7 +503,9 @@ mod array_object {
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc(&mut agent);
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(&mut agent, desc)
+                .map(|success| (success, a.common.borrow().propdump()))
+                .map_err(|err| unwind_any_error(&mut agent, err))
         }
 
         #[test_case(fifty => Ok((false, vec![
@@ -465,7 +548,9 @@ mod array_object {
                 kind: PropertyInfoKind::Data { value: ECMAScriptValue::from("green"), writable: true },
             },
         ])); "abort then freeze")]
-        fn frozen_middle(make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
+        fn frozen_middle(
+            make_desc: fn(&mut Agent) -> PotentialPropertyDescriptor,
+        ) -> Result<(bool, Vec<PropertyInfo>), String> {
             let mut agent = test_agent();
             let aobj = ArrayObject::create(&mut agent, 9000, None).unwrap();
             set(&mut agent, &aobj, "0".into(), "blue".into(), true).unwrap();
@@ -473,14 +558,22 @@ mod array_object {
                 &mut agent,
                 &aobj,
                 "100",
-                PotentialPropertyDescriptor { value: Some("green".into()), writable: Some(true), enumerable: Some(true), configurable: Some(false), ..Default::default() },
+                PotentialPropertyDescriptor {
+                    value: Some("green".into()),
+                    writable: Some(true),
+                    enumerable: Some(true),
+                    configurable: Some(false),
+                    ..Default::default()
+                },
             )
             .unwrap();
             set(&mut agent, &aobj, "500".into(), "red".into(), true).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc(&mut agent);
 
-            a.set_length(&mut agent, desc).map(|success| (success, a.common.borrow().propdump())).map_err(|err| unwind_any_error(&mut agent, err))
+            a.set_length(&mut agent, desc)
+                .map(|success| (success, a.common.borrow().propdump()))
+                .map_err(|err| unwind_any_error(&mut agent, err))
         }
     }
 }
@@ -529,12 +622,28 @@ mod array_species_create {
         let proto = agent.intrinsic(IntrinsicId::ArrayPrototype);
         let function_proto = agent.intrinsic(IntrinsicId::FunctionPrototype);
         let obj = super::super::array_create(agent, 0, Some(proto)).unwrap();
-        let constructor_getter = create_builtin_function(agent, faux_errors, false, 0.0, "constructor".into(), &[], None, Some(function_proto), Some("get".into()));
+        let constructor_getter = create_builtin_function(
+            agent,
+            faux_errors,
+            false,
+            0.0,
+            "constructor".into(),
+            &[],
+            None,
+            Some(function_proto),
+            Some("get".into()),
+        );
         define_property_or_throw(
             agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { get: Some(constructor_getter.into()), set: None, enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                get: Some(constructor_getter.into()),
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
@@ -546,7 +655,13 @@ mod array_species_create {
             agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::Undefined),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj
@@ -562,7 +677,13 @@ mod array_species_create {
             agent,
             &obj,
             "constructor",
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(false)), writable: Some(true), enumerable: Some(true), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(false)),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
         obj

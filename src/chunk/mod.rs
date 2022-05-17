@@ -42,7 +42,9 @@ impl Chunk {
             }
         }
         collection.push(item);
-        (collection.len() - 1).try_into().map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
+        (collection.len() - 1)
+            .try_into()
+            .map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
     }
 
     pub fn op(&mut self, opcode: Insn) {

@@ -1,4 +1,7 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED,
+    PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -8,21 +11,39 @@ use test_case::test_case;
 // IF STATEMENT
 #[test]
 fn if_statement_test_01() {
-    let (node, scanner) = check(IfStatement::parse(&mut newparser("if (true) { a; }"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(IfStatement::parse(&mut newparser("if (true) { a; }"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 16);
     pretty_check(&*node, "IfStatement: if ( true ) { a ; }", vec!["Expression: true", "Statement: { a ; }"]);
-    concise_check(&*node, "IfStatement: if ( true ) { a ; }", vec!["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"]);
+    concise_check(
+        &*node,
+        "IfStatement: if ( true ) { a ; }",
+        vec!["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn if_statement_test_02() {
-    let (node, scanner) = check(IfStatement::parse(&mut newparser("if (0) { a; } else { b; }"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(IfStatement::parse(&mut newparser("if (0) { a; } else { b; }"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 25);
-    pretty_check(&*node, "IfStatement: if ( 0 ) { a ; } else { b ; }", vec!["Expression: 0", "Statement: { a ; }", "Statement: { b ; }"]);
+    pretty_check(
+        &*node,
+        "IfStatement: if ( 0 ) { a ; } else { b ; }",
+        vec!["Expression: 0", "Statement: { a ; }", "Statement: { b ; }"],
+    );
     concise_check(
         &*node,
         "IfStatement: if ( 0 ) { a ; } else { b ; }",
-        vec!["Keyword: if", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Block: { a ; }", "Keyword: else", "Block: { b ; }"],
+        vec![
+            "Keyword: if",
+            "Punctuator: (",
+            "Numeric: 0",
+            "Punctuator: )",
+            "Block: { a ; }",
+            "Keyword: else",
+            "Block: { b ; }",
+        ],
     );
     format!("{:?}", node);
 }
@@ -36,7 +57,12 @@ fn if_statement_test_err_02() {
 }
 #[test]
 fn if_statement_test_err_03() {
-    check_err(IfStatement::parse(&mut newparser("if ("), Scanner::new(), false, false, true), "Expression expected", 1, 5);
+    check_err(
+        IfStatement::parse(&mut newparser("if ("), Scanner::new(), false, false, true),
+        "Expression expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn if_statement_test_err_04() {
@@ -44,11 +70,21 @@ fn if_statement_test_err_04() {
 }
 #[test]
 fn if_statement_test_err_05() {
-    check_err(IfStatement::parse(&mut newparser("if (0)"), Scanner::new(), false, false, true), "Statement expected", 1, 7);
+    check_err(
+        IfStatement::parse(&mut newparser("if (0)"), Scanner::new(), false, false, true),
+        "Statement expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn if_statement_test_err_06() {
-    check_err(IfStatement::parse(&mut newparser("if (0) a; else"), Scanner::new(), false, false, true), "Statement expected", 1, 15);
+    check_err(
+        IfStatement::parse(&mut newparser("if (0) a; else"), Scanner::new(), false, false, true),
+        "Statement expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn if_statement_test_prettyerrors_1() {
@@ -57,7 +93,8 @@ fn if_statement_test_prettyerrors_1() {
 }
 #[test]
 fn if_statement_test_prettyerrors_2() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -67,47 +104,61 @@ fn if_statement_test_conciseerrors_1() {
 }
 #[test]
 fn if_statement_test_conciseerrors_2() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) b; else f;"), Scanner::new(), false, false, true).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn if_statement_test_var_declared_names_01() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { var x; } else { var y; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { var x; } else { var y; }"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.var_declared_names(), &["x", "y"]);
 }
 #[test]
 fn if_statement_test_var_declared_names_02() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { var x, y; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { var x, y; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &["x", "y"]);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_01() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { break k; } else { ; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { break k; } else { ; }"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_02() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { break k; } else { ; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { break k; } else { ; }"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("k")]), false);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_03() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { ; } else { break k; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { ; } else { break k; }"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_04() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { ; } else { break k; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { ; } else { break k; }"), Scanner::new(), true, true, true)
+            .unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("k")]), false);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_05() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { break k; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { break k; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[]), true);
 }
 #[test]
 fn if_statement_test_contains_undefined_break_target_06() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (false) { break k; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (false) { break k; }"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("k")]), false);
 }
 #[test]
@@ -117,12 +168,14 @@ fn if_statement_test_contains_01() {
 }
 #[test]
 fn if_statement_test_contains_02() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (a) {0;} else {}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (a) {0;} else {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn if_statement_test_contains_03() {
-    let (item, _) = IfStatement::parse(&mut newparser("if (a) {} else {0;}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        IfStatement::parse(&mut newparser("if (a) {} else {0;}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
@@ -161,7 +214,10 @@ fn if_statement_test_contains_duplicate_labels() {
 #[test_case("if(1)0; else continue x;" => (false, true); "if (1) 0; else continue x;")]
 fn if_statement_test_contains_undefined_continue_target(src: &str) -> (bool, bool) {
     let (item, _) = IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (item.contains_undefined_continue_target(&[JSString::from("x")]), item.contains_undefined_continue_target(&[JSString::from("y")]))
+    (
+        item.contains_undefined_continue_target(&[JSString::from("x")]),
+        item.contains_undefined_continue_target(&[JSString::from("y")]),
+    )
 }
 #[test_case("if(a.#valid){}" => true; "elseless cond valid")]
 #[test_case("if(a){b.#valid;}" => true; "elseless truthy valid")]
@@ -191,7 +247,10 @@ mod if_statement {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict, false, false);
+        IfStatement::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict, false, false);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

@@ -44,7 +44,13 @@ impl PrettyPrint for BlockStatement {
 
 impl BlockStatement {
     // no caching needed
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (block, after_block) = Block::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(BlockStatement::Block(block)), after_block))
     }
@@ -85,7 +91,14 @@ impl BlockStatement {
         node.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         let BlockStatement::Block(node) = self;
         node.early_errors(agent, errs, strict, within_iteration, within_switch);
     }
@@ -163,7 +176,13 @@ impl PrettyPrint for Block {
 }
 
 impl Block {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_lb = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_lb, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_lb),
@@ -173,7 +192,13 @@ impl Block {
         Ok((Rc::new(Block::Statements(sl)), after_rb))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.block_cache.get(&key) {
             Some(result) => result.clone(),
@@ -259,7 +284,14 @@ impl Block {
         sl.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         if let Block::Statements(Some(sl)) = self {
             // Static Semantics: Early Errors
             // Block : { StatementList }
@@ -344,18 +376,32 @@ impl PrettyPrint for StatementList {
 }
 
 impl StatementList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let (item, after_item) = StatementListItem::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
         let mut current = Rc::new(StatementList::Item(item));
         let mut current_scanner = after_item;
-        while let Ok((next, after_next)) = StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag) {
+        while let Ok((next, after_next)) =
+            StatementListItem::parse(parser, current_scanner, yield_flag, await_flag, return_flag)
+        {
             current = Rc::new(StatementList::List(current, next));
             current_scanner = after_next;
         }
         Ok((current, current_scanner))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitReturnKey { scanner, yield_flag, await_flag, return_flag };
         match parser.statement_list_cache.get(&key) {
             Some(result) => result.clone(),
@@ -423,28 +469,40 @@ impl StatementList {
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             StatementList::Item(node) => node.contains_undefined_break_target(label_set),
-            StatementList::List(lst, item) => lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set),
+            StatementList::List(lst, item) => {
+                lst.contains_undefined_break_target(label_set) || item.contains_undefined_break_target(label_set)
+            }
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             StatementList::Item(node) => kind == ParseNodeKind::StatementListItem || node.contains(kind),
-            StatementList::List(lst, item) => kind == ParseNodeKind::StatementList || kind == ParseNodeKind::StatementListItem || lst.contains(kind) || item.contains(kind),
+            StatementList::List(lst, item) => {
+                kind == ParseNodeKind::StatementList
+                    || kind == ParseNodeKind::StatementListItem
+                    || lst.contains(kind)
+                    || item.contains(kind)
+            }
         }
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             StatementList::Item(node) => node.contains_duplicate_labels(label_set),
-            StatementList::List(lst, item) => lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set),
+            StatementList::List(lst, item) => {
+                lst.contains_duplicate_labels(label_set) || item.contains_duplicate_labels(label_set)
+            }
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
         match self {
             StatementList::Item(node) => node.contains_undefined_continue_target(iteration_set, label_set),
-            StatementList::List(lst, item) => lst.contains_undefined_continue_target(iteration_set, &[]) || item.contains_undefined_continue_target(iteration_set, &[]),
+            StatementList::List(lst, item) => {
+                lst.contains_undefined_continue_target(iteration_set, &[])
+                    || item.contains_undefined_continue_target(iteration_set, &[])
+            }
         }
     }
 
@@ -452,7 +510,9 @@ impl StatementList {
     // a boolean value which is true if all of the items in the statement list were string literal expressions.
     fn initial_string_tokens_internal(&self) -> (Vec<StringToken>, bool) {
         match self {
-            StatementList::Item(node) => node.as_string_literal().map_or((Vec::new(), false), |token| (vec![token], true)),
+            StatementList::Item(node) => {
+                node.as_string_literal().map_or((Vec::new(), false), |token| (vec![token], true))
+            }
             StatementList::List(lst, item) => {
                 let (mut head, all) = lst.initial_string_tokens_internal();
                 if all {
@@ -483,11 +543,20 @@ impl StatementList {
         //  2. Return true.
         match self {
             StatementList::Item(node) => node.all_private_identifiers_valid(names),
-            StatementList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            StatementList::List(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
             StatementList::Item(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
             StatementList::List(lst, item) => {
@@ -603,12 +672,23 @@ impl PrettyPrint for StatementListItem {
 
 impl StatementListItem {
     // no caching needed
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::DeclarationOrStatementExpected, scanner))
             .otherwise(|| {
-                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(|(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement))
+                Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(
+                    |(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement),
+                )
             })
-            .otherwise(|| Declaration::parse(parser, scanner, yield_flag, await_flag).map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl)))
+            .otherwise(|| {
+                Declaration::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl))
+            })
     }
 
     pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {
@@ -709,9 +789,18 @@ impl StatementListItem {
         }
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
-            StatementListItem::Statement(node) => node.early_errors(agent, errs, strict, within_iteration, within_switch),
+            StatementListItem::Statement(node) => {
+                node.early_errors(agent, errs, strict, within_iteration, within_switch)
+            }
             StatementListItem::Declaration(node) => node.early_errors(agent, errs, strict),
         }
     }

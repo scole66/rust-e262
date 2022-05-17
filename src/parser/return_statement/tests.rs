@@ -48,7 +48,12 @@ fn return_statement_test_err_02() {
 }
 #[test]
 fn return_statement_test_err_03() {
-    check_err(ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
+    check_err(
+        ReturnStatement::parse(&mut newparser("return 0 for"), Scanner::new(), false, false),
+        "‘;’ expected",
+        1,
+        9,
+    );
 }
 #[test]
 fn return_statement_test_prettyerrors_1() {

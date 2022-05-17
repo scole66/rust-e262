@@ -3,9 +3,10 @@ use super::cr::Completion;
 use super::environment_record::{EnvironmentRecord, PrivateEnvironmentRecord};
 use super::execution_context::ExecutionContext;
 use super::object::{
-    define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
-    ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface, InternalSlotName, Object,
-    ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+    define_property_or_throw, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
+    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys,
+    ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of, CommonObjectData, FunctionInterface,
+    InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use super::parser::async_function_definitions::AsyncFunctionDeclaration;
 use super::parser::async_generator_function_definitions::AsyncGeneratorDeclaration;
@@ -72,11 +73,23 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
 }
 
 pub trait CallableObject: ObjectInterface {
-    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue>;
+    fn call(
+        &self,
+        agent: &mut Agent,
+        self_object: &Object,
+        this_argument: &ECMAScriptValue,
+        arguments_list: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue>;
 }
 
 pub trait ConstructableObject: CallableObject {
-    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion<ECMAScriptValue>;
+    fn construct(
+        &self,
+        agent: &mut Agent,
+        self_object: &Object,
+        arguments_list: &[ECMAScriptValue],
+        new_target: &Object,
+    ) -> Completion<ECMAScriptValue>;
 }
 
 impl ObjectInterface for FunctionObject {
@@ -115,7 +128,12 @@ impl ObjectInterface for FunctionObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -124,7 +142,13 @@ impl ObjectInterface for FunctionObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -136,7 +160,13 @@ impl ObjectInterface for FunctionObject {
 }
 
 impl CallableObject for FunctionObject {
-    fn call(&self, _agent: &mut Agent, _self_object: &Object, _this_argument: &ECMAScriptValue, _arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn call(
+        &self,
+        _agent: &mut Agent,
+        _self_object: &Object,
+        _this_argument: &ECMAScriptValue,
+        _arguments_list: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
         todo!()
     }
 }
@@ -197,7 +227,17 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
     if let Some(builtin) = func.o.to_builtin_function_obj() {
         builtin.builtin_function_data().borrow_mut().initial_name = Some(FunctionName::from(name_after_prefix.clone()));
     }
-    define_property_or_throw(agent, func, "name", PotentialPropertyDescriptor::new().value(name_after_prefix).writable(false).enumerable(false).configurable(true)).unwrap()
+    define_property_or_throw(
+        agent,
+        func,
+        "name",
+        PotentialPropertyDescriptor::new()
+            .value(name_after_prefix)
+            .writable(false)
+            .enumerable(false)
+            .configurable(true),
+    )
+    .unwrap()
 }
 
 // SetFunctionLength ( F, length )
@@ -209,7 +249,13 @@ pub fn set_function_name(agent: &mut Agent, func: &Object, name: FunctionName, p
 //      2. Return ! DefinePropertyOrThrow(F, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
 pub fn set_function_length(agent: &mut Agent, func: &Object, length: f64) {
-    define_property_or_throw(agent, func, "length", PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(true)).unwrap();
+    define_property_or_throw(
+        agent,
+        func,
+        "length",
+        PotentialPropertyDescriptor::new().value(length).writable(false).enumerable(false).configurable(true),
+    )
+    .unwrap();
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -283,7 +329,10 @@ pub struct BuiltInFunctionData {
 
 impl fmt::Debug for BuiltInFunctionData {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
-        f.debug_struct("BuiltInFunctionData").field("realm", &self.realm).field("initial_name", &self.initial_name).finish()
+        f.debug_struct("BuiltInFunctionData")
+            .field("realm", &self.realm)
+            .field("initial_name", &self.initial_name)
+            .finish()
     }
 }
 
@@ -395,7 +444,12 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn get_own_property(&self, _agent: &mut Agent, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
         Ok(ordinary_get_own_property(self, key))
     }
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         ordinary_define_own_property(agent, self, key, desc)
     }
     fn has_property(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -404,7 +458,13 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        v: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, v, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -439,9 +499,16 @@ impl CallableObject for BuiltInFunctionObject {
     //
     // NOTE     | When calleeContext is removed from the execution context stack it must not be destroyed if it has been
     //          | suspended and retained by an accessible generator object for later resumption.
-    fn call(&self, agent: &mut Agent, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    fn call(
+        &self,
+        agent: &mut Agent,
+        self_object: &Object,
+        this_argument: &ECMAScriptValue,
+        arguments_list: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
         assert_eq!(self.id(), self_object.o.id());
-        let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
+        let callee_context =
+            ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
         let result = (self.builtin_data.borrow().steps)(agent, this_argument.clone(), None, arguments_list);
         agent.pop_execution_context();
@@ -460,11 +527,19 @@ impl ConstructableObject for BuiltInFunctionObject {
     // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the
     //     specification of F. The this value is uninitialized, argumentsList provides the named parameters, and
     //     newTarget provides the NewTarget value.
-    fn construct(&self, agent: &mut Agent, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object) -> Completion<ECMAScriptValue> {
+    fn construct(
+        &self,
+        agent: &mut Agent,
+        self_object: &Object,
+        arguments_list: &[ECMAScriptValue],
+        new_target: &Object,
+    ) -> Completion<ECMAScriptValue> {
         assert_eq!(self.id(), self_object.o.id());
-        let callee_context = ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
+        let callee_context =
+            ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         agent.push_execution_context(callee_context);
-        let result = (self.builtin_data.borrow().steps)(agent, ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        let result =
+            (self.builtin_data.borrow().steps)(agent, ECMAScriptValue::Undefined, Some(new_target), arguments_list);
         agent.pop_execution_context();
 
         result
@@ -515,7 +590,15 @@ pub fn create_builtin_function(
 ) -> Object {
     let realm_to_use = realm.unwrap_or_else(|| agent.current_realm_record().unwrap());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
-    let func = BuiltInFunctionObject::object(agent, Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
+    let func = BuiltInFunctionObject::object(
+        agent,
+        Some(prototype_to_use),
+        true,
+        realm_to_use,
+        None,
+        behavior,
+        is_constructor,
+    );
     set_function_length(agent, &func, length);
     set_function_name(agent, &func, FunctionName::from(name), prefix);
     func
@@ -523,28 +606,48 @@ pub fn create_builtin_function(
 
 impl FunctionDeclaration {
     #[allow(unused_variables)]
-    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+    pub fn instantiate_function_object(
+        &self,
+        agent: &mut Agent,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<&PrivateEnvironmentRecord>,
+    ) -> ECMAScriptValue {
         todo!()
     }
 }
 
 impl GeneratorDeclaration {
     #[allow(unused_variables)]
-    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+    pub fn instantiate_function_object(
+        &self,
+        agent: &mut Agent,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<&PrivateEnvironmentRecord>,
+    ) -> ECMAScriptValue {
         todo!()
     }
 }
 
 impl AsyncFunctionDeclaration {
     #[allow(unused_variables)]
-    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+    pub fn instantiate_function_object(
+        &self,
+        agent: &mut Agent,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<&PrivateEnvironmentRecord>,
+    ) -> ECMAScriptValue {
         todo!()
     }
 }
 
 impl AsyncGeneratorDeclaration {
     #[allow(unused_variables)]
-    pub fn instantiate_function_object(&self, agent: &mut Agent, env: Rc<dyn EnvironmentRecord>, private_env: Option<&PrivateEnvironmentRecord>) -> ECMAScriptValue {
+    pub fn instantiate_function_object(
+        &self,
+        agent: &mut Agent,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<&PrivateEnvironmentRecord>,
+    ) -> ECMAScriptValue {
         todo!()
     }
 }

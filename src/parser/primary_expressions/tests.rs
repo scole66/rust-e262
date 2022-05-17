@@ -84,33 +84,65 @@ fn primary_expression_test_group() {
 }
 #[test]
 fn primary_expression_test_func() {
-    let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
     assert!(matches!(*node, PrimaryExpression::Function(..)));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
-    concise_check(&*node, "FunctionExpression: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionExpression: function a (  ) {  }",
+        vec![
+            "Keyword: function",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
 }
 #[test]
 fn primary_expression_test_generator() {
-    let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
     assert!(matches!(*node, PrimaryExpression::Generator(..)));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: function * a ( b ) { c ; }", vec!["GeneratorExpression: function * a ( b ) { c ; }"]);
+    pretty_check(
+        &*node,
+        "PrimaryExpression: function * a ( b ) { c ; }",
+        vec!["GeneratorExpression: function * a ( b ) { c ; }"],
+    );
     concise_check(
         &*node,
         "GeneratorExpression: function * a ( b ) { c ; }",
-        vec!["Keyword: function", "Punctuator: *", "IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
+        vec![
+            "Keyword: function",
+            "Punctuator: *",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: b",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: c ;",
+            "Punctuator: }",
+        ],
     );
 }
 #[test]
 fn primary_expression_test_async_generator() {
-    let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
     assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: async function * a ( b ) { c ; }", vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"]);
+    pretty_check(
+        &*node,
+        "PrimaryExpression: async function * a ( b ) { c ; }",
+        vec!["AsyncGeneratorExpression: async function * a ( b ) { c ; }"],
+    );
     concise_check(
         &*node,
         "AsyncGeneratorExpression: async function * a ( b ) { c ; }",
@@ -130,15 +162,30 @@ fn primary_expression_test_async_generator() {
 }
 #[test]
 fn primary_expression_test_async_function() {
-    let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
     assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
     assert_eq!(node.is_function_definition(), true);
-    pretty_check(&*node, "PrimaryExpression: async function a ( b ) { c ; }", vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"]);
+    pretty_check(
+        &*node,
+        "PrimaryExpression: async function a ( b ) { c ; }",
+        vec!["AsyncFunctionExpression: async function a ( b ) { c ; }"],
+    );
     concise_check(
         &*node,
         "AsyncFunctionExpression: async function a ( b ) { c ; }",
-        vec!["Keyword: async", "Keyword: function", "IdentifierName: a", "Punctuator: (", "IdentifierName: b", "Punctuator: )", "Punctuator: {", "ExpressionStatement: c ;", "Punctuator: }"],
+        vec![
+            "Keyword: async",
+            "Keyword: function",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "IdentifierName: b",
+            "Punctuator: )",
+            "Punctuator: {",
+            "ExpressionStatement: c ;",
+            "Punctuator: }",
+        ],
     );
 }
 #[test]
@@ -204,12 +251,14 @@ fn primary_expression_test_prettyerrors_9() {
 }
 #[test]
 fn primary_expression_test_prettyerrors_10() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn primary_expression_test_prettyerrors_11() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -269,12 +318,14 @@ fn primary_expression_test_conciseerrors_9() {
 }
 #[test]
 fn primary_expression_test_conciseerrors_10() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function *a(){}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn primary_expression_test_conciseerrors_11() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function a(){}"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -344,32 +395,38 @@ fn primary_expression_test_contains_11() {
 }
 #[test]
 fn primary_expression_test_contains_12() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("function a(){this;}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("function a(){this;}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn primary_expression_test_contains_13() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("class a{[this.name](){}}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("class a{[this.name](){}}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn primary_expression_test_contains_14() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("class a{[b.name](){this;}}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("class a{[b.name](){this;}}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn primary_expression_test_contains_15() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("function *a(){this;}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("function *a(){this;}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn primary_expression_test_contains_16() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function a(){this;}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function a(){this;}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn primary_expression_test_contains_17() {
-    let (item, _) = PrimaryExpression::parse(&mut newparser("async function *a(){this;}"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        PrimaryExpression::parse(&mut newparser("async function *a(){this;}"), Scanner::new(), false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
@@ -434,7 +491,10 @@ mod primary_expression {
     #[test_case("``" => false; "TemplateLiteral")]
     #[test_case("(a)" => false; "ParenthesizedExpression")]
     fn is_object_or_array_literal(src: &str) -> bool {
-        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_object_or_array_literal()
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_object_or_array_literal()
     }
 
     #[test_case("this", true => set(&[]); "this")]
@@ -457,7 +517,10 @@ mod primary_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        PrimaryExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -713,7 +776,12 @@ fn elision_test_contains_01() {
 #[test]
 fn spread_element_test_empty() {
     check_err(SpreadElement::parse(&mut newparser(""), Scanner::new(), false, false), "‘...’ expected", 1, 1);
-    check_err(SpreadElement::parse(&mut newparser("..."), Scanner::new(), false, false), "AssignmentExpression expected", 1, 4);
+    check_err(
+        SpreadElement::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn spread_element_test_assignment_expression() {
@@ -764,7 +832,10 @@ mod spread_element {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SpreadElement::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SpreadElement::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -778,7 +849,12 @@ mod spread_element {
 // ELEMENT LIST
 #[test]
 fn element_list_test_01() {
-    check_err(ElementList::parse(&mut newparser(""), Scanner::new(), false, false), "AssignmentExpression or SpreadElement expected", 1, 1);
+    check_err(
+        ElementList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "AssignmentExpression or SpreadElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn element_list_test_02() {
@@ -827,7 +903,11 @@ fn element_list_test_08() {
     chk_scan(&scanner, 4);
     assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, Some(be), _)) if be.count == 1));
     pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
-    concise_check(&*el, "ElementList: a , , b", vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "IdentifierName: b"]);
+    concise_check(
+        &*el,
+        "ElementList: a , , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "IdentifierName: b"],
+    );
 }
 #[test]
 fn element_list_test_09() {
@@ -843,7 +923,11 @@ fn element_list_test_10() {
     chk_scan(&scanner, 7);
     assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, Some(be), _)) if be.count == 1));
     pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
-    concise_check(&*el, "ElementList: a , , ... b", vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "SpreadElement: ... b"]);
+    concise_check(
+        &*el,
+        "ElementList: a , , ... b",
+        vec!["IdentifierName: a", "Punctuator: ,", "Elisions: ,", "SpreadElement: ... b"],
+    );
 }
 #[test]
 fn element_list_test_04() {
@@ -853,15 +937,30 @@ fn element_list_test_04() {
 }
 #[test]
 fn element_list_test_11() {
-    check_err(ElementList::parse(&mut newparser(",,,,"), Scanner::new(), false, false), "AssignmentExpression or SpreadElement expected", 1, 5);
+    check_err(
+        ElementList::parse(&mut newparser(",,,,"), Scanner::new(), false, false),
+        "AssignmentExpression or SpreadElement expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn element_list_test_12() {
-    check_err(ElementList::parse(&mut newparser("...@"), Scanner::new(), false, false), "AssignmentExpression expected", 1, 4);
+    check_err(
+        ElementList::parse(&mut newparser("...@"), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn element_list_test_13() {
-    check_err(ElementList::parse(&mut newparser("(while)"), Scanner::new(), false, false), "Expression, spread pattern, or closing paren expected", 1, 2);
+    check_err(
+        ElementList::parse(&mut newparser("(while)"), Scanner::new(), false, false),
+        "Expression, spread pattern, or closing paren expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn element_list_test_prettyerrors_1() {
@@ -1091,7 +1190,10 @@ mod element_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ElementList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ElementList::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1152,7 +1254,11 @@ fn array_literal_test_04() {
     chk_scan(&scanner, 4);
     assert!(matches!(*al, ArrayLiteral::ElementListElision(_, None)));
     pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
-    concise_check(&*al, "ArrayLiteral: [ a , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"])
+    concise_check(
+        &*al,
+        "ArrayLiteral: [ a , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
+    )
 }
 #[test]
 fn array_literal_test_05() {
@@ -1160,7 +1266,11 @@ fn array_literal_test_05() {
     chk_scan(&scanner, 5);
     assert!(matches!(&*al, ArrayLiteral::ElementListElision(_, Some(be)) if be.count == 1));
     pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
-    concise_check(&*al, "ArrayLiteral: [ a , , ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"]);
+    concise_check(
+        &*al,
+        "ArrayLiteral: [ a , , ]",
+        vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
+    );
 }
 #[test]
 fn array_literal_test_err_01() {
@@ -1168,15 +1278,30 @@ fn array_literal_test_err_01() {
 }
 #[test]
 fn array_literal_test_err_02() {
-    check_err(ArrayLiteral::parse(&mut newparser("["), Scanner::new(), false, false), "‘,’, ‘]’, or an ElementList expected", 1, 2);
+    check_err(
+        ArrayLiteral::parse(&mut newparser("["), Scanner::new(), false, false),
+        "‘,’, ‘]’, or an ElementList expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn array_literal_test_err_03() {
-    check_err(ArrayLiteral::parse(&mut newparser("[,,"), Scanner::new(), false, false), "AssignmentExpression or SpreadElement expected", 1, 4);
+    check_err(
+        ArrayLiteral::parse(&mut newparser("[,,"), Scanner::new(), false, false),
+        "AssignmentExpression or SpreadElement expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn array_literal_test_err_04() {
-    check_err(ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false), "one of [‘,’, ‘]’] expected", 1, 3);
+    check_err(
+        ArrayLiteral::parse(&mut newparser("[a"), Scanner::new(), false, false),
+        "one of [‘,’, ‘]’] expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn array_literal_test_err_05() {
@@ -1298,7 +1423,10 @@ mod array_literal {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ArrayLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1319,7 +1447,12 @@ mod array_literal {
 #[test]
 fn initializer_test_nomatch() {
     check_err(Initializer::parse(&mut newparser(""), Scanner::new(), false, false, false), "‘=’ expected", 1, 1);
-    check_err(Initializer::parse(&mut newparser("="), Scanner::new(), false, false, false), "AssignmentExpression expected", 1, 2);
+    check_err(
+        Initializer::parse(&mut newparser("="), Scanner::new(), false, false, false),
+        "AssignmentExpression expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn initializer_test_01() {
@@ -1372,7 +1505,10 @@ mod initializer {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        Initializer::parse(&mut newparser(src), Scanner::new(), true, false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1436,7 +1572,10 @@ mod cover_initialized_name {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        CoverInitializedName::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1454,7 +1593,12 @@ fn computed_property_name_test_nomatch_1() {
 }
 #[test]
 fn computed_property_name_test_nomatch_2() {
-    check_err(ComputedPropertyName::parse(&mut newparser("["), Scanner::new(), false, false), "AssignmentExpression expected", 1, 2);
+    check_err(
+        ComputedPropertyName::parse(&mut newparser("["), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn computed_property_name_test_nomatch_3() {
@@ -1503,7 +1647,10 @@ mod computed_property_name {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ComputedPropertyName::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
     #[test_case("[xyzzy]" => false; "no")]
@@ -1516,7 +1663,12 @@ mod computed_property_name {
 // LITERAL PROPERTY NAME
 #[test]
 fn literal_property_name_test_none() {
-    check_err(LiteralPropertyName::parse(&mut newparser(""), Scanner::new()), "Identifier, String, or Number expected", 1, 1);
+    check_err(
+        LiteralPropertyName::parse(&mut newparser(""), Scanner::new()),
+        "Identifier, String, or Number expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn literal_property_name_test_01() {
@@ -1691,7 +1843,10 @@ mod property_name {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        PropertyName::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        PropertyName::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1750,15 +1905,29 @@ fn property_definition_test_05() {
     chk_scan(&scanner, 5);
     assert!(matches!(&*pd, PropertyDefinition::MethodDefinition(..)));
     pretty_check(&*pd, "PropertyDefinition: a (  ) {  }", vec!["MethodDefinition: a (  ) {  }"]);
-    concise_check(&*pd, "MethodDefinition: a (  ) {  }", vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*pd,
+        "MethodDefinition: a (  ) {  }",
+        vec!["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
+    );
 }
 #[test]
 fn property_definition_test_nomatch_1() {
-    check_err(PropertyDefinition::parse(&mut newparser(""), Scanner::new(), false, false), "PropertyName expected", 1, 1);
+    check_err(
+        PropertyDefinition::parse(&mut newparser(""), Scanner::new(), false, false),
+        "PropertyName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn property_definition_test_nomatch_2() {
-    check_err(PropertyDefinition::parse(&mut newparser("..."), Scanner::new(), false, false), "AssignmentExpression expected", 1, 4);
+    check_err(
+        PropertyDefinition::parse(&mut newparser("..."), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn property_definition_test_nomatch_3() {
@@ -1766,7 +1935,12 @@ fn property_definition_test_nomatch_3() {
 }
 #[test]
 fn property_definition_test_nomatch_4() {
-    check_err(PropertyDefinition::parse(&mut newparser("3:"), Scanner::new(), false, false), "AssignmentExpression expected", 1, 3);
+    check_err(
+        PropertyDefinition::parse(&mut newparser("3:"), Scanner::new(), false, false),
+        "AssignmentExpression expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn property_definition_test_prettyerrors_1() {
@@ -1901,7 +2075,10 @@ mod property_definition {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        PropertyDefinition::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -1965,11 +2142,20 @@ fn property_definition_list_test_03() {
     chk_scan(&scanner, 3);
     assert!(matches!(&*pdl, PropertyDefinitionList::ManyDefs(_, _)));
     pretty_check(&*pdl, "PropertyDefinitionList: a , b", vec!["PropertyDefinitionList: a", "PropertyDefinition: b"]);
-    concise_check(&*pdl, "PropertyDefinitionList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
+    concise_check(
+        &*pdl,
+        "PropertyDefinitionList: a , b",
+        vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
+    );
 }
 #[test]
 fn property_definition_list_test_04() {
-    check_err(PropertyDefinitionList::parse(&mut newparser(""), Scanner::new(), false, false), "PropertyName expected", 1, 1);
+    check_err(
+        PropertyDefinitionList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "PropertyName expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn property_definition_list_test_prettyerrors_1() {
@@ -2038,7 +2224,10 @@ mod property_definition_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        PropertyDefinitionList::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2079,7 +2268,11 @@ fn object_literal_test_02() {
     chk_scan(&scanner, 5);
     assert!(matches!(&*ol, ObjectLiteral::Normal(_)));
     pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
-    concise_check(&*ol, "ObjectLiteral: { a : b }", vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: }"]);
+    concise_check(
+        &*ol,
+        "ObjectLiteral: { a : b }",
+        vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: }"],
+    );
 }
 #[test]
 fn object_literal_test_03() {
@@ -2087,7 +2280,11 @@ fn object_literal_test_03() {
     chk_scan(&scanner, 6);
     assert!(matches!(&*ol, ObjectLiteral::TrailingComma(_)));
     pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
-    concise_check(&*ol, "ObjectLiteral: { a : b , }", vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: ,", "Punctuator: }"]);
+    concise_check(
+        &*ol,
+        "ObjectLiteral: { a : b , }",
+        vec!["Punctuator: {", "PropertyDefinition: a : b", "Punctuator: ,", "Punctuator: }"],
+    );
 }
 #[test]
 fn object_literal_test_04() {
@@ -2099,7 +2296,12 @@ fn object_literal_test_05() {
 }
 #[test]
 fn object_literal_test_06() {
-    check_err(ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false), "one of [‘}’, ‘,’] expected", 1, 5);
+    check_err(
+        ObjectLiteral::parse(&mut newparser("{a:b"), Scanner::new(), false, false),
+        "one of [‘}’, ‘,’] expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn object_literal_test_07() {
@@ -2185,7 +2387,10 @@ mod object_literal {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ObjectLiteral::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2216,7 +2421,12 @@ fn parenthesized_expression_test_02() {
 }
 #[test]
 fn parenthesized_expression_test_03() {
-    check_err(ParenthesizedExpression::parse(&mut newparser("("), Scanner::new(), false, false), "Expression expected", 1, 2);
+    check_err(
+        ParenthesizedExpression::parse(&mut newparser("("), Scanner::new(), false, false),
+        "Expression expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn parenthesized_expression_test_04() {
@@ -2258,14 +2468,20 @@ mod parenthesized_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
     #[test_case("(a)" => false; "parenthesized idref")]
     #[test_case("(1)" => true; "parenthesized literal")]
     fn is_strictly_deletable(src: &str) -> bool {
-        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.is_strictly_deletable()
+        ParenthesizedExpression::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .is_strictly_deletable()
     }
 
     #[test_case("(arguments)" => true; "yes")]
@@ -2295,22 +2511,38 @@ fn template_middle_list_test_01() {
 }
 #[test]
 fn template_middle_list_test_02() {
-    let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
+    let (tml, scanner) =
+        check(TemplateMiddleList::parse(&mut newparser("}${a}${b}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 8);
     println!("{:?}", tml);
     assert!(matches!(&*tml, TemplateMiddleList::ListMid(_, _, _, _)));
     pretty_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "Expression: b"]);
-    concise_check(&*tml, "TemplateMiddleList: }${ a }${ b", vec!["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"]);
+    concise_check(
+        &*tml,
+        "TemplateMiddleList: }${ a }${ b",
+        vec!["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"],
+    );
     format!("{:?}", tml);
 }
 #[test]
 fn template_middle_list_test_03() {
-    check_err(TemplateMiddleList::parse(&mut newparser(""), Scanner::new(), false, false, false), "TemplateMiddle expected", 1, 1);
-    check_err(TemplateMiddleList::parse(&mut newparser("}abc${@"), Scanner::new(), false, false, false), "Expression expected", 1, 7);
+    check_err(
+        TemplateMiddleList::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "TemplateMiddle expected",
+        1,
+        1,
+    );
+    check_err(
+        TemplateMiddleList::parse(&mut newparser("}abc${@"), Scanner::new(), false, false, false),
+        "Expression expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn template_middle_list_test_04() {
-    let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
+    let (tml, scanner) =
+        check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(&*tml, TemplateMiddleList::ListHead(_, _, _)));
     pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
@@ -2349,12 +2581,14 @@ fn template_middle_list_test_contains_02() {
 }
 #[test]
 fn template_middle_list_test_contains_03() {
-    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${this}${a"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        TemplateMiddleList::parse(&mut newparser("}${this}${a"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn template_middle_list_test_contains_04() {
-    let (item, _) = TemplateMiddleList::parse(&mut newparser("}${a}${this"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        TemplateMiddleList::parse(&mut newparser("}${a}${this"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
@@ -2389,7 +2623,10 @@ mod template_middle_list {
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2408,7 +2645,10 @@ mod template_middle_list {
     #[test_case("}${bob}${arguments" => true; "TML TM Exp (right)")]
     #[test_case("}${bob}${xyzzy" => false; "TML TM Exp (no)")]
     fn contains_arguments(src: &str) -> bool {
-        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
+        TemplateMiddleList::parse(&mut newparser(src), Scanner::new(), true, true, false)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }
 
@@ -2433,8 +2673,18 @@ fn template_spans_test_02() {
 }
 #[test]
 fn template_spans_test_03() {
-    check_err(TemplateSpans::parse(&mut newparser(""), Scanner::new(), false, false, false), "TemplateSpans expected", 1, 1);
-    check_err(TemplateSpans::parse(&mut newparser("}${blue"), Scanner::new(), false, false, false), "TemplateTail expected", 1, 8);
+    check_err(
+        TemplateSpans::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "TemplateSpans expected",
+        1,
+        1,
+    );
+    check_err(
+        TemplateSpans::parse(&mut newparser("}${blue"), Scanner::new(), false, false, false),
+        "TemplateTail expected",
+        1,
+        8,
+    );
 }
 #[test]
 fn template_spans_test_prettyerrors_1() {
@@ -2494,7 +2744,10 @@ mod template_spans {
     fn early_errors(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        TemplateSpans::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2518,24 +2771,44 @@ mod template_spans {
 // SUBSTITUTION TEMPLATE
 #[test]
 fn substitution_template_test_01() {
-    let (st, scanner) = check(SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
+    let (st, scanner) =
+        check(SubstitutionTemplate::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
     assert_eq!(st.tagged, false);
     pretty_check(&*st, "SubstitutionTemplate: `${ a }`", vec!["Expression: a", "TemplateSpans: }`"]);
-    concise_check(&*st, "SubstitutionTemplate: `${ a }`", vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"]);
+    concise_check(
+        &*st,
+        "SubstitutionTemplate: `${ a }`",
+        vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
+    );
     format!("{:?}", st);
 }
 #[test]
 fn substitution_template_test_02() {
-    check_err(SubstitutionTemplate::parse(&mut newparser(""), Scanner::new(), false, false, false), "SubstitutionTemplate expected", 1, 1);
+    check_err(
+        SubstitutionTemplate::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "SubstitutionTemplate expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn substitution_template_test_03() {
-    check_err(SubstitutionTemplate::parse(&mut newparser("`${"), Scanner::new(), false, false, false), "Expression expected", 1, 4);
+    check_err(
+        SubstitutionTemplate::parse(&mut newparser("`${"), Scanner::new(), false, false, false),
+        "Expression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn substitution_template_test_04() {
-    check_err(SubstitutionTemplate::parse(&mut newparser("`${a"), Scanner::new(), false, false, false), "TemplateSpans expected", 1, 5);
+    check_err(
+        SubstitutionTemplate::parse(&mut newparser("`${a"), Scanner::new(), false, false, false),
+        "TemplateSpans expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn substitution_template_test_prettyerrors_1() {
@@ -2549,17 +2822,20 @@ fn substitution_template_test_conciseerrors_1() {
 }
 #[test]
 fn substitution_template_test_contains_01() {
-    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${this}`"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        SubstitutionTemplate::parse(&mut newparser("`${this}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn substitution_template_test_contains_02() {
-    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}${this}`"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        SubstitutionTemplate::parse(&mut newparser("`${10}${this}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn substitution_template_test_contains_03() {
-    let (item, _) = SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
+    let (item, _) =
+        SubstitutionTemplate::parse(&mut newparser("`${10}`"), Scanner::new(), false, false, false).unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 
@@ -2583,7 +2859,10 @@ mod substitution_template {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -2598,7 +2877,10 @@ mod substitution_template {
     #[test_case("`${bob}${arguments}`" => true; "Head - Expression - Spans (right)")]
     #[test_case("`${xyzzy}`" => false; "Head - Expression - Spans (no)")]
     fn contains_arguments(src: &str) -> bool {
-        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false).unwrap().0.contains_arguments()
+        SubstitutionTemplate::parse(&mut newparser(src), Scanner::new(), true, true, false)
+            .unwrap()
+            .0
+            .contains_arguments()
     }
 }
 
@@ -2621,13 +2903,27 @@ fn template_literal_test_02() {
     chk_scan(&scanner, 6);
     assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate(_)));
     pretty_check(&*tl, "TemplateLiteral: `${ a }`", vec!["SubstitutionTemplate: `${ a }`"]);
-    concise_check(&*tl, "SubstitutionTemplate: `${ a }`", vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"]);
+    concise_check(
+        &*tl,
+        "SubstitutionTemplate: `${ a }`",
+        vec!["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
+    );
     format!("{:?}", tl);
 }
 #[test]
 fn template_literal_test_03() {
-    check_err(TemplateLiteral::parse(&mut newparser(""), Scanner::new(), false, false, false), "TemplateLiteral expected", 1, 1);
-    check_err(TemplateLiteral::parse(&mut newparser("`${"), Scanner::new(), false, false, false), "Expression expected", 1, 4);
+    check_err(
+        TemplateLiteral::parse(&mut newparser(""), Scanner::new(), false, false, false),
+        "TemplateLiteral expected",
+        1,
+        1,
+    );
+    check_err(
+        TemplateLiteral::parse(&mut newparser("`${"), Scanner::new(), false, false, false),
+        "Expression expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn template_literal_test_prettyerrors_1() {
@@ -2698,7 +2994,10 @@ mod template_literal {
         fn simple(src: &str, strict: bool, tagged: bool) -> AHashSet<String> {
             let mut agent = test_agent();
             let mut errs = vec![];
-            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged).unwrap().0.early_errors(&mut agent, &mut errs, strict, 4294967295);
+            TemplateLiteral::parse(&mut newparser(src), Scanner::new(), false, true, tagged)
+                .unwrap()
+                .0
+                .early_errors(&mut agent, &mut errs, strict, 4294967295);
             AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
         }
 
@@ -2713,8 +3012,15 @@ mod template_literal {
             }
             src.push('`');
             let mut errs = vec![];
-            TemplateLiteral::parse(&mut newparser(&src), Scanner::new(), false, true, false).unwrap().0.early_errors(&mut agent, &mut errs, false, limit - 1);
-            let err_set = AHashSet::<String>::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())));
+            TemplateLiteral::parse(&mut newparser(&src), Scanner::new(), false, true, false).unwrap().0.early_errors(
+                &mut agent,
+                &mut errs,
+                false,
+                limit - 1,
+            );
+            let err_set = AHashSet::<String>::from_iter(
+                errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())),
+            );
             assert_eq!(err_set, set(&["Template literal too complex"]));
         }
     }
@@ -2739,235 +3045,472 @@ mod template_literal {
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
 #[test]
 fn cpeaapl_test_01() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("()"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 2);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec![]);
-    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec!["Punctuator: (", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( )",
+        vec!["Punctuator: (", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_02() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(8 in [1,2,3])"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(8 in [1,2,3])"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 14);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression(_)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )", vec!["Expression: 8 in [ 1 , 2 , 3 ]"]);
-    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )", vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"]);
+    pretty_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
+        vec!["Expression: 8 in [ 1 , 2 , 3 ]"],
+    );
+    concise_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
+        vec!["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_03() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(8 in a,)"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(8 in a,)"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 9);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpComma(_)));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )", vec!["Expression: 8 in a"]);
-    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )", vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
+        vec!["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_04() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a)"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...a)"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 6);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident(_)));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )", vec!["BindingIdentifier: a"]);
-    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )", vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
+        vec!["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_05() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...{})"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...{})"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 7);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Pattern(_)));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )", vec!["BindingPattern: { }"]);
-    concise_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )", vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
+        vec!["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_06() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,...b)"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(a,...b)"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 8);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(..)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )", vec!["Expression: a", "BindingIdentifier: b"]);
+    pretty_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
+        vec!["Expression: a", "BindingIdentifier: b"],
+    );
     concise_check(
         &*node,
         "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
-        vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: ...", "IdentifierName: b", "Punctuator: )"],
+        vec![
+            "Punctuator: (",
+            "IdentifierName: a",
+            "Punctuator: ,",
+            "Punctuator: ...",
+            "IdentifierName: b",
+            "Punctuator: )",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_07() {
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,...[])"), Scanner::new(), false, false));
+    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(a,...[])"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 9);
     assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(..)));
-    pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )", vec!["Expression: a", "BindingPattern: [ ]"]);
+    pretty_check(
+        &*node,
+        "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
+        vec!["Expression: a", "BindingPattern: [ ]"],
+    );
     concise_check(
         &*node,
         "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",
-        vec!["Punctuator: (", "IdentifierName: a", "Punctuator: ,", "Punctuator: ...", "ArrayBindingPattern: [ ]", "Punctuator: )"],
+        vec![
+            "Punctuator: (",
+            "IdentifierName: a",
+            "Punctuator: ,",
+            "Punctuator: ...",
+            "ArrayBindingPattern: [ ]",
+            "Punctuator: )",
+        ],
     );
     format!("{:?}", node);
 }
 #[test]
 fn cpeaapl_test_08() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(""), Scanner::new(), false, false), "‘(’ expected", 1, 1);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "‘(’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn cpeaapl_test_09() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("("), Scanner::new(), false, false), "Expression, spread pattern, or closing paren expected", 1, 2);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("("), Scanner::new(), false, false),
+        "Expression, spread pattern, or closing paren expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn cpeaapl_test_10() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(..."), Scanner::new(), false, false), "BindingIdentifier or BindingPattern expected", 1, 5);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(..."), Scanner::new(), false, false),
+        "BindingIdentifier or BindingPattern expected",
+        1,
+        5,
+    );
 }
 #[test]
 fn cpeaapl_test_11() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a"), Scanner::new(), false, false), "‘)’ expected", 1, 6);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a"), Scanner::new(), false, false),
+        "‘)’ expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn cpeaapl_test_12() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...[]"), Scanner::new(), false, false), "‘)’ expected", 1, 7);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(
+            &mut newparser("(...[]"),
+            Scanner::new(),
+            false,
+            false,
+        ),
+        "‘)’ expected",
+        1,
+        7,
+    );
 }
 #[test]
 fn cpeaapl_test_13() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p"), Scanner::new(), false, false), "‘)’ expected", 1, 3);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p"), Scanner::new(), false, false),
+        "‘)’ expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn cpeaapl_test_14() {
-    check_err(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p,"), Scanner::new(), false, false), "‘)’ expected", 1, 4);
+    check_err(
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(p,"), Scanner::new(), false, false),
+        "‘)’ expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn cpeaapl_test_prettyerrors_1() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_2() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_3() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_4() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...a)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_5() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...{})"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...{})"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_6() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...a)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(0,...a)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_prettyerrors_7() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...{})"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(0,...{})"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_1() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0)"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_2() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,)"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_3() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_4() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...a)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...a)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_5() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...{})"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...{})"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_6() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...a)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(0,...a)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_conciseerrors_7() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(0,...{})"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(0,...{})"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn cpeaapl_test_cache_01() {
     let mut parser = newparser("(a+b+c)");
-    let (node, scanner) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
-    let (node2, scanner2) = check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+    let (node, scanner) =
+        check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
+    let (node2, scanner2) =
+        check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 
 #[test]
 fn cpeaapl_test_contains_01() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(this)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn cpeaapl_test_contains_02() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a)"), Scanner::new(), false, false)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_03() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this,)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(this,)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn cpeaapl_test_contains_04() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,)"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a,)"), Scanner::new(), false, false)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_05() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("()"), Scanner::new(), false, false)
+            .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_06() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...blue)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...blue)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_07() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(...[a,b,c])"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(...[a,b,c])"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_08() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this, ...thing)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(this, ...thing)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn cpeaapl_test_contains_09() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(a, ...thing)"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(a, ...thing)"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 #[test]
 fn cpeaapl_test_contains_10() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(this, ...[a])"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(this, ...[a])"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), true);
 }
 #[test]
 fn cpeaapl_test_contains_11() {
-    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser("(b, ...[a])"), Scanner::new(), false, false).unwrap();
+    let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
+        &mut newparser("(b, ...[a])"),
+        Scanner::new(),
+        false,
+        false,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::This), false);
 }
 mod cover_parenthesized_expression_and_arrow_parameter_list {
@@ -2986,7 +3529,10 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }

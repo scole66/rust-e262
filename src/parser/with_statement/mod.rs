@@ -48,7 +48,13 @@ impl PrettyPrint for WithStatement {
 }
 
 impl WithStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_with = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
         let after_open = scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -101,7 +107,14 @@ impl WithStatement {
         self.expression.contains_arguments() || self.statement.contains_arguments()
     }
 
-    pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub fn early_errors(
+        &self,
+        agent: &mut Agent,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  WithStatement : with ( Expression ) Statement
         //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.

@@ -17,8 +17,18 @@ fn throw_statement_test_01() {
 #[test]
 fn throw_statement_test_errs() {
     check_err(ThrowStatement::parse(&mut newparser(""), Scanner::new(), false, false), "‘throw’ expected", 1, 1);
-    check_err(ThrowStatement::parse(&mut newparser("throw"), Scanner::new(), false, false), "Expression expected", 1, 6);
-    check_err(ThrowStatement::parse(&mut newparser("throw\n0;"), Scanner::new(), false, false), "newline not allowed here", 1, 6);
+    check_err(
+        ThrowStatement::parse(&mut newparser("throw"), Scanner::new(), false, false),
+        "Expression expected",
+        1,
+        6,
+    );
+    check_err(
+        ThrowStatement::parse(&mut newparser("throw\n0;"), Scanner::new(), false, false),
+        "newline not allowed here",
+        1,
+        6,
+    );
     check_err(ThrowStatement::parse(&mut newparser("throw 0@"), Scanner::new(), false, false), "‘;’ expected", 1, 8);
 }
 #[test]

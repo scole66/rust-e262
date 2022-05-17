@@ -38,27 +38,57 @@ fn expression_statement_test_asi_01() {
 }
 #[test]
 fn expression_statement_test_err_01() {
-    check_err(ExpressionStatement::parse(&mut newparser(""), Scanner::new(), false, false), "Expression expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser(""), Scanner::new(), false, false),
+        "Expression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_02() {
-    check_err(ExpressionStatement::parse(&mut newparser("{"), Scanner::new(), false, false), "ExpressionStatement expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser("{"), Scanner::new(), false, false),
+        "ExpressionStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_03() {
-    check_err(ExpressionStatement::parse(&mut newparser("function"), Scanner::new(), false, false), "ExpressionStatement expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser("function"), Scanner::new(), false, false),
+        "ExpressionStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_04() {
-    check_err(ExpressionStatement::parse(&mut newparser("class"), Scanner::new(), false, false), "ExpressionStatement expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser("class"), Scanner::new(), false, false),
+        "ExpressionStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_05() {
-    check_err(ExpressionStatement::parse(&mut newparser("let ["), Scanner::new(), false, false), "ExpressionStatement expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser("let ["), Scanner::new(), false, false),
+        "ExpressionStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_06() {
-    check_err(ExpressionStatement::parse(&mut newparser("async function"), Scanner::new(), false, false), "ExpressionStatement expected", 1, 1);
+    check_err(
+        ExpressionStatement::parse(&mut newparser("async function"), Scanner::new(), false, false),
+        "ExpressionStatement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_statement_test_err_07() {
