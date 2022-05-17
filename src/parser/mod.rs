@@ -349,6 +349,13 @@ impl From<Scanner> for Location {
     }
 }
 
+impl From<(&Scanner, &Scanner)> for Location {
+    fn from(start_end_pair: (&Scanner, &Scanner)) -> Self {
+        let (start, end) = start_end_pair;
+        Location { starting_line: start.line, starting_column: start.column, span: Span { starting_index: start.start_idx, length: end.start_idx - start.start_idx } }
+    }
+}
+
 impl PartialOrd for Location {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.span.starting_index.cmp(&other.span.starting_index))
@@ -499,90 +506,86 @@ pub enum ATTKind {
     Simple,
 }
 
-pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctuator) -> Result<(Location, Scanner), ParseError> {
+    let (tok, token_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(punct) {
-        Ok(after_tok)
+        Ok((token_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::PunctuatorExpected(punct), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(punct), token_loc))
     }
 }
 
-pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
-        Ok((p, after_tok))
+        Ok((p, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfPunctuatorExpected(punct_set.to_vec()), tok_loc))
     }
 }
 
-pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(Punctuator::Semicolon) {
-        Ok(after_tok)
-    } else if tok.matches_punct(Punctuator::RightBrace) || tok == Token::Eof || after_tok.line > scanner.line {
-        // @@@ This is checking the end of the token, not the start of the token, so this is broken for multi-line token parsing
-        Ok(scanner)
+        Ok((tok_loc, after_tok))
+    } else if tok.matches_punct(Punctuator::RightBrace) || tok == Token::Eof || tok_loc.starting_line > scanner.line {
+        Ok((Location::from(&scanner), scanner))
     } else {
-        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), scanner))
+        Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), tok_loc))
     }
 }
 
-pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keyword) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_keyword(kwd) {
-        Ok(after_tok)
+        Ok((tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::KeywordExpected(kwd), scanner))
+        Err(ParseError::new(PECode::KeywordExpected(kwd), tok_loc))
     }
 }
 
-pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
-        Ok((k, after_tok))
+        Ok((k, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), scanner))
+        Err(ParseError::new(PECode::OneOfKeywordExpected(kwds.to_vec()), tok_loc))
     }
 }
 
-pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
-        Ok((id, after_tok))
+        Ok((id, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), tok_loc))
     }
 }
 
-pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, goal);
+pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
-        Ok((id, after_tok))
+        Ok((id, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), scanner))
+        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), tok_loc))
     }
 }
 
-pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<Scanner, ParseError> {
-    let (tok, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok == Token::Eof {
-        Ok(after_tok)
+        Ok((tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::EoFExpected, scanner))
+        Err(ParseError::new(PECode::EoFExpected, tok_loc))
     }
 }
 
 //no_line_terminator(after_cont, parser.source)?;
-// If there is no newline sequence between the scanner's spot and the _end_ of the next token, return Ok
+// If there is no newline sequence between the scanner's spot and the start of the next token, return Ok
 // else return Err.
-//
-// (Note that this is really supposed to be between the current spot and the _start_ of the next token,
-// but the scanner doesn't support that yet. Some tokens span more than one line.)
 pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
-    let (_, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
-    if after_tok.line == scanner.line {
+    let (_, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+    if tok_loc.starting_line == scanner.line {
         Ok(())
     } else {
         Err(ParseError::new(PECode::ImproperNewline, scanner))

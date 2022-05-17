@@ -471,14 +471,18 @@ fn hex_integer_literal_05() {
 #[test]
 fn scan_numeric() {
     let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
-    assert_eq!(result, (Token::Number(0.25), Scanner { line: 1, column: 4, start_idx: 3 }));
+    assert_eq!(result, (Token::Number(0.25), Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }, Scanner { line: 1, column: 4, start_idx: 3 }));
 }
 #[test]
 fn scan_token_id_01() {
     let result = scan_token(&Scanner::new(), "\\u004Abc\\u004a\\u{1235}", ScanGoal::InputElementRegExp);
     assert_eq!(
         result,
-        (Token::Identifier(IdentifierData { string_value: JSString::from("JbcJ\u{1235}"), keyword_id: None, line: 1, column: 1 }), Scanner { line: 1, column: 23, start_idx: 22 })
+        (
+            Token::Identifier(IdentifierData { string_value: JSString::from("JbcJ\u{1235}"), keyword_id: None, line: 1, column: 1 }),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 22 } },
+            Scanner { line: 1, column: 23, start_idx: 22 }
+        )
     );
 }
 fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
@@ -487,6 +491,7 @@ fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
         result,
         (
             Token::Identifier(IdentifierData { string_value: JSString::from(inp), keyword_id: expected, line: 1, column: 1 }),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
             Scanner { line: 1, column: inp.len() as u32 + 1, start_idx: inp.len() }
         )
     );
@@ -577,7 +582,10 @@ fn scan_token_keywords() {
 #[test]
 fn optional_chaining_test_01() {
     let result = scan_token(&Scanner::new(), "?.", ScanGoal::InputElementRegExp);
-    assert_eq!(result, (Token::Punctuator(Punctuator::QDot), Scanner { line: 1, column: 3, start_idx: 2 }));
+    assert_eq!(
+        result,
+        (Token::Punctuator(Punctuator::QDot), Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }, Scanner { line: 1, column: 3, start_idx: 2 })
+    );
 }
 #[test]
 fn optional_chaining_test_02() {

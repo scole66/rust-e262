@@ -1,4 +1,5 @@
 pub mod ranges;
+use crate::parser::*;
 use crate::strings::JSString;
 use crate::values::number_to_string;
 use lazy_static::lazy_static;
@@ -2048,31 +2049,21 @@ impl RegularExpressionData {
     }
 }
 
-pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Scanner) {
+pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Location, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {
-        Err(msg) => (Token::Error(msg), *scanner),
+        Err(msg) => (Token::Error(msg), Location::from(scanner), *scanner),
         Ok(after_skippable) => {
             if after_skippable.start_idx >= source.len() {
-                (Token::Eof, after_skippable)
+                (Token::Eof, Location::from((scanner, &after_skippable)), after_skippable)
             } else {
-                let mut r = common_token(&after_skippable, source);
-                if r.is_none() {
-                    r = div_punctuator(&after_skippable, source, goal);
-                    if r.is_none() {
-                        r = right_brace_punctuator(&after_skippable, source, goal);
-                        if r.is_none() {
-                            r = regular_expression_literal(&after_skippable, source, goal);
-                            if r.is_none() {
-                                r = template_substitution_tail(&after_skippable, source, goal);
-                                if r.is_none() {
-                                    r = Some((Token::Error(String::from("Unrecognized Token")), after_skippable));
-                                }
-                            }
-                        }
-                    }
-                }
-                r.unwrap()
+                common_token(&after_skippable, source)
+                .or_else(|| div_punctuator(&after_skippable, source, goal))
+                .or_else(|| right_brace_punctuator(&after_skippable, source, goal))
+                .or_else(|| regular_expression_literal(&after_skippable, source, goal))
+                .or_else(|| template_substitution_tail(&after_skippable, source, goal))
+                .map(|(token, after)| (token, Location::from((&after_skippable, &after)), after))
+                .unwrap_or_else(|| (Token::Error(String::from("Unrecognized Token")), Location::from(&after_skippable), after_skippable))
             }
         }
     }

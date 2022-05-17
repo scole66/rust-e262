@@ -13,6 +13,7 @@ use std::io::Write;
 #[derive(Debug)]
 pub struct Identifier {
     name: IdentifierData,
+    location: Location,
 }
 
 impl PrettyPrint for Identifier {
