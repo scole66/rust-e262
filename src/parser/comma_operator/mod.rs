@@ -66,13 +66,22 @@ impl IsFunctionDefinition for Expression {
 }
 
 impl Expression {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Expression), scanner)).otherwise(|| {
             AssignmentExpression::parse(parser, scanner, in_flag, yield_flag, await_flag).map(|(left, after_left)| {
                 let mut current = Rc::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
-                while let Ok((right, after_right)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                    .and_then(|after_token| AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag))
+                while let Ok((right, after_right)) =
+                    scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                        .and_then(|after_token| {
+                            AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)
+                        })
                 {
                     current = Rc::new(Expression::Comma(current, right));
                     current_scanner = after_right;
@@ -82,7 +91,13 @@ impl Expression {
         })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -97,7 +112,11 @@ impl Expression {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Expression::FallThru(node) => kind == ParseNodeKind::AssignmentExpression || node.contains(kind),
-            Expression::Comma(left, right) => [ParseNodeKind::Expression, ParseNodeKind::AssignmentExpression].contains(&kind) || left.contains(kind) || right.contains(kind),
+            Expression::Comma(left, right) => {
+                [ParseNodeKind::Expression, ParseNodeKind::AssignmentExpression].contains(&kind)
+                    || left.contains(kind)
+                    || right.contains(kind)
+            }
         }
     }
 
@@ -117,7 +136,9 @@ impl Expression {
         //  2. Return true.
         match self {
             Expression::FallThru(node) => node.all_private_identifiers_valid(names),
-            Expression::Comma(left, right) => left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names),
+            Expression::Comma(left, right) => {
+                left.all_private_identifiers_valid(names) && right.all_private_identifiers_valid(names)
+            }
         }
     }
 

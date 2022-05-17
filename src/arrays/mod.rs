@@ -3,13 +3,17 @@ use super::cr::Completion;
 use super::errors::{create_range_error, create_type_error};
 use super::function_object::create_builtin_function;
 use super::object::{
-    construct, define_property_or_throw, get, get_function_realm, make_basic_object, ordinary_define_own_property, ordinary_delete, ordinary_get, ordinary_get_own_property,
-    ordinary_get_prototype_of, ordinary_has_property, ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set, ordinary_set_prototype_of,
-    CommonObjectData, DataDescriptor, InternalSlotName, Object, ObjectInterface, PotentialPropertyDescriptor, PropertyDescriptor, ARRAY_OBJECT_SLOTS, BUILTIN_FUNCTION_SLOTS,
+    construct, define_property_or_throw, get, get_function_realm, make_basic_object, ordinary_define_own_property,
+    ordinary_delete, ordinary_get, ordinary_get_own_property, ordinary_get_prototype_of, ordinary_has_property,
+    ordinary_is_extensible, ordinary_own_property_keys, ordinary_prevent_extensions, ordinary_set,
+    ordinary_set_prototype_of, CommonObjectData, DataDescriptor, InternalSlotName, Object, ObjectInterface,
+    PotentialPropertyDescriptor, PropertyDescriptor, ARRAY_OBJECT_SLOTS, BUILTIN_FUNCTION_SLOTS,
 };
 use super::realm::{IntrinsicId, Realm};
 use super::strings::JSString;
-use super::values::{is_constructor, number_same_value_zero, to_number, to_uint32, ArrayIndex, ECMAScriptValue, PropertyKey};
+use super::values::{
+    is_constructor, number_same_value_zero, to_number, to_uint32, ArrayIndex, ECMAScriptValue, PropertyKey,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -92,7 +96,12 @@ impl ObjectInterface for ArrayObject {
     //          iii. Assert: succeeded is true.
     //      k. Return true.
     //  3. Return OrdinaryDefineOwnProperty(A, P, Desc).
-    fn define_own_property(&self, agent: &mut Agent, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
+    fn define_own_property(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        desc: PotentialPropertyDescriptor,
+    ) -> Completion<bool> {
         let length_key = PropertyKey::from("length");
         if key == length_key {
             self.set_length(agent, desc)
@@ -134,7 +143,13 @@ impl ObjectInterface for ArrayObject {
     fn get(&self, agent: &mut Agent, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
         ordinary_get(agent, self, key, receiver)
     }
-    fn set(&self, agent: &mut Agent, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
+    fn set(
+        &self,
+        agent: &mut Agent,
+        key: PropertyKey,
+        value: ECMAScriptValue,
+        receiver: &ECMAScriptValue,
+    ) -> Completion<bool> {
         ordinary_set(agent, self, key, value, receiver)
     }
     fn delete(&self, agent: &mut Agent, key: &PropertyKey) -> Completion<bool> {
@@ -174,13 +189,27 @@ impl ArrayObject {
         }
         let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| agent.intrinsic(IntrinsicId::ArrayPrototype));
-        let a = make_basic_object(agent, &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker], Some(proto));
-        ordinary_define_own_property(agent, &a, "length".into(), PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false)).unwrap();
+        let a = make_basic_object(
+            agent,
+            &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker],
+            Some(proto),
+        );
+        ordinary_define_own_property(
+            agent,
+            &a,
+            "length".into(),
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
+        )
+        .unwrap();
         Ok(a)
     }
 
     pub fn object(agent: &mut Agent, prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self { common: RefCell::new(CommonObjectData::new(agent, prototype, true, ARRAY_OBJECT_SLOTS)) }) }
+        Object {
+            o: Rc::new(Self {
+                common: RefCell::new(CommonObjectData::new(agent, prototype, true, ARRAY_OBJECT_SLOTS)),
+            }),
+        }
     }
 
     // ArraySetLength ( A, Desc )
@@ -256,7 +285,12 @@ impl ArrayObject {
         let mut keys: Vec<PropertyKey>;
         {
             let data = self.common.borrow();
-            keys = data.properties.keys().filter(|key| ArrayIndex::try_from(*key).map_or(false, |idx| u32::from(idx) >= new_len)).cloned().collect();
+            keys = data
+                .properties
+                .keys()
+                .filter(|key| ArrayIndex::try_from(*key).map_or(false, |idx| u32::from(idx) >= new_len))
+                .cloned()
+                .collect();
         }
         keys.sort_by_cached_key(|key| ArrayIndex::try_from(key).unwrap());
         for p in keys.into_iter().rev() {
@@ -271,7 +305,13 @@ impl ArrayObject {
             }
         }
         if !new_writable {
-            ordinary_define_own_property(agent, self, "length".into(), PotentialPropertyDescriptor::new().writable(false)).unwrap();
+            ordinary_define_own_property(
+                agent,
+                self,
+                "length".into(),
+                PotentialPropertyDescriptor::new().writable(false),
+            )
+            .unwrap();
         }
         Ok(true)
     }
@@ -392,8 +432,28 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &array_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &array_constructor,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
     constructor_function!(array_from, "from", 1.0);
@@ -420,15 +480,44 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // The value of Array.prototype is the Array prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    define_property_or_throw(agent, &array_constructor, "prototype", PotentialPropertyDescriptor::new().value(array_prototype.clone()).writable(false).enumerable(false).configurable(false))
-        .unwrap();
+    define_property_or_throw(
+        agent,
+        &array_constructor,
+        "prototype",
+        PotentialPropertyDescriptor::new()
+            .value(array_prototype.clone())
+            .writable(false)
+            .enumerable(false)
+            .configurable(false),
+    )
+    .unwrap();
 
     // Prototype function properties
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &array_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &array_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
 
@@ -470,119 +559,308 @@ pub fn provision_array_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>) 
     // Array.prototype.constructor
     //
     // The initial value of Array.prototype.constructor is %Array%.
-    define_property_or_throw(agent, &array_prototype, "constructor", PotentialPropertyDescriptor::new().value(array_constructor.clone()).writable(true).enumerable(false).configurable(true))
-        .unwrap();
+    define_property_or_throw(
+        agent,
+        &array_prototype,
+        "constructor",
+        PotentialPropertyDescriptor::new()
+            .value(array_constructor.clone())
+            .writable(true)
+            .enumerable(false)
+            .configurable(true),
+    )
+    .unwrap();
 
     realm.borrow_mut().intrinsics.array = array_constructor;
     realm.borrow_mut().intrinsics.array_prototype = array_prototype;
 }
 
-fn array_constructor_function(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_constructor_function(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_from(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_from(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_is_array(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_is_array(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_at(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_at(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_concat(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_concat(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_copy_within(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_copy_within(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_entries(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_every(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_every(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_fill(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_fill(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_filter(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_filter(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_find(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_find(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_find_index(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_find_index(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_flat(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_flat(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_flat_map(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_flat_map(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_for_each(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_for_each(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_includes(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_includes(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_index_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_index_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_join(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_join(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_keys(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_keys(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_last_index_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_last_index_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_map(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_map(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_pop(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_pop(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_push(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_push(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_reduce(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_reduce(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_reduce_right(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_reduce_right(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_reverse(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_reverse(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_shift(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_shift(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_slice(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_slice(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_some(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_some(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_sort(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_sort(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_splice(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_splice(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_to_locale_string(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_to_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_to_string(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_unshift(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_unshift(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn array_prototype_values(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn array_prototype_values(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
 

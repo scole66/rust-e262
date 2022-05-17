@@ -58,7 +58,17 @@ impl ExecutionContext {
             Some(ScriptOrModule::Script(sr)) => Some(Rc::clone(&sr.compiled)),
             Some(ScriptOrModule::Module(mr)) => todo!(),
         };
-        ExecutionContext { realm, function, script_or_module, stack: vec![], chunk, pc: 0, lexical_environment: None, variable_environment: None, private_environment: None }
+        ExecutionContext {
+            realm,
+            function,
+            script_or_module,
+            stack: vec![],
+            chunk,
+            pc: 0,
+            lexical_environment: None,
+            variable_environment: None,
+            private_environment: None,
+        }
     }
 }
 
@@ -121,7 +131,12 @@ impl Agent {
     /// Constructs a Reference for the given name (and, potentially, environment)
     ///
     /// See [ResolveBinding](https://tc39.es/ecma262/#sec-resolvebinding) in ECMA-262.
-    pub fn resolve_binding(&mut self, name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> FullCompletion {
+    pub fn resolve_binding(
+        &mut self,
+        name: &JSString,
+        env: Option<Rc<dyn EnvironmentRecord>>,
+        strict: bool,
+    ) -> FullCompletion {
         // ResolveBinding ( name [ , env ] )
         // The abstract operation ResolveBinding takes argument name (a String) and optional argument env (an
         // Environment Record or undefined) and returns either a normal completion containing a Reference Record or an

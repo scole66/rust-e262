@@ -4,7 +4,10 @@ use crate::arrays::array_create;
 use crate::errors::create_type_error;
 use crate::errors::unwind_any_error;
 use crate::function_object::create_builtin_function;
-use crate::object::{create_data_property, define_property_or_throw, get_agentless, ordinary_object_create, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS};
+use crate::object::{
+    create_data_property, define_property_or_throw, get_agentless, ordinary_object_create, PotentialPropertyDescriptor,
+    BUILTIN_FUNCTION_SLOTS,
+};
 use crate::realm::IntrinsicId;
 use crate::tests::{calculate_hash, printer_validate, serr, sok, test_agent, unwind_type_error};
 use ahash::RandomState;
@@ -215,7 +218,10 @@ mod ecmascript_value {
     fn is_symbol() {
         let mut agent = test_agent();
         assert_eq!(ECMAScriptValue::Undefined.is_symbol(), false);
-        assert_eq!(ECMAScriptValue::from(Symbol::new(&mut agent, Some(JSString::from("Test Symbol")))).is_symbol(), true);
+        assert_eq!(
+            ECMAScriptValue::from(Symbol::new(&mut agent, Some(JSString::from("Test Symbol")))).is_symbol(),
+            true
+        );
         assert_eq!(ECMAScriptValue::Null.is_symbol(), false);
     }
     #[test]
@@ -245,17 +251,64 @@ mod ecmascript_value {
         let mut agent = test_agent();
         let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
         let obj = ordinary_object_create(&mut agent, Some(obj_proto), &[]);
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Undefined"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Null"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() }).unwrap();
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Number"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() }).unwrap();
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("String"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() }).unwrap();
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Boolean"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() }).unwrap();
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("BigInt"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() })
-            .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Undefined"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Null"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Null), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Number"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(10.0)), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("String"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from("bob")), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Boolean"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(true)), ..Default::default() },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("BigInt"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(BigInt::from(11))), ..Default::default() },
+        )
+        .unwrap();
         let sym = Symbol::new(&mut agent, Some(JSString::from("San Francisco")));
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Symbol"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() }).unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Symbol"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(sym)), ..Default::default() },
+        )
+        .unwrap();
         let propobj = &agent.intrinsic(IntrinsicId::Boolean);
-        define_property_or_throw(&mut agent, &obj, PropertyKey::from("Object"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() }).unwrap();
+        define_property_or_throw(
+            &mut agent,
+            &obj,
+            PropertyKey::from("Object"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(propobj)), ..Default::default() },
+        )
+        .unwrap();
 
         assert_ne!(format!("{:?}", obj), "");
     }
@@ -459,13 +512,19 @@ mod private_element {
 
     #[test]
     fn debug() {
-        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        let pe = PrivateElement {
+            key: PrivateName::new("just a key"),
+            kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) },
+        };
         assert_ne!(format!("{:?}", pe), "");
     }
 
     #[test]
     fn clone() {
-        let pe = PrivateElement { key: PrivateName::new("just a key"), kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) } };
+        let pe = PrivateElement {
+            key: PrivateName::new("just a key"),
+            kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("just some data")) },
+        };
         let cloned = pe.clone();
         assert_eq!(pe.key, cloned.key);
         if let PrivateElementKind::Field { value } = pe.kind {
@@ -798,7 +857,15 @@ fn to_number_11() {
 #[allow(clippy::float_cmp)]
 fn to_integer_or_infinity_01() {
     let mut agent = test_agent();
-    let testcases = &[(f64::NAN, 0.0), (f64::INFINITY, f64::INFINITY), (f64::NEG_INFINITY, f64::NEG_INFINITY), (0.0, 0.0), (-0.0, 0.0), (10.2, 10.0), (-10.2, -10.0)];
+    let testcases = &[
+        (f64::NAN, 0.0),
+        (f64::INFINITY, f64::INFINITY),
+        (f64::NEG_INFINITY, f64::NEG_INFINITY),
+        (0.0, 0.0),
+        (-0.0, 0.0),
+        (10.2, 10.0),
+        (-10.2, -10.0),
+    ];
 
     for (val, expected) in testcases {
         let result = to_integer_or_infinity(&mut agent, ECMAScriptValue::from(*val)).unwrap();
@@ -872,7 +939,12 @@ fn to_string_09() {
     let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
 }
-fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn tostring_symbol(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let sym = Symbol::new(agent, None);
     Ok(ECMAScriptValue::from(sym))
 }
@@ -880,7 +952,17 @@ fn tostring_symbol(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
 fn to_string_10() {
     let mut agent = test_agent();
     let obj = ordinary_object_create(&mut agent, None, &[]);
-    let badtostring = create_builtin_function(&mut agent, tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+    let badtostring = create_builtin_function(
+        &mut agent,
+        tostring_symbol,
+        false,
+        0_f64,
+        PropertyKey::from("toString"),
+        &[],
+        None,
+        None,
+        None,
+    );
     create_data_property(&mut agent, &obj, PropertyKey::from("toString"), ECMAScriptValue::from(badtostring)).unwrap();
 
     let result = to_string(&mut agent, ECMAScriptValue::from(obj)).unwrap_err();
@@ -964,21 +1046,41 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
-fn faux_makes_number(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn faux_makes_number(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Ok(ECMAScriptValue::from(123456))
 }
 // non-object string
-fn faux_makes_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn faux_makes_string(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
-fn faux_makes_obj(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn faux_makes_obj(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let object_prototype = agent.intrinsic(IntrinsicId::ObjectPrototype);
     let obj = ordinary_object_create(agent, Some(object_prototype), &[]);
     Ok(ECMAScriptValue::from(obj))
 }
 // error
-fn faux_errors(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn faux_errors(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 enum FauxKind {
@@ -993,12 +1095,28 @@ fn make_test_obj(agent: &mut Agent, valueof: FauxKind, tostring: FauxKind) -> Ob
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
     let mut connect = |name, length, steps| {
         let key = PropertyKey::from(name);
-        let fcn = create_builtin_function(agent, steps, false, length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+        let fcn = create_builtin_function(
+            agent,
+            steps,
+            false,
+            length,
+            key.clone(),
+            BUILTIN_FUNCTION_SLOTS,
+            Some(realm.clone()),
+            Some(function_proto.clone()),
+            None,
+        );
         define_property_or_throw(
             agent,
             &target,
             key,
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(fcn)),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
     };
@@ -1031,22 +1149,53 @@ fn make_tostring_getter_error(agent: &mut Agent) -> Object {
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
     let key = PropertyKey::from("valueOf");
-    let fcn = create_builtin_function(agent, faux_makes_number, false, 0_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_proto.clone()), None);
+    let fcn = create_builtin_function(
+        agent,
+        faux_makes_number,
+        false,
+        0_f64,
+        key.clone(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_proto.clone()),
+        None,
+    );
     define_property_or_throw(
         agent,
         &target,
         key,
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(fcn)),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
     )
     .unwrap();
 
     let key = PropertyKey::from("toString");
-    let tostring_getter = create_builtin_function(agent, faux_errors, false, 0_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+    let tostring_getter = create_builtin_function(
+        agent,
+        faux_errors,
+        false,
+        0_f64,
+        key.clone(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm),
+        Some(function_proto),
+        Some(JSString::from("get")),
+    );
     define_property_or_throw(
         agent,
         &target,
         key,
-        PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(tostring_getter)), ..Default::default() },
+        PotentialPropertyDescriptor {
+            enumerable: Some(false),
+            configurable: Some(true),
+            get: Some(ECMAScriptValue::from(tostring_getter)),
+            ..Default::default()
+        },
     )
     .unwrap();
 
@@ -1062,7 +1211,13 @@ fn make_test_obj_uncallable(agent: &mut Agent) -> Object {
             agent,
             &target,
             key,
-            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::Undefined),
+                writable: Some(true),
+                enumerable: Some(false),
+                configurable: Some(true),
+                ..Default::default()
+            },
         )
         .unwrap();
     };
@@ -1183,7 +1338,12 @@ fn to_primitive_prefer_number() {
     let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
-fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn exotic_to_prim(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     if arguments.len() == 1 {
         if let ECMAScriptValue::String(s) = &arguments[0] {
             Ok(ECMAScriptValue::from(format!("Saw {}", s)))
@@ -1191,21 +1351,43 @@ fn exotic_to_prim(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target:
             Ok(ECMAScriptValue::from(format!("Saw {:?}", arguments[0])))
         }
     } else {
-        Ok(ECMAScriptValue::from(format!("Incorrect arg count: there were {} elements, should have been 1", arguments.len())))
+        Ok(ECMAScriptValue::from(format!(
+            "Incorrect arg count: there were {} elements, should have been 1",
+            arguments.len()
+        )))
     }
 }
-fn make_toprimitive_obj(agent: &mut Agent, steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) -> Object {
+fn make_toprimitive_obj(
+    agent: &mut Agent,
+    steps: fn(&mut Agent, ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+) -> Object {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let fcn = create_builtin_function(agent, steps, false, 1_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), None);
+    let fcn = create_builtin_function(
+        agent,
+        steps,
+        false,
+        1_f64,
+        key.clone(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm),
+        Some(function_proto),
+        None,
+    );
     define_property_or_throw(
         agent,
         &target,
         key,
-        PotentialPropertyDescriptor { value: Some(ECMAScriptValue::from(fcn)), writable: Some(true), enumerable: Some(false), configurable: Some(true), ..Default::default() },
+        PotentialPropertyDescriptor {
+            value: Some(ECMAScriptValue::from(fcn)),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        },
     )
     .unwrap();
     target
@@ -1223,7 +1405,12 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(&mut agent, test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
-fn exotic_returns_object(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn exotic_returns_object(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let realm = agent.current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(agent, Some(object_prototype), &[]);
@@ -1238,7 +1425,12 @@ fn to_primitive_exotic_returns_object() {
     let result = to_primitive(&mut agent, test_value, None).unwrap_err();
     assert_eq!(unwind_type_error(&mut agent, result), "Cannot convert object to primitive value");
 }
-fn exotic_throws(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn exotic_throws(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     Err(create_type_error(agent, "Test Sentinel"))
 }
 #[test]
@@ -1258,12 +1450,27 @@ fn to_primitive_exotic_getter_throws() {
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
     let target = ordinary_object_create(&mut agent, Some(object_prototype), &[]);
     let key = PropertyKey::from(agent.wks(WksId::ToPrimitive));
-    let toprim_getter = create_builtin_function(&mut agent, faux_errors, false, 0_f64, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm), Some(function_proto), Some(JSString::from("get")));
+    let toprim_getter = create_builtin_function(
+        &mut agent,
+        faux_errors,
+        false,
+        0_f64,
+        key.clone(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm),
+        Some(function_proto),
+        Some(JSString::from("get")),
+    );
     define_property_or_throw(
         &mut agent,
         &target,
         key,
-        PotentialPropertyDescriptor { enumerable: Some(false), configurable: Some(true), get: Some(ECMAScriptValue::from(toprim_getter)), ..Default::default() },
+        PotentialPropertyDescriptor {
+            enumerable: Some(false),
+            configurable: Some(true),
+            get: Some(ECMAScriptValue::from(toprim_getter)),
+            ..Default::default()
+        },
     )
     .unwrap();
     let test_value = ECMAScriptValue::from(target);

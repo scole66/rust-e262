@@ -1,6 +1,6 @@
 use super::testhelp::{
-    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, ILLEGAL_ASYNC_AWAIT, IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
-    UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
+    check, check_err, chk_scan, newparser, set, Maker, A_ALREADY_DEFN, BAD_USE_STRICT, ILLEGAL_ASYNC_AWAIT,
+    IMPLEMENTS_NOT_ALLOWED, INTERFACE_NOT_ALLOWED, PACKAGE_NOT_ALLOWED, UNEXPECTED_AWAIT, UNEXPECTED_SUPER,
 };
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
@@ -11,7 +11,13 @@ use test_case::test_case;
 // ASYNC FUNCTION DECLARATION
 #[test]
 fn async_function_declaration_test_01() {
-    let (node, scanner) = check(AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a,b) { return await foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 50);
     pretty_check(
         &*node,
@@ -37,7 +43,13 @@ fn async_function_declaration_test_01() {
 }
 #[test]
 fn async_function_declaration_test_02() {
-    let (node, scanner) = check(AsyncFunctionDeclaration::parse(&mut newparser("async function (a,b) { return await foo(a+b); }"), Scanner::new(), false, false, true));
+    let (node, scanner) = check(AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    ));
     chk_scan(&scanner, 47);
     pretty_check(
         &*node,
@@ -62,74 +74,170 @@ fn async_function_declaration_test_02() {
 }
 #[test]
 fn async_function_declaration_test_err_01() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true), "‘async’ expected", 1, 1);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "‘async’ expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_02() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async\n"), Scanner::new(), false, false, true),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_03() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true), "‘function’ expected", 1, 6);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true),
+        "‘function’ expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_04() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false), "not an identifier", 1, 15);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, false),
+        "not an identifier",
+        1,
+        15,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_05() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true), "‘(’ expected", 1, 15);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function"), Scanner::new(), false, false, true),
+        "‘(’ expected",
+        1,
+        15,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_06() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob("), Scanner::new(), false, false, true), "‘)’ expected", 1, 20);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob("), Scanner::new(), false, false, true),
+        "‘)’ expected",
+        1,
+        20,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_07() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob()"), Scanner::new(), false, false, true), "‘{’ expected", 1, 21);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob()"), Scanner::new(), false, false, true),
+        "‘{’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn async_function_declaration_test_err_08() {
-    check_err(AsyncFunctionDeclaration::parse(&mut newparser("async function bob() {"), Scanner::new(), false, false, true), "‘}’ expected", 1, 23);
+    check_err(
+        AsyncFunctionDeclaration::parse(&mut newparser("async function bob() {"), Scanner::new(), false, false, true),
+        "‘}’ expected",
+        1,
+        23,
+    );
 }
 #[test]
 fn async_function_declaration_test_prettyerrors_1() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_prettyerrors_2() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_conciseerrors_1() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_conciseerrors_2() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new(), false, false, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+        true,
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_declaration_test_contains_01() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function bob() { return 11; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_declaration_test_contains_02() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function () { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function () { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_declaration_test_bound_names_01() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function a() { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function a() { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["a"]);
 }
 #[test]
 fn async_function_declaration_test_bound_names_02() {
-    let (item, _) = AsyncFunctionDeclaration::parse(&mut newparser("async function () { return 10; }"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) = AsyncFunctionDeclaration::parse(
+        &mut newparser("async function () { return 10; }"),
+        Scanner::new(),
+        true,
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(item.bound_names(), vec!["*default*"]);
 }
 mod async_function_declaration {
@@ -141,7 +249,10 @@ mod async_function_declaration {
     #[test_case("async function a(arg=item.#invalid){}" => false; "Params invalid")]
     #[test_case("async function a(arg) {return item.#invalid;}" => false; "Body invalid")]
     fn all_private_identifiers_valid(src: &str) -> bool {
-        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.all_private_identifiers_valid(&[JSString::from("#valid")])
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .all_private_identifiers_valid(&[JSString::from("#valid")])
     }
 
     #[test_case("async function([a]=b){'use strict';}", false => set(&["Strict functions must also have simple parameter lists"]); "strict body; complex params")]
@@ -158,7 +269,10 @@ mod async_function_declaration {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AsyncFunctionDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 }
@@ -166,7 +280,10 @@ mod async_function_declaration {
 // ASYNC FUNCTION EXPRESSION
 #[test]
 fn async_function_expression_test_01() {
-    let (node, scanner) = check(AsyncFunctionExpression::parse(&mut newparser("async function bob(a,b) { return await foo(a+b); }"), Scanner::new()));
+    let (node, scanner) = check(AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+    ));
     chk_scan(&scanner, 50);
     pretty_check(
         &*node,
@@ -193,7 +310,10 @@ fn async_function_expression_test_01() {
 }
 #[test]
 fn async_function_expression_test_02() {
-    let (node, scanner) = check(AsyncFunctionExpression::parse(&mut newparser("async function (a,b) { return await foo(a+b); }"), Scanner::new()));
+    let (node, scanner) = check(AsyncFunctionExpression::parse(
+        &mut newparser("async function (a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+    ));
     chk_scan(&scanner, 47);
     pretty_check(
         &*node,
@@ -223,7 +343,12 @@ fn async_function_expression_test_err_01() {
 }
 #[test]
 fn async_function_expression_test_err_02() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async\n"), Scanner::new()),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_function_expression_test_err_03() {
@@ -235,44 +360,77 @@ fn async_function_expression_test_err_05() {
 }
 #[test]
 fn async_function_expression_test_err_06() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob("), Scanner::new()), "‘)’ expected", 1, 20);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob("), Scanner::new()),
+        "‘)’ expected",
+        1,
+        20,
+    );
 }
 #[test]
 fn async_function_expression_test_err_07() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob()"), Scanner::new()), "‘{’ expected", 1, 21);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob()"), Scanner::new()),
+        "‘{’ expected",
+        1,
+        21,
+    );
 }
 #[test]
 fn async_function_expression_test_err_08() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async function bob() {"), Scanner::new()), "‘}’ expected", 1, 23);
+    check_err(
+        AsyncFunctionExpression::parse(&mut newparser("async function bob() {"), Scanner::new()),
+        "‘}’ expected",
+        1,
+        23,
+    );
 }
 #[test]
 fn async_function_expression_test_prettyerrors_1() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_prettyerrors_2() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_conciseerrors_1() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob(a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function bob(a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_conciseerrors_2() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function (a, b) { return await foo(a+b); }"), Scanner::new()).unwrap();
+    let (item, _) = AsyncFunctionExpression::parse(
+        &mut newparser("async function (a, b) { return await foo(a+b); }"),
+        Scanner::new(),
+    )
+    .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
 fn async_function_expression_test_contains_01() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncFunctionExpression::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test]
 fn async_function_expression_test_contains_02() {
-    let (item, _) = AsyncFunctionExpression::parse(&mut newparser("async function () { return 10; }"), Scanner::new()).unwrap();
+    let (item, _) =
+        AsyncFunctionExpression::parse(&mut newparser("async function () { return 10; }"), Scanner::new()).unwrap();
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async function x(arg=item.#valid){}" => true; "Params valid")]
@@ -310,12 +468,21 @@ mod async_function_expression {
 // ASYNC METHOD
 #[test]
 fn async_method_test_01() {
-    let (node, scanner) = check(AsyncMethod::parse(&mut newparser("async bob(a,b) { return await foo(a+b); }"), Scanner::new(), false, false));
+    let (node, scanner) = check(AsyncMethod::parse(
+        &mut newparser("async bob(a,b) { return await foo(a+b); }"),
+        Scanner::new(),
+        false,
+        false,
+    ));
     chk_scan(&scanner, 41);
     pretty_check(
         &*node,
         "AsyncMethod: async bob ( a , b ) { return await foo ( a + b ) ; }",
-        vec!["ClassElementName: bob", "UniqueFormalParameters: a , b", "AsyncFunctionBody: return await foo ( a + b ) ;"],
+        vec![
+            "ClassElementName: bob",
+            "UniqueFormalParameters: a , b",
+            "AsyncFunctionBody: return await foo ( a + b ) ;",
+        ],
     );
     concise_check(
         &*node,
@@ -339,11 +506,21 @@ fn async_method_test_err_01() {
 }
 #[test]
 fn async_method_test_err_02() {
-    check_err(AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false), "newline not allowed here", 1, 6);
+    check_err(
+        AsyncMethod::parse(&mut newparser("async\n"), Scanner::new(), false, false),
+        "newline not allowed here",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_method_test_err_03() {
-    check_err(AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false), "ClassElementName expected", 1, 6);
+    check_err(
+        AsyncMethod::parse(&mut newparser("async"), Scanner::new(), false, false),
+        "ClassElementName expected",
+        1,
+        6,
+    );
 }
 #[test]
 fn async_method_test_err_04() {
@@ -363,12 +540,16 @@ fn async_method_test_err_08() {
 }
 #[test]
 fn async_method_test_prettyerrors_1() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false)
+            .unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn async_method_test_conciseerrors_1() {
-    let (item, _) = AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        AsyncMethod::parse(&mut newparser("async bob(a, b) { return await foo(a+b); }"), Scanner::new(), false, false)
+            .unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -445,7 +626,10 @@ mod async_method {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AsyncMethod::parse(&mut newparser(src), Scanner::new(), true, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 
@@ -593,7 +777,10 @@ mod await_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        AwaitExpression::parse(&mut newparser(src), Scanner::new(), true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        AwaitExpression::parse(&mut newparser(src), Scanner::new(), true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

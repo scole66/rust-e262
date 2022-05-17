@@ -3,8 +3,9 @@ use crate::cr::Completion;
 use crate::errors::create_type_error;
 use crate::function_object::{create_builtin_function, Arguments};
 use crate::object::{
-    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get, ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level,
-    to_property_descriptor, EnumerationStyle, IntegrityLevel, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
+    create_array_from_list, define_property_or_throw, enumerable_own_property_names, get,
+    ordinary_create_from_constructor, ordinary_object_create, set, set_integrity_level, to_property_descriptor,
+    EnumerationStyle, IntegrityLevel, Object, PotentialPropertyDescriptor, BUILTIN_FUNCTION_SLOTS,
 };
 use crate::realm::{IntrinsicId, Realm};
 use crate::strings::JSString;
@@ -17,7 +18,12 @@ use std::rc::Rc;
 // When the valueOf method is called, the following steps are taken:
 //
 //      1. Return ? ToObject(this value).
-fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_value_of(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     to_object(agent, this_value).map(ECMAScriptValue::from)
 }
 
@@ -49,7 +55,12 @@ fn object_prototype_value_of(agent: &mut Agent, this_value: ECMAScriptValue, _ne
 //            test for those specific kinds of built-in objects. It does not provide a reliable type testing mechanism
 //            for other kinds of built-in or program defined objects. In addition, programs can use @@toStringTag in
 //            ways that will invalidate the reliability of such legacy type tests.
-fn object_prototype_to_string(agent: &mut Agent, this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_to_string(
+    agent: &mut Agent,
+    this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     if this_value.is_undefined() {
         return Ok(ECMAScriptValue::from("[object Undefined]"));
     }
@@ -125,8 +136,28 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! constructor_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &object_constructor, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &object_constructor,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
     constructor_function!(object_assign, "assign", 2.0);
@@ -161,7 +192,11 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         agent,
         &object_constructor,
         "prototype",
-        PotentialPropertyDescriptor::new().value(object_prototype.clone()).writable(false).enumerable(false).configurable(false),
+        PotentialPropertyDescriptor::new()
+            .value(object_prototype.clone())
+            .writable(false)
+            .enumerable(false)
+            .configurable(false),
     )
     .unwrap();
 
@@ -169,8 +204,28 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
-            let function_object = create_builtin_function(agent, $steps, false, $length, key.clone(), BUILTIN_FUNCTION_SLOTS, Some(realm.clone()), Some(function_prototype.clone()), None);
-            define_property_or_throw(agent, &object_prototype, key, PotentialPropertyDescriptor::new().value(function_object).writable(true).enumerable(false).configurable(true)).unwrap();
+            let function_object = create_builtin_function(
+                agent,
+                $steps,
+                false,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                agent,
+                &object_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
         };
     }
 
@@ -188,7 +243,11 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
         agent,
         &object_prototype,
         "constructor",
-        PotentialPropertyDescriptor::new().value(object_constructor.clone()).writable(true).enumerable(false).configurable(true),
+        PotentialPropertyDescriptor::new()
+            .value(object_constructor.clone())
+            .writable(true)
+            .enumerable(false)
+            .configurable(true),
     )
     .unwrap();
 
@@ -204,18 +263,27 @@ pub fn provision_object_intrinsic(agent: &mut Agent, realm: &Rc<RefCell<Realm>>)
 //  2. If value is undefined or null, return ! OrdinaryObjectCreate(%Object.prototype%).
 //  3. Return ! ToObject(value).
 // The "length" property of the Object function is 1𝔽.
-fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_constructor_function(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     if let Some(nt) = new_target {
         if let Some(afo) = agent.active_function_object() {
             if *nt != afo {
-                return ordinary_create_from_constructor(agent, nt, IntrinsicId::ObjectPrototype, &[]).map(ECMAScriptValue::from);
+                return ordinary_create_from_constructor(agent, nt, IntrinsicId::ObjectPrototype, &[])
+                    .map(ECMAScriptValue::from);
             }
         }
     }
     let mut args = Arguments::from(arguments);
     let value = args.next_arg();
-    let obj =
-        if value.is_null() || value.is_undefined() { ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[]) } else { to_object(agent, value).unwrap() };
+    let obj = if value.is_null() || value.is_undefined() {
+        ordinary_object_create(agent, Some(agent.intrinsic(IntrinsicId::ObjectPrototype)), &[])
+    } else {
+        to_object(agent, value).unwrap()
+    };
     Ok(ECMAScriptValue::from(obj))
 }
 
@@ -238,7 +306,12 @@ fn object_constructor_function(agent: &mut Agent, _this_value: ECMAScriptValue, 
 //  4. Return to.
 //
 // The "length" property of the assign function is 2𝔽.
-fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_assign(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let target = args.next_arg();
     let to = to_object(agent, target)?;
@@ -270,7 +343,12 @@ fn object_assign(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
 //  3. If Properties is not undefined, then
 //      a. Return ? ObjectDefineProperties(obj, Properties).
 //  4. Return obj.
-fn object_create(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_create(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
     let o = match o_arg {
@@ -308,7 +386,11 @@ fn object_create(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
 //      b. Let desc be the second element of pair.
 //      c. Perform ? DefinePropertyOrThrow(O, P, desc).
 //  6. Return O.
-fn object_define_properties_helper(agent: &mut Agent, o: Object, properties: ECMAScriptValue) -> Completion<ECMAScriptValue> {
+fn object_define_properties_helper(
+    agent: &mut Agent,
+    o: Object,
+    properties: ECMAScriptValue,
+) -> Completion<ECMAScriptValue> {
     let props = to_object(agent, properties)?;
     let keys = props.o.own_property_keys(agent)?;
     let mut descriptors = Vec::new();
@@ -336,7 +418,12 @@ fn object_define_properties_helper(agent: &mut Agent, o: Object, properties: ECM
 //
 //  1. If Type(O) is not Object, throw a TypeError exception.
 //  2. Return ? ObjectDefineProperties(O, Properties).
-fn object_define_properties(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_define_properties(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
@@ -358,7 +445,12 @@ fn object_define_properties(agent: &mut Agent, _this_value: ECMAScriptValue, _ne
 //  3. Let desc be ? ToPropertyDescriptor(Attributes).
 //  4. Perform ? DefinePropertyOrThrow(O, key, desc).
 //  5. Return O.
-fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_define_property(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
@@ -386,7 +478,12 @@ fn object_define_property(agent: &mut Agent, _this_value: ECMAScriptValue, _new_
 //  3. Return CreateArrayFromList(nameList).
 //
 // https://tc39.es/ecma262/#sec-object.entries
-fn object_entries(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_entries(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
     let obj = to_object(agent, o_arg)?;
@@ -404,7 +501,12 @@ fn object_entries(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: 
 //  4. Return O.
 //
 // https://tc39.es/ecma262/#sec-object.freeze
-fn object_freeze(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_freeze(
+    agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     let mut args = Arguments::from(arguments);
     let o_arg = args.next_arg();
     match o_arg {
@@ -420,64 +522,164 @@ fn object_freeze(agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: O
     }
 }
 
-fn object_from_entries(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_from_entries(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_get_own_property_descriptor(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_get_own_property_descriptor(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_get_own_property_descriptors(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_get_own_property_descriptors(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_get_own_property_names(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_get_own_property_names(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_get_own_property_symbols(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_get_own_property_symbols(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_get_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_get_prototype_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_has_own(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_has_own(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_is(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_is(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_is_extensible(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_is_extensible(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_is_frozen(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_is_frozen(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_is_sealed(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_is_sealed(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_keys(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_keys(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_prevent_extensions(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prevent_extensions(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_seal(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_seal(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_set_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_set_prototype_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_values(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_values(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_prototype_has_own_property(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_has_own_property(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_prototype_is_prototype_of(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_is_prototype_of(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_prototype_property_is_enumerable(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_property_is_enumerable(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
-fn object_prototype_to_locale_string(_agent: &mut Agent, _this_value: ECMAScriptValue, _new_target: Option<&Object>, _arguments: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+fn object_prototype_to_locale_string(
+    _agent: &mut Agent,
+    _this_value: ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
     todo!()
 }
 

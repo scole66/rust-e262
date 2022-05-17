@@ -120,7 +120,11 @@ fn formal_parameters_test_05() {
     let (node, scanner) = FormalParameters::parse(&mut newparser("a,...a"), Scanner::new(), false, false);
     chk_scan(&scanner, 6);
     pretty_check(&*node, "FormalParameters: a , ... a", vec!["FormalParameterList: a", "FunctionRestParameter: ... a"]);
-    concise_check(&*node, "FormalParameters: a , ... a", vec!["IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... a"]);
+    concise_check(
+        &*node,
+        "FormalParameters: a , ... a",
+        vec!["IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... a"],
+    );
     format!("{:?}", node);
 }
 #[test]
@@ -145,7 +149,12 @@ fn formal_parameters_test_prettyerrors_4() {
 }
 #[test]
 fn formal_parameters_test_prettyerrors_5() {
-    let (item, _) = FormalParameters::parse(&mut newparser("apple, banana, grape, artichoke, ... basket"), Scanner::new(), false, false);
+    let (item, _) = FormalParameters::parse(
+        &mut newparser("apple, banana, grape, artichoke, ... basket"),
+        Scanner::new(),
+        false,
+        false,
+    );
     pretty_error_validate(&*item);
 }
 #[test]
@@ -170,7 +179,12 @@ fn formal_parameters_test_conciseerrors_4() {
 }
 #[test]
 fn formal_parameters_test_conciseerrors_5() {
-    let (item, _) = FormalParameters::parse(&mut newparser("apple, banana, grape, artichoke, ... basket"), Scanner::new(), false, false);
+    let (item, _) = FormalParameters::parse(
+        &mut newparser("apple, banana, grape, artichoke, ... basket"),
+        Scanner::new(),
+        false,
+        false,
+    );
     concise_error_validate(&*item);
 }
 #[test]
@@ -312,15 +326,29 @@ fn formal_parameter_list_test_01() {
 }
 #[test]
 fn formal_parameter_list_test_02() {
-    let (node, scanner) = check(FormalParameterList::parse(&mut newparser("formal, playful"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(FormalParameterList::parse(&mut newparser("formal, playful"), Scanner::new(), false, false));
     chk_scan(&scanner, 15);
-    pretty_check(&*node, "FormalParameterList: formal , playful", vec!["FormalParameterList: formal", "FormalParameter: playful"]);
-    concise_check(&*node, "FormalParameterList: formal , playful", vec!["IdentifierName: formal", "Punctuator: ,", "IdentifierName: playful"]);
+    pretty_check(
+        &*node,
+        "FormalParameterList: formal , playful",
+        vec!["FormalParameterList: formal", "FormalParameter: playful"],
+    );
+    concise_check(
+        &*node,
+        "FormalParameterList: formal , playful",
+        vec!["IdentifierName: formal", "Punctuator: ,", "IdentifierName: playful"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn formal_parameter_list_test_err_01() {
-    check_err(FormalParameterList::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        FormalParameterList::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn formal_parameter_list_test_prettyerrors_1() {
@@ -329,7 +357,8 @@ fn formal_parameter_list_test_prettyerrors_1() {
 }
 #[test]
 fn formal_parameter_list_test_prettyerrors_2() {
-    let (item, _) = FormalParameterList::parse(&mut newparser("bacon, lettuce, tomato"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        FormalParameterList::parse(&mut newparser("bacon, lettuce, tomato"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
@@ -339,7 +368,8 @@ fn formal_parameter_list_test_conciseerrors_1() {
 }
 #[test]
 fn formal_parameter_list_test_conciseerrors_2() {
-    let (item, _) = FormalParameterList::parse(&mut newparser("bacon, lettuce, tomato"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        FormalParameterList::parse(&mut newparser("bacon, lettuce, tomato"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -418,7 +448,8 @@ mod formal_parameter_list {
 // FUNCTION REST PARAMETER
 #[test]
 fn function_rest_parameter_test_01() {
-    let (node, scanner) = check(FunctionRestParameter::parse(&mut newparser("...formal"), Scanner::new(), false, false));
+    let (node, scanner) =
+        check(FunctionRestParameter::parse(&mut newparser("...formal"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     pretty_check(&*node, "FunctionRestParameter: ... formal", vec!["BindingRestElement: ... formal"]);
     concise_check(&*node, "BindingRestElement: ... formal", vec!["Punctuator: ...", "IdentifierName: formal"]);
@@ -430,12 +461,14 @@ fn function_rest_parameter_test_err_01() {
 }
 #[test]
 fn function_rest_parameter_test_prettyerrors_01() {
-    let (item, _) = FunctionRestParameter::parse(&mut newparser("...dippin_dots"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        FunctionRestParameter::parse(&mut newparser("...dippin_dots"), Scanner::new(), false, false).unwrap();
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_rest_parameter_test_conciseerrors_01() {
-    let (item, _) = FunctionRestParameter::parse(&mut newparser("...dippin_dots"), Scanner::new(), false, false).unwrap();
+    let (item, _) =
+        FunctionRestParameter::parse(&mut newparser("...dippin_dots"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
 }
 #[test]
@@ -489,7 +522,12 @@ fn formal_parameter_test_01() {
 }
 #[test]
 fn formal_parameter_test_err_01() {
-    check_err(FormalParameter::parse(&mut newparser(""), Scanner::new(), false, false), "BindingElement expected", 1, 1);
+    check_err(
+        FormalParameter::parse(&mut newparser(""), Scanner::new(), false, false),
+        "BindingElement expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn formal_parameter_test_prettyerrors_01() {

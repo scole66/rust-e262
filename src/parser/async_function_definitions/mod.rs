@@ -24,7 +24,9 @@ pub struct AsyncFunctionDeclaration {
 impl fmt::Display for AsyncFunctionDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }
@@ -66,10 +68,17 @@ impl PrettyPrint for AsyncFunctionDeclaration {
 
 impl AsyncFunctionDeclaration {
     // AsyncFunctionDeclaration's only parent is HoistableDeclaration. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, default_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        default_flag: bool,
+    ) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_function = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
+        let after_function =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, yield_flag, await_flag) {
             Err(e) => {
                 if !default_flag {
@@ -209,7 +218,9 @@ pub struct AsyncFunctionExpression {
 impl fmt::Display for AsyncFunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.ident {
-            None => write!(f, "async function ( {} ) {{ {} }}", self.params, self.body),
+            None => {
+                write!(f, "async function ( {} ) {{ {} }}", self.params, self.body)
+            }
             Some(id) => write!(f, "async function {} ( {} ) {{ {} }}", id, self.params, self.body),
         }
     }
@@ -260,7 +271,8 @@ impl AsyncFunctionExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_function = scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
+        let after_function =
+            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, false, true) {
             Err(_) => (None, after_function),
             Ok((node, scan)) => (Some(node), scan),
@@ -457,7 +469,9 @@ impl AsyncMethod {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.ident.all_private_identifiers_valid(names) && self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
+        self.ident.all_private_identifiers_valid(names)
+            && self.params.all_private_identifiers_valid(names)
+            && self.body.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -501,13 +515,19 @@ impl AsyncMethod {
         //    LexicallyDeclaredNames of AsyncFunctionBody.
         let cus = self.body.function_body_contains_use_strict();
         if cus && !self.params.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+            ));
         }
         if self.has_direct_super() {
             errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(agent, "Illegal await-expression in formal parameters of async function"))
+            errs.push(create_syntax_error_object(
+                agent,
+                "Illegal await-expression in formal parameters of async function",
+            ))
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names() {

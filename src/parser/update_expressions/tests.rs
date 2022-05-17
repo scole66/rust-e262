@@ -26,7 +26,11 @@ mod update_expression {
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", vec!["LeftHandSideExpression: ( x => x * 2 )"]);
-        concise_check(&*ue, "ParenthesizedExpression: ( x => x * 2 )", vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"]);
+        concise_check(
+            &*ue,
+            "ParenthesizedExpression: ( x => x * 2 )",
+            vec!["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"],
+        );
         assert!(ue.is_function_definition());
     }
     #[test]
@@ -87,15 +91,30 @@ mod update_expression {
     }
     #[test]
     fn nomatch() {
-        check_err(UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false), "UpdateExpression expected", 1, 1);
+        check_err(
+            UpdateExpression::parse(&mut newparser("**"), Scanner::new(), false, false),
+            "UpdateExpression expected",
+            1,
+            1,
+        );
     }
     #[test]
     fn syntax_error_01() {
-        check_err(UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false), "UnaryExpression expected", 1, 6);
+        check_err(
+            UpdateExpression::parse(&mut newparser("++ ++"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
     #[test]
     fn syntax_error_02() {
-        check_err(UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false), "UnaryExpression expected", 1, 6);
+        check_err(
+            UpdateExpression::parse(&mut newparser("-- ++"), Scanner::new(), false, false),
+            "UnaryExpression expected",
+            1,
+            6,
+        );
     }
     #[test]
     fn update_expression_prettycheck_1() {
@@ -230,7 +249,10 @@ mod update_expression {
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
         let mut agent = test_agent();
         let mut errs = vec![];
-        UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true).unwrap().0.early_errors(&mut agent, &mut errs, strict);
+        UpdateExpression::parse(&mut newparser(src), Scanner::new(), false, true)
+            .unwrap()
+            .0
+            .early_errors(&mut agent, &mut errs, strict);
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
     }
 

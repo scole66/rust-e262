@@ -49,7 +49,13 @@ impl PrettyPrint for ArrowFunction {
 
 impl ArrowFunction {
     // ArrowFunction's only parent is AssignmentExpression. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         no_line_terminator(after_params, parser.source)?;
         let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
@@ -58,7 +64,11 @@ impl ArrowFunction {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        (kind == ParseNodeKind::Super || kind == ParseNodeKind::This || kind == ParseNodeKind::NewTarget || kind == ParseNodeKind::SuperProperty || kind == ParseNodeKind::SuperCall)
+        (kind == ParseNodeKind::Super
+            || kind == ParseNodeKind::This
+            || kind == ParseNodeKind::NewTarget
+            || kind == ParseNodeKind::SuperProperty
+            || kind == ParseNodeKind::SuperCall)
             && (self.parameters.contains(kind) || self.body.contains(kind))
     }
 
@@ -102,7 +112,10 @@ impl ArrowFunction {
             errs.push(create_syntax_error_object(agent, "Illegal await expression in arrow function parameters"));
         }
         if self.body.concise_body_contains_use_strict() && !self.parameters.is_simple_parameter_list() {
-            errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Illegal 'use strict' directive in function with non-simple parameter list",
+            ));
         }
         let bn = self.parameters.bound_names();
         let ldn = self.body.lexically_declared_names();
@@ -162,9 +175,13 @@ impl ArrowParameters {
     // ArrowParameters's only direct parent is ArrowFunction. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::IdOrFormalsExpected, scanner))
-            .otherwise(|| BindingIdentifier::parse(parser, scanner, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi)))
             .otherwise(|| {
-                let (_covered_formals, after_formals) = CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
+                BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(bi, after_bi)| (Rc::new(ArrowParameters::Identifier(bi)), after_bi))
+            })
+            .otherwise(|| {
+                let (_covered_formals, after_formals) =
+                    CoverParenthesizedExpressionAndArrowParameterList::parse(parser, scanner, yield_flag, await_flag)?;
                 let (formals, after_reparse) = ArrowFormalParameters::parse(parser, scanner, yield_flag, await_flag)?;
 
                 // This is only a successful cover if the parsed production and its cover end at the same place. But
@@ -401,9 +418,11 @@ impl ConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ConciseBody), scanner))
             .otherwise(|| {
-                let after_curly = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+                let after_curly =
+                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
-                let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_rb =
+                    scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(ConciseBody::Function(fb)), after_rb))
             })
             .otherwise(|| {

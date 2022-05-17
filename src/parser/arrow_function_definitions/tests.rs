@@ -16,7 +16,12 @@ fn arrow_function_test_01() {
 }
 #[test]
 fn arrow_function_test_02() {
-    check_err(ArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false), "Identifier or Formal Parameters expected", 1, 1);
+    check_err(
+        ArrowFunction::parse(&mut newparser(""), Scanner::new(), true, false, false),
+        "Identifier or Formal Parameters expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn arrow_function_test_03() {
@@ -24,11 +29,21 @@ fn arrow_function_test_03() {
 }
 #[test]
 fn arrow_function_test_04() {
-    check_err(ArrowFunction::parse(&mut newparser("a=>"), Scanner::new(), true, false, false), "ConciseBody expected", 1, 4);
+    check_err(
+        ArrowFunction::parse(&mut newparser("a=>"), Scanner::new(), true, false, false),
+        "ConciseBody expected",
+        1,
+        4,
+    );
 }
 #[test]
 fn arrow_function_test_05() {
-    check_err(ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false), "newline not allowed here", 1, 2);
+    check_err(
+        ArrowFunction::parse(&mut newparser("a\n=>a"), Scanner::new(), true, false, false),
+        "newline not allowed here",
+        1,
+        2,
+    );
 }
 #[test]
 fn arrow_function_test_prettyerrors_1() {
@@ -146,11 +161,21 @@ fn arrow_parameters_test_02() {
 }
 #[test]
 fn arrow_parameters_test_err_01() {
-    check_err(ArrowParameters::parse(&mut newparser(""), Scanner::new(), false, false), "Identifier or Formal Parameters expected", 1, 1);
+    check_err(
+        ArrowParameters::parse(&mut newparser(""), Scanner::new(), false, false),
+        "Identifier or Formal Parameters expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn arrow_parameters_test_err_02() {
-    check_err(ArrowParameters::parse(&mut newparser("("), Scanner::new(), false, false), "Expression, spread pattern, or closing paren expected", 1, 2);
+    check_err(
+        ArrowParameters::parse(&mut newparser("("), Scanner::new(), false, false),
+        "Expression, spread pattern, or closing paren expected",
+        1,
+        2,
+    );
 }
 #[test]
 fn arrow_parameters_test_err_03() {
@@ -368,7 +393,12 @@ fn expression_body_test_cache_01() {
 }
 #[test]
 fn expression_body_test_err_01() {
-    check_err(ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false), "AssignmentExpression expected", 1, 1);
+    check_err(
+        ExpressionBody::parse(&mut newparser(""), Scanner::new(), true, false),
+        "AssignmentExpression expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn expression_body_test_prettyerrors_1() {
@@ -421,7 +451,11 @@ fn arrow_formal_parameters_test_01() {
     let (node, scanner) = check(ArrowFormalParameters::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["UniqueFormalParameters: a , b"]);
-    concise_check(&*node, "ArrowFormalParameters: ( a , b )", vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"]);
+    concise_check(
+        &*node,
+        "ArrowFormalParameters: ( a , b )",
+        vec!["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"],
+    );
     format!("{:?}", node);
 }
 #[test]

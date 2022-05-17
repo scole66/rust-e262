@@ -97,7 +97,10 @@ fn create_reference_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("ReferenceError"));
+            assert_eq!(
+                get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(),
+                ECMAScriptValue::from("ReferenceError")
+            );
             assert_eq!(get(&mut agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
@@ -151,7 +154,10 @@ fn create_syntax_error_01() {
         assert!(objval.is_object());
         if let ECMAScriptValue::Object(obj) = objval {
             assert!(obj.o.is_error_object());
-            assert_eq!(get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(), ECMAScriptValue::from("SyntaxError"));
+            assert_eq!(
+                get(&mut agent, &obj, &PropertyKey::from("name")).unwrap(),
+                ECMAScriptValue::from("SyntaxError")
+            );
             assert_eq!(get(&mut agent, &obj, &PropertyKey::from("message")).unwrap(), ECMAScriptValue::from("A"));
         }
     }
@@ -297,7 +303,13 @@ fn error_object_define_own_property() {
     let mut agent = test_agent();
     let no = create_error_object(&mut agent);
 
-    let result = no.o.define_own_property(&mut agent, PropertyKey::from("a"), PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() }).unwrap();
+    let result =
+        no.o.define_own_property(
+            &mut agent,
+            PropertyKey::from("a"),
+            PotentialPropertyDescriptor { value: Some(ECMAScriptValue::Undefined), ..Default::default() },
+        )
+        .unwrap();
     assert!(result);
 }
 #[test]
@@ -321,7 +333,9 @@ fn error_object_set() {
     let mut agent = test_agent();
     let no = create_error_object(&mut agent);
 
-    let result = no.o.set(&mut agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone())).unwrap();
+    let result =
+        no.o.set(&mut agent, PropertyKey::from("a"), ECMAScriptValue::from(88.0), &ECMAScriptValue::from(no.clone()))
+            .unwrap();
     assert!(result);
 }
 #[test]
@@ -376,7 +390,8 @@ fn error_constructor_function_01() {
     let mut agent = test_agent();
     let error_constructor = ECMAScriptValue::from(agent.intrinsic(IntrinsicId::Error));
 
-    let result = call(&mut agent, &error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
+    let result =
+        call(&mut agent, &error_constructor, &ECMAScriptValue::Undefined, &[ECMAScriptValue::from("A")]).unwrap();
     let obj = to_object(&mut agent, result).unwrap();
 
     assert!(obj.o.is_error_object());
@@ -421,7 +436,10 @@ fn error_constructor_throws() {
 
     // This hack is to get around the "not configurable" characteristic of Error.prototype.
     // (It replaces Error.prototype (a data property) with an accessor property that throws when "prototype" is gotten.)
-    let new_prop = PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)), set: ECMAScriptValue::Undefined });
+    let new_prop = PropertyKind::Accessor(AccessorProperty {
+        get: ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError)),
+        set: ECMAScriptValue::Undefined,
+    });
     {
         let mut cod = error_constructor.o.common_object_data().borrow_mut();
         let mut prop = cod.properties.get_mut(&PropertyKey::from("prototype")).unwrap();
@@ -474,7 +492,8 @@ fn error_prototype_tostring_02() {
     let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
     set(&mut agent, &errobj, PropertyKey::from("name"), ECMAScriptValue::from("Bob"), false).unwrap();
-    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false).unwrap();
+    set(&mut agent, &errobj, PropertyKey::from("message"), ECMAScriptValue::from("you have a phone call"), false)
+        .unwrap();
 
     let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Bob: you have a phone call"));
@@ -534,7 +553,10 @@ fn error_prototype_tostring_07() {
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
-    let desc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))), ..Default::default() };
+    let desc = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &errobj, PropertyKey::from("name"), desc).unwrap();
 
     let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
@@ -547,7 +569,10 @@ fn error_prototype_tostring_08() {
     let error_constructor = agent.intrinsic(IntrinsicId::Error);
     let errobjval = construct(&mut agent, &error_constructor, &[ECMAScriptValue::from("ErrorMessage")], None).unwrap();
     let errobj = to_object(&mut agent, errobjval.clone()).unwrap();
-    let desc = PotentialPropertyDescriptor { get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))), ..Default::default() };
+    let desc = PotentialPropertyDescriptor {
+        get: Some(ECMAScriptValue::from(agent.intrinsic(IntrinsicId::ThrowTypeError))),
+        ..Default::default()
+    };
     define_property_or_throw(&mut agent, &errobj, PropertyKey::from("message"), desc).unwrap();
 
     let result = invoke(&mut agent, errobjval, &PropertyKey::from("toString"), &[]).unwrap_err();
@@ -652,7 +677,11 @@ fn range_error_prototype_properties() {
 }
 #[test]
 fn reference_error_prototype_properties() {
-    native_error_prototype_properties(IntrinsicId::ReferenceErrorPrototype, IntrinsicId::ReferenceError, "ReferenceError");
+    native_error_prototype_properties(
+        IntrinsicId::ReferenceErrorPrototype,
+        IntrinsicId::ReferenceError,
+        "ReferenceError",
+    );
 }
 #[test]
 fn syntax_error_prototype_properties() {

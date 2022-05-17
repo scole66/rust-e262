@@ -1,4 +1,6 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{
+    check, check_err, chk_scan, newparser, set, svec, Maker, IMPLEMENTS_NOT_ALLOWED, PACKAGE_NOT_ALLOWED,
+};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -8,15 +10,25 @@ use test_case::test_case;
 // LABELLED STATEMENT
 #[test]
 fn labelled_statement_test_01() {
-    let (node, scanner) = check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(LabelledStatement::parse(&mut newparser("blue: orange;"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 13);
     pretty_check(&*node, "LabelledStatement: blue : orange ;", vec!["LabelIdentifier: blue", "LabelledItem: orange ;"]);
-    concise_check(&*node, "LabelledStatement: blue : orange ;", vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"]);
+    concise_check(
+        &*node,
+        "LabelledStatement: blue : orange ;",
+        vec!["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn labelled_statement_test_err_01() {
-    check_err(LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true), "not an identifier", 1, 1);
+    check_err(
+        LabelledStatement::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "not an identifier",
+        1,
+        1,
+    );
 }
 #[test]
 fn labelled_statement_test_err_02() {
@@ -24,7 +36,12 @@ fn labelled_statement_test_err_02() {
 }
 #[test]
 fn labelled_statement_test_err_03() {
-    check_err(LabelledStatement::parse(&mut newparser("a:"), Scanner::new(), false, false, true), "LabelledItem expected", 1, 3);
+    check_err(
+        LabelledStatement::parse(&mut newparser("a:"), Scanner::new(), false, false, true),
+        "LabelledItem expected",
+        1,
+        3,
+    );
 }
 #[test]
 fn labelled_statement_test_prettyerrors_1() {
@@ -43,7 +60,8 @@ fn labelled_statement_test_top_level_var_declared_names_01() {
 }
 #[test]
 fn labelled_statement_test_top_level_var_declared_names_02() {
-    let (item, _) = LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.top_level_var_declared_names(), &["a"]);
 }
 #[test]
@@ -53,7 +71,8 @@ fn labelled_statement_test_var_declared_names_01() {
 }
 #[test]
 fn labelled_statement_test_var_declared_names_02() {
-    let (item, _) = LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
+    let (item, _) =
+        LabelledStatement::parse(&mut newparser("i:function a(){}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.var_declared_names(), &[] as &[JSString]);
 }
 #[test]
@@ -146,7 +165,12 @@ mod labelled_statement {
     #[test_case("a:function b(){}" => svec(&["function b (  ) {  }"]); "function")]
     #[test_case("a:{ function b(){} }" => svec(&[]); "too deep")]
     fn top_level_var_scoped_declarations(src: &str) -> Vec<String> {
-        Maker::new(src).labelled_statement().top_level_var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+        Maker::new(src)
+            .labelled_statement()
+            .top_level_var_scoped_declarations()
+            .iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
     }
 
     #[test_case("a:function b(){}" => svec(&[]); "function")]
@@ -167,15 +191,32 @@ fn labelled_item_test_01() {
 }
 #[test]
 fn labelled_item_test_02() {
-    let (node, scanner) = check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
+    let (node, scanner) =
+        check(LabelledItem::parse(&mut newparser("function a(){}"), Scanner::new(), false, false, true));
     chk_scan(&scanner, 14);
     pretty_check(&*node, "LabelledItem: function a (  ) {  }", vec!["FunctionDeclaration: function a (  ) {  }"]);
-    concise_check(&*node, "FunctionDeclaration: function a (  ) {  }", vec!["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"]);
+    concise_check(
+        &*node,
+        "FunctionDeclaration: function a (  ) {  }",
+        vec![
+            "Keyword: function",
+            "IdentifierName: a",
+            "Punctuator: (",
+            "Punctuator: )",
+            "Punctuator: {",
+            "Punctuator: }",
+        ],
+    );
     format!("{:?}", node);
 }
 #[test]
 fn labelled_item_test_err_01() {
-    check_err(LabelledItem::parse(&mut newparser(""), Scanner::new(), false, false, true), "LabelledItem expected", 1, 1);
+    check_err(
+        LabelledItem::parse(&mut newparser(""), Scanner::new(), false, false, true),
+        "LabelledItem expected",
+        1,
+        1,
+    );
 }
 #[test]
 fn labelled_item_test_prettyerrors_1() {

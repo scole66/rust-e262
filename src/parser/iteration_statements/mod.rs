@@ -65,10 +65,17 @@ impl PrettyPrint for IterationStatement {
 }
 
 impl IterationStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IterationStatement), scanner))
             .otherwise(|| {
-                let (dowhile, after_dowhile) = DoWhileStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (dowhile, after_dowhile) =
+                    DoWhileStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(IterationStatement::DoWhile(dowhile)), after_dowhile))
             })
             .otherwise(|| {
@@ -80,7 +87,8 @@ impl IterationStatement {
                 Ok((Rc::new(IterationStatement::For(fr)), after_fr))
             })
             .otherwise(|| {
-                let (forin, after_forin) = ForInOfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
+                let (forin, after_forin) =
+                    ForInOfStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(IterationStatement::ForInOf(forin)), after_forin))
             })
     }
@@ -229,14 +237,22 @@ impl PrettyPrint for DoWhileStatement {
 }
 
 impl DoWhileStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_do = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Do)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_do, yield_flag, await_flag, return_flag)?;
         let after_while = scan_for_keyword(after_stmt, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
         let after_open = scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
         let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_semi = scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon).unwrap_or(after_close);
+        let after_semi =
+            scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)
+                .unwrap_or(after_close);
         Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
     }
 
@@ -347,7 +363,13 @@ impl PrettyPrint for WhileStatement {
 }
 
 impl WhileStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_while = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
         let after_open = scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
@@ -439,25 +461,49 @@ impl fmt::Display for ForStatement {
             ForStatement::For(Some(e1), Some(e2), Some(e3), s) => {
                 write!(f, "for ( {} ; {} ; {} ) {}", e1, e2, e3, s)
             }
-            ForStatement::For(Some(e1), Some(e2), None, s) => write!(f, "for ( {} ; {} ; ) {}", e1, e2, s),
-            ForStatement::For(Some(e1), None, Some(e3), s) => write!(f, "for ( {} ; ; {} ) {}", e1, e3, s),
-            ForStatement::For(Some(e1), None, None, s) => write!(f, "for ( {} ; ; ) {}", e1, s),
-            ForStatement::For(None, Some(e2), Some(e3), s) => write!(f, "for ( ; {} ; {} ) {}", e2, e3, s),
-            ForStatement::For(None, Some(e2), None, s) => write!(f, "for ( ; {} ; ) {}", e2, s),
-            ForStatement::For(None, None, Some(e3), s) => write!(f, "for ( ; ; {} ) {}", e3, s),
+            ForStatement::For(Some(e1), Some(e2), None, s) => {
+                write!(f, "for ( {} ; {} ; ) {}", e1, e2, s)
+            }
+            ForStatement::For(Some(e1), None, Some(e3), s) => {
+                write!(f, "for ( {} ; ; {} ) {}", e1, e3, s)
+            }
+            ForStatement::For(Some(e1), None, None, s) => {
+                write!(f, "for ( {} ; ; ) {}", e1, s)
+            }
+            ForStatement::For(None, Some(e2), Some(e3), s) => {
+                write!(f, "for ( ; {} ; {} ) {}", e2, e3, s)
+            }
+            ForStatement::For(None, Some(e2), None, s) => {
+                write!(f, "for ( ; {} ; ) {}", e2, s)
+            }
+            ForStatement::For(None, None, Some(e3), s) => {
+                write!(f, "for ( ; ; {} ) {}", e3, s)
+            }
             ForStatement::For(None, None, None, s) => write!(f, "for ( ; ; ) {}", s),
             ForStatement::ForVar(v, Some(e1), Some(e2), s) => {
                 write!(f, "for ( var {} ; {} ; {} ) {}", v, e1, e2, s)
             }
-            ForStatement::ForVar(v, Some(e1), None, s) => write!(f, "for ( var {} ; {} ; ) {}", v, e1, s),
-            ForStatement::ForVar(v, None, Some(e2), s) => write!(f, "for ( var {} ; ; {} ) {}", v, e2, s),
-            ForStatement::ForVar(v, None, None, s) => write!(f, "for ( var {} ; ; ) {}", v, s),
+            ForStatement::ForVar(v, Some(e1), None, s) => {
+                write!(f, "for ( var {} ; {} ; ) {}", v, e1, s)
+            }
+            ForStatement::ForVar(v, None, Some(e2), s) => {
+                write!(f, "for ( var {} ; ; {} ) {}", v, e2, s)
+            }
+            ForStatement::ForVar(v, None, None, s) => {
+                write!(f, "for ( var {} ; ; ) {}", v, s)
+            }
             ForStatement::ForLex(lex, Some(e1), Some(e2), s) => {
                 write!(f, "for ( {} {} ; {} ) {}", lex, e1, e2, s)
             }
-            ForStatement::ForLex(lex, Some(e1), None, s) => write!(f, "for ( {} {} ; ) {}", lex, e1, s),
-            ForStatement::ForLex(lex, None, Some(e2), s) => write!(f, "for ( {} ; {} ) {}", lex, e2, s),
-            ForStatement::ForLex(lex, None, None, s) => write!(f, "for ( {} ; ) {}", lex, s),
+            ForStatement::ForLex(lex, Some(e1), None, s) => {
+                write!(f, "for ( {} {} ; ) {}", lex, e1, s)
+            }
+            ForStatement::ForLex(lex, None, Some(e2), s) => {
+                write!(f, "for ( {} ; {} ) {}", lex, e2, s)
+            }
+            ForStatement::ForLex(lex, None, None, s) => {
+                write!(f, "for ( {} ; ) {}", lex, s)
+            }
         }
     }
 }
@@ -537,25 +583,36 @@ impl PrettyPrint for ForStatement {
 }
 
 impl ForStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_for = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
         let after_open = scan_for_punct(after_for, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         Err(ParseError::new(PECode::ForStatementDefinitionError, after_open))
             .otherwise(|| {
                 // for ( var VariableDeclarationList ; Expression ; Expression ) Statement
-                let after_var = scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
-                let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, false, yield_flag, await_flag)?;
-                let after_init = scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                let after_var =
+                    scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+                let (vdl, after_vdl) =
+                    VariableDeclarationList::parse(parser, after_var, false, yield_flag, await_flag)?;
+                let after_init =
+                    scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 let (exp1, after_exp1) = match Expression::parse(parser, after_init, true, yield_flag, await_flag) {
                     Err(_) => (None, after_init),
                     Ok((node, scan)) => (Some(node), scan),
                 };
-                let after_test = scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                let after_test =
+                    scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 let (exp2, after_exp2) = match Expression::parse(parser, after_test, true, yield_flag, await_flag) {
                     Err(_) => (None, after_test),
                     Ok((node, scan)) => (Some(node), scan),
                 };
-                let after_close = scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_close =
+                    scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(ForStatement::ForVar(vdl, exp1, exp2, stmt)), after_stmt))
             })
@@ -566,12 +623,14 @@ impl ForStatement {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_lex),
                 };
-                let after_test = scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                let after_test =
+                    scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 let (exp2, after_exp2) = match Expression::parse(parser, after_test, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_test),
                 };
-                let after_close = scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_close =
+                    scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(ForStatement::ForLex(lex, exp1, exp2, stmt)), after_stmt))
             })
@@ -590,17 +649,20 @@ impl ForStatement {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_open),
                 };
-                let after_semi1 = scan_for_punct(after_init, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                let after_semi1 =
+                    scan_for_punct(after_init, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 let (test, after_test) = match Expression::parse(parser, after_semi1, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_semi1),
                 };
-                let after_semi2 = scan_for_punct(after_test, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                let after_semi2 =
+                    scan_for_punct(after_test, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
                 let (inc, after_inc) = match Expression::parse(parser, after_semi2, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_semi2),
                 };
-                let after_close = scan_for_punct(after_inc, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_close =
+                    scan_for_punct(after_inc, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(ForStatement::For(init, test, inc, stmt)), after_stmt))
             })
@@ -620,7 +682,9 @@ impl ForStatement {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_break_target(label_set),
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => {
+                s.contains_undefined_break_target(label_set)
+            }
         }
     }
 
@@ -633,23 +697,33 @@ impl ForStatement {
                     || s.contains(kind)
             }
             ForStatement::ForVar(v, opt1, opt2, s) => {
-                v.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
+                v.contains(kind)
+                    || opt1.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || s.contains(kind)
             }
             ForStatement::ForLex(lex, opt1, opt2, s) => {
-                lex.contains(kind) || opt1.as_ref().map_or(false, |n| n.contains(kind)) || opt2.as_ref().map_or(false, |n| n.contains(kind)) || s.contains(kind)
+                lex.contains(kind)
+                    || opt1.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || s.contains(kind)
             }
         }
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_duplicate_labels(label_set),
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => {
+                s.contains_duplicate_labels(label_set)
+            }
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => s.contains_undefined_continue_target(iteration_set, &[]),
+            ForStatement::For(_, _, _, s) | ForStatement::ForVar(_, _, _, s) | ForStatement::ForLex(_, _, _, s) => {
+                s.contains_undefined_continue_target(iteration_set, &[])
+            }
         }
     }
 
@@ -696,10 +770,23 @@ impl ForStatement {
         let oe_check = |e: &Rc<Expression>| e.contains_arguments();
         match self {
             ForStatement::For(oe1, oe2, oe3, s) => {
-                oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || oe3.as_ref().map_or(false, oe_check) || s.contains_arguments()
+                oe1.as_ref().map_or(false, oe_check)
+                    || oe2.as_ref().map_or(false, oe_check)
+                    || oe3.as_ref().map_or(false, oe_check)
+                    || s.contains_arguments()
             }
-            ForStatement::ForVar(v, oe1, oe2, s) => v.contains_arguments() || oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || s.contains_arguments(),
-            ForStatement::ForLex(ld, oe1, oe2, s) => ld.contains_arguments() || oe1.as_ref().map_or(false, oe_check) || oe2.as_ref().map_or(false, oe_check) || s.contains_arguments(),
+            ForStatement::ForVar(v, oe1, oe2, s) => {
+                v.contains_arguments()
+                    || oe1.as_ref().map_or(false, oe_check)
+                    || oe2.as_ref().map_or(false, oe_check)
+                    || s.contains_arguments()
+            }
+            ForStatement::ForLex(ld, oe1, oe2, s) => {
+                ld.contains_arguments()
+                    || oe1.as_ref().map_or(false, oe_check)
+                    || oe2.as_ref().map_or(false, oe_check)
+                    || s.contains_arguments()
+            }
         }
     }
 
@@ -711,12 +798,17 @@ impl ForStatement {
             let vdn = stmt.var_declared_names();
             let bn = lex.bound_names();
             for name in bn.iter().filter(|&n| vdn.contains(n)) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ may not be declared both lexically and var-style", name),
+                ));
             }
         }
 
         let (vdl, lex, exp1, exp2, exp3, stmt) = match self {
-            ForStatement::For(exp1, exp2, exp3, stmt) => (None, None, exp1.as_ref(), exp2.as_ref(), exp3.as_ref(), stmt),
+            ForStatement::For(exp1, exp2, exp3, stmt) => {
+                (None, None, exp1.as_ref(), exp2.as_ref(), exp3.as_ref(), stmt)
+            }
             ForStatement::ForVar(vdl, exp2, exp3, stmt) => (Some(vdl), None, None, exp2.as_ref(), exp3.as_ref(), stmt),
             ForStatement::ForLex(lex, exp2, exp3, stmt) => (None, Some(lex), None, exp2.as_ref(), exp3.as_ref(), stmt),
         };
@@ -782,18 +874,42 @@ pub enum ForInOfStatement {
 impl fmt::Display for ForInOfStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ForInOfStatement::In(lhs, e, s) => write!(f, "for ( {} in {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringIn(pat, e, s) => write!(f, "for ( {} in {} ) {}", pat, e, s),
-            ForInOfStatement::VarIn(v, e, s) => write!(f, "for ( var {} in {} ) {}", v, e, s),
-            ForInOfStatement::LexIn(lex, e, s) => write!(f, "for ( {} in {} ) {}", lex, e, s),
-            ForInOfStatement::Of(lhs, e, s) => write!(f, "for ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringOf(pat, e, s) => write!(f, "for ( {} of {} ) {}", pat, e, s),
-            ForInOfStatement::VarOf(v, e, s) => write!(f, "for ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::LexOf(lex, e, s) => write!(f, "for ( {} of {} ) {}", lex, e, s),
-            ForInOfStatement::AwaitOf(lhs, e, s) => write!(f, "for await ( {} of {} ) {}", lhs, e, s),
-            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => write!(f, "for await ( {} of {} ) {}", pat, e, s),
-            ForInOfStatement::AwaitVarOf(v, e, s) => write!(f, "for await ( var {} of {} ) {}", v, e, s),
-            ForInOfStatement::AwaitLexOf(lex, e, s) => write!(f, "for await ( {} of {} ) {}", lex, e, s),
+            ForInOfStatement::In(lhs, e, s) => {
+                write!(f, "for ( {} in {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringIn(pat, e, s) => {
+                write!(f, "for ( {} in {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::VarIn(v, e, s) => {
+                write!(f, "for ( var {} in {} ) {}", v, e, s)
+            }
+            ForInOfStatement::LexIn(lex, e, s) => {
+                write!(f, "for ( {} in {} ) {}", lex, e, s)
+            }
+            ForInOfStatement::Of(lhs, e, s) => {
+                write!(f, "for ( {} of {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringOf(pat, e, s) => {
+                write!(f, "for ( {} of {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::VarOf(v, e, s) => {
+                write!(f, "for ( var {} of {} ) {}", v, e, s)
+            }
+            ForInOfStatement::LexOf(lex, e, s) => {
+                write!(f, "for ( {} of {} ) {}", lex, e, s)
+            }
+            ForInOfStatement::AwaitOf(lhs, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", lhs, e, s)
+            }
+            ForInOfStatement::DestructuringAwaitOf(pat, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", pat, e, s)
+            }
+            ForInOfStatement::AwaitVarOf(v, e, s) => {
+                write!(f, "for await ( var {} of {} ) {}", v, e, s)
+            }
+            ForInOfStatement::AwaitLexOf(lex, e, s) => {
+                write!(f, "for await ( {} of {} ) {}", lex, e, s)
+            }
         }
     }
 }
@@ -829,7 +945,9 @@ impl PrettyPrint for ForInOfStatement {
             || matches!(self, ForInOfStatement::AwaitVarOf(..))
             || matches!(self, ForInOfStatement::AwaitLexOf(..))
             || matches!(self, ForInOfStatement::DestructuringAwaitOf(..));
-        let var_present = matches!(self, ForInOfStatement::VarIn(..)) || matches!(self, ForInOfStatement::VarOf(..)) || matches!(self, ForInOfStatement::AwaitVarOf(..));
+        let var_present = matches!(self, ForInOfStatement::VarIn(..))
+            || matches!(self, ForInOfStatement::VarOf(..))
+            || matches!(self, ForInOfStatement::AwaitVarOf(..));
 
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}ForInOfStatement: {}", first, self)?;
@@ -846,16 +964,25 @@ impl PrettyPrint for ForInOfStatement {
         }
 
         match self {
-            ForInOfStatement::In(lhs, _, _) | ForInOfStatement::Of(lhs, _, _) | ForInOfStatement::AwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
-            ForInOfStatement::DestructuringIn(pat, _, _) | ForInOfStatement::DestructuringOf(pat, _, _) | ForInOfStatement::DestructuringAwaitOf(pat, _, _) => {
-                pat.concise_with_leftpad(w, &suc, Spot::NotFinal)
-            }
-            ForInOfStatement::VarIn(v, _, _) | ForInOfStatement::VarOf(v, _, _) | ForInOfStatement::AwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
-            ForInOfStatement::LexIn(lex, _, _) | ForInOfStatement::LexOf(lex, _, _) | ForInOfStatement::AwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::In(lhs, _, _)
+            | ForInOfStatement::Of(lhs, _, _)
+            | ForInOfStatement::AwaitOf(lhs, _, _) => lhs.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::DestructuringIn(pat, _, _)
+            | ForInOfStatement::DestructuringOf(pat, _, _)
+            | ForInOfStatement::DestructuringAwaitOf(pat, _, _) => pat.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::VarIn(v, _, _)
+            | ForInOfStatement::VarOf(v, _, _)
+            | ForInOfStatement::AwaitVarOf(v, _, _) => v.concise_with_leftpad(w, &suc, Spot::NotFinal),
+            ForInOfStatement::LexIn(lex, _, _)
+            | ForInOfStatement::LexOf(lex, _, _)
+            | ForInOfStatement::AwaitLexOf(lex, _, _) => lex.concise_with_leftpad(w, &suc, Spot::NotFinal),
         }?;
 
         match self {
-            ForInOfStatement::In(_, e, _) | ForInOfStatement::LexIn(_, e, _) | ForInOfStatement::VarIn(_, e, _) | ForInOfStatement::DestructuringIn(_, e, _) => {
+            ForInOfStatement::In(_, e, _)
+            | ForInOfStatement::LexIn(_, e, _)
+            | ForInOfStatement::VarIn(_, e, _)
+            | ForInOfStatement::DestructuringIn(_, e, _) => {
                 pprint_token(w, "in", TokenType::Keyword, &suc, Spot::NotFinal)?;
                 e.concise_with_leftpad(w, &suc, Spot::NotFinal)?;
             }
@@ -892,7 +1019,13 @@ impl PrettyPrint for ForInOfStatement {
 }
 
 impl ForInOfStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool, return_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        return_flag: bool,
+    ) -> ParseResult<Self> {
         let after_for = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
         let (await_seen, after_await) = match await_flag {
             true => match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
@@ -905,18 +1038,27 @@ impl ForInOfStatement {
         Err(ParseError::new(PECode::ForInOfDefinitionError, after_open))
             .otherwise(|| {
                 // for var
-                let after_var = scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+                let after_var =
+                    scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
                 let (for_binding, after_fb) = ForBinding::parse(parser, after_var, yield_flag, await_flag)?;
                 let (kwd, after_kwd) = if await_seen {
                     (Keyword::Of, scan_for_keyword(after_fb, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?)
                 } else {
-                    scan_for_keywords(after_fb, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Of, Keyword::In])?
+                    scan_for_keywords(
+                        after_fb,
+                        parser.source,
+                        ScanGoal::InputElementRegExp,
+                        &[Keyword::Of, Keyword::In],
+                    )?
                 };
                 match kwd {
                     Keyword::Of => {
-                        let (ae, after_ae) = AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let (ae, after_ae) =
+                            AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
+                        let after_close =
+                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
                             Ok((Rc::new(ForInOfStatement::AwaitVarOf(for_binding, ae, stmt)), after_stmt))
                         } else {
@@ -925,8 +1067,14 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let after_close = scan_for_punct(
+                            after_exp,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightParen,
+                        )?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         Ok((Rc::new(ForInOfStatement::VarIn(for_binding, exp, stmt)), after_stmt))
                     }
                 }
@@ -935,15 +1083,26 @@ impl ForInOfStatement {
                 // for lex
                 let (decl, after_decl) = ForDeclaration::parse(parser, after_open, yield_flag, await_flag)?;
                 let (kwd, after_kwd) = if await_seen {
-                    (Keyword::Of, scan_for_keyword(after_decl, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?)
+                    (
+                        Keyword::Of,
+                        scan_for_keyword(after_decl, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?,
+                    )
                 } else {
-                    scan_for_keywords(after_decl, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Of, Keyword::In])?
+                    scan_for_keywords(
+                        after_decl,
+                        parser.source,
+                        ScanGoal::InputElementRegExp,
+                        &[Keyword::Of, Keyword::In],
+                    )?
                 };
                 match kwd {
                     Keyword::Of => {
-                        let (ae, after_ae) = AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let (ae, after_ae) =
+                            AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
+                        let after_close =
+                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if await_seen {
                             Ok((Rc::new(ForInOfStatement::AwaitLexOf(decl, ae, stmt)), after_stmt))
                         } else {
@@ -952,8 +1111,14 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let after_close = scan_for_punct(
+                            after_exp,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightParen,
+                        )?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         Ok((Rc::new(ForInOfStatement::LexIn(decl, exp, stmt)), after_stmt))
                     }
                 }
@@ -972,15 +1137,26 @@ impl ForInOfStatement {
                 }
                 let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, after_open, yield_flag, await_flag)?;
                 let (kwd, after_kwd) = if await_seen {
-                    (Keyword::Of, scan_for_keyword(after_lhs, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?)
+                    (
+                        Keyword::Of,
+                        scan_for_keyword(after_lhs, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?,
+                    )
                 } else {
-                    scan_for_keywords(after_lhs, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Of, Keyword::In])?
+                    scan_for_keywords(
+                        after_lhs,
+                        parser.source,
+                        ScanGoal::InputElementRegExp,
+                        &[Keyword::Of, Keyword::In],
+                    )?
                 };
                 match kwd {
                     Keyword::Of => {
-                        let (ae, after_ae) = AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let (ae, after_ae) =
+                            AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
+                        let after_close =
+                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if lhs.is_object_or_array_literal() {
                             // Re-parse as an assignmentpattern
                             let (ap, after_ap) = AssignmentPattern::parse(parser, after_open, yield_flag, await_flag)?;
@@ -998,8 +1174,14 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                        let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
+                        let after_close = scan_for_punct(
+                            after_exp,
+                            parser.source,
+                            ScanGoal::InputElementDiv,
+                            Punctuator::RightParen,
+                        )?;
+                        let (stmt, after_stmt) =
+                            Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         if lhs.is_object_or_array_literal() {
                             // Re-parse as an assignmentpattern
                             let (ap, after_ap) = AssignmentPattern::parse(parser, after_open, yield_flag, await_flag)?;
@@ -1024,7 +1206,9 @@ impl ForInOfStatement {
             | ForInOfStatement::AwaitOf(_, _, s)
             | ForInOfStatement::DestructuringAwaitOf(_, _, s)
             | ForInOfStatement::AwaitLexOf(_, _, s) => s.var_declared_names(),
-            ForInOfStatement::VarIn(v, _, s) | ForInOfStatement::VarOf(v, _, s) | ForInOfStatement::AwaitVarOf(v, _, s) => {
+            ForInOfStatement::VarIn(v, _, s)
+            | ForInOfStatement::VarOf(v, _, s)
+            | ForInOfStatement::AwaitVarOf(v, _, s) => {
                 let mut names = v.bound_names();
                 names.extend(s.var_declared_names());
                 names
@@ -1055,10 +1239,18 @@ impl ForInOfStatement {
             ForInOfStatement::DestructuringIn(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::VarIn(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::LexIn(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::DestructuringOf(lhs, e, s) | ForInOfStatement::DestructuringAwaitOf(lhs, e, s) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => v.contains(kind) || e.contains(kind) || s.contains(kind),
-            ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => lex.contains(kind) || e.contains(kind) || s.contains(kind),
+            ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => {
+                lhs.contains(kind) || e.contains(kind) || s.contains(kind)
+            }
+            ForInOfStatement::DestructuringOf(lhs, e, s) | ForInOfStatement::DestructuringAwaitOf(lhs, e, s) => {
+                lhs.contains(kind) || e.contains(kind) || s.contains(kind)
+            }
+            ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => {
+                v.contains(kind) || e.contains(kind) || s.contains(kind)
+            }
+            ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => {
+                lex.contains(kind) || e.contains(kind) || s.contains(kind)
+            }
         }
     }
 
@@ -1104,21 +1296,45 @@ impl ForInOfStatement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ForInOfStatement::In(lhs, e, s) => lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
-            ForInOfStatement::DestructuringIn(lhs, e, s) => lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
-            ForInOfStatement::VarIn(v, e, s) => v.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
-            ForInOfStatement::LexIn(lex, e, s) => lex.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names),
+            ForInOfStatement::In(lhs, e, s) => {
+                lhs.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::DestructuringIn(lhs, e, s) => {
+                lhs.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::VarIn(v, e, s) => {
+                v.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
+            }
+            ForInOfStatement::LexIn(lex, e, s) => {
+                lex.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
+            }
             ForInOfStatement::Of(lhs, e, s) | ForInOfStatement::AwaitOf(lhs, e, s) => {
-                lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+                lhs.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
             }
             ForInOfStatement::DestructuringOf(lhs, e, s) | ForInOfStatement::DestructuringAwaitOf(lhs, e, s) => {
-                lhs.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+                lhs.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
             }
             ForInOfStatement::VarOf(v, e, s) | ForInOfStatement::AwaitVarOf(v, e, s) => {
-                v.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+                v.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
             }
             ForInOfStatement::LexOf(lex, e, s) | ForInOfStatement::AwaitLexOf(lex, e, s) => {
-                lex.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+                lex.all_private_identifiers_valid(names)
+                    && e.all_private_identifiers_valid(names)
+                    && s.all_private_identifiers_valid(names)
             }
         }
     }
@@ -1135,21 +1351,39 @@ impl ForInOfStatement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ForInOfStatement::In(lhse, e, s) => lhse.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::DestructuringIn(ap, e, s) => ap.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::VarIn(fb, e, s) => fb.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::LexIn(fd, e, s) => fd.contains_arguments() || e.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::Of(lhse, ae, s) | ForInOfStatement::AwaitOf(lhse, ae, s) => lhse.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::DestructuringOf(ap, ae, s) | ForInOfStatement::DestructuringAwaitOf(ap, ae, s) => ap.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => fb.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
-            ForInOfStatement::LexOf(fd, ae, s) | ForInOfStatement::AwaitLexOf(fd, ae, s) => fd.contains_arguments() || ae.contains_arguments() || s.contains_arguments(),
+            ForInOfStatement::In(lhse, e, s) => {
+                lhse.contains_arguments() || e.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::DestructuringIn(ap, e, s) => {
+                ap.contains_arguments() || e.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::VarIn(fb, e, s) => {
+                fb.contains_arguments() || e.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::LexIn(fd, e, s) => {
+                fd.contains_arguments() || e.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::Of(lhse, ae, s) | ForInOfStatement::AwaitOf(lhse, ae, s) => {
+                lhse.contains_arguments() || ae.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::DestructuringOf(ap, ae, s) | ForInOfStatement::DestructuringAwaitOf(ap, ae, s) => {
+                ap.contains_arguments() || ae.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => {
+                fb.contains_arguments() || ae.contains_arguments() || s.contains_arguments()
+            }
+            ForInOfStatement::LexOf(fd, ae, s) | ForInOfStatement::AwaitLexOf(fd, ae, s) => {
+                fd.contains_arguments() || ae.contains_arguments() || s.contains_arguments()
+            }
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         match self {
-            ForInOfStatement::LexIn(fd, _, stmt) | ForInOfStatement::LexOf(fd, _, stmt) | ForInOfStatement::AwaitLexOf(fd, _, stmt) => {
+            ForInOfStatement::LexIn(fd, _, stmt)
+            | ForInOfStatement::LexOf(fd, _, stmt)
+            | ForInOfStatement::AwaitLexOf(fd, _, stmt) => {
                 // ForInOfStatement :
                 //  for ( ForDeclaration in Expression ) Statement
                 //  for ( ForDeclaration of AssignmentExpression ) Statement
@@ -1167,11 +1401,16 @@ impl ForInOfStatement {
                         errs.push(create_syntax_error_object(agent, "‘let’ is not a valid binding identifier"));
                     }
                     if vdn.contains(name) {
-                        errs.push(create_syntax_error_object(agent, format!("‘{}’ may not be declared both lexically and var-style", name)));
+                        errs.push(create_syntax_error_object(
+                            agent,
+                            format!("‘{}’ may not be declared both lexically and var-style", name),
+                        ));
                     }
                 }
             }
-            ForInOfStatement::In(lhs, _, _) | ForInOfStatement::Of(lhs, _, _) | ForInOfStatement::AwaitOf(lhs, _, _) => {
+            ForInOfStatement::In(lhs, _, _)
+            | ForInOfStatement::Of(lhs, _, _)
+            | ForInOfStatement::AwaitOf(lhs, _, _) => {
                 // ForInOfStatement :
                 //  for ( LeftHandSideExpression in Expression ) Statement
                 //  for ( LeftHandSideExpression of AssignmentExpression ) Statement
@@ -1189,10 +1428,18 @@ impl ForInOfStatement {
             ForInOfStatement::DestructuringIn(pat, exp, s) => (None, Some(pat), None, None, Some(exp), None, s),
             ForInOfStatement::VarIn(fb, exp, s) => (None, None, Some(fb), None, Some(exp), None, s),
             ForInOfStatement::LexIn(decl, exp, s) => (None, None, None, Some(decl), Some(exp), None, s),
-            ForInOfStatement::Of(lhs, ae, s) | ForInOfStatement::AwaitOf(lhs, ae, s) => (Some(lhs), None, None, None, None, Some(ae), s),
-            ForInOfStatement::DestructuringOf(pat, ae, s) | ForInOfStatement::DestructuringAwaitOf(pat, ae, s) => (None, Some(pat), None, None, None, Some(ae), s),
-            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => (None, None, Some(fb), None, None, Some(ae), s),
-            ForInOfStatement::LexOf(decl, ae, s) | ForInOfStatement::AwaitLexOf(decl, ae, s) => (None, None, None, Some(decl), None, Some(ae), s),
+            ForInOfStatement::Of(lhs, ae, s) | ForInOfStatement::AwaitOf(lhs, ae, s) => {
+                (Some(lhs), None, None, None, None, Some(ae), s)
+            }
+            ForInOfStatement::DestructuringOf(pat, ae, s) | ForInOfStatement::DestructuringAwaitOf(pat, ae, s) => {
+                (None, Some(pat), None, None, None, Some(ae), s)
+            }
+            ForInOfStatement::VarOf(fb, ae, s) | ForInOfStatement::AwaitVarOf(fb, ae, s) => {
+                (None, None, Some(fb), None, None, Some(ae), s)
+            }
+            ForInOfStatement::LexOf(decl, ae, s) | ForInOfStatement::AwaitLexOf(decl, ae, s) => {
+                (None, None, None, Some(decl), None, Some(ae), s)
+            }
         };
         if let Some(lhs) = lhs {
             lhs.early_errors(agent, errs, strict);
@@ -1229,7 +1476,9 @@ impl ForInOfStatement {
             | ForInOfStatement::AwaitOf(_, _, s)
             | ForInOfStatement::AwaitLexOf(_, _, s)
             | ForInOfStatement::DestructuringAwaitOf(_, _, s) => s.var_scoped_declarations(),
-            ForInOfStatement::VarIn(fd, _, s) | ForInOfStatement::VarOf(fd, _, s) | ForInOfStatement::AwaitVarOf(fd, _, s) => {
+            ForInOfStatement::VarIn(fd, _, s)
+            | ForInOfStatement::VarOf(fd, _, s)
+            | ForInOfStatement::AwaitVarOf(fd, _, s) => {
                 let mut list = vec![VarScopeDecl::ForBinding(Rc::clone(fd))];
                 list.extend(s.var_scoped_declarations());
                 list
@@ -1323,7 +1572,8 @@ impl PrettyPrint for ForDeclaration {
 
 impl ForDeclaration {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (tok, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
+        let (tok, after_tok) =
+            scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match tok {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,

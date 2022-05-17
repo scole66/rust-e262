@@ -31,12 +31,18 @@ pub enum MethodDefinition {
 impl fmt::Display for MethodDefinition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MethodDefinition::NamedFunction(name, params, body) => write!(f, "{} ( {} ) {{ {} }}", name, params, body),
+            MethodDefinition::NamedFunction(name, params, body) => {
+                write!(f, "{} ( {} ) {{ {} }}", name, params, body)
+            }
             MethodDefinition::Generator(node) => node.fmt(f),
             MethodDefinition::Async(node) => node.fmt(f),
             MethodDefinition::AsyncGenerator(node) => node.fmt(f),
-            MethodDefinition::Getter(name, body) => write!(f, "get {} ( ) {{ {} }}", name, body),
-            MethodDefinition::Setter(name, args, body) => write!(f, "set {} ( {} ) {{ {} }}", name, args, body),
+            MethodDefinition::Getter(name, body) => {
+                write!(f, "get {} ( ) {{ {} }}", name, body)
+            }
+            MethodDefinition::Setter(name, args, body) => {
+                write!(f, "set {} ( {} ) {{ {} }}", name, args, body)
+            }
         }
     }
 }
@@ -129,35 +135,56 @@ impl MethodDefinition {
             .otherwise(|| {
                 let after_get = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_get, yield_flag, await_flag)?;
-                let after_open = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-                let after_close = scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb = scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                let after_open =
+                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                let after_close =
+                    scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_lb =
+                    scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_rb =
+                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::Getter(pn, body)), after_rb))
             })
             .otherwise(|| {
                 let after_set = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_set, yield_flag, await_flag)?;
-                let after_open = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                let after_open =
+                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (args, after_args) = PropertySetParameterList::parse(parser, after_open)?;
-                let after_close = scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb = scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                let after_close =
+                    scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_lb =
+                    scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_rb =
+                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::Setter(pn, args, body)), after_rb))
             })
-            .otherwise(|| AsyncMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::Async(node)), scan)))
-            .otherwise(|| AsyncGeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::AsyncGenerator(node)), scan)))
-            .otherwise(|| GeneratorMethod::parse(parser, scanner, yield_flag, await_flag).map(|(node, scan)| (Rc::new(MethodDefinition::Generator(node)), scan)))
+            .otherwise(|| {
+                AsyncMethod::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(node, scan)| (Rc::new(MethodDefinition::Async(node)), scan))
+            })
+            .otherwise(|| {
+                AsyncGeneratorMethod::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(node, scan)| (Rc::new(MethodDefinition::AsyncGenerator(node)), scan))
+            })
+            .otherwise(|| {
+                GeneratorMethod::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(node, scan)| (Rc::new(MethodDefinition::Generator(node)), scan))
+            })
             .otherwise(|| {
                 let (name, after_name) = ClassElementName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                let after_lp =
+                    scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (ufp, after_ufp) = UniqueFormalParameters::parse(parser, after_lp, false, false);
-                let after_rp = scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                let after_rp =
+                    scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                let after_lb =
+                    scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                let after_rb =
+                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::NamedFunction(name, ufp, body)), after_rb))
             })
     }
@@ -176,12 +203,16 @@ impl MethodDefinition {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            MethodDefinition::NamedFunction(name, params, body) => name.contains(kind) || params.contains(kind) || body.contains(kind),
+            MethodDefinition::NamedFunction(name, params, body) => {
+                name.contains(kind) || params.contains(kind) || body.contains(kind)
+            }
             MethodDefinition::Generator(node) => node.contains(kind),
             MethodDefinition::Async(node) => node.contains(kind),
             MethodDefinition::AsyncGenerator(node) => node.contains(kind),
             MethodDefinition::Getter(name, body) => name.contains(kind) || body.contains(kind),
-            MethodDefinition::Setter(name, args, body) => name.contains(kind) || args.contains(kind) || body.contains(kind),
+            MethodDefinition::Setter(name, args, body) => {
+                name.contains(kind) || args.contains(kind) || body.contains(kind)
+            }
         }
     }
 
@@ -203,7 +234,9 @@ impl MethodDefinition {
             // MethodDefinition : get ClassElementName ( ) { FunctionBody }
             // MethodDefinition : set ClassElementName ( PropertySetParameterList ) { FunctionBody }
             //  1. Return PrivateBoundIdentifiers of ClassElementName.
-            MethodDefinition::NamedFunction(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Normal)),
+            MethodDefinition::NamedFunction(cen, _, _) => {
+                cen.private_bound_identifier().map(|s| (s, MethodType::Normal))
+            }
             MethodDefinition::Getter(cen, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Getter)),
             MethodDefinition::Setter(cen, _, _) => cen.private_bound_identifier().map(|s| (s, MethodType::Setter)),
 
@@ -230,13 +263,21 @@ impl MethodDefinition {
         //  2. Return true.
         match self {
             MethodDefinition::NamedFunction(name, params, body) => {
-                name.all_private_identifiers_valid(names) && params.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names)
+                name.all_private_identifiers_valid(names)
+                    && params.all_private_identifiers_valid(names)
+                    && body.all_private_identifiers_valid(names)
             }
             MethodDefinition::Generator(node) => node.all_private_identifiers_valid(names),
             MethodDefinition::Async(node) => node.all_private_identifiers_valid(names),
             MethodDefinition::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
-            MethodDefinition::Getter(name, body) => name.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
-            MethodDefinition::Setter(name, args, body) => name.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names),
+            MethodDefinition::Getter(name, body) => {
+                name.all_private_identifiers_valid(names) && body.all_private_identifiers_valid(names)
+            }
+            MethodDefinition::Setter(name, args, body) => {
+                name.all_private_identifiers_valid(names)
+                    && args.all_private_identifiers_valid(names)
+                    && body.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -253,7 +294,9 @@ impl MethodDefinition {
         //      set ClassElementName ( PropertySetParameterList ) { FunctionBody }
         //  1. Return ContainsArguments of ClassElementName.
         match self {
-            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => cen.contains_arguments(),
+            MethodDefinition::NamedFunction(cen, _, _)
+            | MethodDefinition::Getter(cen, _)
+            | MethodDefinition::Setter(cen, _, _) => cen.contains_arguments(),
             MethodDefinition::Generator(gm) => gm.contains_arguments(),
             MethodDefinition::Async(am) => am.contains_arguments(),
             MethodDefinition::AsyncGenerator(agm) => agm.contains_arguments(),
@@ -297,7 +340,10 @@ impl MethodDefinition {
                 //      * It is a Syntax Error if any element of the BoundNames of UniqueFormalParameters also occurs in
                 //        the LexicallyDeclaredNames of FunctionBody.
                 if fb.function_body_contains_use_strict() && !ufp.is_simple_parameter_list() {
-                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Illegal 'use strict' directive in function with non-simple parameter list",
+                    ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
@@ -321,7 +367,10 @@ impl MethodDefinition {
                     errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
                 }
                 if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
-                    errs.push(create_syntax_error_object(agent, "Illegal 'use strict' directive in function with non-simple parameter list"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Illegal 'use strict' directive in function with non-simple parameter list",
+                    ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in bn.into_iter().filter(|n| ldn.contains(n)) {
@@ -347,7 +396,9 @@ impl MethodDefinition {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
-            MethodDefinition::NamedFunction(cen, _, _) | MethodDefinition::Getter(cen, _) | MethodDefinition::Setter(cen, _, _) => {
+            MethodDefinition::NamedFunction(cen, _, _)
+            | MethodDefinition::Getter(cen, _)
+            | MethodDefinition::Setter(cen, _, _) => {
                 // MethodDefinition :
                 //      ClassElementName ( UniqueFormalParameters ) { FunctionBody }
                 //      get ClassElementName ( ) { FunctionBody }
@@ -404,7 +455,8 @@ impl PrettyPrint for PropertySetParameterList {
 
 impl PropertySetParameterList {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        FormalParameter::parse(parser, scanner, false, false).map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
+        FormalParameter::parse(parser, scanner, false, false)
+            .map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

@@ -14,7 +14,10 @@ use block::{Block, StatementList};
 use class_definitions::ClassTail;
 use comma_operator::Expression;
 use counter::Counter;
-use declarations_and_variables::{BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding, VariableDeclarationList};
+use declarations_and_variables::{
+    BindingElement, BindingPattern, BindingRestElement, BindingRestProperty, LexicalDeclaration, SingleNameBinding,
+    VariableDeclarationList,
+};
 use function_definitions::{FunctionBody, FunctionDeclaration};
 use generator_function_definitions::GeneratorBody;
 use identifiers::{BindingIdentifier, Identifier, IdentifierReference, LabelIdentifier};
@@ -22,7 +25,10 @@ use iteration_statements::ForBinding;
 use left_hand_side_expressions::{Arguments, CallExpression, LeftHandSideExpression, MemberExpression, MetaProperty};
 use method_definitions::MethodDefinition;
 use parameter_lists::{FormalParameter, FormalParameters, UniqueFormalParameters};
-use primary_expressions::{CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName, TemplateLiteral};
+use primary_expressions::{
+    CoverParenthesizedExpressionAndArrowParameterList, Elisions, Initializer, LiteralPropertyName, PropertyName,
+    TemplateLiteral,
+};
 use statements_and_declarations::Statement;
 use std::cmp;
 use std::cmp::Ordering;
@@ -280,8 +286,10 @@ pub struct Parser<'a> {
     pub catch_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
     pub class_tail_cache: AHashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
     pub coalesce_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
-    pub cover_call_expression_and_async_arrow_head_cache: AHashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
-    pub cpeaapl_cache: AHashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
+    pub cover_call_expression_and_async_arrow_head_cache:
+        AHashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
+    pub cpeaapl_cache:
+        AHashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
     pub elision_cache: AHashMap<Scanner, ParseResult<Elisions>, RandomState>,
     pub expression_body_cache: AHashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
     pub expression_cache: AHashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
@@ -345,7 +353,11 @@ impl From<&Scanner> for Location {
 
 impl From<Scanner> for Location {
     fn from(src: Scanner) -> Location {
-        Location { starting_line: src.line, starting_column: src.column, span: Span { starting_index: src.start_idx, length: 0 } }
+        Location {
+            starting_line: src.line,
+            starting_column: src.column,
+            span: Span { starting_index: src.start_idx, length: 0 },
+        }
     }
 }
 
@@ -401,19 +413,35 @@ impl fmt::Display for PECode {
             PECode::ImproperNewline => f.write_str("newline not allowed here"),
             PECode::InvalidIdentifier => f.write_str("not an identifier"),
             PECode::KeywordExpected(kwd) => write!(f, "‘{}’ expected", kwd),
-            PECode::KeywordUsedAsIdentifier(kwd) => write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd),
-            PECode::OneOfKeywordExpected(kwd_set) => write!(f, "one of [{}] expected", itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")),
-            PECode::OneOfPunctuatorExpected(punct_set) => write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", ")),
+            PECode::KeywordUsedAsIdentifier(kwd) => {
+                write!(f, "‘{}’ is a reserved word and may not be used as an identifier", kwd)
+            }
+            PECode::OneOfKeywordExpected(kwd_set) => write!(
+                f,
+                "one of [{}] expected",
+                itertools::join(kwd_set.iter().map(|&kwd| format!("‘{}’", kwd)), ", ")
+            ),
+            PECode::OneOfPunctuatorExpected(punct_set) => {
+                write!(f, "one of [{}] expected", itertools::join(punct_set.iter().map(|&p| format!("‘{}’", p)), ", "))
+            }
             PECode::PunctuatorExpected(p) => write!(f, "‘{}’ expected", p),
-            PECode::AssignmentExpressionOrSpreadElementExpected => f.write_str("AssignmentExpression or SpreadElement expected"),
+            PECode::AssignmentExpressionOrSpreadElementExpected => {
+                f.write_str("AssignmentExpression or SpreadElement expected")
+            }
             PECode::CommaLeftBracketElementListExpected => f.write_str("‘,’, ‘]’, or an ElementList expected"),
             PECode::IdentifierStringNumberExpected => f.write_str("Identifier, String, or Number expected"),
-            PECode::ExpressionSpreadOrRPExpected => f.write_str("Expression, spread pattern, or closing paren expected"),
+            PECode::ExpressionSpreadOrRPExpected => {
+                f.write_str("Expression, spread pattern, or closing paren expected")
+            }
             PECode::BindingIdOrPatternExpected => f.write_str("BindingIdentifier or BindingPattern expected"),
             PECode::NewOrMEExpected => f.write_str("‘new’ or MemberExpression expected"),
-            PECode::ChainFailed => f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)"),
+            PECode::ChainFailed => {
+                f.write_str("‘(’, ‘[’, ‘`’, or an identifier name was expected (optional chaining failed)")
+            }
             PECode::IdOrFormalsExpected => f.write_str("Identifier or Formal Parameters expected"),
-            PECode::ObjectAssignmentPatternEndFailure => f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected"),
+            PECode::ObjectAssignmentPatternEndFailure => {
+                f.write_str("‘}’, an AssignmentRestProperty, or an AssignmentPropertyList expected")
+            }
             PECode::ArrayAssignmentPatternEndFailure => f.write_str("‘,’, ‘]’, or an AssignmentElementList expected"),
             PECode::IdRefOrPropertyNameExpected => f.write_str("IdentifierReference or PropertyName expected"),
             PECode::InvalidCoalesceExpression => f.write_str("Invalid Coalesce Expression"),
@@ -508,7 +536,12 @@ pub fn scan_for_punct(scanner: Scanner, src: &str, goal: ScanGoal, punct: Punctu
     }
 }
 
-pub fn scan_for_punct_set(scanner: Scanner, src: &str, goal: ScanGoal, punct_set: &[Punctuator]) -> Result<(Punctuator, Scanner), ParseError> {
+pub fn scan_for_punct_set(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    punct_set: &[Punctuator],
+) -> Result<(Punctuator, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&p) = punct_set.iter().find(|&p| tok.matches_punct(*p)) {
         Ok((p, after_tok))
@@ -538,7 +571,12 @@ pub fn scan_for_keyword(scanner: Scanner, src: &str, goal: ScanGoal, kwd: Keywor
     }
 }
 
-pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Keyword]) -> Result<(Keyword, Scanner), ParseError> {
+pub fn scan_for_keywords(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+    kwds: &[Keyword],
+) -> Result<(Keyword, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Some(&k) = kwds.iter().find(|&k| tok.matches_keyword(*k)) {
         Ok((k, after_tok))
@@ -547,7 +585,11 @@ pub fn scan_for_keywords(scanner: Scanner, src: &str, goal: ScanGoal, kwds: &[Ke
     }
 }
 
-pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
+pub fn scan_for_identifiername(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+) -> Result<(IdentifierData, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
         Ok((id, after_tok))
@@ -556,7 +598,11 @@ pub fn scan_for_identifiername(scanner: Scanner, src: &str, goal: ScanGoal) -> R
     }
 }
 
-pub fn scan_for_private_identifier(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(IdentifierData, Scanner), ParseError> {
+pub fn scan_for_private_identifier(
+    scanner: Scanner,
+    src: &str,
+    goal: ScanGoal,
+) -> Result<(IdentifierData, Scanner), ParseError> {
     let (tok, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
         Ok((id, after_tok))
@@ -619,7 +665,10 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
             let potential_script = Script::parse(&mut parser, Scanner::new());
             match potential_script {
                 Err(pe) => {
-                    let syntax_error = create_syntax_error_object(agent, format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str());
+                    let syntax_error = create_syntax_error_object(
+                        agent,
+                        format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
+                    );
                     ParsedText::Errors(vec![syntax_error])
                 }
                 Ok((node, _)) => {
@@ -648,7 +697,13 @@ pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
         iter.next();
         iter.next().map(|(n, _)| n)
     }
-    let mut duplicates = idents.iter().collect::<Counter<_>>().into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| (s, second_spot(s, idents).unwrap())).collect::<Vec<_>>();
+    let mut duplicates = idents
+        .iter()
+        .collect::<Counter<_>>()
+        .into_iter()
+        .filter(|&(_, n)| n > 1)
+        .map(|(s, _)| (s, second_spot(s, idents).unwrap()))
+        .collect::<Vec<_>>();
 
     duplicates.sort_unstable_by_key(|&(_, n)| n);
 

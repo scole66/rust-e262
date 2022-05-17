@@ -46,7 +46,11 @@ fn agent_pop_execution_context() {
     let mut agent = test_agent();
     let realm_ref = agent.current_realm_record().unwrap();
     // build a new EC, and add it to the EC stack
-    let sr = ScriptRecord { realm: realm_ref.clone(), ecmascript_code: Maker::new("").script(), compiled: Rc::new(Chunk::new("test")) };
+    let sr = ScriptRecord {
+        realm: realm_ref.clone(),
+        ecmascript_code: Maker::new("").script(),
+        compiled: Rc::new(Chunk::new("test")),
+    };
     let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
     agent.push_execution_context(test_ec);
     // now pop it.

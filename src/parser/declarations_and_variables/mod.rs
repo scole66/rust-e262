@@ -49,8 +49,15 @@ impl PrettyPrint for LexicalDeclaration {
 }
 
 impl LexicalDeclaration {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (kwd, after_tok) = scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (kwd, after_tok) =
+            scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match kwd {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
@@ -60,7 +67,13 @@ impl LexicalDeclaration {
         Ok((Rc::new(LexicalDeclaration::List(loc, bl)), after_semi))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.lexical_declaration_cache.get(&key) {
             Some(result) => result.clone(),
@@ -130,7 +143,10 @@ impl LexicalDeclaration {
         let mut dup_ids = counts.into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| String::from(s)).collect::<Vec<_>>();
         if !dup_ids.is_empty() {
             dup_ids.sort_unstable();
-            errs.push(create_syntax_error_object(agent, format!("Duplicate binding identifiers: ‘{}’", dup_ids.join("’, ‘"))));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("Duplicate binding identifiers: ‘{}’", dup_ids.join("’, ‘")),
+            ));
         }
 
         bl.early_errors(agent, errs, strict, self.is_constant_declaration());
@@ -235,12 +251,19 @@ impl PrettyPrint for BindingList {
 
 impl BindingList {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (lb, after_lb) = LexicalBinding::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
-        while let Ok((lb2, after_lb2)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
+        while let Ok((lb2, after_lb2)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
         {
             current = Rc::new(BindingList::List(current, lb2));
             current_scanner = after_lb2;
@@ -275,7 +298,9 @@ impl BindingList {
         //  2. Return true.
         match self {
             BindingList::Item(node) => node.all_private_identifiers_valid(names),
-            BindingList::List(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            BindingList::List(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -372,7 +397,13 @@ impl PrettyPrint for LexicalBinding {
 
 impl LexicalBinding {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LexicalBinding), scanner))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -398,7 +429,9 @@ impl LexicalBinding {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
+            LexicalBinding::Identifier(bi, opt) => {
+                bi.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
+            }
             LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
         }
     }
@@ -413,7 +446,9 @@ impl LexicalBinding {
         match self {
             LexicalBinding::Identifier(_, Some(node)) => node.all_private_identifiers_valid(names),
             LexicalBinding::Identifier(_, None) => true,
-            LexicalBinding::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            LexicalBinding::Pattern(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -568,7 +603,9 @@ impl fmt::Display for VariableDeclarationList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VariableDeclarationList::Item(node) => node.fmt(f),
-            VariableDeclarationList::List(lst, item) => write!(f, "{} , {}", lst, item),
+            VariableDeclarationList::List(lst, item) => {
+                write!(f, "{} , {}", lst, item)
+            }
         }
     }
 }
@@ -607,12 +644,20 @@ impl PrettyPrint for VariableDeclarationList {
 }
 
 impl VariableDeclarationList {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (decl, after_dcl) = VariableDeclaration::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         let mut current = Rc::new(VariableDeclarationList::Item(decl));
         let mut current_scanner = after_dcl;
-        while let Ok((next, after_next)) = scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag))
+        while let Ok((next, after_next)) =
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                |after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
+            )
         {
             current = Rc::new(VariableDeclarationList::List(current, next));
             current_scanner = after_next;
@@ -620,7 +665,13 @@ impl VariableDeclarationList {
         Ok((current, current_scanner))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = InYieldAwaitKey { scanner, in_flag, yield_flag, await_flag };
         match parser.variable_declaration_list_cache.get(&key) {
             Some(result) => result.clone(),
@@ -659,7 +710,9 @@ impl VariableDeclarationList {
         //  2. Return true.
         match self {
             VariableDeclarationList::Item(node) => node.all_private_identifiers_valid(names),
-            VariableDeclarationList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            VariableDeclarationList::List(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -695,7 +748,9 @@ impl VariableDeclarationList {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
-            VariableDeclarationList::Item(vd) => vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))],
+            VariableDeclarationList::Item(vd) => {
+                vec![VarScopeDecl::VariableDeclaration(Rc::clone(vd))]
+            }
             VariableDeclarationList::List(vdl, vd) => {
                 let mut list = vdl.var_scoped_declarations();
                 list.push(VarScopeDecl::VariableDeclaration(Rc::clone(vd)));
@@ -770,7 +825,13 @@ impl PrettyPrint for VariableDeclaration {
 
 impl VariableDeclaration {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::VariableDeclaration), scanner))
             .otherwise(|| {
                 let (bi, after_bi) = BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
@@ -813,7 +874,9 @@ impl VariableDeclaration {
         match self {
             VariableDeclaration::Identifier(_, None) => true,
             VariableDeclaration::Identifier(_, Some(node)) => node.all_private_identifiers_valid(names),
-            VariableDeclaration::Pattern(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            VariableDeclaration::Pattern(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -895,8 +958,14 @@ impl PrettyPrint for BindingPattern {
 impl BindingPattern {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingPattern), scanner))
-            .otherwise(|| ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(obp, after_obp)| (Rc::new(BindingPattern::Object(obp)), after_obp)))
-            .otherwise(|| ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag).map(|(abp, after_abp)| (Rc::new(BindingPattern::Array(abp)), after_abp)))
+            .otherwise(|| {
+                ObjectBindingPattern::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(obp, after_obp)| (Rc::new(BindingPattern::Object(obp)), after_obp))
+            })
+            .otherwise(|| {
+                ArrayBindingPattern::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(abp, after_abp)| (Rc::new(BindingPattern::Array(abp)), after_abp))
+            })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -982,7 +1051,9 @@ impl fmt::Display for ObjectBindingPattern {
             ObjectBindingPattern::Empty => write!(f, "{{ }}"),
             ObjectBindingPattern::RestOnly(node) => write!(f, "{{ {} }}", node),
             ObjectBindingPattern::ListOnly(node) => write!(f, "{{ {} }}", node),
-            ObjectBindingPattern::ListRest(lst, Some(rst)) => write!(f, "{{ {} , {} }}", lst, rst),
+            ObjectBindingPattern::ListRest(lst, Some(rst)) => {
+                write!(f, "{{ {} , {} }}", lst, rst)
+            }
             ObjectBindingPattern::ListRest(lst, None) => write!(f, "{{ {} , }}", lst),
         }
     }
@@ -1040,33 +1111,68 @@ impl ObjectBindingPattern {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ObjectBindingPattern), scanner)).otherwise(|| {
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(|after_open| {
-                scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                    .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
-                    .otherwise(|| {
-                        BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(|(brp, after_brp)| {
-                            scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                                .map(|after_close| (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close))
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(
+                |after_open| {
+                    scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
+                        .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
+                        .otherwise(|| {
+                            BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(
+                                |(brp, after_brp)| {
+                                    scan_for_punct(
+                                        after_brp,
+                                        parser.source,
+                                        ScanGoal::InputElementRegExp,
+                                        Punctuator::RightBrace,
+                                    )
+                                    .map(|after_close| (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close))
+                                },
+                            )
                         })
-                    })
-                    .otherwise(|| {
-                        BindingPropertyList::parse(parser, after_open, yield_flag, await_flag).and_then(|(bpl, after_bpl)| {
-                            match scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_close| (None, after_close)).otherwise(|| {
-                                scan_for_punct(after_bpl, parser.source, ScanGoal::InputElementRegExp, Punctuator::Comma).and_then(|after_comma| {
-                                    let (brp, after_brp) = match BindingRestProperty::parse(parser, after_comma, yield_flag, await_flag) {
-                                        Err(_) => (None, after_comma),
-                                        Ok((node, s)) => (Some(node), s),
-                                    };
-                                    scan_for_punct(after_brp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace).map(|after_final| (Some(brp), after_final))
-                                })
-                            }) {
-                                Ok((None, after)) => Ok((Rc::new(ObjectBindingPattern::ListOnly(bpl)), after)),
-                                Ok((Some(brp), after)) => Ok((Rc::new(ObjectBindingPattern::ListRest(bpl, brp)), after)),
-                                Err(e) => Err(e),
-                            }
+                        .otherwise(|| {
+                            BindingPropertyList::parse(parser, after_open, yield_flag, await_flag).and_then(
+                                |(bpl, after_bpl)| match scan_for_punct(
+                                    after_bpl,
+                                    parser.source,
+                                    ScanGoal::InputElementRegExp,
+                                    Punctuator::RightBrace,
+                                )
+                                .map(|after_close| (None, after_close))
+                                .otherwise(|| {
+                                    scan_for_punct(
+                                        after_bpl,
+                                        parser.source,
+                                        ScanGoal::InputElementRegExp,
+                                        Punctuator::Comma,
+                                    )
+                                    .and_then(|after_comma| {
+                                        let (brp, after_brp) = match BindingRestProperty::parse(
+                                            parser,
+                                            after_comma,
+                                            yield_flag,
+                                            await_flag,
+                                        ) {
+                                            Err(_) => (None, after_comma),
+                                            Ok((node, s)) => (Some(node), s),
+                                        };
+                                        scan_for_punct(
+                                            after_brp,
+                                            parser.source,
+                                            ScanGoal::InputElementRegExp,
+                                            Punctuator::RightBrace,
+                                        )
+                                        .map(|after_final| (Some(brp), after_final))
+                                    })
+                                }) {
+                                    Ok((None, after)) => Ok((Rc::new(ObjectBindingPattern::ListOnly(bpl)), after)),
+                                    Ok((Some(brp), after)) => {
+                                        Ok((Rc::new(ObjectBindingPattern::ListRest(bpl, brp)), after))
+                                    }
+                                    Err(e) => Err(e),
+                                },
+                            )
                         })
-                    })
-            })
+                },
+            )
         })
     }
 
@@ -1103,7 +1209,9 @@ impl ObjectBindingPattern {
         //  2. Return true.
         match self {
             ObjectBindingPattern::Empty | ObjectBindingPattern::RestOnly(_) => true,
-            ObjectBindingPattern::ListOnly(node) | ObjectBindingPattern::ListRest(node, _) => node.all_private_identifiers_valid(names),
+            ObjectBindingPattern::ListOnly(node) | ObjectBindingPattern::ListRest(node, _) => {
+                node.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1152,17 +1260,29 @@ pub enum ArrayBindingPattern {
 impl fmt::Display for ArrayBindingPattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => write!(f, "[ {} {} ]", elisions, node),
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => write!(f, "[ {} ]", elisions),
-            ArrayBindingPattern::RestOnly(None, Some(node)) => write!(f, "[ {} ]", node),
+            ArrayBindingPattern::RestOnly(Some(elisions), Some(node)) => {
+                write!(f, "[ {} {} ]", elisions, node)
+            }
+            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+                write!(f, "[ {} ]", elisions)
+            }
+            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+                write!(f, "[ {} ]", node)
+            }
             ArrayBindingPattern::RestOnly(None, None) => write!(f, "[ ]"),
             ArrayBindingPattern::ListOnly(node) => write!(f, "[ {} ]", node),
             ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
                 write!(f, "[ {} , {} {} ]", lst, elisions, rst)
             }
-            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => write!(f, "[ {} , {} ]", lst, rst),
-            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => write!(f, "[ {} , {} ]", lst, elisions),
-            ArrayBindingPattern::ListRest(lst, None, None) => write!(f, "[ {} , ]", lst),
+            ArrayBindingPattern::ListRest(lst, None, Some(rst)) => {
+                write!(f, "[ {} , {} ]", lst, rst)
+            }
+            ArrayBindingPattern::ListRest(lst, Some(elisions), None) => {
+                write!(f, "[ {} , {} ]", lst, elisions)
+            }
+            ArrayBindingPattern::ListRest(lst, None, None) => {
+                write!(f, "[ {} , ]", lst)
+            }
         }
     }
 }
@@ -1179,8 +1299,12 @@ impl PrettyPrint for ArrayBindingPattern {
                 elisions.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayBindingPattern::RestOnly(Some(elisions), None) => elisions.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayBindingPattern::RestOnly(None, Some(node)) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            ArrayBindingPattern::RestOnly(Some(elisions), None) => {
+                elisions.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayBindingPattern::RestOnly(None, Some(node)) => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
             ArrayBindingPattern::RestOnly(None, None) => Ok(()),
             ArrayBindingPattern::ListOnly(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
             ArrayBindingPattern::ListRest(lst, Some(elisions), Some(rst)) => {
@@ -1250,30 +1374,43 @@ impl PrettyPrint for ArrayBindingPattern {
 impl ArrayBindingPattern {
     // ArrayBindingPattern's only parent is BindingPattern. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_first = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+        let after_first =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
-                scan_for_punct_set(after_bel, parser.source, ScanGoal::InputElementRegExp, &[Punctuator::RightBracket, Punctuator::Comma]).and_then(|(punct_next, after_next)| {
-                    match punct_next {
-                        Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
-                        _ => {
-                            let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
-                                Err(_) => (None, after_next),
-                                Ok((e, s)) => (Some(e), s),
-                            };
-                            let (bre, after_bre, err_bre) = match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                scan_for_punct_set(
+                    after_bel,
+                    parser.source,
+                    ScanGoal::InputElementRegExp,
+                    &[Punctuator::RightBracket, Punctuator::Comma],
+                )
+                .and_then(|(punct_next, after_next)| match punct_next {
+                    Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
+                    _ => {
+                        let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
+                            Err(_) => (None, after_next),
+                            Ok((e, s)) => (Some(e), s),
+                        };
+                        let (bre, after_bre, err_bre) =
+                            match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
                                 Err(err) => (None, after_elisions, Some(err)),
                                 Ok((b, s)) => (Some(b), s, None),
                             };
-                            match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
-                                Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close)),
-                                Err(pe) => {
-                                    let mut err = Some(pe);
-                                    if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
-                                        err = err_bre;
-                                    }
-                                    Err(err.unwrap())
+                        match scan_for_punct(
+                            after_bre,
+                            parser.source,
+                            ScanGoal::InputElementRegExp,
+                            Punctuator::RightBracket,
+                        ) {
+                            Ok(after_close) => {
+                                Ok((Rc::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close))
+                            }
+                            Err(pe) => {
+                                let mut err = Some(pe);
+                                if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
+                                    err = err_bre;
                                 }
+                                Err(err.unwrap())
                             }
                         }
                     }
@@ -1284,10 +1421,11 @@ impl ArrayBindingPattern {
                     Err(_) => (None, after_first),
                     Ok((e, s)) => (Some(e), s),
                 };
-                let (bre, after_bre, err_bre) = match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
-                    Err(err) => (None, after_elisions, Some(err)),
-                    Ok((b, s)) => (Some(b), s, None),
-                };
+                let (bre, after_bre, err_bre) =
+                    match BindingRestElement::parse(parser, after_elisions, yield_flag, await_flag) {
+                        Err(err) => (None, after_elisions, Some(err)),
+                        Ok((b, s)) => (Some(b), s, None),
+                    };
                 match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
                     Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close)),
                     Err(pe) => {
@@ -1317,10 +1455,15 @@ impl ArrayBindingPattern {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayBindingPattern::RestOnly(onode_a, onode_b) => onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind)),
+            ArrayBindingPattern::RestOnly(onode_a, onode_b) => {
+                onode_a.as_ref().map_or(false, |node| node.contains(kind))
+                    || onode_b.as_ref().map_or(false, |node| node.contains(kind))
+            }
             ArrayBindingPattern::ListOnly(node) => node.contains(kind),
             ArrayBindingPattern::ListRest(node, onode_a, onode_b) => {
-                node.contains(kind) || onode_a.as_ref().map_or(false, |node| node.contains(kind)) || onode_b.as_ref().map_or(false, |node| node.contains(kind))
+                node.contains(kind)
+                    || onode_a.as_ref().map_or(false, |node| node.contains(kind))
+                    || onode_b.as_ref().map_or(false, |node| node.contains(kind))
             }
         }
     }
@@ -1333,9 +1476,14 @@ impl ArrayBindingPattern {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrayBindingPattern::RestOnly(_, onode) => onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)),
+            ArrayBindingPattern::RestOnly(_, onode) => {
+                onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+            }
             ArrayBindingPattern::ListOnly(node) => node.all_private_identifiers_valid(names),
-            ArrayBindingPattern::ListRest(node, _, onode) => node.all_private_identifiers_valid(names) && onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names)),
+            ArrayBindingPattern::ListRest(node, _, onode) => {
+                node.all_private_identifiers_valid(names)
+                    && onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+            }
         }
     }
 
@@ -1353,7 +1501,9 @@ impl ArrayBindingPattern {
         match self {
             ArrayBindingPattern::RestOnly(_, obre) => obre.as_ref().map_or(false, |bre| bre.contains_arguments()),
             ArrayBindingPattern::ListOnly(bel) => bel.contains_arguments(),
-            ArrayBindingPattern::ListRest(bel, _, obre) => bel.contains_arguments() || obre.as_ref().map_or(false, |bre| bre.contains_arguments()),
+            ArrayBindingPattern::ListRest(bel, _, obre) => {
+                bel.contains_arguments() || obre.as_ref().map_or(false, |bre| bre.contains_arguments())
+            }
         }
     }
 
@@ -1500,8 +1650,9 @@ impl BindingPropertyList {
         let (bp, after_bp) = BindingProperty::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingPropertyList::Item(bp));
         let mut current_scan = after_bp;
-        while let Ok((bp2, after_bp2)) = scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-            .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
+        while let Ok((bp2, after_bp2)) =
+            scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
         {
             current = Rc::new(BindingPropertyList::List(current, bp2));
             current_scan = after_bp2;
@@ -1536,7 +1687,9 @@ impl BindingPropertyList {
         //  2. Return true.
         match self {
             BindingPropertyList::Item(node) => node.all_private_identifiers_valid(names),
-            BindingPropertyList::List(lst, item) => lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names),
+            BindingPropertyList::List(lst, item) => {
+                lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1668,7 +1821,9 @@ impl BindingElementList {
         //  2. Return true.
         match self {
             BindingElementList::Item(node) => node.all_private_identifiers_valid(names),
-            BindingElementList::List(l, i) => l.all_private_identifiers_valid(names) && i.all_private_identifiers_valid(names),
+            BindingElementList::List(l, i) => {
+                l.all_private_identifiers_valid(names) && i.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1711,7 +1866,9 @@ impl fmt::Display for BindingElisionElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             BindingElisionElement::Element(None, elem) => elem.fmt(f),
-            BindingElisionElement::Element(Some(elision), elem) => write!(f, "{} {}", elision, elem),
+            BindingElisionElement::Element(Some(elision), elem) => {
+                write!(f, "{} {}", elision, elem)
+            }
         }
     }
 }
@@ -1858,7 +2015,8 @@ impl BindingProperty {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingProperty), scanner))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_token = scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                let after_token =
+                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (be, after_be) = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
                 Ok((Rc::new(BindingProperty::Property(pn, be)), after_be))
             })
@@ -1891,7 +2049,9 @@ impl BindingProperty {
         //  2. Return true.
         match self {
             BindingProperty::Single(node) => node.all_private_identifiers_valid(names),
-            BindingProperty::Property(node1, node2) => node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names),
+            BindingProperty::Property(node1, node2) => {
+                node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1937,7 +2097,9 @@ impl fmt::Display for BindingElement {
         match self {
             BindingElement::Single(node) => node.fmt(f),
             BindingElement::Pattern(node, None) => node.fmt(f),
-            BindingElement::Pattern(node, Some(init)) => write!(f, "{} {}", node, init),
+            BindingElement::Pattern(node, Some(init)) => {
+                write!(f, "{} {}", node, init)
+            }
         }
     }
 }
@@ -2028,7 +2190,10 @@ impl BindingElement {
         //  2. Return true.
         match self {
             BindingElement::Single(n) => n.all_private_identifiers_valid(names),
-            BindingElement::Pattern(n, opt) => n.all_private_identifiers_valid(names) && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names)),
+            BindingElement::Pattern(n, opt) => {
+                n.all_private_identifiers_valid(names)
+                    && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+            }
         }
     }
 
@@ -2045,7 +2210,9 @@ impl BindingElement {
         //  2. Return false.
         match self {
             BindingElement::Single(snb) => snb.contains_arguments(),
-            BindingElement::Pattern(bp, oizer) => bp.contains_arguments() || oizer.as_ref().map_or(false, |izer| izer.contains_arguments()),
+            BindingElement::Pattern(bp, oizer) => {
+                bp.contains_arguments() || oizer.as_ref().map_or(false, |izer| izer.contains_arguments())
+            }
         }
     }
 
@@ -2254,8 +2421,14 @@ impl BindingRestElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
-            .otherwise(|| BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp)))
-            .otherwise(|| BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi)))
+            .otherwise(|| {
+                BindingPattern::parse(parser, after_tok, yield_flag, await_flag)
+                    .map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp))
+            })
+            .otherwise(|| {
+                BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag)
+                    .map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi))
+            })
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {

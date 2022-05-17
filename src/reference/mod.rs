@@ -266,7 +266,9 @@ pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<
                 }
             }
             Base::Unresolvable => Err(create_reference_error(agent, "Unresolvable Reference")),
-            Base::Environment(env) => env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict),
+            Base::Environment(env) => {
+                env.get_binding_value(agent, &reference.referenced_name.try_into().unwrap(), reference.strict)
+            }
         },
         NormalCompletion::Empty => Err(create_reference_error(agent, "Unresolvable Reference")),
     }
@@ -298,7 +300,11 @@ pub fn get_value(agent: &mut Agent, v_completion: FullCompletion) -> Completion<
 // NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(agent: &mut Agent, v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
+pub fn put_value(
+    agent: &mut Agent,
+    v_completion: FullCompletion,
+    w_completion: Completion<ECMAScriptValue>,
+) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
@@ -329,7 +335,9 @@ pub fn put_value(agent: &mut Agent, v_completion: FullCompletion, w_completion: 
                     }
                 }
             }
-            Base::Environment(env) => env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict),
+            Base::Environment(env) => {
+                env.set_mutable_binding(agent, r.referenced_name.try_into().unwrap(), w, r.strict)
+            }
         },
     }
 }
@@ -346,12 +354,18 @@ pub fn put_value(agent: &mut Agent, v_completion: FullCompletion, w_completion: 
 //  5. Let base be V.[[Base]].
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
-pub fn initialize_referenced_binding(agent: &mut Agent, v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
+pub fn initialize_referenced_binding(
+    agent: &mut Agent,
+    v_completion: FullCompletion,
+    w_completion: Completion<ECMAScriptValue>,
+) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
         NormalCompletion::Reference(reference) => match &reference.base {
-            Base::Environment(base) => base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w),
+            Base::Environment(base) => {
+                base.initialize_binding(agent, &reference.referenced_name.try_into().unwrap(), w)
+            }
             _ => unreachable!(),
         },
         _ => unreachable!(),

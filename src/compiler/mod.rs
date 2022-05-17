@@ -272,7 +272,9 @@ impl Literal {
                         }
                         '$' => {
                             // Fill the bigint table.
-                            chunk.bigints.resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
+                            chunk
+                                .bigints
+                                .resize(65536, Rc::new(BigInt::from(97687897890734187890106587314876543219_u128)));
                             chunk.op(Insn::False);
                         }
                         _ => (),
@@ -319,7 +321,11 @@ impl ObjectLiteral {
 }
 
 impl PropertyDefinitionList {
-    pub fn property_definition_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn property_definition_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.property_definition_evaluation(chunk, strict),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
@@ -332,14 +338,21 @@ impl PropertyDefinitionList {
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: first.can_be_abrupt || second.can_be_abrupt, can_be_reference: second.can_be_reference })
+                Ok(CompilerStatusFlags {
+                    can_be_abrupt: first.can_be_abrupt || second.can_be_abrupt,
+                    can_be_reference: second.can_be_reference,
+                })
             }
         }
     }
 }
 
 impl PropertyDefinition {
-    pub fn property_definition_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    pub fn property_definition_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             PropertyDefinition::IdentifierReference(idr) => {
                 // Stack: obj ...
@@ -527,7 +540,11 @@ impl ComputedPropertyName {
 
 impl MemberExpression {
     /// See [EvaluatePropertyAccessWithIdentifierKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
-    fn evaluate_property_access_with_identifier_key(chunk: &mut Chunk, identifier_name: &IdentifierData, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    fn evaluate_property_access_with_identifier_key(
+        chunk: &mut Chunk,
+        identifier_name: &IdentifierData,
+        strict: bool,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         // Stack: base ...
         let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
         chunk.op_plus_arg(Insn::String, idx);
@@ -538,7 +555,11 @@ impl MemberExpression {
     }
 
     /// See [EvaluatePropertyAccessWithExpressionKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-expression-key)
-    fn evaluate_property_access_with_expression_key(chunk: &mut Chunk, expression: &Rc<Expression>, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
+    fn evaluate_property_access_with_expression_key(
+        chunk: &mut Chunk,
+        expression: &Rc<Expression>,
+        strict: bool,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         let mut exits = vec![];
         // Stack: base ...
         let state = expression.compile(chunk, strict)?;
@@ -593,7 +614,10 @@ impl MemberExpression {
                 if let Some(mark) = mark {
                     chunk.fixup(mark).unwrap();
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || might_be_abrupt, can_be_reference: true })
+                Ok(CompilerStatusFlags {
+                    can_be_abrupt: status.can_be_abrupt || might_be_abrupt,
+                    can_be_reference: true,
+                })
             }
             MemberExpression::Expression(me, exp) => {
                 // Stack: ...
@@ -602,7 +626,11 @@ impl MemberExpression {
                 if status.can_be_reference {
                     chunk.op(Insn::GetValue);
                 }
-                let exit = if status.can_be_abrupt || status.can_be_reference { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status.can_be_abrupt || status.can_be_reference {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
                 // Stack: base ...
                 let status = Self::evaluate_property_access_with_expression_key(chunk, exp, strict)?;
                 // expressions are always: abrupt/ref, so we can avoid further boolean logic.
@@ -722,7 +750,11 @@ impl Arguments {
 }
 
 impl ArgumentList {
-    pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<(u16, CompilerStatusFlags)> {
+    pub fn argument_list_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+    ) -> anyhow::Result<(u16, CompilerStatusFlags)> {
         match self {
             ArgumentList::FallThru(item) => {
                 // Stack: ...
@@ -732,7 +764,13 @@ impl ArgumentList {
                     chunk.op(Insn::GetValue);
                 }
                 // Stack val/err ...
-                Ok((1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status.can_be_reference, can_be_reference: false }))
+                Ok((
+                    1,
+                    CompilerStatusFlags {
+                        can_be_abrupt: status.can_be_abrupt || status.can_be_reference,
+                        can_be_reference: false,
+                    },
+                ))
             }
             ArgumentList::Dots(_) => todo!(),
             ArgumentList::ArgumentList(lst, item) => {
@@ -755,7 +793,13 @@ impl ArgumentList {
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
                 }
-                Ok((prev_count + 1, CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference, can_be_reference: false }))
+                Ok((
+                    prev_count + 1,
+                    CompilerStatusFlags {
+                        can_be_abrupt: status.can_be_abrupt || status2.can_be_abrupt || status2.can_be_reference,
+                        can_be_reference: false,
+                    },
+                ))
             }
             ArgumentList::ArgumentListDots(_, _) => todo!(),
         }
@@ -763,7 +807,12 @@ impl ArgumentList {
 }
 
 impl UpdateExpression {
-    fn post_op(chunk: &mut Chunk, strict: bool, exp: &Rc<LeftHandSideExpression>, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+    fn post_op(
+        chunk: &mut Chunk,
+        strict: bool,
+        exp: &Rc<LeftHandSideExpression>,
+        insn: Insn,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         // Stack: ...
         let status = exp.compile(chunk, strict)?;
         assert!(status.can_be_reference); // Early errors eliminate non-refs
@@ -807,7 +856,12 @@ impl UpdateExpression {
         Ok(CompilerStatusFlags::new().abrupt())
     }
 
-    fn pre_op(chunk: &mut Chunk, strict: bool, exp: &Rc<UnaryExpression>, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+    fn pre_op(
+        chunk: &mut Chunk,
+        strict: bool,
+        exp: &Rc<UnaryExpression>,
+        insn: Insn,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         // Stack: ...
         exp.compile(chunk, strict)?;
         // Stack: exp/err
@@ -828,7 +882,12 @@ impl UpdateExpression {
 
 impl UnaryExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
-        fn unary_op(exp: &Rc<UnaryExpression>, chunk: &mut Chunk, strict: bool, insn: Insn) -> anyhow::Result<CompilerStatusFlags> {
+        fn unary_op(
+            exp: &Rc<UnaryExpression>,
+            chunk: &mut Chunk,
+            strict: bool,
+            insn: Insn,
+        ) -> anyhow::Result<CompilerStatusFlags> {
             exp.compile(chunk, strict)?;
             chunk.op(insn);
             Ok(CompilerStatusFlags::new().abrupt())
@@ -856,7 +915,11 @@ macro_rules! compile_binary_expression {
             $chunk.op(Insn::GetValue);
         }
         // Stack: err/val
-        let first_exit = if left_status.can_be_reference || left_status.can_be_abrupt { Some($chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let first_exit = if left_status.can_be_reference || left_status.can_be_abrupt {
+            Some($chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
         // Stack: val
         let right_status = $right.compile($chunk, $strict)?;
         // Stack: err/ref/val val ...
@@ -892,7 +955,9 @@ impl ExponentiationExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict),
-            ExponentiationExpression::Exponentiation(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Exponentiate),
+            ExponentiationExpression::Exponentiation(left, right) => {
+                compile_binary_expression!(chunk, strict, left, right, Insn::Exponentiate)
+            }
         }
     }
 }
@@ -901,17 +966,19 @@ impl MultiplicativeExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(left, op, right) => compile_binary_expression!(
-                chunk,
-                strict,
-                left,
-                right,
-                match **op {
-                    MultiplicativeOperator::Multiply => Insn::Multiply,
-                    MultiplicativeOperator::Divide => Insn::Divide,
-                    MultiplicativeOperator::Modulo => Insn::Modulo,
-                }
-            ),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(left, op, right) => {
+                compile_binary_expression!(
+                    chunk,
+                    strict,
+                    left,
+                    right,
+                    match **op {
+                        MultiplicativeOperator::Multiply => Insn::Multiply,
+                        MultiplicativeOperator::Divide => Insn::Divide,
+                        MultiplicativeOperator::Modulo => Insn::Modulo,
+                    }
+                )
+            }
         }
     }
 }
@@ -920,8 +987,12 @@ impl AdditiveExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AdditiveExpression::MultiplicativeExpression(me) => me.compile(chunk, strict),
-            AdditiveExpression::Add(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Add),
-            AdditiveExpression::Subtract(left, right) => compile_binary_expression!(chunk, strict, left, right, Insn::Subtract),
+            AdditiveExpression::Add(left, right) => {
+                compile_binary_expression!(chunk, strict, left, right, Insn::Add)
+            }
+            AdditiveExpression::Subtract(left, right) => {
+                compile_binary_expression!(chunk, strict, left, right, Insn::Subtract)
+            }
         }
     }
 }
@@ -1095,7 +1166,10 @@ impl ExpressionStatement {
         if status.can_be_reference {
             chunk.op(Insn::GetValue);
         }
-        Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || status.can_be_reference, can_be_reference: false })
+        Ok(CompilerStatusFlags {
+            can_be_abrupt: status.can_be_abrupt || status.can_be_reference,
+            can_be_reference: false,
+        })
     }
 }
 
@@ -1114,7 +1188,10 @@ impl StatementList {
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt, can_be_reference: second_status.can_be_reference })
+                Ok(CompilerStatusFlags {
+                    can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
+                    can_be_reference: second_status.can_be_reference,
+                })
             }
         }
     }
@@ -1180,7 +1257,10 @@ impl BindingList {
                 if let Some(mark) = mark {
                     chunk.fixup(mark)?;
                 }
-                Ok(CompilerStatusFlags { can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt, can_be_reference: false })
+                Ok(CompilerStatusFlags {
+                    can_be_abrupt: status.can_be_abrupt || second_status.can_be_abrupt,
+                    can_be_reference: false,
+                })
             }
         }
     }
