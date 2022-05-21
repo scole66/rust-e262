@@ -19,6 +19,7 @@ pub struct AsyncFunctionDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncFunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncFunctionDeclaration {
@@ -78,7 +79,7 @@ impl AsyncFunctionDeclaration {
         let (async_loc, after_async) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let (function_loc, after_function) =
+        let (_, after_function) =
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, yield_flag, await_flag) {
             Err(e) => {
@@ -90,21 +91,20 @@ impl AsyncFunctionDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let (lp_loc, after_lp) =
-            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, false, true);
-        let (rp_loc, after_rp) =
+        let (_, after_rp) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncFunctionDeclaration { ident, params, body }), after_rb))
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncFunctionDeclaration { ident, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -254,6 +254,7 @@ pub struct AsyncFunctionExpression {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncFunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncFunctionExpression {
@@ -313,27 +314,27 @@ impl AsyncFunctionExpression {
         let (async_loc, after_async) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let (function_loc, after_function) =
+        let (_, after_function) =
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, false, true) {
             Err(_) => (None, after_function),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let (lp_loc, after_lp) =
+        let (l_p_loc, after_lp) =
             scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, false, true);
-        let (rp_loc, after_rp) =
+        let (_, after_rp) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncFunctionExpression { ident, params, body }), after_rb))
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncFunctionExpression { ident, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, _: ParseNodeKind) -> bool {
@@ -477,6 +478,7 @@ pub struct AsyncMethod {
     ident: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncFunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for AsyncMethod {
@@ -521,21 +523,21 @@ impl AsyncMethod {
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (ident, after_ident) = ClassElementName::parse(parser, after_async, yield_flag, await_flag)?;
-        let (lp_loc, after_lp) =
+        let (_, after_lp) =
             scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, false, true);
-        let (rp_loc, after_rp) =
+        let (_, after_rp) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(AsyncMethod { ident, params, body }), after_rb))
+        let location = async_loc.merge(&rb_loc);
+        Ok((Rc::new(AsyncMethod { ident, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -695,7 +697,7 @@ impl AsyncFunctionBody {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.0.location()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -748,14 +750,14 @@ impl AsyncFunctionBody {
 // AwaitExpression[Yield] :
 //      await UnaryExpression[?Yield, +Await]
 #[derive(Debug)]
-pub enum AwaitExpression {
-    Await(Rc<UnaryExpression>),
+pub struct AwaitExpression {
+    exp: Rc<UnaryExpression>,
+    location: Location,
 }
 
 impl fmt::Display for AwaitExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let AwaitExpression::Await(boxed) = &self;
-        write!(f, "await {}", boxed)
+        write!(f, "await {}", self.exp)
     }
 }
 
@@ -766,8 +768,7 @@ impl PrettyPrint for AwaitExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AwaitExpression: {}", first, self)?;
-        let AwaitExpression::Await(boxed) = &self;
-        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -777,8 +778,7 @@ impl PrettyPrint for AwaitExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AwaitExpression: {}", first, self)?;
         pprint_token(writer, "await", TokenType::Keyword, &successive, Spot::NotFinal)?;
-        let AwaitExpression::Await(ue) = self;
-        ue.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.exp.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -787,19 +787,17 @@ impl AwaitExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
         let (await_loc, after_await) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Await)?;
-        let (ue, after_ue) = UnaryExpression::parse(parser, after_await, yield_flag, true)?;
-        Ok((Rc::new(AwaitExpression::Await(ue)), after_ue))
+        let (exp, after_ue) = UnaryExpression::parse(parser, after_await, yield_flag, true)?;
+        let location = await_loc.merge(&exp.location());
+        Ok((Rc::new(AwaitExpression { exp, location }), after_ue))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        kind == ParseNodeKind::AwaitExpression || {
-            let AwaitExpression::Await(boxed) = self;
-            boxed.contains(kind)
-        }
+        kind == ParseNodeKind::AwaitExpression || { self.exp.contains(kind) }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -809,13 +807,11 @@ impl AwaitExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let AwaitExpression::Await(boxed) = self;
-        boxed.all_private_identifiers_valid(names)
+        self.exp.all_private_identifiers_valid(names)
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let AwaitExpression::Await(ue) = self;
-        ue.early_errors(agent, errs, strict);
+        self.exp.early_errors(agent, errs, strict);
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -829,8 +825,7 @@ impl AwaitExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let AwaitExpression::Await(ue) = self;
-        ue.contains_arguments()
+        self.exp.contains_arguments()
     }
 }
 

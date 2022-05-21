@@ -42,20 +42,18 @@ impl PrettyPrint for ExpressionStatement {
 
 impl ExpressionStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (first_token, token_loc, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (first_token, _, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         let invalid = match first_token {
             Token::Punctuator(Punctuator::LeftBrace) => true,
             Token::Identifier(id) if id.matches(Keyword::Function) => true,
             Token::Identifier(id) if id.matches(Keyword::Class) => true,
             Token::Identifier(id) if id.matches(Keyword::Let) => {
-                let (second_token, second_loc, _) =
-                    scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                let (second_token, _, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
                 second_token.matches_punct(Punctuator::LeftBracket)
             }
             Token::Identifier(id) if id.matches(Keyword::Async) => {
                 if no_line_terminator(after_token, parser.source).is_ok() {
-                    let (second_token, second_loc, _) =
-                        scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
+                    let (second_token, _, _) = scan_token(&after_token, parser.source, ScanGoal::InputElementRegExp);
                     matches!(second_token, Token::Identifier(xx) if xx.matches(Keyword::Function))
                 } else {
                     false
