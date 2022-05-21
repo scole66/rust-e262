@@ -174,6 +174,13 @@ mod script {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("56;" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }; "no whitespace")]
+    #[test_case("// startup\n99;\n// tail\n" => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 23 } }; "multiline; leading & trailing ws")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).script().location()
+    }
 }
 
 // SCRIPT BODY
@@ -295,5 +302,10 @@ mod script_body {
     #[test_case("class q{}" => svec(&["class q { }"]); "statements")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).script_body().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("/* header comment */\n    function a(){}\n    a();\n/* And that's all she wrote! */\n" => Location { starting_line: 2, starting_column: 5, span:Span { starting_index: 25, length: 23} }; "leading/trailing ws")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).script_body().location()
     }
 }

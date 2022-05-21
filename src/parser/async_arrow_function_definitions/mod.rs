@@ -75,11 +75,13 @@ impl PrettyPrint for AsyncArrowFunction {
 impl AsyncArrowFunction {
     // AsyncArrowFunction's (only) parent is AssignmentExpression. It doesn't need caching.
     fn parse_normal_form(parser: &mut Parser, scanner: Scanner, in_flag: bool, yield_flag: bool) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (id, after_id) = AsyncArrowBindingIdentifier::parse(parser, after_async, yield_flag)?;
         no_line_terminator(after_id, parser.source)?;
-        let after_arrow = scan_for_punct(after_id, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
+        let (arrow_loc, after_arrow) =
+            scan_for_punct(after_id, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((Rc::new(AsyncArrowFunction::IdentOnly(id, body)), after_body))
     }
@@ -95,7 +97,8 @@ impl AsyncArrowFunction {
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
         no_line_terminator(after_params, parser.source)?;
-        let after_arrow = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
+        let (arrow_loc, after_arrow) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((real_params, after_params, body, after_body))
     }
@@ -120,6 +123,10 @@ impl AsyncArrowFunction {
                 norm
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -207,7 +214,8 @@ impl PrettyPrint for AsyncArrowHead {
 impl AsyncArrowHead {
     // No caching needed. Parent: AsyncArrowFunction
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (params, after_params) = ArrowFormalParameters::parse(parser, after_async, false, true)?;
         Ok((Rc::new(AsyncArrowHead(params)), after_params))
@@ -300,10 +308,10 @@ impl AsyncConciseBody {
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AsyncConciseBody), scanner))
             .otherwise(|| {
-                let after_curly =
+                let (curly_loc, after_curly) =
                     scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(AsyncConciseBody::Function(fb)), after_rb))
             })

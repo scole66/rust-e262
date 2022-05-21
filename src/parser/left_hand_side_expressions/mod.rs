@@ -205,17 +205,17 @@ fn member_expression_head_recursive(
                 ScanGoal::InputElementRegExp,
                 &[Punctuator::Dot, Punctuator::LeftBracket],
             )
-            .and_then(|(punct, after)| match punct {
+            .and_then(|(punct, punct_loc, after)| match punct {
                 Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp)
-                    .map(|(id, after_id)| (After::Id(id), after_id))
+                    .map(|(id, id_loc, after_id)| (After::Id(id), after_id))
                     .otherwise(|| {
                         scan_for_private_identifier(after, parser.source, ScanGoal::InputElementRegExp)
-                            .map(|(id, after_id)| (After::Pid(id), after_id))
+                            .map(|(id, id_loc, after_id)| (After::Pid(id), after_id))
                     }),
                 _ => Expression::parse(parser, after, true, yield_flag, await_flag).and_then(
                     |(expression, after_exp)| {
                         scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)
-                            .map(|after_bracket| (After::Exp(expression), after_bracket))
+                            .map(|(bracket_loc, after_bracket)| (After::Exp(expression), after_bracket))
                     },
                 ),
             })
@@ -264,7 +264,8 @@ impl MemberExpression {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Rc<MemberExpression>, Rc<Arguments>, Scanner), ParseError> {
-        let after_new = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
+        let (new_loc, after_new) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
         let (me, after_me) = MemberExpression::parse(parser, after_new, yield_flag, await_flag)?;
         let (args, after_args) = Arguments::parse(parser, after_me, yield_flag, await_flag)?;
         Ok((me, args, after_args))
@@ -485,8 +486,9 @@ impl PrettyPrint for SuperProperty {
 
 impl SuperProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_super = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
-        let (punct, after_punct) = scan_for_punct_set(
+        let (super_loc, after_super) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
+        let (punct, punct_loc, after_punct) = scan_for_punct_set(
             after_super,
             parser.source,
             ScanGoal::InputElementRegExp,
@@ -495,12 +497,13 @@ impl SuperProperty {
         match punct {
             Punctuator::LeftBracket => {
                 let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                 Ok((Rc::new(SuperProperty::Expression(exp)), after_rb))
             }
             _ => {
-                let (id, after_id) = scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementRegExp)?;
+                let (id, id_loc, after_id) =
+                    scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementRegExp)?;
                 Ok((Rc::new(SuperProperty::IdentifierName(id)), after_id))
             }
         }
@@ -605,18 +608,22 @@ impl PrettyPrint for MetaProperty {
 
 impl MetaProperty {
     fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: Keyword, kind: MetaProperty) -> ParseResult<Self> {
-        let after_dot = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
-        let after_kwd = scan_for_keyword(after_dot, parser.source, ScanGoal::InputElementRegExp, kwd)?;
+        let (dot_loc, after_dot) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
+        let (kwd_loc, after_kwd) = scan_for_keyword(after_dot, parser.source, ScanGoal::InputElementRegExp, kwd)?;
         Ok((Rc::new(kind), after_kwd))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (kwd, after_kwd) =
+        let (kwd, kwd_loc, after_kwd) =
             scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
             Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaProperty::NewTarget),
             _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaProperty::ImportMeta(parser.goal)),
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -634,7 +641,11 @@ impl MetaProperty {
                 //  import . meta
                 //  * It is a Syntax Error if the syntactic goal symbol is not Module.
                 if *goal != ParseGoal::Module {
-                    errs.push(create_syntax_error_object(agent, "import.meta allowed only in Module code"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "import.meta allowed only in Module code",
+                        Some(self.location()),
+                    ));
                 }
             }
         }
@@ -700,12 +711,13 @@ impl PrettyPrint for Arguments {
 impl Arguments {
     // Arguments has many parents. It needs caching.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)
-            .map(|after_rp| (Rc::new(Arguments::Empty), after_rp))
+            .map(|(rp_loc, after_rp)| (Rc::new(Arguments::Empty), after_rp))
             .otherwise(|| {
                 let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(
+                let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     after_args,
                     parser.source,
                     ScanGoal::InputElementDiv,
@@ -714,7 +726,7 @@ impl Arguments {
                 match punct {
                     Punctuator::RightParen => Ok((Rc::new(Arguments::ArgumentList(args)), after_punct)),
                     _ => {
-                        let after_rp = scan_for_punct(
+                        let (rp_loc, after_rp) = scan_for_punct(
                             after_punct,
                             parser.source,
                             ScanGoal::InputElementRegExp,
@@ -837,7 +849,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Self, Scanner), ParseError> {
-        let after_ellipsis =
+        let (ellipsis_loc, after_ellipsis) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Self::Dots(ae), after_ae))
@@ -855,7 +867,8 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let after_comma = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
+        let (comma_loc, after_comma) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         AssignmentExpression::parse(parser, after_comma, true, yield_flag, await_flag)
     }
 
@@ -871,8 +884,9 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let after_comma = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
-        let after_ellipsis =
+        let (comma_loc, after_comma) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
+        let (ellipsis_loc, after_ellipsis) =
             scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)
     }
@@ -1092,7 +1106,8 @@ impl NewExpression {
                 Ok((Rc::new(NewExpression::MemberExpression(me)), after_me))
             })
             .otherwise(|| {
-                let after_new = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
+                let (new_loc, after_new) =
+                    scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
                 let (ne, after_ne) = Self::parse(parser, after_new, yield_flag, await_flag)?;
                 Ok((Rc::new(NewExpression::NewExpression(ne)), after_ne))
             })
@@ -1303,7 +1318,8 @@ impl PrettyPrint for SuperCall {
 
 impl SuperCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_super = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
+        let (super_loc, after_super) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
         let (args, after_args) = Arguments::parse(parser, after_super, yield_flag, await_flag)?;
         Ok((Rc::new(Self { arguments: args }), after_args))
     }
@@ -1378,11 +1394,13 @@ impl PrettyPrint for ImportCall {
 
 impl ImportCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_import = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Import)?;
-        let after_lp =
+        let (import_loc, after_import) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Import)?;
+        let (lp_loc, after_lp) =
             scan_for_punct(after_import, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_lp, true, yield_flag, await_flag)?;
-        let after_rp = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
         Ok((Rc::new(Self { assignment_expression: ae }), after_rp))
     }
 
@@ -1559,7 +1577,7 @@ impl CallExpression {
                             .map(|(tl, after_tl)| (Follow::TLit(tl), after_tl))
                     })
                     .otherwise(|| {
-                        let (punct, after_punct) = scan_for_punct_set(
+                        let (punct, punct_loc, after_punct) = scan_for_punct_set(
                             top_scanner,
                             parser.source,
                             ScanGoal::InputElementDiv,
@@ -1568,20 +1586,20 @@ impl CallExpression {
                         match punct {
                             Punctuator::Dot => {
                                 scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
-                                    .map(|(id, after_id)| (Follow::Id(id), after_id))
+                                    .map(|(id, id_loc, after_id)| (Follow::Id(id), after_id))
                                     .otherwise(|| {
                                         scan_for_private_identifier(
                                             after_punct,
                                             parser.source,
                                             ScanGoal::InputElementDiv,
                                         )
-                                        .map(|(pid, after_pid)| (Follow::Pid(pid), after_pid))
+                                        .map(|(pid, pid_loc, after_pid)| (Follow::Pid(pid), after_pid))
                                     })
                             }
                             _ => {
                                 let (exp, after_exp) =
                                     Expression::parse(parser, after_punct, true, yield_arg, await_arg)?;
-                                let after_rb = scan_for_punct(
+                                let (rb_loc, after_rb) = scan_for_punct(
                                     after_exp,
                                     parser.source,
                                     ScanGoal::InputElementDiv,
@@ -1812,6 +1830,10 @@ impl LeftHandSideExpression {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -2223,7 +2245,7 @@ impl PrettyPrint for OptionalChain {
 
 impl OptionalChain {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_opt = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
+        let (opt_loc, after_opt) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QDot)?;
         let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, after_opt, yield_flag, await_flag)?;
@@ -2234,20 +2256,21 @@ impl OptionalChain {
                 Ok((Rc::new(OptionalChain::Template(tl)), after_tl))
             })
             .otherwise(|| {
-                let after_lb =
+                let (lb_loc, after_lb) =
                     scan_for_punct(after_opt, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBracket)?;
                 let (exp, after_exp) = Expression::parse(parser, after_lb, true, yield_flag, await_flag)?;
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
                 Ok((Rc::new(OptionalChain::Exp(exp)), after_rb))
             })
             .otherwise(|| {
-                let (id, after_id) = scan_for_identifiername(after_opt, parser.source, ScanGoal::InputElementDiv)?;
+                let (id, id_loc, after_id) =
+                    scan_for_identifiername(after_opt, parser.source, ScanGoal::InputElementDiv)?;
                 Ok((Rc::new(OptionalChain::Ident(id)), after_id))
             })
             .otherwise(|| {
                 scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv)
-                    .map(|(id, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id))
+                    .map(|(id, id_loc, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id))
             })?;
 
         enum Follow {
@@ -2267,7 +2290,7 @@ impl OptionalChain {
                 Ok((Follow::TLit(tl), after_tl))
             })
             .otherwise(|| {
-                let (punct, after_punct) = scan_for_punct_set(
+                let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     current_scan,
                     parser.source,
                     ScanGoal::InputElementDiv,
@@ -2275,14 +2298,14 @@ impl OptionalChain {
                 )?;
                 match punct {
                     Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
-                        .map(|(id, after_id)| (Follow::Id(id), after_id))
+                        .map(|(id, id_loc, after_id)| (Follow::Id(id), after_id))
                         .otherwise(|| {
                             scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv)
-                                .map(|(id, after_id)| (Follow::Pid(id), after_id))
+                                .map(|(id, id_loc, after_id)| (Follow::Pid(id), after_id))
                         }),
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
-                        let after_rb = scan_for_punct(
+                        let (rb_loc, after_rb) = scan_for_punct(
                             after_exp,
                             parser.source,
                             ScanGoal::InputElementDiv,
@@ -2398,12 +2421,12 @@ impl OptionalChain {
         //      | which is a valid statement and where automatic semicolon insertion does not apply.
         match self {
             OptionalChain::Template(tl) => {
-                errs.push(create_syntax_error_object(agent, "Template literal not allowed here"));
+                errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
             OptionalChain::PlusTemplate(node, tl) => {
                 node.early_errors(agent, errs, strict);
-                errs.push(create_syntax_error_object(agent, "Template literal not allowed here"));
+                errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
             OptionalChain::Args(node) => node.early_errors(agent, errs, strict),

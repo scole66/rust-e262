@@ -79,7 +79,7 @@ impl Expression {
                 let mut current_scanner = after_left;
                 while let Ok((right, after_right)) =
                     scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                        .and_then(|after_token| {
+                        .and_then(|(_, after_token)| {
                             AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)
                         })
                 {
@@ -106,6 +106,13 @@ impl Expression {
                 parser.expression_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            Expression::FallThru(exp) => exp.location(),
+            Expression::Comma(left, right) => left.location().merge(&right.location()),
         }
     }
 

@@ -67,7 +67,8 @@ impl ClassDeclaration {
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let after_class = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+        let (class_loc, after_class) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -84,6 +85,10 @@ impl ClassDeclaration {
             Some(ident) => Ok((Rc::new(ClassDeclaration::Named(ident, ct)), after_ct)),
             None => Ok((Rc::new(ClassDeclaration::Unnamed(ct)), after_ct)),
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -204,7 +209,8 @@ impl IsFunctionDefinition for ClassExpression {
 
 impl ClassExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_class = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+        let (class_loc, after_class) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -212,6 +218,10 @@ impl ClassExpression {
         };
         let (ct, after_ct) = ClassTail::parse(parser, after_bi, yield_flag, await_flag)?;
         Ok((Rc::new(ClassExpression { ident: bi, tail: ct }), after_ct))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -330,13 +340,15 @@ impl ClassTail {
             Ok((n, s)) => (Some(n), s),
             Err(_) => (None, scanner),
         };
-        let after_lb = scan_for_punct(after_heritage, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_heritage, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let pot_body = ClassBody::parse(parser, after_lb, yield_flag, await_flag);
         let (body, after_body) = match pot_body {
             Ok((n, s)) => (Some(n), s),
             Err(_) => (None, after_lb),
         };
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(ClassTail { heritage, body }), after_rb))
     }
 
@@ -413,6 +425,7 @@ impl ClassTail {
                         errs.push(create_syntax_error_object(
                             agent,
                             "Cannot use super in a constructor with no parent class",
+                            Some(constructor.location()),
                         ));
                     }
                 }
@@ -462,7 +475,8 @@ impl PrettyPrint for ClassHeritage {
 
 impl ClassHeritage {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_extends = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Extends)?;
+        let (extends_loc, after_extends) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Extends)?;
         let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, after_extends, yield_flag, await_flag)?;
         Ok((Rc::new(ClassHeritage(lhs)), after_lhs))
     }
@@ -604,7 +618,11 @@ impl ClassBody {
         //    unless the name is used once for a getter and once for a setter and in no other entries, and the getter
         //    and setter are either both static or both non-static.
         if self.0.prototype_property_name_list().into_iter().filter(|x| x == &"constructor").count() > 1 {
-            errs.push(create_syntax_error_object(agent, "Classes may have only one constructor"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Classes may have only one constructor",
+                Some(self.0.location()),
+            ));
         }
         enum HowSeen {
             Completely,   // Any further use triggers "duplicate" error
@@ -617,12 +635,17 @@ impl ClassBody {
         for pid in self.0.private_bound_identifiers() {
             match private_ids.get(&pid.name) {
                 Some(&HowSeen::Completely) => {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", pid.name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", pid.name),
+                        Some(self.0.location()),
+                    ));
                 }
                 Some(&HowSeen::Getter) if pid.usage != IdUsage::Setter => {
                     errs.push(create_syntax_error_object(
                         agent,
                         format!("‘{}’ was previously defined as a getter method.", pid.name),
+                        Some(self.0.location()),
                     ));
                 }
                 Some(&HowSeen::Getter) => {
@@ -632,6 +655,7 @@ impl ClassBody {
                     errs.push(create_syntax_error_object(
                         agent,
                         format!("‘{}’ was previously defined as a setter method.", pid.name),
+                        Some(self.0.location()),
                     ));
                 }
                 Some(&HowSeen::Setter) => {
@@ -641,6 +665,7 @@ impl ClassBody {
                     errs.push(create_syntax_error_object(
                         agent,
                         format!("‘{}’ was previously defined as a static getter method.", pid.name),
+                        Some(self.0.location()),
                     ));
                 }
                 Some(&HowSeen::StaticGetter) => {
@@ -650,6 +675,7 @@ impl ClassBody {
                     errs.push(create_syntax_error_object(
                         agent,
                         format!("‘{}’ was previously defined as a static setter method.", pid.name),
+                        Some(self.0.location()),
                     ));
                 }
                 Some(&HowSeen::StaticSetter) => {
@@ -754,6 +780,10 @@ impl ClassElementList {
             current_scanner = after;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -993,21 +1023,24 @@ impl ClassElement {
             })
             .otherwise(|| {
                 scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
-                    .and_then(|after_static| {
+                    .and_then(|(static_loc, after_static)| {
                         MethodDefinition::parse(parser, after_static, yield_flag, await_flag)
                             .map(|(md, after_md)| (Rc::new(ClassElement::Static(md)), after_md))
                             .otherwise(|| {
                                 FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(
                                     |(fd, after_fd)| {
-                                        scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv)
-                                            .map(|after_semi| (Rc::new(ClassElement::StaticField(fd)), after_semi))
+                                        scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(
+                                            |(semi_loc, after_semi)| {
+                                                (Rc::new(ClassElement::StaticField(fd)), after_semi)
+                                            },
+                                        )
                                     },
                                 )
                             })
                     })
                     .otherwise(|| {
                         scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)
-                            .map(|after_semi| (Rc::new(ClassElement::Empty), after_semi))
+                            .map(|(semi_loc, after_semi)| (Rc::new(ClassElement::Empty), after_semi))
                     })
                     .otherwise(|| {
                         MethodDefinition::parse(parser, scanner, yield_flag, await_flag)
@@ -1016,10 +1049,14 @@ impl ClassElement {
                     .otherwise(|| {
                         FieldDefinition::parse(parser, scanner, yield_flag, await_flag).and_then(|(fd, after_fd)| {
                             scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv)
-                                .map(|after_semi| (Rc::new(ClassElement::Field(fd)), after_semi))
+                                .map(|(semi_loc, after_semi)| (Rc::new(ClassElement::Field(fd)), after_semi))
                         })
                     })
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -1139,12 +1176,17 @@ impl ClassElement {
                             errs.push(create_syntax_error_object(
                                 agent,
                                 "special methods not allowed for constructors",
+                                Some(md.location()),
                             ));
                         }
                     }
                     Some(_) | None => {
                         if md.has_direct_super() {
-                            errs.push(create_syntax_error_object(agent, "super only allowed for constructors"));
+                            errs.push(create_syntax_error_object(
+                                agent,
+                                "super only allowed for constructors",
+                                Some(md.location()),
+                            ));
                         }
                     }
                 }
@@ -1155,10 +1197,14 @@ impl ClassElement {
                 //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
                 //  * It is a Syntax Error if PropName of MethodDefinition is "prototype".
                 if md.has_direct_super() {
-                    errs.push(create_syntax_error_object(agent, "super only allowed for constructors"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "super only allowed for constructors",
+                        Some(md.location()),
+                    ));
                 }
                 if matches!(md.prop_name(), Some(s) if s == "prototype") {
-                    errs.push(create_syntax_error_object(agent, "prototypes cannot be static"));
+                    errs.push(create_syntax_error_object(agent, "prototypes cannot be static", Some(md.location())));
                 }
                 md.early_errors(agent, errs, strict);
             }
@@ -1166,7 +1212,11 @@ impl ClassElement {
                 // ClassElement : FieldDefinition ;
                 //  * It is a Syntax Error if PropName of FieldDefinition is "constructor".
                 if matches!(fd.prop_name(), Some(s) if s == "constructor") {
-                    errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "constructors may not be defined as class fields",
+                        Some(fd.location()),
+                    ));
                 }
                 fd.early_errors(agent, errs, strict);
             }
@@ -1176,11 +1226,13 @@ impl ClassElement {
                 let pn = fd.prop_name();
                 match pn {
                     Some(s) if s == "prototype" => {
-                        errs.push(create_syntax_error_object(agent, "prototypes cannot be static"))
+                        errs.push(create_syntax_error_object(agent, "prototypes cannot be static", Some(fd.location())))
                     }
-                    Some(s) if s == "constructor" => {
-                        errs.push(create_syntax_error_object(agent, "constructors may not be defined as class fields"))
-                    }
+                    Some(s) if s == "constructor" => errs.push(create_syntax_error_object(
+                        agent,
+                        "constructors may not be defined as class fields",
+                        Some(fd.location()),
+                    )),
                     _ => (),
                 }
                 fd.early_errors(agent, errs, strict);
@@ -1305,6 +1357,10 @@ impl FieldDefinition {
         })
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.init.as_ref().map_or(false, |n| n.contains(kind))
     }
@@ -1363,10 +1419,14 @@ impl FieldDefinition {
         self.name.early_errors(agent, errs, strict);
         if let Some(izer) = self.init.as_ref() {
             if izer.contains_arguments() {
-                errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here"));
+                errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here", Some(izer.location())));
             }
             if izer.contains(ParseNodeKind::SuperCall) {
-                errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    "Calls to ‘super’ not allowed here",
+                    Some(izer.location()),
+                ));
             }
             izer.early_errors(agent, errs, strict);
         }
@@ -1433,9 +1493,13 @@ impl ClassElementName {
                 .map(|(item, scan)| (Rc::new(ClassElementName::PropertyName(item)), scan))
                 .otherwise(|| {
                     scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv)
-                        .map(|(item, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan))
+                        .map(|(item, item_loc, scan)| (Rc::new(ClassElementName::PrivateIdentifier(item)), scan))
                 })
         })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -1511,7 +1575,11 @@ impl ClassElementName {
                 // ClassElementName : PrivateIdentifier
                 //  * It is a Syntax Error if StringValue of PrivateIdentifier is "#constructor".
                 if pid.string_value == "#constructor" {
-                    errs.push(create_syntax_error_object(agent, "#constructor is an invalid private id"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "#constructor is an invalid private id",
+                        Some(self.location()),
+                    ));
                 }
             }
             ClassElementName::PropertyName(pn) => pn.early_errors(agent, errs, strict),
@@ -1568,11 +1636,12 @@ impl PrettyPrint for ClassStaticBlock {
 
 impl ClassStaticBlock {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_static = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Static)?;
-        let after_lb =
+        let (static_loc, after_static) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Static)?;
+        let (lb_loc, after_lb) =
             scan_for_punct(after_static, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (block, after_block) = ClassStaticBlockBody::parse(parser, after_lb);
-        let after_close =
+        let (close_loc, after_close) =
             scan_for_punct(after_block, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(ClassStaticBlock(block)), after_close))
     }
@@ -1693,29 +1762,41 @@ impl ClassStaticBlockBody {
         //  * It is a Syntax Error if ClassStaticBlockStatementList Contains await is true.
         let ldn = self.0.lexically_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.0.location()),
+            ));
         }
         let vdn = self.0.var_declared_names();
         for name in ldn.iter().filter(|n| vdn.contains(n)) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.0.location()),
+            ));
         }
         if self.0.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+            errs.push(create_syntax_error_object(agent, "duplicate labels detected", Some(self.0.location())));
         }
         if self.0.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
+            errs.push(create_syntax_error_object(agent, "undefined break target detected", Some(self.0.location())));
         }
         if self.0.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+            errs.push(create_syntax_error_object(agent, "undefined continue target detected", Some(self.0.location())));
         }
         if self.0.contains_arguments() {
-            errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here"))
+            errs.push(create_syntax_error_object(agent, "‘arguments’ not expected here", Some(self.0.location())));
         }
         if self.0.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"))
+            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here", Some(self.0.location())));
         }
         if self.0.contains(ParseNodeKind::AwaitExpression) {
-            errs.push(create_syntax_error_object(agent, "await expressions not expected here"))
+            errs.push(create_syntax_error_object(
+                agent,
+                "await expressions not expected here",
+                Some(self.0.location()),
+            ));
         }
         self.0.early_errors(agent, errs, strict);
     }
@@ -1770,6 +1851,10 @@ impl ClassStaticBlockStatementList {
             Ok((sl, after)) => (Rc::new(ClassStaticBlockStatementList(Some(sl))), after),
             Err(_) => (Rc::new(ClassStaticBlockStatementList(None)), scanner),
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {

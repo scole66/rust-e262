@@ -131,7 +131,8 @@ impl RelationalExpression {
                     let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
                     let mut current_scanner = after_se;
                     loop {
-                        let (op, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+                        let (op, op_loc, after_op) =
+                            scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                         let make_re = match &op {
                             Token::Punctuator(Punctuator::Lt) => RelationalExpression::Less,
                             Token::Punctuator(Punctuator::Gt) => RelationalExpression::Greater,
@@ -162,9 +163,9 @@ impl RelationalExpression {
             .otherwise(|| {
                 if in_flag {
                     scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(
-                        |(pid, after_pid)| {
+                        |(pid, pid_loc, after_pid)| {
                             scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(
-                                |after_in| {
+                                |(in_loc, after_in)| {
                                     ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(
                                         |(se, after_se)| (Rc::new(RelationalExpression::PrivateIn(pid, se)), after_se),
                                     )

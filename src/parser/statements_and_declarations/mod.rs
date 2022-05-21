@@ -219,6 +219,25 @@ impl Statement {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            Statement::Block(node) => node.location(),
+            Statement::Variable(node) => node.location(),
+            Statement::Empty(node) => node.location(),
+            Statement::Expression(node) => node.location(),
+            Statement::If(node) => node.location(),
+            Statement::Breakable(node) => node.location(),
+            Statement::Continue(node) => node.location(),
+            Statement::Break(node) => node.location(),
+            Statement::Return(node) => node.location(),
+            Statement::With(node) => node.location(),
+            Statement::Labelled(node) => node.location(),
+            Statement::Throw(node) => node.location(),
+            Statement::Try(node) => node.location(),
+            Statement::Debugger(node) => node.location(),
+        }
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match &self {
             Statement::Block(node) => node.var_declared_names(),
@@ -567,6 +586,14 @@ impl Declaration {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            Declaration::Hoistable(h) => h.location(),
+            Declaration::Class(c) => c.location(),
+            Declaration::Lexical(l) => l.location(),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
             Declaration::Hoistable(node) => node.bound_names(),
@@ -740,6 +767,15 @@ impl HoistableDeclaration {
             })
     }
 
+    fn location(&self) -> Location {
+        match self {
+            HoistableDeclaration::Function(f) => f.location(),
+            HoistableDeclaration::Generator(g) => g.location(),
+            HoistableDeclaration::AsyncFunction(af) => af.location(),
+            HoistableDeclaration::AsyncGenerator(ag) => ag.location(),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
             HoistableDeclaration::Function(node) => node.bound_names(),
@@ -856,6 +892,10 @@ impl BreakableStatement {
                     SwitchStatement::parse(parser, scanner, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(BreakableStatement::Switch(switch)), after_switch))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

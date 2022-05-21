@@ -294,19 +294,13 @@ fn identifier_name_02() {
 #[test]
 fn identifier_name_03() {
     let (tok, scanner) = identifier_name(&Scanner::new(), "ll\\").unwrap();
-    assert_eq!(
-        tok,
-        Token::Identifier(IdentifierData { string_value: JSString::from("ll"), keyword_id: None, line: 1, column: 1 })
-    );
+    assert_eq!(tok, Token::Identifier(IdentifierData { string_value: JSString::from("ll"), keyword_id: None }));
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
 }
 #[test]
 fn identifier_name_04() {
     let (tok, scanner) = identifier_name(&Scanner::new(), "ll ").unwrap();
-    assert_eq!(
-        tok,
-        Token::Identifier(IdentifierData { string_value: JSString::from("ll"), keyword_id: None, line: 1, column: 1 })
-    );
+    assert_eq!(tok, Token::Identifier(IdentifierData { string_value: JSString::from("ll"), keyword_id: None }));
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
 }
 
@@ -548,12 +542,7 @@ fn scan_token_id_01() {
     assert_eq!(
         result,
         (
-            Token::Identifier(IdentifierData {
-                string_value: JSString::from("JbcJ\u{1235}"),
-                keyword_id: None,
-                line: 1,
-                column: 1
-            }),
+            Token::Identifier(IdentifierData { string_value: JSString::from("JbcJ\u{1235}"), keyword_id: None }),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 22 } },
             Scanner { line: 1, column: 23, start_idx: 22 }
         )
@@ -564,12 +553,7 @@ fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
     assert_eq!(
         result,
         (
-            Token::Identifier(IdentifierData {
-                string_value: JSString::from(inp),
-                keyword_id: expected,
-                line: 1,
-                column: 1
-            }),
+            Token::Identifier(IdentifierData { string_value: JSString::from(inp), keyword_id: expected }),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
             Scanner { line: 1, column: inp.len() as u32 + 1, start_idx: inp.len() }
         )
@@ -673,24 +657,52 @@ fn optional_chaining_test_01() {
 #[test]
 fn optional_chaining_test_02() {
     let result = scan_token(&Scanner::new(), "?.P", ScanGoal::InputElementRegExp);
-    assert_eq!(result, (Token::Punctuator(Punctuator::QDot), Scanner { line: 1, column: 3, start_idx: 2 }));
+    assert_eq!(
+        result,
+        (
+            Token::Punctuator(Punctuator::QDot),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            Scanner { line: 1, column: 3, start_idx: 2 }
+        )
+    );
 }
 #[test]
 fn optional_chaining_test_03() {
     let result = scan_token(&Scanner::new(), "?.999", ScanGoal::InputElementRegExp);
-    assert_eq!(result, (Token::Punctuator(Punctuator::Question), Scanner { line: 1, column: 2, start_idx: 1 }));
+    assert_eq!(
+        result,
+        (
+            Token::Punctuator(Punctuator::Question),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            Scanner { line: 1, column: 2, start_idx: 1 }
+        )
+    );
 }
 #[test]
 fn optional_chaining_test_04() {
     let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
-    assert_eq!(result, (Token::Punctuator(Punctuator::Question), Scanner { line: 1, column: 2, start_idx: 1 }));
+    assert_eq!(
+        result,
+        (
+            Token::Punctuator(Punctuator::Question),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            Scanner { line: 1, column: 2, start_idx: 1 }
+        )
+    );
 }
 mod punctuator {
     use super::*;
 
     fn punct_check(inp: &str, tok: Token) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
-        assert_eq!(result, (tok, Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }));
+        assert_eq!(
+            result,
+            (
+                tok,
+                Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
+                Scanner { line: 1, column: inp.chars().count() as u32 + 1, start_idx: inp.len() }
+            )
+        );
     }
     #[test]
     fn validiation() {
@@ -751,7 +763,18 @@ mod punctuator {
 
     fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
         let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
-        assert_eq!(result, (tok, Scanner { line: 1, column: consumed + 1, start_idx: consumed as usize }));
+        assert_eq!(
+            result,
+            (
+                tok,
+                Location {
+                    starting_line: 1,
+                    starting_column: 1,
+                    span: Span { starting_index: 0, length: consumed as usize }
+                },
+                Scanner { line: 1, column: consumed + 1, start_idx: consumed as usize }
+            )
+        );
     }
 
     #[test]
@@ -761,8 +784,12 @@ mod punctuator {
     #[test]
     fn nomatch() {
         let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
-        let (token, scanner) = result;
+        let (token, location, scanner) = result;
         assert!(matches!(token, Token::Error(_)));
+        assert_eq!(
+            location,
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+        );
         assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     }
     #[test]
@@ -1164,12 +1191,7 @@ fn common_token_test() {
     assert_eq!(
         common_token(&Scanner::new(), "new"),
         Some((
-            Token::Identifier(IdentifierData {
-                column: 1,
-                keyword_id: Some(Keyword::New),
-                line: 1,
-                string_value: JSString::from("new")
-            }),
+            Token::Identifier(IdentifierData { keyword_id: Some(Keyword::New), string_value: JSString::from("new") }),
             Scanner { line: 1, column: 4, start_idx: 3 }
         ))
     );
@@ -1199,12 +1221,7 @@ fn common_token_test_nstemp() {
     assert_eq!(
         r,
         Some((
-            Token::NoSubstitutionTemplate(TemplateData {
-                tv: Some(JSString::from("")),
-                trv: JSString::from(""),
-                starting_index: 0,
-                byte_length: 2
-            }),
+            Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }),
             Scanner { line: 1, column: 3, start_idx: 2 }
         ))
     )
@@ -1267,26 +1284,46 @@ fn template_literal_test_01() {
 fn scan_token_test_01() {
     assert_eq!(
         scan_token(&Scanner::new(), "", ScanGoal::InputElementRegExp),
-        (Token::Eof, Scanner { line: 1, column: 1, start_idx: 0 })
+        (
+            Token::Eof,
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } },
+            Scanner { line: 1, column: 1, start_idx: 0 }
+        )
     );
     assert_eq!(
         scan_token(&Scanner::new(), "  /* nothing to see here */   ", ScanGoal::InputElementRegExp),
-        (Token::Eof, Scanner { line: 1, column: 31, start_idx: 30 })
+        (
+            Token::Eof,
+            Location { starting_line: 1, starting_column: 31, span: Span { starting_index: 30, length: 0 } },
+            Scanner { line: 1, column: 31, start_idx: 30 }
+        )
     );
     assert_eq!(
         scan_token(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
-        (Token::Punctuator(Punctuator::SlashEq), Scanner { line: 1, column: 3, start_idx: 2 })
+        (
+            Token::Punctuator(Punctuator::SlashEq),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            Scanner { line: 1, column: 3, start_idx: 2 }
+        )
     );
     assert_eq!(
         scan_token(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
-        (Token::Punctuator(Punctuator::RightBrace), Scanner { line: 1, column: 2, start_idx: 1 })
+        (
+            Token::Punctuator(Punctuator::RightBrace),
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            Scanner { line: 1, column: 2, start_idx: 1 }
+        )
     );
 }
 #[test]
 fn scan_token_panic_01() {
-    let (token, scanner) = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
+    let (token, location, scanner) = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
     assert!(matches!(token, Token::Error(_)));
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 
 #[test]
@@ -1317,46 +1354,43 @@ fn thd_count_ne() {
 #[test]
 fn template_test_01() {
     let r = scan_token(&Scanner::new(), "``", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
     assert_eq!(
         token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: Some(JSString::from("")),
-            trv: JSString::from(""),
-            starting_index: 0,
-            byte_length: 2
-        })
+        Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
     );
 }
 #[test]
 fn template_test_02() {
     let r = scan_token(&Scanner::new(), "`a`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
     assert_eq!(
         token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: Some(JSString::from("a")),
-            trv: JSString::from("a"),
-            starting_index: 0,
-            byte_length: 3
-        })
+        Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("a")), trv: JSString::from("a") })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
     );
 }
 #[test]
 fn template_test_03() {
     let r = scan_token(&Scanner::new(), "`aa`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 5, start_idx: 4 });
     assert_eq!(
         token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: Some(JSString::from("aa")),
-            trv: JSString::from("aa"),
-            starting_index: 0,
-            byte_length: 4
-        })
+        Token::NoSubstitutionTemplate(TemplateData { tv: Some(JSString::from("aa")), trv: JSString::from("aa") })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
     );
 }
 #[test]
@@ -1366,46 +1400,40 @@ fn template_test_04() {
         "`=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}`",
         ScanGoal::InputElementRegExp,
     );
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 45, start_idx: 47 });
     assert_eq!(
         token,
         Token::NoSubstitutionTemplate(TemplateData {
             tv: Some(JSString::from("=\u{0}\u{8}\u{9}\u{a}\u{b}\u{c}\u{d}\"'\\f\u{2288}\u{1f48b}\u{1f498}")),
             trv: JSString::from("=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}"),
-            starting_index: 0,
-            byte_length: 47,
         })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 47 } }
     );
 }
 #[test]
 fn template_test_05() {
     let r = scan_token(&Scanner::new(), "`\\ubob`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 8, start_idx: 7 });
+    assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\ubob") }));
     assert_eq!(
-        token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: None,
-            trv: JSString::from("\\ubob"),
-            starting_index: 0,
-            byte_length: 7
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 7 } }
     );
 }
 #[test]
 fn template_test_06() {
     let r = scan_token(&Scanner::new(), "`\\u{}`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 7, start_idx: 6 });
+    assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\u{}") }));
     assert_eq!(
-        token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: None,
-            trv: JSString::from("\\u{}"),
-            starting_index: 0,
-            byte_length: 6
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 6 } }
     );
 }
 #[test]
@@ -1415,68 +1443,68 @@ fn template_test_07() {
         "`\\u{9999999999999999999999999999999999999999999999999999999999}`",
         ScanGoal::InputElementRegExp,
     );
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 65, start_idx: 64 });
     assert_eq!(
         token,
         Token::NoSubstitutionTemplate(TemplateData {
             tv: None,
             trv: JSString::from("\\u{9999999999999999999999999999999999999999999999999999999999}"),
-            starting_index: 0,
-            byte_length: 64
         })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 64 } }
     );
 }
 #[test]
 fn template_test_08() {
     let r = scan_token(&Scanner::new(), "`\\u{9999:`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 11, start_idx: 10 });
+    assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\u{9999:") }));
     assert_eq!(
-        token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: None,
-            trv: JSString::from("\\u{9999:"),
-            starting_index: 0,
-            byte_length: 10
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 10 } }
     );
 }
 #[test]
 fn template_test_09() {
     let r = scan_token(&Scanner::new(), "`\\", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert!(matches!(token, Token::Error(_)));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn template_test_10() {
     let r = scan_token(&Scanner::new(), "`\\03`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
+    assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\03") }));
     assert_eq!(
-        token,
-        Token::NoSubstitutionTemplate(TemplateData {
-            tv: None,
-            trv: JSString::from("\\03"),
-            starting_index: 0,
-            byte_length: 5
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
     );
 }
 #[test]
 fn template_test_11() {
     let r = scan_token(&Scanner::new(), "`\\03 and escapes later? \\u{1f48b}?`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 36, start_idx: 35 });
     assert_eq!(
         token,
         Token::NoSubstitutionTemplate(TemplateData {
             tv: None,
             trv: JSString::from("\\03 and escapes later? \\u{1f48b}?"),
-            starting_index: 0,
-            byte_length: 35
         })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 35 } }
     );
 }
 #[test]
@@ -1486,62 +1514,55 @@ fn template_test_12() {
         "`one\\\ntwo\\\u{2028}three\\\u{2029}four\\\r\nfive\\\rsix`",
         ScanGoal::InputElementRegExp,
     );
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 6, column: 5, start_idx: 39 });
     assert_eq!(
         token,
         Token::NoSubstitutionTemplate(TemplateData {
             tv: Some(JSString::from("onetwothreefourfivesix")),
             trv: JSString::from("one\\\ntwo\\\u{2028}three\\\u{2029}four\\\nfive\\\nsix"),
-            starting_index: 0,
-            byte_length: 39,
         })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 39 } }
     );
 }
 #[test]
 fn template_test_13() {
     let r = scan_token(&Scanner::new(), "`This ${thing} is great`", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 9, start_idx: 8 });
     assert_eq!(
         token,
-        Token::TemplateHead(TemplateData {
-            tv: Some(JSString::from("This ")),
-            trv: JSString::from("This "),
-            starting_index: 0,
-            byte_length: 8
-        })
+        Token::TemplateHead(TemplateData { tv: Some(JSString::from("This ")), trv: JSString::from("This ") })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 8 } }
     );
 }
 
 #[test]
 fn template_test_14() {
     let r = scan_token(&Scanner::new(), "}${", ScanGoal::InputElementTemplateTail);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
+    assert_eq!(token, Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }));
     assert_eq!(
-        token,
-        Token::TemplateMiddle(TemplateData {
-            tv: Some(JSString::from("")),
-            trv: JSString::from(""),
-            starting_index: 0,
-            byte_length: 3
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
     );
 }
 #[test]
 fn template_test_15() {
     let r = scan_token(&Scanner::new(), "}`", ScanGoal::InputElementTemplateTail);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
+    assert_eq!(token, Token::TemplateTail(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }));
     assert_eq!(
-        token,
-        Token::TemplateTail(TemplateData {
-            tv: Some(JSString::from("")),
-            trv: JSString::from(""),
-            starting_index: 0,
-            byte_length: 2
-        })
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
     );
 }
 
@@ -1568,82 +1589,122 @@ fn charval_ne() {
 #[test]
 fn regex_test_01() {
     let r = scan_token(&Scanner::new(), "/a/", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
     assert_eq!(
         token,
         Token::RegularExpression(RegularExpressionData { body: String::from("a"), flags: String::new() })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
     );
 }
 
 #[test]
 fn regex_test_02() {
     let r = scan_token(&Scanner::new(), "/blue/green", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 12, start_idx: 11 });
     assert_eq!(
         token,
         Token::RegularExpression(RegularExpressionData { body: String::from("blue"), flags: String::from("green") })
+    );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 11 } }
     );
 }
 #[test]
 fn regex_test_03() {
     let scanner = Scanner { line: 1, column: 5, start_idx: 4 };
     let r = scan_token(&scanner, "####/blue/green", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 16, start_idx: 15 });
     assert_eq!(
         token,
         Token::RegularExpression(RegularExpressionData { body: String::from("blue"), flags: String::from("green") })
     );
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 11 } }
+    );
 }
 #[test]
 fn scan_token_binary_digits_01() {
     let r = scan_token(&Scanner::new(), "0b01__01", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_binary_digits_02() {
     let r = scan_token(&Scanner::new(), "0bx", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_octal_digits_01() {
     let r = scan_token(&Scanner::new(), "0o01__01", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_octal_digits_02() {
     let r = scan_token(&Scanner::new(), "0ox", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_hex_digits_01() {
     let r = scan_token(&Scanner::new(), "0x01__01", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_hex_digits_02() {
     let r = scan_token(&Scanner::new(), "0xx", ScanGoal::InputElementRegExp);
-    let (token, scanner) = r;
+    let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 #[test]
 fn scan_token_err() {
-    let (token, scanner) = scan_token(&Scanner::new(), "/*", ScanGoal::InputElementRegExp);
+    let (token, location, scanner) = scan_token(&Scanner::new(), "/*", ScanGoal::InputElementRegExp);
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unterminated /*-style comment. Started on line 1, column 1.")));
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+    );
 }
 
 #[test]
@@ -1659,36 +1720,20 @@ fn number_style_clone() {
 
 #[test]
 fn template_data_debug() {
-    assert_ne!(
-        format!("{:?}", TemplateData { tv: None, trv: JSString::from(""), starting_index: 0, byte_length: 0 }),
-        ""
-    );
+    assert_ne!(format!("{:?}", TemplateData { tv: None, trv: JSString::from("") }), "");
 }
 #[test]
 fn template_data_display() {
     assert_eq!(
-        format!(
-            "{}",
-            TemplateData {
-                tv: Some(JSString::from("blue")),
-                trv: JSString::from("\u{12}\u{11}blue"),
-                starting_index: 0,
-                byte_length: 6
-            }
-        ),
+        format!("{}", TemplateData { tv: Some(JSString::from("blue")), trv: JSString::from("\u{12}\u{11}blue") }),
         "\u{2426}\u{2426}blue"
     );
 }
 #[test]
 fn template_data_ne() {
-    let td1 = TemplateData { tv: None, trv: JSString::from(""), starting_index: 0, byte_length: 0 };
-    let td2 = TemplateData { tv: None, trv: JSString::from(""), starting_index: 0, byte_length: 0 };
-    let td3 = TemplateData {
-        tv: Some(JSString::from("rust")),
-        trv: JSString::from("rust"),
-        starting_index: 0,
-        byte_length: 4,
-    };
+    let td1 = TemplateData { tv: None, trv: JSString::from("") };
+    let td2 = TemplateData { tv: None, trv: JSString::from("") };
+    let td3 = TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") };
 
     assert_eq!(td1 != td2, false);
     assert_eq!(td1 != td3, true);
@@ -1820,12 +1865,7 @@ fn token_matches_punct() {
 #[test]
 fn token_matches_keyword() {
     let t1 = Token::Eof;
-    let t2 = Token::Identifier(IdentifierData {
-        string_value: JSString::from("as"),
-        keyword_id: Some(Keyword::As),
-        line: 1,
-        column: 1,
-    });
+    let t2 = Token::Identifier(IdentifierData { string_value: JSString::from("as"), keyword_id: Some(Keyword::As) });
 
     assert_eq!(t1.matches_keyword(Keyword::As), false);
     assert_eq!(t2.matches_keyword(Keyword::As), true);
@@ -1836,15 +1876,7 @@ fn token_display() {
     assert_eq!(format!("{}", Token::Eof), "");
     assert_eq!(format!("{}", Token::Punctuator(Punctuator::Ellipsis)), "...");
     assert_eq!(
-        format!(
-            "{}",
-            Token::Identifier(IdentifierData {
-                string_value: JSString::from("bob"),
-                keyword_id: None,
-                line: 1,
-                column: 1
-            })
-        ),
+        format!("{}", Token::Identifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None })),
         "bob"
     );
     assert_eq!(format!("{}", Token::Number(6.222)), "6.222");
@@ -1877,8 +1909,6 @@ fn token_display() {
             Token::NoSubstitutionTemplate(TemplateData {
                 tv: Some(JSString::from("rust")),
                 trv: JSString::from("rust"),
-                starting_index: 0,
-                byte_length: 4
             })
         ),
         "rust"
@@ -1886,36 +1916,21 @@ fn token_display() {
     assert_eq!(
         format!(
             "{}",
-            Token::TemplateHead(TemplateData {
-                tv: Some(JSString::from("rust")),
-                trv: JSString::from("rust"),
-                starting_index: 0,
-                byte_length: 4
-            })
+            Token::TemplateHead(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
         ),
         "rust"
     );
     assert_eq!(
         format!(
             "{}",
-            Token::TemplateMiddle(TemplateData {
-                tv: Some(JSString::from("rust")),
-                trv: JSString::from("rust"),
-                starting_index: 0,
-                byte_length: 4
-            })
+            Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
         ),
         "rust"
     );
     assert_eq!(
         format!(
             "{}",
-            Token::TemplateTail(TemplateData {
-                tv: Some(JSString::from("rust")),
-                trv: JSString::from("rust"),
-                starting_index: 0,
-                byte_length: 4
-            })
+            Token::TemplateTail(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
         ),
         "rust"
     );
@@ -1930,12 +1945,7 @@ fn token_display() {
     assert_eq!(
         format!(
             "{}",
-            Token::PrivateIdentifier(IdentifierData {
-                string_value: JSString::from("#bob"),
-                keyword_id: None,
-                line: 1,
-                column: 1
-            })
+            Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("#bob"), keyword_id: None })
         ),
         "#bob"
     );
@@ -2042,20 +2052,17 @@ mod keyword {
 
 #[test]
 fn identifier_data_matches() {
-    let catch =
-        IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch), line: 1, column: 1 };
-    let other = IdentifierData { string_value: JSString::from("other"), keyword_id: None, line: 1, column: 1 };
+    let catch = IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch) };
+    let other = IdentifierData { string_value: JSString::from("other"), keyword_id: None };
     assert_eq!(catch.matches(Keyword::Catch), true);
     assert_eq!(catch.matches(Keyword::If), false);
     assert_eq!(other.matches(Keyword::Catch), false);
 }
 #[test]
 fn identifier_data_ne() {
-    let catch =
-        IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch), line: 1, column: 1 };
-    let catch2 =
-        IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch), line: 1, column: 1 };
-    let other = IdentifierData { string_value: JSString::from("other"), keyword_id: None, line: 1, column: 1 };
+    let catch = IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch) };
+    let catch2 = IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch) };
+    let other = IdentifierData { string_value: JSString::from("other"), keyword_id: None };
 
     assert_eq!(catch != catch2, false);
     assert_eq!(catch != other, true);
@@ -2063,15 +2070,7 @@ fn identifier_data_ne() {
 #[test]
 fn identifier_data_debug() {
     assert_ne!(
-        format!(
-            "{:?}",
-            IdentifierData {
-                string_value: JSString::from("catch"),
-                keyword_id: Some(Keyword::Catch),
-                line: 1,
-                column: 1
-            }
-        ),
+        format!("{:?}", IdentifierData { string_value: JSString::from("catch"), keyword_id: Some(Keyword::Catch) }),
         ""
     );
 }
@@ -2132,34 +2131,38 @@ fn scan_goal_clone() {
 
 #[test]
 fn private_identifier_01() {
-    let (tok, scan) = scan_token(&Scanner::new(), "#bobo", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#bobo", ScanGoal::InputElementRegExp);
     assert_eq!(scan, Scanner { line: 1, column: 6, start_idx: 5 });
     assert!(matches!(tok, Token::PrivateIdentifier(_)));
     if let Token::PrivateIdentifier(data) = tok {
-        assert_eq!(data.column, 1);
         assert_eq!(data.keyword_id, None);
-        assert_eq!(data.line, 1);
         assert_eq!(data.string_value, JSString::from("#bobo"));
     }
+    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } })
 }
 #[test]
 fn private_identifier_02() {
-    let (tok, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
     assert_eq!(scan, Scanner { line: 1, column: 1, start_idx: 0 });
     println!("{:?}", tok);
     assert!(matches!(tok, Token::Error(_)));
     if let Token::Error(msg) = tok {
         assert_eq!(msg, "Unrecognized Token");
     }
+    assert_eq!(location, Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } })
 }
 #[test]
 fn private_identifier_03() {
-    let (tok, scan) = scan_token(&Scanner::new(), "#ident\\u{20}aa", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#ident\\u{20}aa", ScanGoal::InputElementRegExp);
     assert_eq!(scan, Scanner { line: 1, column: 7, start_idx: 6 });
     assert!(matches!(tok, Token::Error(_)));
     if let Token::Error(msg) = tok {
         assert_eq!(msg, "1:7: Invalid Identifier Continuation Character ' '");
     }
+    assert_eq!(
+        location,
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 6 } }
+    );
 }
 
 mod char_range {

@@ -41,11 +41,16 @@ impl PrettyPrint for ThrowStatement {
 
 impl ThrowStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_throw = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
+        let (throw_loc, after_throw) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
         no_line_terminator(after_throw, parser.source)?;
         let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
-        let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(ThrowStatement(exp)), after_semi))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

@@ -144,8 +144,6 @@ impl fmt::Display for Keyword {
 pub struct IdentifierData {
     pub string_value: JSString,
     pub keyword_id: Option<Keyword>,
-    pub line: u32,
-    pub column: u32,
 }
 
 impl fmt::Display for IdentifierData {
@@ -1073,8 +1071,6 @@ fn identifier_internal(
         IdentifierData {
             string_value: identifier_name_string_value(&source[scanner.start_idx..scanner_1.start_idx]),
             keyword_id: identifier_name_keyword(&source[scanner.start_idx..scanner_1.start_idx]),
-            line: scanner.line,
-            column: scanner.column,
         },
         scanner_1,
     )))
@@ -1746,8 +1742,6 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 pub struct TemplateData {
     pub tv: Option<JSString>,
     pub trv: JSString,
-    pub starting_index: usize,
-    pub byte_length: usize,
 }
 
 impl fmt::Display for TemplateData {
@@ -2041,15 +2035,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                 TemplateStyle::NoSubOrHead => Token::NoSubstitutionTemplate,
                 TemplateStyle::MiddleOrTail => Token::TemplateTail,
             };
-            Some((
-                make_token(TemplateData {
-                    tv,
-                    trv,
-                    starting_index: scanner.start_idx,
-                    byte_length: after_trailing_quote.start_idx - scanner.start_idx,
-                }),
-                after_trailing_quote,
-            ))
+            Some((make_token(TemplateData { tv, trv }), after_trailing_quote))
         }
         None => {
             let pot_template_head = match_char(&after_chars, source, '$').and_then(|r| match_char(&r, source, '{'));
@@ -2059,15 +2045,7 @@ fn template_token(scanner: &Scanner, source: &str, style: TemplateStyle) -> Opti
                         TemplateStyle::NoSubOrHead => Token::TemplateHead,
                         TemplateStyle::MiddleOrTail => Token::TemplateMiddle,
                     };
-                    Some((
-                        make_token(TemplateData {
-                            tv,
-                            trv,
-                            starting_index: scanner.start_idx,
-                            byte_length: after_template_head.start_idx - scanner.start_idx,
-                        }),
-                        after_template_head,
-                    ))
+                    Some((make_token(TemplateData { tv, trv }), after_template_head))
                 }
                 None => None,
             }
@@ -2088,15 +2066,11 @@ fn private_identifier(scanner: &Scanner, source: &str) -> Option<(Token, Scanner
             new_id.push('#' as u16);
             new_id.extend(Vec::<u16>::from(data.string_value));
             Some((
-                Token::PrivateIdentifier(IdentifierData {
-                    keyword_id: data.keyword_id,
-                    line: data.line,
-                    column: data.column - 1,
-                    string_value: new_id.into(),
-                }),
+                Token::PrivateIdentifier(IdentifierData { keyword_id: data.keyword_id, string_value: new_id.into() }),
                 scan,
             ))
         }
+        Ok(None) => None,
     })
 }
 

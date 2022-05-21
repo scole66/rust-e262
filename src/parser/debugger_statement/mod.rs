@@ -39,9 +39,14 @@ impl PrettyPrint for DebuggerStatement {
 impl DebuggerStatement {
     // no need to cache
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_deb = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
-        let after_semi = scan_for_auto_semi(after_deb, parser.source, ScanGoal::InputElementDiv)?;
+        let (deb_loc, after_deb) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_deb, parser.source, ScanGoal::InputElementDiv)?;
         Ok((Rc::new(DebuggerStatement), after_semi))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {

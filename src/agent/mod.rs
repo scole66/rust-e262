@@ -1129,19 +1129,19 @@ pub fn global_declaration_instantiation(
     let var_names = script.var_declared_names();
     for name in lex_names {
         if env.has_var_declaration(&name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
         }
         if env.has_lexical_declaration(agent, &name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
         }
         let has_restricted_global = env.has_restricted_global_property(agent, &name)?;
         if has_restricted_global {
-            return Err(create_syntax_error(agent, format!("{name} is restricted and may not be used")));
+            return Err(create_syntax_error(agent, format!("{name} is restricted and may not be used"), None));
         }
     }
     for name in var_names {
         if env.has_lexical_declaration(agent, &name) {
-            return Err(create_syntax_error(agent, format!("{name}: already defined")));
+            return Err(create_syntax_error(agent, format!("{name}: already defined"), None));
         }
     }
     let var_declarations = script.var_scoped_declarations();

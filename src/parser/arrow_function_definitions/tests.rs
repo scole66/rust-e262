@@ -277,7 +277,7 @@ fn concise_body_test_02() {
     let (node, scanner) = check(ConciseBody::parse(&mut newparser("{q;}"), Scanner::new(), true));
     println!("node = {:?}", node);
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ConciseBody::Function(..)));
+    assert!(matches!(&*node, ConciseBody::Function { .. }));
     pretty_check(&*node, "ConciseBody: { q ; }", vec!["FunctionBody: q ;"]);
     concise_check(&*node, "ConciseBody: { q ; }", vec!["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
     format!("{:?}", node);

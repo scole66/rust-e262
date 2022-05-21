@@ -78,7 +78,7 @@ impl ExponentiationExpression {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_op =
+                let (op_loc, after_op) =
                     scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;
                 let (ee, after_ee) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::Exponentiation(ue, ee)), after_ee))

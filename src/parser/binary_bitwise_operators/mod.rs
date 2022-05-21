@@ -78,14 +78,22 @@ impl BitwiseANDExpression {
             let mut current = Rc::new(BitwiseANDExpression::EqualityExpression(ee1));
             let mut current_scanner = after_ee1;
             while let Ok((ee2, after_ee2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp)
-                    .and_then(|after_op| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp).and_then(
+                    |(_, after_op)| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current = Rc::new(BitwiseANDExpression::BitwiseAND(current, ee2));
                 current_scanner = after_ee2;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BitwiseANDExpression::EqualityExpression(exp) => exp.location(),
+            BitwiseANDExpression::BitwiseAND(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -245,14 +253,22 @@ impl BitwiseXORExpression {
             let mut current = Rc::new(BitwiseXORExpression::BitwiseANDExpression(band1));
             let mut current_scanner = after_band1;
             while let Ok((band2, after_band2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret)
-                    .and_then(|after_op| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret).and_then(
+                    |(_, after_op)| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current = Rc::new(BitwiseXORExpression::BitwiseXOR(current, band2));
                 current_scanner = after_band2;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(exp) => exp.location(),
+            BitwiseXORExpression::BitwiseXOR(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -411,8 +427,9 @@ impl BitwiseORExpression {
             let mut current = Rc::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
             let mut current_scanner = after_bxor1;
             while let Ok((bxor2, after_bxor2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe)
-                    .and_then(|after_op| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe).and_then(
+                    |(_, after_op)| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current = Rc::new(BitwiseORExpression::BitwiseOR(current, bxor2));
                 current_scanner = after_bxor2;
@@ -436,6 +453,13 @@ impl BitwiseORExpression {
                 parser.bitwise_or_expression_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(exp) => exp.location(),
+            BitwiseORExpression::BitwiseOR(left, right) => left.location().merge(&right.location()),
         }
     }
 

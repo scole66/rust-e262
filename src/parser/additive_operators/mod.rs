@@ -92,7 +92,7 @@ impl AdditiveExpression {
             ScanGoal::InputElementDiv,
             &[Punctuator::Plus, Punctuator::Minus],
         )
-        .and_then(|(token, after_op)| {
+        .and_then(|(token, _, after_op)| {
             MultiplicativeExpression::parse(parser, after_op, yield_flag, await_flag)
                 .map(|(node, after_node)| (token, node, after_node))
         }) {

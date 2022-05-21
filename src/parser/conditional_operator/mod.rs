@@ -82,10 +82,10 @@ impl ConditionalExpression {
     ) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
         match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
-            .and_then(|after_q| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
+            .and_then(|(q_loc, after_q)| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
             .and_then(|(ae1, after_ae1)| {
                 scan_for_punct(after_ae1, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)
-                    .and_then(|after_colon| {
+                    .and_then(|(colon_loc, after_colon)| {
                         AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag)
                     })
                     .map(|(ae2, after_ae2)| (ae1, ae2, after_ae2))
@@ -94,6 +94,13 @@ impl ConditionalExpression {
                 Ok((Rc::new(ConditionalExpression::Conditional(left, thenish, elseish)), after))
             }
             Err(_) => Ok((Rc::new(ConditionalExpression::FallThru(left)), after_left)),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ConditionalExpression::FallThru(exp) => exp.location(),
+            ConditionalExpression::Conditional(left, _, right) => left.location().merge(&right.location()),
         }
     }
 

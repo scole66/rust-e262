@@ -83,18 +83,25 @@ impl IfStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_lead = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
-        let after_open = scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lead_loc, after_lead) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
+        let (open_loc, after_open) =
+            scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (close_loc, after_close) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (stmt1, after_stmt1) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         match scan_for_keyword(after_stmt1, parser.source, ScanGoal::InputElementRegExp, Keyword::Else) {
             Err(_) => Ok((Rc::new(IfStatement::WithoutElse(exp, stmt1)), after_stmt1)),
-            Ok(after_else) => {
+            Ok((else_loc, after_else)) => {
                 let (stmt2, after_stmt2) = Statement::parse(parser, after_else, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(IfStatement::WithElse(exp, stmt1, stmt2)), after_stmt2))
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

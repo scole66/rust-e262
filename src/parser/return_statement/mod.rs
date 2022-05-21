@@ -53,14 +53,19 @@ impl PrettyPrint for ReturnStatement {
 
 impl ReturnStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_ret = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
+        let (ret_loc, after_ret) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
         scan_for_auto_semi(after_ret, parser.source, ScanGoal::InputElementRegExp)
-            .map(|after_semi| (Rc::new(ReturnStatement::Bare), after_semi))
+            .map(|(semi_loc, after_semi)| (Rc::new(ReturnStatement::Bare), after_semi))
             .otherwise(|| {
                 let (exp, after_exp) = Expression::parse(parser, after_ret, true, yield_flag, await_flag)?;
-                let after_semi = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
                 Ok((Rc::new(ReturnStatement::Expression(exp)), after_semi))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

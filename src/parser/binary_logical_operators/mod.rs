@@ -82,14 +82,22 @@ impl LogicalANDExpression {
             let mut current = Rc::new(LogicalANDExpression::BitwiseORExpression(left));
             let mut current_scanner = after_left;
             while let Ok((right, after_right)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::AmpAmp)
-                    .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::AmpAmp).and_then(
+                    |(_, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current = Rc::new(LogicalANDExpression::LogicalAND(current, right));
                 current_scanner = after_right;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(exp) => exp.location(),
+            LogicalANDExpression::LogicalAND(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -250,13 +258,22 @@ impl LogicalORExpression {
             let mut current_scanner = after_left;
             while let Ok((right, after_right)) =
                 scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::PipePipe)
-                    .and_then(|after_op| LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                    .and_then(|(_, after_op)| {
+                        LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)
+                    })
             {
                 current = Rc::new(LogicalORExpression::LogicalOR(current, right));
                 current_scanner = after_right;
             }
             (current, current_scanner)
         })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            LogicalORExpression::LogicalANDExpression(exp) => exp.location(),
+            LogicalORExpression::LogicalOR(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -389,8 +406,9 @@ impl CoalesceExpression {
             let mut current_scanner = after_left;
             let mut exp_scanner = scanner;
             while let Ok((right, after_right)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ)
-                    .and_then(|after_op| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag))
+                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ).and_then(
+                    |(op_loc, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current_head = CoalesceExpressionHead::CoalesceExpression(Rc::new(CoalesceExpression {
                     head: Rc::new(current_head),
@@ -424,6 +442,10 @@ impl CoalesceExpression {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -628,6 +650,13 @@ impl ShortCircuitExpression {
                 LogicalORExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)
                     .map(|(lor, after_lor)| (Rc::new(ShortCircuitExpression::LogicalORExpression(lor)), after_lor))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(exp) => exp.location(),
+            ShortCircuitExpression::CoalesceExpression(exp) => exp.location(),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

@@ -16,6 +16,7 @@ pub struct FunctionDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<FunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for FunctionDeclaration {
@@ -70,8 +71,9 @@ impl FunctionDeclaration {
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (ident, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
             Ok((node, scan)) => Ok((Some(node), scan)),
             Err(e) => {
                 if default_flag {
@@ -81,13 +83,15 @@ impl FunctionDeclaration {
                 }
             }
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-        let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
-        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(FunctionDeclaration { ident: bi, params: fp, body: fb }), after_rb))
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (params, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let location = func_loc.merge(&rb_loc);
+        Ok((Rc::new(FunctionDeclaration { ident, params, body, location }), after_rb))
     }
 
     pub fn parse(
@@ -106,6 +110,10 @@ impl FunctionDeclaration {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -169,7 +177,11 @@ pub fn function_early_errors(
 
     if strict_function {
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(params.location()),
+            ));
         }
     }
 
@@ -177,13 +189,18 @@ pub fn function_early_errors(
         errs.push(create_syntax_error_object(
             agent,
             "Illegal 'use strict' directive in function with non-simple parameter list",
+            Some(body.location()),
         ));
     }
 
     let lexnames = body.lexically_declared_names();
     for lexname in lexnames {
         if bn.contains(&lexname) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", lexname)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", lexname),
+                Some(body.location()),
+            ));
         }
     }
 
@@ -192,7 +209,7 @@ pub fn function_early_errors(
         || body.contains(ParseNodeKind::SuperProperty)
         || body.contains(ParseNodeKind::SuperCall)
     {
-        errs.push(create_syntax_error_object(agent, "‘super’ not allowed here"));
+        errs.push(create_syntax_error_object(agent, "‘super’ not allowed here", Some(params.location())));
     }
 
     if let Some(ident) = ident {
@@ -263,18 +280,27 @@ impl IsFunctionDefinition for FunctionExpression {
 
 impl FunctionExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, false, false) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_func),
         };
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
-        let after_rb = scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
@@ -350,6 +376,10 @@ impl FunctionBody {
         }
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.statements.contains(kind)
     }
@@ -410,7 +440,11 @@ impl FunctionBody {
         //    « » is true.
         let ldn = self.statements.lexically_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.statements.location()),
+            ));
         }
         let vdn = self.statements.var_declared_names();
         for name in vdn {
@@ -418,17 +452,26 @@ impl FunctionBody {
                 errs.push(create_syntax_error_object(
                     agent,
                     format!("‘{}’ cannot be used in a var statement, as it is also lexically declared", name),
+                    Some(self.statements.location()),
                 ));
             }
         }
         if self.statements.contains_duplicate_labels(&[]) {
-            errs.push(create_syntax_error_object(agent, "duplicate labels detected"));
+            errs.push(create_syntax_error_object(agent, "duplicate labels detected", Some(self.statements.location())));
         }
         if self.statements.contains_undefined_break_target(&[]) {
-            errs.push(create_syntax_error_object(agent, "undefined break target detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "undefined break target detected",
+                Some(self.statements.location()),
+            ));
         }
         if self.statements.contains_undefined_continue_target(&[], &[]) {
-            errs.push(create_syntax_error_object(agent, "undefined continue target detected"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "undefined continue target detected",
+                Some(self.statements.location()),
+            ));
         }
 
         self.statements.early_errors(agent, errs, strict);
@@ -483,6 +526,10 @@ impl FunctionStatementList {
             Ok((st, s)) => (Some(st), s),
         };
         (Rc::new(FunctionStatementList { statements: stmts }), after_stmts)
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

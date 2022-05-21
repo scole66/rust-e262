@@ -383,6 +383,20 @@ impl Ord for Location {
     }
 }
 
+impl Location {
+    pub fn merge(&self, other: &Self) -> Self {
+        assert!(self.span.starting_index <= other.span.starting_index + other.span.length);
+        Location {
+            starting_line: self.starting_line,
+            starting_column: self.starting_column,
+            span: Span {
+                starting_index: self.span.starting_index,
+                length: other.span.starting_index + other.span.length - self.span.starting_index,
+            },
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum PECode {
     Generic,
@@ -685,6 +699,7 @@ pub fn parse_text(agent: &mut Agent, src: &str, goal_symbol: ParseGoal) -> Parse
                     let syntax_error = create_syntax_error_object(
                         agent,
                         format!("{}:{}: {}", pe.location.starting_line, pe.location.starting_column, pe).as_str(),
+                        Some(pe.location),
                     );
                     ParsedText::Errors(vec![syntax_error])
                 }

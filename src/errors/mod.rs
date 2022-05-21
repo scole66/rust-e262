@@ -1,4 +1,4 @@
-use super::agent::Agent;
+use super::agent::*;
 use super::cr::{AbruptCompletion, Completion};
 use super::function_object::{create_builtin_function, Arguments};
 use super::object::{
@@ -8,6 +8,7 @@ use super::object::{
     ordinary_set, ordinary_set_prototype_of, CommonObjectData, InternalSlotName, Object, ObjectInterface,
     PotentialPropertyDescriptor, PropertyDescriptor, BUILTIN_FUNCTION_SLOTS, ERROR_OBJECT_SLOTS,
 };
+use super::parser::*;
 use super::realm::IntrinsicId;
 use super::realm::Realm;
 use super::strings::JSString;
@@ -20,18 +21,51 @@ fn create_native_error_object(
     message: impl Into<JSString>,
     error_constructor: Object,
     proto_id: IntrinsicId,
+    location: Option<Location>,
 ) -> Object {
     let o =
         ordinary_create_from_constructor(agent, &error_constructor, proto_id, &[InternalSlotName::ErrorData]).unwrap();
     let desc =
         PotentialPropertyDescriptor::new().value(message.into()).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(agent, &o, "message", desc).unwrap();
+    if let Some(location) = location {
+        let obj_proto = agent.intrinsic(IntrinsicId::ObjectPrototype);
+        let loc = ordinary_object_create(agent, Some(obj_proto), &[]);
+        define_property_or_throw(
+            agent,
+            &loc,
+            "line",
+            PotentialPropertyDescriptor::new().value(location.starting_line).writable(true).configurable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            agent,
+            &loc,
+            "column",
+            PotentialPropertyDescriptor::new().value(location.starting_column).writable(true).configurable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            agent,
+            &loc,
+            "byte_length",
+            PotentialPropertyDescriptor::new().value(location.span.length as u32).writable(true).configurable(true),
+        )
+        .unwrap();
+        define_property_or_throw(
+            agent,
+            &o,
+            "location",
+            PotentialPropertyDescriptor::new().value(loc).writable(true).configurable(true),
+        )
+        .unwrap();
+    }
     o
 }
 
 pub fn create_type_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let error_constructor = agent.intrinsic(IntrinsicId::TypeError);
-    create_native_error_object(agent, message, error_constructor, IntrinsicId::TypeErrorPrototype)
+    create_native_error_object(agent, message, error_constructor, IntrinsicId::TypeErrorPrototype, None)
 }
 
 pub fn create_type_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
@@ -40,25 +74,33 @@ pub fn create_type_error(agent: &mut Agent, message: impl Into<JSString>) -> Abr
 
 pub fn create_reference_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::ReferenceError);
-    create_native_error_object(agent, message, cstr, IntrinsicId::ReferenceErrorPrototype)
+    create_native_error_object(agent, message, cstr, IntrinsicId::ReferenceErrorPrototype, None)
 }
 
 pub fn create_reference_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_reference_error_object(agent, message)) }
 }
 
-pub fn create_syntax_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
+pub fn create_syntax_error_object(
+    agent: &mut Agent,
+    message: impl Into<JSString>,
+    location: Option<Location>,
+) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::SyntaxError);
-    create_native_error_object(agent, message, cstr, IntrinsicId::SyntaxErrorPrototype)
+    create_native_error_object(agent, message, cstr, IntrinsicId::SyntaxErrorPrototype, location)
 }
 
-pub fn create_syntax_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
-    AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_syntax_error_object(agent, message)) }
+pub fn create_syntax_error(
+    agent: &mut Agent,
+    message: impl Into<JSString>,
+    location: Option<Location>,
+) -> AbruptCompletion {
+    AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_syntax_error_object(agent, message, location)) }
 }
 
 pub fn create_range_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::RangeError);
-    create_native_error_object(agent, message, cstr, IntrinsicId::RangeErrorPrototype)
+    create_native_error_object(agent, message, cstr, IntrinsicId::RangeErrorPrototype, None)
 }
 
 pub fn create_range_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
@@ -67,7 +109,7 @@ pub fn create_range_error(agent: &mut Agent, message: impl Into<JSString>) -> Ab
 
 pub fn create_eval_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::EvalError);
-    create_native_error_object(agent, message, cstr, IntrinsicId::EvalErrorPrototype)
+    create_native_error_object(agent, message, cstr, IntrinsicId::EvalErrorPrototype, None)
 }
 
 pub fn create_eval_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {
@@ -76,7 +118,7 @@ pub fn create_eval_error(agent: &mut Agent, message: impl Into<JSString>) -> Abr
 
 pub fn create_uri_error_object(agent: &mut Agent, message: impl Into<JSString>) -> Object {
     let cstr = agent.intrinsic(IntrinsicId::URIError);
-    create_native_error_object(agent, message, cstr, IntrinsicId::URIErrorPrototype)
+    create_native_error_object(agent, message, cstr, IntrinsicId::URIErrorPrototype, None)
 }
 
 pub fn create_uri_error(agent: &mut Agent, message: impl Into<JSString>) -> AbruptCompletion {

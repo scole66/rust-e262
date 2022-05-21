@@ -47,7 +47,7 @@ mod update_expression {
     fn preinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: ++ a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", vec!["Punctuator: ++", "IdentifierName: a"]);
@@ -57,7 +57,7 @@ mod update_expression {
     fn predec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PreDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PreDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: -- a", vec!["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", vec!["Punctuator: --", "IdentifierName: a"]);
@@ -67,7 +67,7 @@ mod update_expression {
     fn postinc() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostIncrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostIncrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a ++", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", vec!["IdentifierName: a", "Punctuator: ++"]);
@@ -77,7 +77,7 @@ mod update_expression {
     fn postdec() {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        assert!(matches!(*ue, UpdateExpression::PostDecrement(_)));
+        assert!(matches!(*ue, UpdateExpression::PostDecrement { .. }));
         format!("{:?}", ue);
         pretty_check(&*ue, "UpdateExpression: a --", vec!["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", vec!["IdentifierName: a", "Punctuator: --"]);

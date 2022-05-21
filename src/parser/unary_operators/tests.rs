@@ -23,7 +23,7 @@ mod unary_expression {
     fn delete() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("delete bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Delete(_)));
+        assert!(matches!(*ue, UnaryExpression::Delete { .. }));
         pretty_check(&*ue, "UnaryExpression: delete bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", vec!["Keyword: delete", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -33,7 +33,7 @@ mod unary_expression {
     fn void() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("void bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
-        assert!(matches!(*ue, UnaryExpression::Void(_)));
+        assert!(matches!(*ue, UnaryExpression::Void { .. }));
         pretty_check(&*ue, "UnaryExpression: void bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", vec!["Keyword: void", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -43,7 +43,7 @@ mod unary_expression {
     fn r#typeof() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("typeof bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
-        assert!(matches!(*ue, UnaryExpression::Typeof(_)));
+        assert!(matches!(*ue, UnaryExpression::Typeof { .. }));
         pretty_check(&*ue, "UnaryExpression: typeof bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", vec!["Keyword: typeof", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -53,7 +53,7 @@ mod unary_expression {
     fn numberify() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("+bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::NoOp(_)));
+        assert!(matches!(*ue, UnaryExpression::NoOp { .. }));
         pretty_check(&*ue, "UnaryExpression: + bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", vec!["Punctuator: +", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -63,7 +63,7 @@ mod unary_expression {
     fn negate() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("-bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Negate(_)));
+        assert!(matches!(*ue, UnaryExpression::Negate { .. }));
         pretty_check(&*ue, "UnaryExpression: - bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", vec!["Punctuator: -", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -73,7 +73,7 @@ mod unary_expression {
     fn complement() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("~bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Complement(_)));
+        assert!(matches!(*ue, UnaryExpression::Complement { .. }));
         pretty_check(&*ue, "UnaryExpression: ~ bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", vec!["Punctuator: ~", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
@@ -83,7 +83,7 @@ mod unary_expression {
     fn not() {
         let (ue, scanner) = check(UnaryExpression::parse(&mut newparser("!bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
-        assert!(matches!(*ue, UnaryExpression::Not(_)));
+        assert!(matches!(*ue, UnaryExpression::Not { .. }));
         pretty_check(&*ue, "UnaryExpression: ! bob", vec!["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", vec!["Punctuator: !", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());

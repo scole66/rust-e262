@@ -35,8 +35,13 @@ impl PrettyPrint for EmptyStatement {
 
 impl EmptyStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_semi = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+        let (semi_loc, after_semi) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
         Ok((Rc::new(EmptyStatement), after_semi))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {

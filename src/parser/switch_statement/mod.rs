@@ -55,10 +55,13 @@ impl SwitchStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_switch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
-        let after_open = scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (switch_loc, after_switch) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
+        let (open_loc, after_open) =
+            scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let after_close = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (close_loc, after_close) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb }), after_cases))
     }
@@ -116,12 +119,17 @@ impl SwitchStatement {
         let ldn = self.case_block.lexically_declared_names();
         let vdn = self.case_block.var_declared_names();
         for name in duplicates(&ldn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.case_block.location()),
+            ));
         }
         for name in ldn.iter().filter(|&s| vdn.contains(s)) {
             errs.push(create_syntax_error_object(
                 agent,
                 format!("‘{}’ may not be declared both lexically and var-style", name),
+                Some(self.case_block.location()),
             ));
         }
 
@@ -229,14 +237,15 @@ impl CaseBlock {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_open = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (open_loc, after_open) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (pre, after_pre) = match CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_open),
         };
         Err(ParseError::new(PECode::CaseBlockCloseExpected, after_pre))
             .otherwise(|| {
-                let after_close =
+                let (close_loc, after_close) =
                     scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((None, after_close))
             })
@@ -247,7 +256,7 @@ impl CaseBlock {
                         Ok((node, scan)) => (Some(node), scan),
                         Err(_) => (None, after_def),
                     };
-                let after_close =
+                let (close_loc, after_close) =
                     scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Some((def, post)), after_close))
             })
@@ -260,6 +269,10 @@ impl CaseBlock {
                     scan,
                 )
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -673,9 +686,11 @@ impl CaseClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_case = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
+        let (case_loc, after_case) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
-        let after_colon = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (colon_loc, after_colon) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (stmt, after_stmt) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((stmt, s)) => (Some(stmt), s),
@@ -822,8 +837,10 @@ impl DefaultClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_def = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
-        let after_colon = scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (def_loc, after_def) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
+        let (colon_loc, after_colon) =
+            scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((lst, scan)) => (Some(lst), scan),

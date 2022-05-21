@@ -75,9 +75,10 @@ impl AsyncFunctionDeclaration {
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_function =
+        let (function_loc, after_function) =
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, yield_flag, await_flag) {
             Err(e) => {
@@ -89,13 +90,21 @@ impl AsyncFunctionDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, false, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncFunctionDeclaration { ident, params, body }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -152,11 +161,19 @@ impl AsyncFunctionDeclaration {
         if strict_function && !self.params.is_simple_parameter_list() {
             // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
             // is false
-            errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Strict functions must also have simple parameter lists",
+                Some(self.params.location()),
+            ));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             // FormalParameters Contains AwaitExpression is true.
-            errs.push(create_syntax_error_object(agent, "await expressions not expected here"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "await expressions not expected here",
+                Some(self.params.location()),
+            ));
         }
         let duplicates_checked = if strict_function {
             // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
@@ -165,7 +182,11 @@ impl AsyncFunctionDeclaration {
             //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
             let bn = self.params.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.params.location()),
+                ));
             }
             true
         } else {
@@ -176,23 +197,43 @@ impl AsyncFunctionDeclaration {
         let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
         let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
         if !bn.is_disjoint(&ldn) {
-            errs.push(create_syntax_error_object(agent, "Lexical decls in body duplicate parameters"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Lexical decls in body duplicate parameters",
+                Some(self.body.location()),
+            ));
         }
         // It is a Syntax Error if FormalParameters Contains SuperProperty is true.
         if self.params.contains(ParseNodeKind::SuperProperty) {
-            errs.push(create_syntax_error_object(agent, "Parameters may not include super properties"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Parameters may not include super properties",
+                Some(self.params.location()),
+            ));
         }
         // It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
         if self.body.contains(ParseNodeKind::SuperProperty) {
-            errs.push(create_syntax_error_object(agent, "Body may not contain super properties"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Body may not contain super properties",
+                Some(self.body.location()),
+            ));
         }
         // It is a Syntax Error if FormalParameters Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Parameters may not include super calls"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Parameters may not include super calls",
+                Some(self.params.location()),
+            ));
         }
         // It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
         if self.body.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Body may not contain super calls"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Body may not contain super calls",
+                Some(self.body.location()),
+            ));
         }
 
         // All the children
@@ -269,21 +310,30 @@ impl IsFunctionDefinition for AsyncFunctionExpression {
 impl AsyncFunctionExpression {
     // AsyncFunctionExpression's only parent is PrimaryExpression. It doesn't need caching.
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let after_function =
+        let (function_loc, after_function) =
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_function, false, true) {
             Err(_) => (None, after_function),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, false, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncFunctionExpression { ident, params, body }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, _: ParseNodeKind) -> bool {
@@ -332,11 +382,19 @@ impl AsyncFunctionExpression {
         if strict_function && !self.params.is_simple_parameter_list() {
             // FunctionBodyContainsUseStrict of AsyncFunctionBody is true and IsSimpleParameterList of FormalParameters
             // is false
-            errs.push(create_syntax_error_object(agent, "Strict functions must also have simple parameter lists"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Strict functions must also have simple parameter lists",
+                Some(self.params.location()),
+            ));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             // FormalParameters Contains AwaitExpression is true.
-            errs.push(create_syntax_error_object(agent, "await expressions not expected here"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "await expressions not expected here",
+                Some(self.params.location()),
+            ));
         }
         let duplicates_checked = if strict_function {
             // The Early Error rules for UniqueFormalParameters : FormalParameters are applied.
@@ -345,7 +403,11 @@ impl AsyncFunctionExpression {
             //      * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
             let bn = self.params.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.params.location()),
+                ));
             }
             true
         } else {
@@ -356,23 +418,43 @@ impl AsyncFunctionExpression {
         let bn: AHashSet<JSString> = self.params.bound_names().into_iter().collect();
         let ldn: AHashSet<JSString> = self.body.lexically_declared_names().into_iter().collect();
         if !bn.is_disjoint(&ldn) {
-            errs.push(create_syntax_error_object(agent, "Lexical decls in body duplicate parameters"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Lexical decls in body duplicate parameters",
+                Some(self.body.location()),
+            ));
         }
         // It is a Syntax Error if FormalParameters Contains SuperProperty is true.
         if self.params.contains(ParseNodeKind::SuperProperty) {
-            errs.push(create_syntax_error_object(agent, "Parameters may not include super properties"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Parameters may not include super properties",
+                Some(self.params.location()),
+            ));
         }
         // It is a Syntax Error if AsyncFunctionBody Contains SuperProperty is true.
         if self.body.contains(ParseNodeKind::SuperProperty) {
-            errs.push(create_syntax_error_object(agent, "Body may not contain super properties"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Body may not contain super properties",
+                Some(self.body.location()),
+            ));
         }
         // It is a Syntax Error if FormalParameters Contains SuperCall is true.
         if self.params.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Parameters may not include super calls"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Parameters may not include super calls",
+                Some(self.params.location()),
+            ));
         }
         // It is a Syntax Error if AsyncFunctionBody Contains SuperCall is true.
         if self.body.contains(ParseNodeKind::SuperCall) {
-            errs.push(create_syntax_error_object(agent, "Body may not contain super calls"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Body may not contain super calls",
+                Some(self.body.location()),
+            ));
         }
 
         // All the children
@@ -435,16 +517,25 @@ impl PrettyPrint for AsyncMethod {
 impl AsyncMethod {
     // No caching required. Parent: MethodDefinition
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_async = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+        let (async_loc, after_async) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (ident, after_ident) = ClassElementName::parse(parser, after_async, yield_flag, await_flag)?;
-        let after_lp = scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, false, true);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncFunctionBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(AsyncMethod { ident, params, body }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -518,21 +609,27 @@ impl AsyncMethod {
             errs.push(create_syntax_error_object(
                 agent,
                 "Illegal 'use strict' directive in function with non-simple parameter list",
+                Some(self.params.location()),
             ));
         }
         if self.has_direct_super() {
-            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here", Some(self.location())));
         }
         if self.params.contains(ParseNodeKind::AwaitExpression) {
             errs.push(create_syntax_error_object(
                 agent,
                 "Illegal await-expression in formal parameters of async function",
+                Some(self.params.location()),
             ))
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names() {
             if bn.contains(&name) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.body.location()),
+                ));
             }
         }
 
@@ -595,6 +692,10 @@ impl AsyncFunctionBody {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -684,9 +785,14 @@ impl PrettyPrint for AwaitExpression {
 impl AwaitExpression {
     // No caching required. Parent: UnaryExpression
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool) -> ParseResult<Self> {
-        let after_await = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Await)?;
+        let (await_loc, after_await) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Await)?;
         let (ue, after_ue) = UnaryExpression::parse(parser, after_await, yield_flag, true)?;
         Ok((Rc::new(AwaitExpression::Await(ue)), after_ue))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

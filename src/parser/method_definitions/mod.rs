@@ -133,31 +133,33 @@ impl MethodDefinition {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MethodDefinition), scanner))
             .otherwise(|| {
-                let after_get = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
+                let (get_loc, after_get) =
+                    scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_get, yield_flag, await_flag)?;
-                let after_open =
+                let (open_loc, after_open) =
                     scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
-                let after_close =
+                let (close_loc, after_close) =
                     scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb =
+                let (lb_loc, after_lb) =
                     scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::Getter(pn, body)), after_rb))
             })
             .otherwise(|| {
-                let after_set = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
+                let (set_loc, after_set) =
+                    scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_set, yield_flag, await_flag)?;
-                let after_open =
+                let (open_loc, after_open) =
                     scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (args, after_args) = PropertySetParameterList::parse(parser, after_open)?;
-                let after_close =
+                let (close_loc, after_close) =
                     scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb =
+                let (lb_loc, after_lb) =
                     scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::Setter(pn, args, body)), after_rb))
             })
@@ -175,15 +177,15 @@ impl MethodDefinition {
             })
             .otherwise(|| {
                 let (name, after_name) = ClassElementName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_lp =
+                let (lp_loc, after_lp) =
                     scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
                 let (ufp, after_ufp) = UniqueFormalParameters::parse(parser, after_lp, false, false);
-                let after_rp =
+                let (rp_loc, after_rp) =
                     scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-                let after_lb =
+                let (lb_loc, after_lb) =
                     scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
                 let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
-                let after_rb =
+                let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 Ok((Rc::new(MethodDefinition::NamedFunction(name, ufp, body)), after_rb))
             })
@@ -199,6 +201,10 @@ impl MethodDefinition {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -343,11 +349,16 @@ impl MethodDefinition {
                     errs.push(create_syntax_error_object(
                         agent,
                         "Illegal 'use strict' directive in function with non-simple parameter list",
+                        Some(ufp.location()),
                     ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in ufp.bound_names().into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", name),
+                        Some(ufp.location()),
+                    ));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(agent, errs, strict_function);
@@ -364,17 +375,26 @@ impl MethodDefinition {
                 //        in the LexicallyDeclaredNames of FunctionBody.
                 let bn = pspl.bound_names();
                 for name in duplicates(&bn) {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", name),
+                        Some(pspl.location()),
+                    ));
                 }
                 if fb.function_body_contains_use_strict() && !pspl.is_simple_parameter_list() {
                     errs.push(create_syntax_error_object(
                         agent,
                         "Illegal 'use strict' directive in function with non-simple parameter list",
+                        Some(pspl.location()),
                     ));
                 }
                 let ldn = fb.lexically_declared_names();
                 for name in bn.into_iter().filter(|n| ldn.contains(n)) {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", name),
+                        Some(pspl.location()),
+                    ));
                 }
                 let strict_function = strict || fb.function_body_contains_use_strict();
                 cen.early_errors(agent, errs, strict_function);
@@ -457,6 +477,10 @@ impl PropertySetParameterList {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         FormalParameter::parse(parser, scanner, false, false)
             .map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

@@ -44,42 +44,42 @@ fn primary_expression_test_idref() {
     let pe_res = PrimaryExpression::parse(&mut newparser("blue"), Scanner::new(), false, false);
     let (boxed_pe, scanner) = check(pe_res);
     chk_scan(&scanner, 4);
-    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference(_)));
+    assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference { .. }));
     assert_eq!(boxed_pe.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_literal() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(*node, PrimaryExpression::Literal(_)));
+    assert!(matches!(*node, PrimaryExpression::Literal { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_this() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*node, PrimaryExpression::This));
+    assert!(matches!(*node, PrimaryExpression::This { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_arraylit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*node, PrimaryExpression::ArrayLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ArrayLiteral { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_objlit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*node, PrimaryExpression::ObjectLiteral(_)));
+    assert!(matches!(*node, PrimaryExpression::ObjectLiteral { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_group() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(*node, PrimaryExpression::Parenthesized(_)));
+    assert!(matches!(*node, PrimaryExpression::Parenthesized { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
@@ -87,7 +87,7 @@ fn primary_expression_test_func() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
-    assert!(matches!(*node, PrimaryExpression::Function(..)));
+    assert!(matches!(*node, PrimaryExpression::Function { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: function a (  ) {  }", vec!["FunctionExpression: function a (  ) {  }"]);
     concise_check(
@@ -108,7 +108,7 @@ fn primary_expression_test_generator() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
-    assert!(matches!(*node, PrimaryExpression::Generator(..)));
+    assert!(matches!(*node, PrimaryExpression::Generator { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -136,7 +136,7 @@ fn primary_expression_test_async_generator() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
-    assert!(matches!(*node, PrimaryExpression::AsyncGenerator(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncGenerator { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -165,7 +165,7 @@ fn primary_expression_test_async_function() {
     let (node, scanner) =
         check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
-    assert!(matches!(*node, PrimaryExpression::AsyncFunction(..)));
+    assert!(matches!(*node, PrimaryExpression::AsyncFunction { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
@@ -192,14 +192,14 @@ fn primary_expression_test_async_function() {
 fn primary_expression_test_regexp() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(*node, PrimaryExpression::RegularExpression(..)));
+    assert!(matches!(*node, PrimaryExpression::RegularExpression { .. }));
     assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_class_expression() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("class{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(*node, PrimaryExpression::Class(..)));
+    assert!(matches!(*node, PrimaryExpression::Class { .. }));
     assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: class { }", vec!["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", vec!["Keyword: class", "ClassTail: { }"]);
@@ -591,13 +591,19 @@ mod primary_expression {
 // LITERAL
 #[test]
 fn literal_test_debug() {
-    assert_eq!(format!("{:?}", Literal { kind: LiteralKind::NullLiteral }), "Literal { kind: NullLiteral }");
+    let literal = Maker::new("null").literal();
+    assert_ne!(format!("{:?}", literal), "");
 }
 #[test]
 fn literal_test_null() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("null"), Scanner::new()));
     chk_scan(&scanner, 4);
-    assert!(matches!(lit.kind, LiteralKind::NullLiteral));
+    assert!(matches!(
+        *lit,
+        Literal::NullLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: null", vec![]);
     concise_check(&*lit, "Keyword: null", vec![]);
 }
@@ -605,7 +611,13 @@ fn literal_test_null() {
 fn literal_test_boolean_01() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("true"), Scanner::new()));
     chk_scan(&scanner, 4);
-    assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(true)));
+    assert!(matches!(
+        *lit,
+        Literal::BooleanLiteral {
+            val: true,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: true", vec![]);
     concise_check(&*lit, "Keyword: true", vec![]);
 }
@@ -613,7 +625,13 @@ fn literal_test_boolean_01() {
 fn literal_test_boolean_02() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("false"), Scanner::new()));
     chk_scan(&scanner, 5);
-    assert!(matches!(lit.kind, LiteralKind::BooleanLiteral(false)));
+    assert!(matches!(
+        *lit,
+        Literal::BooleanLiteral {
+            val: false,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: false", vec![]);
     concise_check(&*lit, "Keyword: false", vec![]);
 }
@@ -621,7 +639,13 @@ fn literal_test_boolean_02() {
 fn literal_test_leading_dot() {
     let (lit, scanner) = check(Literal::parse(&mut newparser(".25"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert_eq!(lit.kind, LiteralKind::NumericLiteral(Numeric::Number(0.25)));
+    assert_eq!(
+        *lit,
+        Literal::NumericLiteral {
+            val: Numeric::Number(0.25),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    );
     pretty_check(&*lit, "Literal: 0.25", vec![]);
     concise_check(&*lit, "Numeric: 0.25", vec![]);
 }
@@ -629,7 +653,13 @@ fn literal_test_leading_dot() {
 fn literal_test_bigint() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("7173n"), Scanner::new()));
     chk_scan(&scanner, 5);
-    assert!(matches!(lit.kind, LiteralKind::NumericLiteral(Numeric::BigInt(_))));
+    assert!(matches!(
+        *lit,
+        Literal::NumericLiteral {
+            val: Numeric::BigInt(_),
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: 7173", vec![]);
     concise_check(&*lit, "Numeric: 7173", vec![]);
     format!("{:?}", lit);
@@ -638,7 +668,13 @@ fn literal_test_bigint() {
 fn literal_test_string() {
     let (lit, scanner) = check(Literal::parse(&mut newparser("'string'"), Scanner::new()));
     chk_scan(&scanner, 8);
-    assert!(matches!(lit.kind, LiteralKind::StringLiteral(_)));
+    assert!(matches!(
+        *lit,
+        Literal::StringLiteral {
+            val: _,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 10 } }
+        }
+    ));
     pretty_check(&*lit, "Literal: 'string'", vec![]);
     concise_check(&*lit, "String: 'string'", vec![]);
 }
@@ -691,17 +727,6 @@ fn literal_test_conciseerrors_4() {
     concise_error_validate(&*item);
 }
 #[test]
-fn literal_kind_ne() {
-    let lk1 = LiteralKind::NumericLiteral(Numeric::Number(99.0));
-    let lk2 = LiteralKind::NumericLiteral(Numeric::Number(100.0));
-    let lk3 = LiteralKind::BooleanLiteral(false);
-    let lk4 = LiteralKind::BooleanLiteral(false);
-
-    assert!(lk1 != lk2);
-    assert!(lk1 != lk3);
-    assert!(lk3 == lk4);
-}
-#[test]
 fn numeric_has_legacy_octal() {
     assert!(!Numeric::Number(0.0).has_legacy_octal_syntax());
 }
@@ -738,13 +763,25 @@ fn elision_test_01() {
 fn elision_test_02() {
     let (e, scanner) = check(Elisions::parse(&mut newparser(",,"), Scanner::new()));
     chk_scan(&scanner, 2);
-    assert!(matches!(*e, Elisions { count: 2 }));
+    assert!(matches!(
+        *e,
+        Elisions {
+            count: 2,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
 }
 #[test]
 fn elision_test_03() {
     let (e, scanner) = check(Elisions::parse(&mut newparser(",,,]"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert!(matches!(*e, Elisions { count: 3 }));
+    assert!(matches!(
+        *e,
+        Elisions {
+            count: 3,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
+        }
+    ));
 }
 #[test]
 fn elision_test_pprint() {
@@ -787,7 +824,6 @@ fn spread_element_test_empty() {
 fn spread_element_test_assignment_expression() {
     let (se, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*se, SpreadElement::AssignmentExpression(_)));
 }
 #[test]
 fn spread_element_test_pretty() {
@@ -860,7 +896,7 @@ fn element_list_test_01() {
 fn element_list_test_02() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("3"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+    assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: 3", vec!["AssignmentExpression: 3"]);
     concise_check(&*el, "Numeric: 3", vec![]);
     format!("{:?}", *el);
@@ -869,7 +905,7 @@ fn element_list_test_02() {
 fn element_list_test_03() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,3"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*el, ElementList::AssignmentExpression((Some(be), _)) if be.count == 2));
+    assert!(matches!(&*el, ElementList::AssignmentExpression{elision: Some(be), ..} if be.count == 2));
     pretty_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "AssignmentExpression: 3"]);
     concise_check(&*el, "ElementList: , , 3", vec!["Elisions: , ,", "Numeric: 3"]);
 }
@@ -877,7 +913,7 @@ fn element_list_test_03() {
 fn element_list_test_05() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*el, ElementList::SpreadElement((None, _))));
+    assert!(matches!(*el, ElementList::SpreadElement { elision: None, .. }));
     pretty_check(&*el, "ElementList: ... a", vec!["SpreadElement: ... a"]);
     concise_check(&*el, "SpreadElement: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
 }
@@ -885,7 +921,7 @@ fn element_list_test_05() {
 fn element_list_test_06() {
     let (el, scanner) = check(ElementList::parse(&mut newparser(",,...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*el, ElementList::SpreadElement((Some(be), _)) if be.count == 2));
+    assert!(matches!(&*el, ElementList::SpreadElement{elision:Some(be), ..} if be.count == 2));
     pretty_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
     concise_check(&*el, "ElementList: , , ... a", vec!["Elisions: , ,", "SpreadElement: ... a"]);
 }
@@ -893,7 +929,7 @@ fn element_list_test_06() {
 fn element_list_test_07() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, None, _))));
+    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , b", vec!["ElementList: a", "AssignmentExpression: b"]);
     concise_check(&*el, "ElementList: a , b", vec!["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
 }
@@ -901,7 +937,7 @@ fn element_list_test_07() {
 fn element_list_test_08() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression((_, Some(be), _)) if be.count == 1));
+    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , b", vec!["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
     concise_check(
         &*el,
@@ -913,7 +949,7 @@ fn element_list_test_08() {
 fn element_list_test_09() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, None, _))));
+    assert!(matches!(&*el, ElementList::ElementListSpreadElement { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , ... b", vec!["ElementList: a", "SpreadElement: ... b"]);
     concise_check(&*el, "ElementList: a , ... b", vec!["IdentifierName: a", "Punctuator: ,", "SpreadElement: ... b"]);
 }
@@ -921,7 +957,7 @@ fn element_list_test_09() {
 fn element_list_test_10() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement((_, Some(be), _)) if be.count == 1));
+    assert!(matches!(&*el, ElementList::ElementListSpreadElement{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , ... b", vec!["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
     concise_check(
         &*el,
@@ -933,7 +969,7 @@ fn element_list_test_10() {
 fn element_list_test_04() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("0,"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
-    assert!(matches!(*el, ElementList::AssignmentExpression((None, _))));
+    assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
 }
 #[test]
 fn element_list_test_11() {
@@ -1227,7 +1263,13 @@ mod element_list {
 fn array_literal_test_01() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*al, ArrayLiteral::Empty(None)));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::Empty {
+            elision: None,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ ]", vec![]);
     concise_check(&*al, "ArrayLiteral: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", &*al);
@@ -1236,7 +1278,9 @@ fn array_literal_test_01() {
 fn array_literal_test_02() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*al, ArrayLiteral::Empty(Some(be)) if be.count == 1));
+    assert!(
+        matches!(&*al, ArrayLiteral::Empty{elision: Some(be), location: Location{ starting_line:1, starting_column:1, span:Span{ starting_index:0, length:3 } }} if be.count == 1)
+    );
     pretty_check(&*al, "ArrayLiteral: [ , ]", vec!["Elisions: ,"]);
     concise_check(&*al, "ArrayLiteral: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
 }
@@ -1244,7 +1288,13 @@ fn array_literal_test_02() {
 fn array_literal_test_03() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*al, ArrayLiteral::ElementList(_)));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::ElementList {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a ]", vec!["ElementList: a"]);
     concise_check(&*al, "ArrayLiteral: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
 }
@@ -1252,7 +1302,14 @@ fn array_literal_test_03() {
 fn array_literal_test_04() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*al, ArrayLiteral::ElementListElision(_, None)));
+    assert!(matches!(
+        *al,
+        ArrayLiteral::ElementListElision {
+            elision: None,
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } },
+            ..
+        }
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a , ]", vec!["ElementList: a"]);
     concise_check(
         &*al,
@@ -1264,7 +1321,14 @@ fn array_literal_test_04() {
 fn array_literal_test_05() {
     let (al, scanner) = check(ArrayLiteral::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*al, ArrayLiteral::ElementListElision(_, Some(be)) if be.count == 1));
+    assert!(matches!(
+        &*al,
+        ArrayLiteral::ElementListElision{
+            elision: Some(be),
+            location: Location { starting_line:1, starting_column:1, span: Span{ starting_index: 0, length: 5 } },
+            ..
+        } if be.count == 1
+    ));
     pretty_check(&*al, "ArrayLiteral: [ a , , ]", vec!["ElementList: a", "Elisions: ,"]);
     concise_check(
         &*al,
@@ -1458,7 +1522,13 @@ fn initializer_test_nomatch() {
 fn initializer_test_01() {
     let (izer, scanner) = check(Initializer::parse(&mut newparser("=a"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*izer, Initializer::AssignmentExpression(_)));
+    assert!(matches!(
+        &*izer,
+        Initializer {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            ..
+        }
+    ));
     pretty_check(&*izer, "Initializer: = a", vec!["AssignmentExpression: a"]);
     concise_check(&*izer, "Initializer: = a", vec!["Punctuator: =", "IdentifierName: a"]);
     format!("{:?}", *izer);
@@ -1608,7 +1678,13 @@ fn computed_property_name_test_nomatch_3() {
 fn computed_property_name_test_01() {
     let (cpn, scanner) = check(ComputedPropertyName::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*cpn, ComputedPropertyName::AssignmentExpression(_)));
+    assert!(matches!(
+        &*cpn,
+        ComputedPropertyName {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["AssignmentExpression: a"]);
     concise_check(&*cpn, "ComputedPropertyName: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", &*cpn);
@@ -1674,7 +1750,13 @@ fn literal_property_name_test_none() {
 fn literal_property_name_test_01() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("b"), Scanner::new()));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*lpn, LiteralPropertyName::IdentifierName(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::IdentifierName {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: b", vec![]);
     concise_check(&*lpn, "IdentifierName: b", vec![]);
     format!("{:?}", *lpn);
@@ -1683,7 +1765,13 @@ fn literal_property_name_test_01() {
 fn literal_property_name_test_02() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("'b'"), Scanner::new()));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*lpn, LiteralPropertyName::StringLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::StringLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 'b'", vec![]);
     concise_check(&*lpn, "String: 'b'", vec![]);
 }
@@ -1691,7 +1779,13 @@ fn literal_property_name_test_02() {
 fn literal_property_name_test_03() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("0"), Scanner::new()));
     chk_scan(&scanner, 1);
-    assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::NumericLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 0", vec![]);
     concise_check(&*lpn, "Numeric: 0", vec![]);
 }
@@ -1699,7 +1793,13 @@ fn literal_property_name_test_03() {
 fn literal_property_name_test_04() {
     let (lpn, scanner) = check(LiteralPropertyName::parse(&mut newparser("1n"), Scanner::new()));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*lpn, LiteralPropertyName::NumericLiteral(_)));
+    assert!(matches!(
+        &*lpn,
+        LiteralPropertyName::NumericLiteral {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
+            ..
+        }
+    ));
     pretty_check(&*lpn, "LiteralPropertyName: 1", vec![]);
     concise_check(&*lpn, "Numeric: 1", vec![]);
 }
@@ -1895,7 +1995,13 @@ fn property_definition_test_03() {
 fn property_definition_test_04() {
     let (pd, scanner) = check(PropertyDefinition::parse(&mut newparser("...a"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*pd, PropertyDefinition::AssignmentExpression(_)));
+    assert!(matches!(
+        &*pd,
+        PropertyDefinition::AssignmentExpression(
+            _,
+            Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+        )
+    ));
     pretty_check(&*pd, "PropertyDefinition: ... a", vec!["AssignmentExpression: a"]);
     concise_check(&*pd, "PropertyDefinition: ... a", vec!["Punctuator: ...", "IdentifierName: a"]);
 }
@@ -2257,7 +2363,12 @@ mod property_definition_list {
 fn object_literal_test_01() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*ol, ObjectLiteral::Empty));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::Empty {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } }
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { }", vec![]);
     concise_check(&*ol, "ObjectLiteral: { }", vec!["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", *ol);
@@ -2266,7 +2377,13 @@ fn object_literal_test_01() {
 fn object_literal_test_02() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*ol, ObjectLiteral::Normal(_)));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::Normal {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } },
+            ..
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { a : b }", vec!["PropertyDefinitionList: a : b"]);
     concise_check(
         &*ol,
@@ -2278,7 +2395,13 @@ fn object_literal_test_02() {
 fn object_literal_test_03() {
     let (ol, scanner) = check(ObjectLiteral::parse(&mut newparser("{a:b,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*ol, ObjectLiteral::TrailingComma(_)));
+    assert!(matches!(
+        &*ol,
+        ObjectLiteral::TrailingComma {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 6 } },
+            ..
+        }
+    ));
     pretty_check(&*ol, "ObjectLiteral: { a : b , }", vec!["PropertyDefinitionList: a : b"]);
     concise_check(
         &*ol,
@@ -2409,7 +2532,13 @@ mod object_literal {
 fn parenthesized_expression_test_01() {
     let (pe, scanner) = check(ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*pe, ParenthesizedExpression::Expression(_)));
+    assert!(matches!(
+        &*pe,
+        ParenthesizedExpression {
+            location: Location { starting_column: 1, starting_line: 1, span: Span { starting_index: 1, length: 3 } },
+            ..
+        }
+    ));
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     format!("{:?}", pe);
@@ -2504,7 +2633,13 @@ mod parenthesized_expression {
 fn template_middle_list_test_01() {
     let (tml, scanner) = check(TemplateMiddleList::parse(&mut newparser("}a${0"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*tml, TemplateMiddleList::ListHead(_, _, _)));
+    assert!(matches!(
+        &*tml,
+        TemplateMiddleList::ListHead {
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } },
+            ..
+        }
+    ));
     pretty_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["Expression: 0"]);
     concise_check(&*tml, "TemplateMiddleList: }a${ 0", vec!["TemplateMiddle: }a${", "Numeric: 0"]);
     format!("{:?}", tml);
@@ -2544,7 +2679,7 @@ fn template_middle_list_test_04() {
     let (tml, scanner) =
         check(TemplateMiddleList::parse(&mut newparser("}${a}${@}"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*tml, TemplateMiddleList::ListHead(_, _, _)));
+    assert!(matches!(&*tml, TemplateMiddleList::ListHead { .. }));
     pretty_check(&*tml, "TemplateMiddleList: }${ a", vec!["Expression: a"]);
     concise_check(&*tml, "TemplateMiddleList: }${ a", vec!["TemplateMiddle: }${", "IdentifierName: a"]);
     format!("{:?}", tml);
@@ -2657,7 +2792,7 @@ mod template_middle_list {
 fn template_spans_test_01() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*ts, TemplateSpans::Tail(_, _)));
+    assert!(matches!(&*ts, TemplateSpans::Tail { .. }));
     pretty_check(&*ts, "TemplateSpans: }done`", vec![]);
     concise_check(&*ts, "TemplateTail: }done`", vec![]);
     format!("{:?}", ts);
@@ -2666,7 +2801,7 @@ fn template_spans_test_01() {
 fn template_spans_test_02() {
     let (ts, scanner) = check(TemplateSpans::parse(&mut newparser("}${a}done`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 10);
-    assert!(matches!(&*ts, TemplateSpans::List(_, _, _)));
+    assert!(matches!(&*ts, TemplateSpans::List { .. }));
     pretty_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a"]);
     concise_check(&*ts, "TemplateSpans: }${ a }done`", vec!["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
     format!("{:?}", ts);
@@ -2889,8 +3024,8 @@ mod substitution_template {
 fn template_literal_test_01() {
     let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`rust`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate(_, _)));
-    if let TemplateLiteral::NoSubstitutionTemplate(_, tagged) = &*tl {
+    assert!(matches!(&*tl, TemplateLiteral::NoSubstitutionTemplate { .. }));
+    if let TemplateLiteral::NoSubstitutionTemplate { tagged, .. } = &*tl {
         assert!(!*tagged);
     }
     pretty_check(&*tl, "TemplateLiteral: `rust`", vec![]);
@@ -3052,7 +3187,7 @@ fn cpeaapl_test_01() {
         false,
     ));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty { .. }));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", vec![]);
     concise_check(
         &*node,
@@ -3070,7 +3205,7 @@ fn cpeaapl_test_02() {
         false,
     ));
     chk_scan(&scanner, 14);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression(_)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Expression { .. }));
     pretty_check(
         &*node,
         "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
@@ -3092,7 +3227,7 @@ fn cpeaapl_test_03() {
         false,
     ));
     chk_scan(&scanner, 9);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpComma(_)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpComma { .. }));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )", vec!["Expression: 8 in a"]);
     concise_check(
         &*node,
@@ -3110,7 +3245,7 @@ fn cpeaapl_test_04() {
         false,
     ));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident(_)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Ident { .. }));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )", vec!["BindingIdentifier: a"]);
     concise_check(
         &*node,
@@ -3128,7 +3263,7 @@ fn cpeaapl_test_05() {
         false,
     ));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Pattern(_)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Pattern { .. }));
     pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )", vec!["BindingPattern: { }"]);
     concise_check(
         &*node,
@@ -3146,7 +3281,7 @@ fn cpeaapl_test_06() {
         false,
     ));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(..)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { .. }));
     pretty_check(
         &*node,
         "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... b )",
@@ -3175,7 +3310,7 @@ fn cpeaapl_test_07() {
         false,
     ));
     chk_scan(&scanner, 9);
-    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(..)));
+    assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { .. }));
     pretty_check(
         &*node,
         "CoverParenthesizedExpressionAndArrowParameterList: ( a , ... [ ] )",

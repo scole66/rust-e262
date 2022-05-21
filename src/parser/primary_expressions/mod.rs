@@ -36,37 +36,37 @@ use std::io::Write;
 
 #[derive(Debug)]
 pub enum PrimaryExpression {
-    This,
-    IdentifierReference(Rc<IdentifierReference>),
-    Literal(Rc<Literal>),
-    ArrayLiteral(Rc<ArrayLiteral>),
-    ObjectLiteral(Rc<ObjectLiteral>),
-    Parenthesized(Rc<ParenthesizedExpression>),
-    TemplateLiteral(Rc<TemplateLiteral>),
-    Function(Rc<FunctionExpression>),
-    Class(Rc<ClassExpression>),
-    Generator(Rc<GeneratorExpression>),
-    AsyncFunction(Rc<AsyncFunctionExpression>),
-    AsyncGenerator(Rc<AsyncGeneratorExpression>),
-    RegularExpression(RegularExpressionData),
+    This { location: Location },
+    IdentifierReference { node: Rc<IdentifierReference> },
+    Literal { node: Rc<Literal> },
+    ArrayLiteral { node: Rc<ArrayLiteral> },
+    ObjectLiteral { node: Rc<ObjectLiteral> },
+    Parenthesized { node: Rc<ParenthesizedExpression> },
+    TemplateLiteral { node: Rc<TemplateLiteral> },
+    Function { node: Rc<FunctionExpression> },
+    Class { node: Rc<ClassExpression> },
+    Generator { node: Rc<GeneratorExpression> },
+    AsyncFunction { node: Rc<AsyncFunctionExpression> },
+    AsyncGenerator { node: Rc<AsyncGeneratorExpression> },
+    RegularExpression { regex: RegularExpressionData, location: Location },
 }
 
 impl fmt::Display for PrimaryExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            PrimaryExpression::This => write!(f, "this"),
-            PrimaryExpression::IdentifierReference(boxed) => boxed.fmt(f),
-            PrimaryExpression::Literal(boxed) => boxed.fmt(f),
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpression::Parenthesized(boxed) => boxed.fmt(f),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.fmt(f),
-            PrimaryExpression::Function(node) => node.fmt(f),
-            PrimaryExpression::Class(node) => node.fmt(f),
-            PrimaryExpression::Generator(node) => node.fmt(f),
-            PrimaryExpression::AsyncFunction(node) => node.fmt(f),
-            PrimaryExpression::AsyncGenerator(node) => node.fmt(f),
-            PrimaryExpression::RegularExpression(node) => node.fmt(f),
+            PrimaryExpression::This { .. } => write!(f, "this"),
+            PrimaryExpression::IdentifierReference { node } => node.fmt(f),
+            PrimaryExpression::Literal { node } => node.fmt(f),
+            PrimaryExpression::ArrayLiteral { node } => node.fmt(f),
+            PrimaryExpression::ObjectLiteral { node } => node.fmt(f),
+            PrimaryExpression::Parenthesized { node } => node.fmt(f),
+            PrimaryExpression::TemplateLiteral { node } => node.fmt(f),
+            PrimaryExpression::Function { node } => node.fmt(f),
+            PrimaryExpression::Class { node } => node.fmt(f),
+            PrimaryExpression::Generator { node } => node.fmt(f),
+            PrimaryExpression::AsyncFunction { node } => node.fmt(f),
+            PrimaryExpression::AsyncGenerator { node } => node.fmt(f),
+            PrimaryExpression::RegularExpression { regex, .. } => regex.fmt(f),
         }
     }
 }
@@ -79,21 +79,21 @@ impl PrettyPrint for PrimaryExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}PrimaryExpression: {}", first, self)?;
         match self {
-            PrimaryExpression::This => Ok(()),
-            PrimaryExpression::IdentifierReference(boxed) => {
-                boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+            PrimaryExpression::This { .. } => Ok(()),
+            PrimaryExpression::IdentifierReference { node } => {
+                node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            PrimaryExpression::Literal(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::Parenthesized(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::Class(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::Generator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::AsyncFunction(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::AsyncGenerator(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PrimaryExpression::RegularExpression(_) => Ok(()),
+            PrimaryExpression::Literal { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::ArrayLiteral { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::ObjectLiteral { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Parenthesized { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::TemplateLiteral { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Function { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Class { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::Generator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::AsyncFunction { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::AsyncGenerator { node } => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PrimaryExpression::RegularExpression { .. } => Ok(()),
         }
     }
 
@@ -102,19 +102,19 @@ impl PrettyPrint for PrimaryExpression {
         T: Write,
     {
         match self {
-            PrimaryExpression::This => pprint_token(writer, "this", TokenType::Keyword, pad, state),
-            PrimaryExpression::IdentifierReference(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::Literal(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::Parenthesized(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::Function(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::Class(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::Generator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::AsyncFunction(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::AsyncGenerator(node) => node.concise_with_leftpad(writer, pad, state),
-            PrimaryExpression::RegularExpression(item) => {
+            PrimaryExpression::This { .. } => pprint_token(writer, "this", TokenType::Keyword, pad, state),
+            PrimaryExpression::IdentifierReference { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Literal { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::ArrayLiteral { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::ObjectLiteral { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Parenthesized { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::TemplateLiteral { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Function { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Class { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::Generator { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::AsyncFunction { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::AsyncGenerator { node } => node.concise_with_leftpad(writer, pad, state),
+            PrimaryExpression::RegularExpression { regex: item, .. } => {
                 pprint_token(writer, item, TokenType::RegularExpression, pad, state)
             }
         }
@@ -125,19 +125,19 @@ impl IsFunctionDefinition for PrimaryExpression {
     fn is_function_definition(&self) -> bool {
         use PrimaryExpression::*;
         match self {
-            This
-            | IdentifierReference(_)
-            | Literal(_)
-            | ArrayLiteral(_)
-            | ObjectLiteral(_)
-            | TemplateLiteral(_)
-            | RegularExpression(_) => false,
-            Parenthesized(exp) => exp.is_function_definition(),
-            Function(node) => node.is_function_definition(),
-            Class(node) => node.is_function_definition(),
-            Generator(node) => node.is_function_definition(),
-            AsyncFunction(node) => node.is_function_definition(),
-            AsyncGenerator(node) => node.is_function_definition(),
+            This { .. }
+            | IdentifierReference { .. }
+            | Literal { .. }
+            | ArrayLiteral { .. }
+            | ObjectLiteral { .. }
+            | TemplateLiteral { .. }
+            | RegularExpression { .. } => false,
+            Parenthesized { node } => node.is_function_definition(),
+            Function { node } => node.is_function_definition(),
+            Class { node } => node.is_function_definition(),
+            Generator { node } => node.is_function_definition(),
+            AsyncFunction { node } => node.is_function_definition(),
+            AsyncGenerator { node } => node.is_function_definition(),
         }
     }
 }
@@ -150,74 +150,74 @@ pub trait ToPrimaryExpression {
 
 impl ToPrimaryExpression for IdentifierReference {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::IdentifierReference(node)
+        PrimaryExpression::IdentifierReference { node }
     }
 }
 
 impl ToPrimaryExpression for Literal {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Literal(node)
+        PrimaryExpression::Literal { node }
     }
 }
 
 impl ToPrimaryExpression for ArrayLiteral {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::ArrayLiteral(node)
+        PrimaryExpression::ArrayLiteral { node }
     }
 }
 
 impl ToPrimaryExpression for ObjectLiteral {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::ObjectLiteral(node)
+        PrimaryExpression::ObjectLiteral { node }
     }
 }
 
 impl ToPrimaryExpression for ParenthesizedExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Parenthesized(node)
+        PrimaryExpression::Parenthesized { node }
     }
 }
 
 impl ToPrimaryExpression for TemplateLiteral {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::TemplateLiteral(node)
+        PrimaryExpression::TemplateLiteral { node }
     }
 }
 
 impl ToPrimaryExpression for FunctionExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Function(node)
+        PrimaryExpression::Function { node }
     }
 }
 
 impl ToPrimaryExpression for ClassExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Class(node)
+        PrimaryExpression::Class { node }
     }
 }
 
 impl ToPrimaryExpression for GeneratorExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::Generator(node)
+        PrimaryExpression::Generator { node }
     }
 }
 
 impl ToPrimaryExpression for AsyncFunctionExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::AsyncFunction(node)
+        PrimaryExpression::AsyncFunction { node }
     }
 }
 
 impl ToPrimaryExpression for AsyncGeneratorExpression {
     fn to_primary_expression(node: Rc<Self>) -> PrimaryExpression {
-        PrimaryExpression::AsyncGenerator(node)
+        PrimaryExpression::AsyncGenerator { node }
     }
 }
 
 impl PrimaryExpression {
     fn parse_this(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
-        Ok((Rc::new(PrimaryExpression::This), after))
+        let (tok_loc, after) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
+        Ok((Rc::new(PrimaryExpression::This { location: tok_loc }), after))
     }
 
     fn parse_idref(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -294,10 +294,12 @@ impl PrimaryExpression {
     }
 
     fn parse_regex(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            Token::RegularExpression(rd) => Ok((Rc::new(PrimaryExpression::RegularExpression(rd)), after)),
-            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RegularExpression), scanner)),
+            Token::RegularExpression(rd) => {
+                Ok((Rc::new(PrimaryExpression::RegularExpression { regex: rd, location: tok_loc }), after))
+            }
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::RegularExpression), tok_loc)),
         }
     }
 
@@ -318,27 +320,44 @@ impl PrimaryExpression {
             .otherwise(|| Self::parse_regex(parser, scanner))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            PrimaryExpression::This { location } | PrimaryExpression::RegularExpression { location, .. } => *location,
+            PrimaryExpression::IdentifierReference { node } => node.location(),
+            PrimaryExpression::Literal { node } => node.location(),
+            PrimaryExpression::ArrayLiteral { node } => node.location(),
+            PrimaryExpression::ObjectLiteral { node } => node.location(),
+            PrimaryExpression::Parenthesized { node } => node.location(),
+            PrimaryExpression::TemplateLiteral { node } => node.location(),
+            PrimaryExpression::Function { node } => node.location(),
+            PrimaryExpression::Class { node } => node.location(),
+            PrimaryExpression::Generator { node } => node.location(),
+            PrimaryExpression::AsyncFunction { node } => node.location(),
+            PrimaryExpression::AsyncGenerator { node } => node.location(),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            PrimaryExpression::This => kind == ParseNodeKind::This,
-            PrimaryExpression::IdentifierReference(boxed) => boxed.contains(kind),
-            PrimaryExpression::Literal(boxed) => kind == ParseNodeKind::Literal || boxed.contains(kind),
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpression::Parenthesized(boxed) => boxed.contains(kind),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.contains(kind),
-            PrimaryExpression::Function(node) => node.contains(kind),
-            PrimaryExpression::Class(node) => node.contains(kind),
-            PrimaryExpression::Generator(node) => node.contains(kind),
-            PrimaryExpression::AsyncFunction(node) => node.contains(kind),
-            PrimaryExpression::AsyncGenerator(node) => node.contains(kind),
-            PrimaryExpression::RegularExpression(..) => false,
+            PrimaryExpression::This { .. } => kind == ParseNodeKind::This,
+            PrimaryExpression::IdentifierReference { node } => node.contains(kind),
+            PrimaryExpression::Literal { node } => kind == ParseNodeKind::Literal || node.contains(kind),
+            PrimaryExpression::ArrayLiteral { node } => node.contains(kind),
+            PrimaryExpression::ObjectLiteral { node } => node.contains(kind),
+            PrimaryExpression::Parenthesized { node } => node.contains(kind),
+            PrimaryExpression::TemplateLiteral { node } => node.contains(kind),
+            PrimaryExpression::Function { node } => node.contains(kind),
+            PrimaryExpression::Class { node } => node.contains(kind),
+            PrimaryExpression::Generator { node } => node.contains(kind),
+            PrimaryExpression::AsyncFunction { node } => node.contains(kind),
+            PrimaryExpression::AsyncGenerator { node } => node.contains(kind),
+            PrimaryExpression::RegularExpression { .. } => false,
         }
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
         match self {
-            PrimaryExpression::Literal(n) => n.as_string_literal(),
+            PrimaryExpression::Literal { node: n } => n.as_string_literal(),
             _ => None,
         }
     }
@@ -351,19 +370,19 @@ impl PrimaryExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            PrimaryExpression::This => true,
-            PrimaryExpression::IdentifierReference(_) => true,
-            PrimaryExpression::Literal(_) => true,
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpression::Parenthesized(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.all_private_identifiers_valid(names),
-            PrimaryExpression::Function(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpression::Class(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpression::Generator(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpression::AsyncFunction(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpression::AsyncGenerator(node) => node.all_private_identifiers_valid(names),
-            PrimaryExpression::RegularExpression(..) => true,
+            PrimaryExpression::This { .. } => true,
+            PrimaryExpression::IdentifierReference { .. } => true,
+            PrimaryExpression::Literal { .. } => true,
+            PrimaryExpression::ArrayLiteral { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::ObjectLiteral { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Parenthesized { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::TemplateLiteral { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Function { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Class { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::Generator { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::AsyncFunction { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::AsyncGenerator { node } => node.all_private_identifiers_valid(names),
+            PrimaryExpression::RegularExpression { .. } => true,
         }
     }
 
@@ -379,46 +398,46 @@ impl PrimaryExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            PrimaryExpression::This
-            | PrimaryExpression::Literal(_)
-            | PrimaryExpression::Function(_)
-            | PrimaryExpression::Generator(_)
-            | PrimaryExpression::AsyncFunction(_)
-            | PrimaryExpression::AsyncGenerator(_)
-            | PrimaryExpression::RegularExpression(..) => false,
-            PrimaryExpression::IdentifierReference(ir) => ir.contains_arguments(),
-            PrimaryExpression::ArrayLiteral(al) => al.contains_arguments(),
-            PrimaryExpression::ObjectLiteral(ol) => ol.contains_arguments(),
-            PrimaryExpression::Parenthesized(pe) => pe.contains_arguments(),
-            PrimaryExpression::Class(ce) => ce.contains_arguments(),
-            PrimaryExpression::TemplateLiteral(tl) => tl.contains_arguments(),
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::Function { .. }
+            | PrimaryExpression::Generator { .. }
+            | PrimaryExpression::AsyncFunction { .. }
+            | PrimaryExpression::AsyncGenerator { .. }
+            | PrimaryExpression::RegularExpression { .. } => false,
+            PrimaryExpression::IdentifierReference { node: ir } => ir.contains_arguments(),
+            PrimaryExpression::ArrayLiteral { node: al } => al.contains_arguments(),
+            PrimaryExpression::ObjectLiteral { node: ol } => ol.contains_arguments(),
+            PrimaryExpression::Parenthesized { node: pe } => pe.contains_arguments(),
+            PrimaryExpression::Class { node: ce } => ce.contains_arguments(),
+            PrimaryExpression::TemplateLiteral { node: tl } => tl.contains_arguments(),
         }
     }
 
     pub fn is_object_or_array_literal(&self) -> bool {
-        matches!(self, PrimaryExpression::ArrayLiteral(_) | PrimaryExpression::ObjectLiteral(_))
+        matches!(self, PrimaryExpression::ArrayLiteral { .. } | PrimaryExpression::ObjectLiteral { .. })
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            PrimaryExpression::This => {}
-            PrimaryExpression::IdentifierReference(id) => id.early_errors(agent, errs, strict),
-            PrimaryExpression::Literal(lit) => lit.early_errors(),
-            PrimaryExpression::ArrayLiteral(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpression::ObjectLiteral(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpression::Parenthesized(boxed) => boxed.early_errors(agent, errs, strict),
-            PrimaryExpression::TemplateLiteral(boxed) => boxed.early_errors(agent, errs, strict, 0xffff_ffff),
-            PrimaryExpression::Function(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpression::Class(node) => node.early_errors(agent, errs),
-            PrimaryExpression::Generator(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpression::AsyncFunction(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpression::AsyncGenerator(node) => node.early_errors(agent, errs, strict),
-            PrimaryExpression::RegularExpression(regex) => {
+            PrimaryExpression::This { .. } => {}
+            PrimaryExpression::IdentifierReference { node: id } => id.early_errors(agent, errs, strict),
+            PrimaryExpression::Literal { node: lit } => lit.early_errors(),
+            PrimaryExpression::ArrayLiteral { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::ObjectLiteral { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::Parenthesized { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::TemplateLiteral { node } => node.early_errors(agent, errs, strict, 0xffff_ffff),
+            PrimaryExpression::Function { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::Class { node } => node.early_errors(agent, errs),
+            PrimaryExpression::Generator { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::AsyncFunction { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::AsyncGenerator { node } => node.early_errors(agent, errs, strict),
+            PrimaryExpression::RegularExpression { regex, location } => {
                 // Static Semantics: Early Errors
                 //      PrimaryExpression : RegularExpressionLiteral
                 //  * It is a Syntax Error if IsValidRegularExpressionLiteral(RegularExpressionLiteral) is false.
                 if let Err(msg) = regex.validate_regular_expression_literal() {
-                    errs.push(create_syntax_error_object(agent, msg));
+                    errs.push(create_syntax_error_object(agent, msg, Some(*location)));
                 }
             }
         }
@@ -426,8 +445,8 @@ impl PrimaryExpression {
 
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
-            PrimaryExpression::IdentifierReference(..) => false,
-            PrimaryExpression::Parenthesized(exp) => exp.is_strictly_deletable(),
+            PrimaryExpression::IdentifierReference { .. } => false,
+            PrimaryExpression::Parenthesized { node: exp } => exp.is_strictly_deletable(),
             _ => true,
         }
     }
@@ -438,10 +457,19 @@ impl PrimaryExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         use PrimaryExpression::*;
         match self {
-            This | Literal(_) | ArrayLiteral(_) | ObjectLiteral(_) | TemplateLiteral(_) | RegularExpression(_)
-            | Function(_) | Class(_) | Generator(_) | AsyncFunction(_) | AsyncGenerator(_) => ATTKind::Invalid,
-            IdentifierReference(id) => id.assignment_target_type(strict),
-            Parenthesized(expr) => expr.assignment_target_type(strict),
+            This { .. }
+            | Literal { .. }
+            | ArrayLiteral { .. }
+            | ObjectLiteral { .. }
+            | TemplateLiteral { .. }
+            | RegularExpression { .. }
+            | Function { .. }
+            | Class { .. }
+            | Generator { .. }
+            | AsyncFunction { .. }
+            | AsyncGenerator { .. } => ATTKind::Invalid,
+            IdentifierReference { node: id } => id.assignment_target_type(strict),
+            Parenthesized { node: expr } => expr.assignment_target_type(strict),
         }
     }
 
@@ -449,17 +477,17 @@ impl PrimaryExpression {
     ///
     /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
     pub fn is_identifier_ref(&self) -> bool {
-        matches!(self, PrimaryExpression::IdentifierReference(_))
+        matches!(self, PrimaryExpression::IdentifierReference { .. })
     }
 
     pub fn is_named_function(&self) -> bool {
         match self {
-            PrimaryExpression::Function(node) => node.is_named_function(),
-            PrimaryExpression::Class(node) => node.is_named_function(),
-            PrimaryExpression::Generator(node) => node.is_named_function(),
-            PrimaryExpression::AsyncFunction(node) => node.is_named_function(),
-            PrimaryExpression::AsyncGenerator(node) => node.is_named_function(),
-            PrimaryExpression::Parenthesized(node) => node.is_named_function(),
+            PrimaryExpression::Function { node } => node.is_named_function(),
+            PrimaryExpression::Class { node } => node.is_named_function(),
+            PrimaryExpression::Generator { node } => node.is_named_function(),
+            PrimaryExpression::AsyncFunction { node } => node.is_named_function(),
+            PrimaryExpression::AsyncGenerator { node } => node.is_named_function(),
+            PrimaryExpression::Parenthesized { node } => node.is_named_function(),
             _ => false,
         }
     }
@@ -468,6 +496,7 @@ impl PrimaryExpression {
 #[derive(Debug)]
 pub struct Elisions {
     count: usize,
+    location: Location,
 }
 
 impl fmt::Display for Elisions {
@@ -504,17 +533,23 @@ impl Elisions {
         // most sense, otherwise you get unreachable code.
         let mut comma_count: usize = 0;
         let mut current_scanner = scanner;
+        let mut current_location = None;
         loop {
-            let (token, after_comma) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
+            let (token, tok_loc, after_comma) =
+                scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
             if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
-                    Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Comma), current_scanner))
+                    Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Comma), tok_loc))
                 } else {
-                    Ok((Rc::new(Elisions { count: comma_count }), current_scanner))
+                    Ok((Rc::new(Elisions { count: comma_count, location: current_location.unwrap() }), current_scanner))
                 };
             }
             comma_count += 1;
             current_scanner = after_comma;
+            current_location = match current_location {
+                None => Some(tok_loc),
+                Some(prior) => Some(prior.merge(&tok_loc)),
+            };
         }
     }
 
@@ -529,6 +564,10 @@ impl Elisions {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
@@ -537,14 +576,14 @@ impl Elisions {
 // SpreadElement[Yield, Await] :
 //      ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum SpreadElement {
-    AssignmentExpression(Rc<AssignmentExpression>),
+pub struct SpreadElement {
+    pub ae: Rc<AssignmentExpression>,
+    location: Location,
 }
 
 impl fmt::Display for SpreadElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let SpreadElement::AssignmentExpression(boxed) = self;
-        write!(f, "... {}", boxed)
+        write!(f, "... {}", self.ae)
     }
 }
 
@@ -555,8 +594,7 @@ impl PrettyPrint for SpreadElement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SpreadElement: {}", first, self)?;
-        let SpreadElement::AssignmentExpression(boxed) = self;
-        boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -565,22 +603,30 @@ impl PrettyPrint for SpreadElement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}SpreadElement: {}", first, self)?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let SpreadElement::AssignmentExpression(node) = self;
-        node.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.ae.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
 impl SpreadElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_ellipsis =
+        let (tok_loc, after_ellipsis) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
-        Ok((Rc::new(SpreadElement::AssignmentExpression(ae)), after_ae))
+        Ok((
+            Rc::new({
+                let location = tok_loc.merge(&ae.location());
+                SpreadElement { ae, location }
+            }),
+            after_ae,
+        ))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let SpreadElement::AssignmentExpression(boxed) = self;
-        boxed.contains(kind)
+        self.ae.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -590,8 +636,7 @@ impl SpreadElement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let SpreadElement::AssignmentExpression(boxed) = self;
-        boxed.all_private_identifiers_valid(names)
+        self.ae.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -605,13 +650,11 @@ impl SpreadElement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let SpreadElement::AssignmentExpression(ae) = self;
-        ae.contains_arguments()
+        self.ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let SpreadElement::AssignmentExpression(node) = self;
-        node.early_errors(agent, errs, strict);
+        self.ae.early_errors(agent, errs, strict);
     }
 }
 
@@ -622,28 +665,28 @@ impl SpreadElement {
 //      ElementList[?Yield, ?Await] , Elisionopt SpreadElement[?Yield, ?Await]
 #[derive(Debug)]
 pub enum ElementList {
-    AssignmentExpression((Option<Rc<Elisions>>, Rc<AssignmentExpression>)),
-    SpreadElement((Option<Rc<Elisions>>, Rc<SpreadElement>)),
-    ElementListAssignmentExpression((Rc<ElementList>, Option<Rc<Elisions>>, Rc<AssignmentExpression>)),
-    ElementListSpreadElement((Rc<ElementList>, Option<Rc<Elisions>>, Rc<SpreadElement>)),
+    AssignmentExpression { elision: Option<Rc<Elisions>>, ae: Rc<AssignmentExpression> },
+    SpreadElement { elision: Option<Rc<Elisions>>, se: Rc<SpreadElement> },
+    ElementListAssignmentExpression { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, ae: Rc<AssignmentExpression> },
+    ElementListSpreadElement { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, se: Rc<SpreadElement> },
 }
 
 impl fmt::Display for ElementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ElementList::AssignmentExpression((elisions, ae)) => match elisions {
+            ElementList::AssignmentExpression { elision, ae } => match elision {
                 None => write!(f, "{}", ae),
                 Some(commas) => write!(f, "{} {}", commas, ae),
             },
-            ElementList::SpreadElement((elisions, se)) => match elisions {
+            ElementList::SpreadElement { elision, se } => match elision {
                 None => write!(f, "{}", se),
                 Some(commas) => write!(f, "{} {}", commas, se),
             },
-            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => match elisions {
+            ElementList::ElementListAssignmentExpression { el, elision, ae } => match elision {
                 None => write!(f, "{} , {}", el, ae),
                 Some(commas) => write!(f, "{} , {} {}", el, commas, ae),
             },
-            ElementList::ElementListSpreadElement((el, elisions, se)) => match elisions {
+            ElementList::ElementListSpreadElement { el, elision, se } => match elision {
                 None => write!(f, "{} , {}", el, se),
                 Some(commas) => write!(f, "{} , {} {}", el, commas, se),
             },
@@ -659,21 +702,21 @@ impl PrettyPrint for ElementList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ElementList: {}", first, self)?;
         match self {
-            ElementList::AssignmentExpression((elisions, ae)) => match elisions {
+            ElementList::AssignmentExpression { elision, ae } => match elision {
                 None => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
                 Some(commas) => {
                     commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     ae.pprint_with_leftpad(writer, &successive, Spot::Final)
                 }
             },
-            ElementList::SpreadElement((elisions, boxed)) => match elisions {
+            ElementList::SpreadElement { elision, se: boxed } => match elision {
                 None => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
                 Some(commas) => {
                     commas.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
                 }
             },
-            ElementList::ElementListAssignmentExpression((right, elisions, left)) => match elisions {
+            ElementList::ElementListAssignmentExpression { el: right, elision, ae: left } => match elision {
                 None => {
                     right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -684,7 +727,7 @@ impl PrettyPrint for ElementList {
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
                 }
             },
-            ElementList::ElementListSpreadElement((right, elisions, left)) => match elisions {
+            ElementList::ElementListSpreadElement { el: right, elision, se: left } => match elision {
                 None => {
                     right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -703,38 +746,38 @@ impl PrettyPrint for ElementList {
     {
         let (first, successive) = prettypad(pad, state);
         match self {
-            ElementList::AssignmentExpression((None, ae)) => ae.concise_with_leftpad(writer, pad, state),
-            ElementList::AssignmentExpression((Some(commas), ae)) => {
+            ElementList::AssignmentExpression { elision: None, ae } => ae.concise_with_leftpad(writer, pad, state),
+            ElementList::AssignmentExpression { elision: Some(commas), ae } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::SpreadElement((None, se)) => se.concise_with_leftpad(writer, pad, state),
-            ElementList::SpreadElement((Some(commas), se)) => {
+            ElementList::SpreadElement { elision: None, se } => se.concise_with_leftpad(writer, pad, state),
+            ElementList::SpreadElement { elision: Some(commas), se } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListAssignmentExpression((el, None, ae)) => {
+            ElementList::ElementListAssignmentExpression { el, elision: None, ae } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListAssignmentExpression((el, Some(commas), ae)) => {
+            ElementList::ElementListAssignmentExpression { el, elision: Some(commas), ae } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListSpreadElement((el, None, se)) => {
+            ElementList::ElementListSpreadElement { el, elision: None, se } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListSpreadElement((el, Some(commas), se)) => {
+            ElementList::ElementListSpreadElement { el, elision: Some(commas), se } => {
                 writeln!(writer, "{}ElementList: {}", first, self)?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -792,21 +835,23 @@ impl ElementList {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (elision, item, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = match item {
-            ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression((elision, boxed_ae))),
-            ELItemKind::SE(boxed_se) => Rc::new(ElementList::SpreadElement((elision, boxed_se))),
+            ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression { elision, ae: boxed_ae }),
+            ELItemKind::SE(boxed_se) => Rc::new(ElementList::SpreadElement { elision, se: boxed_se }),
         };
         let mut current_scanner = after;
 
         while let Ok((elision, item, after)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
+                .and_then(|(_, after_comma)| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
         {
             current_production = match item {
-                ELItemKind::AE(boxed_ae) => {
-                    Rc::new(ElementList::ElementListAssignmentExpression((current_production, elision, boxed_ae)))
-                }
+                ELItemKind::AE(boxed_ae) => Rc::new(ElementList::ElementListAssignmentExpression {
+                    el: current_production,
+                    elision,
+                    ae: boxed_ae,
+                }),
                 ELItemKind::SE(boxed_se) => {
-                    Rc::new(ElementList::ElementListSpreadElement((current_production, elision, boxed_se)))
+                    Rc::new(ElementList::ElementListSpreadElement { el: current_production, elision, se: boxed_se })
                 }
             };
             current_scanner = after;
@@ -814,19 +859,32 @@ impl ElementList {
         Ok((current_production, current_scanner))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ElementList::AssignmentExpression { elision: None, ae } => ae.location(),
+            ElementList::AssignmentExpression { elision: Some(elision), ae } => {
+                elision.location().merge(&ae.location())
+            }
+            ElementList::SpreadElement { elision: None, se } => se.location(),
+            ElementList::SpreadElement { elision: Some(elision), se } => elision.location().merge(&se.location()),
+            ElementList::ElementListAssignmentExpression { el, elision: _, ae } => el.location().merge(&ae.location()),
+            ElementList::ElementListSpreadElement { el, elision: _, se } => el.location().merge(&se.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ElementList::AssignmentExpression((elisions, ae)) => {
-                elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+            ElementList::AssignmentExpression { elision, ae } => {
+                elision.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
             }
-            ElementList::SpreadElement((elisions, se)) => {
-                elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+            ElementList::SpreadElement { elision, se } => {
+                elision.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
             }
-            ElementList::ElementListAssignmentExpression((el, elisions, ae)) => {
-                el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+            ElementList::ElementListAssignmentExpression { el, elision, ae } => {
+                el.contains(kind) || elision.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
             }
-            ElementList::ElementListSpreadElement((el, elisions, se)) => {
-                el.contains(kind) || elisions.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+            ElementList::ElementListSpreadElement { el, elision, se } => {
+                el.contains(kind) || elision.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
             }
         }
     }
@@ -839,12 +897,12 @@ impl ElementList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ElementList::AssignmentExpression((_, ae)) => ae.all_private_identifiers_valid(names),
-            ElementList::SpreadElement((_, se)) => se.all_private_identifiers_valid(names),
-            ElementList::ElementListAssignmentExpression((el, _, ae)) => {
+            ElementList::AssignmentExpression { elision: _, ae } => ae.all_private_identifiers_valid(names),
+            ElementList::SpreadElement { elision: _, se } => se.all_private_identifiers_valid(names),
+            ElementList::ElementListAssignmentExpression { el, elision: _, ae } => {
                 el.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names)
             }
-            ElementList::ElementListSpreadElement((el, _, se)) => {
+            ElementList::ElementListSpreadElement { el, elision: _, se } => {
                 el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names)
             }
         }
@@ -862,28 +920,28 @@ impl ElementList {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ElementList::AssignmentExpression((_, ae)) => ae.contains_arguments(),
-            ElementList::SpreadElement((_, se)) => se.contains_arguments(),
-            ElementList::ElementListAssignmentExpression((el, _, ae)) => {
+            ElementList::AssignmentExpression { ae, .. } => ae.contains_arguments(),
+            ElementList::SpreadElement { se, .. } => se.contains_arguments(),
+            ElementList::ElementListAssignmentExpression { el, ae, .. } => {
                 el.contains_arguments() || ae.contains_arguments()
             }
-            ElementList::ElementListSpreadElement((el, _, se)) => el.contains_arguments() || se.contains_arguments(),
+            ElementList::ElementListSpreadElement { el, se, .. } => el.contains_arguments() || se.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ElementList::AssignmentExpression((_, b)) => {
+            ElementList::AssignmentExpression { ae: b, .. } => {
                 b.early_errors(agent, errs, strict);
             }
-            ElementList::SpreadElement((_, b)) => {
+            ElementList::SpreadElement { se: b, .. } => {
                 b.early_errors(agent, errs, strict);
             }
-            ElementList::ElementListAssignmentExpression((a, _, c)) => {
+            ElementList::ElementListAssignmentExpression { el: a, ae: c, .. } => {
                 a.early_errors(agent, errs, strict);
                 c.early_errors(agent, errs, strict);
             }
-            ElementList::ElementListSpreadElement((a, _, c)) => {
+            ElementList::ElementListSpreadElement { el: a, se: c, .. } => {
                 a.early_errors(agent, errs, strict);
                 c.early_errors(agent, errs, strict);
             }
@@ -897,23 +955,21 @@ impl ElementList {
 //      [ ElementList[?Yield, ?Await] , Elisionopt ]
 #[derive(Debug)]
 pub enum ArrayLiteral {
-    Empty(Option<Rc<Elisions>>),
-    ElementList(Rc<ElementList>),
-    ElementListElision(Rc<ElementList>, Option<Rc<Elisions>>),
+    Empty { elision: Option<Rc<Elisions>>, location: Location },
+    ElementList { el: Rc<ElementList>, location: Location },
+    ElementListElision { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, location: Location },
 }
 
 impl fmt::Display for ArrayLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayLiteral::Empty(pot_elision) => match pot_elision {
-                None => write!(f, "[ ]"),
-                Some(elision) => write!(f, "[ {} ]", elision),
-            },
-            ArrayLiteral::ElementList(boxed) => write!(f, "[ {} ]", boxed),
-            ArrayLiteral::ElementListElision(boxed, pot_elision) => match pot_elision {
-                None => write!(f, "[ {} , ]", boxed),
-                Some(elision) => write!(f, "[ {} , {} ]", boxed, elision),
-            },
+            ArrayLiteral::Empty { elision: None, .. } => write!(f, "[ ]"),
+            ArrayLiteral::Empty { elision: Some(elision), .. } => write!(f, "[ {} ]", elision),
+            ArrayLiteral::ElementList { el: boxed, .. } => write!(f, "[ {} ]", boxed),
+            ArrayLiteral::ElementListElision { el: boxed, elision: None, .. } => write!(f, "[ {} , ]", boxed),
+            ArrayLiteral::ElementListElision { el: boxed, elision: Some(elision), .. } => {
+                write!(f, "[ {} , {} ]", boxed, elision)
+            }
         }
     }
 }
@@ -926,12 +982,15 @@ impl PrettyPrint for ArrayLiteral {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
         match self {
-            ArrayLiteral::Empty(None) => Ok(()),
-            ArrayLiteral::Empty(Some(elision)) => elision.pprint_with_leftpad(writer, &successive, Spot::Final),
-            ArrayLiteral::ElementList(boxed) | ArrayLiteral::ElementListElision(boxed, None) => {
+            ArrayLiteral::Empty { elision: None, .. } => Ok(()),
+            ArrayLiteral::Empty { elision: Some(elision), .. } => {
+                elision.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
+            ArrayLiteral::ElementList { el: boxed, .. }
+            | ArrayLiteral::ElementListElision { el: boxed, elision: None, .. } => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            ArrayLiteral::ElementListElision(boxed, Some(elision)) => {
+            ArrayLiteral::ElementListElision { el: boxed, elision: Some(elision), .. } => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 elision.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -944,27 +1003,27 @@ impl PrettyPrint for ArrayLiteral {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ArrayLiteral: {}", first, self)?;
         match self {
-            ArrayLiteral::Empty(None) => {
+            ArrayLiteral::Empty { elision: None, .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            ArrayLiteral::Empty(Some(elision)) => {
+            ArrayLiteral::Empty { elision: Some(elision), .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 elision.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            ArrayLiteral::ElementList(node) => {
+            ArrayLiteral::ElementList { el: node, .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            ArrayLiteral::ElementListElision(node, None) => {
+            ArrayLiteral::ElementListElision { el: node, elision: None, .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            ArrayLiteral::ElementListElision(node, Some(elision)) => {
+            ArrayLiteral::ElementListElision { el: node, elision: Some(elision), .. } => {
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -978,53 +1037,74 @@ impl PrettyPrint for ArrayLiteral {
 impl ArrayLiteral {
     // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+        let (open_loc, after) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new(PECode::CommaLeftBracketElementListExpected, after))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
-                let (punct, after_punct) = scan_for_punct_set(
+                let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     after_el,
                     parser.source,
                     ScanGoal::InputElementDiv,
                     &[Punctuator::Comma, Punctuator::RightBracket],
                 )?;
                 match punct {
-                    Punctuator::RightBracket => Ok((Rc::new(ArrayLiteral::ElementList(el)), after_punct)),
+                    Punctuator::RightBracket => Ok((
+                        Rc::new(ArrayLiteral::ElementList { el, location: open_loc.merge(&punct_loc) }),
+                        after_punct,
+                    )),
                     _ => {
-                        let (elisions, after_elisions) = match Elisions::parse(parser, after_punct) {
+                        let (elision, after_elisions) = match Elisions::parse(parser, after_punct) {
                             Ok((node, scan)) => (Some(node), scan),
                             Err(_) => (None, after_punct),
                         };
-                        let end_scan = scan_for_punct(
+                        let (end_loc, end_scan) = scan_for_punct(
                             after_elisions,
                             parser.source,
                             ScanGoal::InputElementRegExp,
                             Punctuator::RightBracket,
                         )?;
-                        Ok((Rc::new(ArrayLiteral::ElementListElision(el, elisions)), end_scan))
+                        Ok((
+                            Rc::new(ArrayLiteral::ElementListElision {
+                                el,
+                                elision,
+                                location: open_loc.merge(&end_loc),
+                            }),
+                            end_scan,
+                        ))
                     }
                 }
             })
             .otherwise(|| {
-                let (elisions, after_elisions) = match Elisions::parse(parser, after) {
+                let (elision, after_elisions) = match Elisions::parse(parser, after) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after),
                 };
-                let end_scan = scan_for_punct(
+                let (end_loc, end_scan) = scan_for_punct(
                     after_elisions,
                     parser.source,
                     ScanGoal::InputElementRegExp,
                     Punctuator::RightBracket,
                 )?;
-                Ok((Rc::new(ArrayLiteral::Empty(elisions)), end_scan))
+                Ok((Rc::new(ArrayLiteral::Empty { elision, location: open_loc.merge(&end_loc) }), end_scan))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ArrayLiteral::Empty { location, .. }
+            | ArrayLiteral::ElementList { location, .. }
+            | ArrayLiteral::ElementListElision { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayLiteral::Empty(pot_elision) => pot_elision.as_ref().map_or(false, |n| n.contains(kind)),
-            ArrayLiteral::ElementList(boxed) => boxed.contains(kind),
-            ArrayLiteral::ElementListElision(boxed, pot_elision) => {
+            ArrayLiteral::Empty { elision: pot_elision, .. } => {
+                pot_elision.as_ref().map_or(false, |n| n.contains(kind))
+            }
+            ArrayLiteral::ElementList { el: boxed, .. } => boxed.contains(kind),
+            ArrayLiteral::ElementListElision { el: boxed, elision: pot_elision, .. } => {
                 boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind))
             }
         }
@@ -1038,9 +1118,10 @@ impl ArrayLiteral {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArrayLiteral::Empty(_) => true,
-            ArrayLiteral::ElementList(boxed) => boxed.all_private_identifiers_valid(names),
-            ArrayLiteral::ElementListElision(boxed, _) => boxed.all_private_identifiers_valid(names),
+            ArrayLiteral::Empty { .. } => true,
+            ArrayLiteral::ElementList { el: boxed, .. } | ArrayLiteral::ElementListElision { el: boxed, .. } => {
+                boxed.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -1056,15 +1137,17 @@ impl ArrayLiteral {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ArrayLiteral::Empty(_) => false,
-            ArrayLiteral::ElementList(el) | ArrayLiteral::ElementListElision(el, _) => el.contains_arguments(),
+            ArrayLiteral::Empty { .. } => false,
+            ArrayLiteral::ElementList { el, .. } | ArrayLiteral::ElementListElision { el, .. } => {
+                el.contains_arguments()
+            }
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            ArrayLiteral::Empty(_) => {}
-            ArrayLiteral::ElementList(node) | ArrayLiteral::ElementListElision(node, _) => {
+            ArrayLiteral::Empty { .. } => {}
+            ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
                 node.early_errors(agent, errs, strict)
             }
         }
@@ -1074,14 +1157,14 @@ impl ArrayLiteral {
 // Initializer[In, Yield, Await] :
 //      = AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum Initializer {
-    AssignmentExpression(Rc<AssignmentExpression>),
+pub struct Initializer {
+    pub ae: Rc<AssignmentExpression>,
+    pub location: Location,
 }
 
 impl fmt::Display for Initializer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Initializer::AssignmentExpression(boxed_ae) = self;
-        write!(f, "= {}", *boxed_ae)
+        write!(f, "= {}", self.ae)
     }
 }
 
@@ -1092,8 +1175,7 @@ impl PrettyPrint for Initializer {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Initializer: {}", first, self)?;
-        let Initializer::AssignmentExpression(boxed_ae) = self;
-        boxed_ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -1102,8 +1184,7 @@ impl PrettyPrint for Initializer {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Initializer: {}", first, self)?;
         pprint_token(writer, "=", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let Initializer::AssignmentExpression(node) = self;
-        node.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.ae.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1115,9 +1196,16 @@ impl Initializer {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Initializer> {
-        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Eq)?;
+        let (tok_loc, after_tok) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Eq)?;
         let (boxed_ae, after_ae) = AssignmentExpression::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        Ok((Rc::new(Initializer::AssignmentExpression(boxed_ae)), after_ae))
+        Ok((
+            Rc::new({
+                let location = tok_loc.merge(&boxed_ae.location());
+                Initializer { ae: boxed_ae, location }
+            }),
+            after_ae,
+        ))
     }
 
     pub fn parse(
@@ -1138,9 +1226,12 @@ impl Initializer {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let Initializer::AssignmentExpression(node) = self;
-        node.contains(kind)
+        self.ae.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -1150,8 +1241,7 @@ impl Initializer {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let Initializer::AssignmentExpression(node) = self;
-        node.all_private_identifiers_valid(names)
+        self.ae.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1165,21 +1255,18 @@ impl Initializer {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let Initializer::AssignmentExpression(ae) = self;
-        ae.contains_arguments()
+        self.ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let Initializer::AssignmentExpression(node) = self;
-        node.early_errors(agent, errs, strict);
+        self.ae.early_errors(agent, errs, strict);
     }
 
     /// Determine if this parse node is an anonymous function
     ///
     /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
     pub fn is_anonymous_function_definition(&self) -> bool {
-        let Initializer::AssignmentExpression(ae) = self;
-        ae.is_anonymous_function_definition()
+        self.ae.is_anonymous_function_definition()
     }
 }
 
@@ -1227,6 +1314,11 @@ impl CoverInitializedName {
         Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
     }
 
+    pub fn location(&self) -> Location {
+        let CoverInitializedName::InitializedName(idref, izer) = self;
+        idref.location().merge(&izer.location())
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let CoverInitializedName::InitializedName(idref, izer) = self;
         idref.contains(kind) || izer.contains(kind)
@@ -1260,14 +1352,14 @@ impl CoverInitializedName {
 // ComputedPropertyName[Yield, Await] :
 //      [ AssignmentExpression[+In, ?Yield, ?Await] ]
 #[derive(Debug)]
-pub enum ComputedPropertyName {
-    AssignmentExpression(Rc<AssignmentExpression>),
+pub struct ComputedPropertyName {
+    pub ae: Rc<AssignmentExpression>,
+    pub location: Location,
 }
 
 impl fmt::Display for ComputedPropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ComputedPropertyName::AssignmentExpression(ae) = self;
-        write!(f, "[ {} ]", ae)
+        write!(f, "[ {} ]", self.ae)
     }
 }
 
@@ -1278,8 +1370,7 @@ impl PrettyPrint for ComputedPropertyName {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
-        let ComputedPropertyName::AssignmentExpression(ae) = self;
-        ae.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.ae.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -1288,23 +1379,27 @@ impl PrettyPrint for ComputedPropertyName {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ComputedPropertyName: {}", first, self)?;
         pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let ComputedPropertyName::AssignmentExpression(ae) = self;
-        ae.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.ae.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
 impl ComputedPropertyName {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+        let (open_loc, after_tok) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
-        let after_rb = scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
-        Ok((Rc::new(ComputedPropertyName::AssignmentExpression(ae)), after_rb))
+        let (close_loc, after_rb) =
+            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
+        Ok((Rc::new(ComputedPropertyName { ae, location: open_loc.merge(&close_loc) }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ComputedPropertyName::AssignmentExpression(n) = self;
-        n.contains(kind)
+        self.ae.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -1314,8 +1409,7 @@ impl ComputedPropertyName {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let ComputedPropertyName::AssignmentExpression(n) = self;
-        n.all_private_identifiers_valid(names)
+        self.ae.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1329,13 +1423,11 @@ impl ComputedPropertyName {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let ComputedPropertyName::AssignmentExpression(ae) = self;
-        ae.contains_arguments()
+        self.ae.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let ComputedPropertyName::AssignmentExpression(node) = self;
-        node.early_errors(agent, errs, strict);
+        self.ae.early_errors(agent, errs, strict);
     }
 }
 
@@ -1345,22 +1437,22 @@ impl ComputedPropertyName {
 //      NumericLiteral
 #[derive(Debug)]
 pub enum LiteralPropertyName {
-    IdentifierName(IdentifierData),
-    StringLiteral(StringToken),
-    NumericLiteral(Numeric),
+    IdentifierName { data: IdentifierData, location: Location },
+    StringLiteral { data: StringToken, location: Location },
+    NumericLiteral { data: Numeric, location: Location },
 }
 
 impl fmt::Display for LiteralPropertyName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LiteralPropertyName::IdentifierName(id) => write!(f, "{}", id),
-            LiteralPropertyName::StringLiteral(s) => write!(f, "{}", s),
-            LiteralPropertyName::NumericLiteral(Numeric::Number(n)) => {
+            LiteralPropertyName::IdentifierName { data: id, .. } => write!(f, "{}", id),
+            LiteralPropertyName::StringLiteral { data: s, .. } => write!(f, "{}", s),
+            LiteralPropertyName::NumericLiteral { data: Numeric::Number(n), .. } => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
-            LiteralPropertyName::NumericLiteral(Numeric::BigInt(b)) => {
+            LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(b), .. } => {
                 write!(f, "{}", b)
             }
         }
@@ -1380,24 +1472,46 @@ impl PrettyPrint for LiteralPropertyName {
         T: Write,
     {
         match self {
-            LiteralPropertyName::IdentifierName(id) => pprint_token(writer, id, TokenType::IdentifierName, pad, state),
-            LiteralPropertyName::StringLiteral(s) => pprint_token(writer, s, TokenType::String, pad, state),
-            LiteralPropertyName::NumericLiteral(n) => pprint_token(writer, n, TokenType::Numeric, pad, state),
+            LiteralPropertyName::IdentifierName { data: id, .. } => {
+                pprint_token(writer, id, TokenType::IdentifierName, pad, state)
+            }
+            LiteralPropertyName::StringLiteral { data: s, .. } => {
+                pprint_token(writer, s, TokenType::String, pad, state)
+            }
+            LiteralPropertyName::NumericLiteral { data: n, .. } => {
+                pprint_token(writer, n, TokenType::Numeric, pad, state)
+            }
         }
     }
 }
 
 impl LiteralPropertyName {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match tok {
-            Token::Identifier(id) => Ok((Rc::new(LiteralPropertyName::IdentifierName(id)), after_tok)),
-            Token::String(s) => Ok((Rc::new(LiteralPropertyName::StringLiteral(s)), after_tok)),
-            Token::Number(n) => Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::Number(n))), after_tok)),
-            Token::BigInt(b) => {
-                Ok((Rc::new(LiteralPropertyName::NumericLiteral(Numeric::BigInt(Rc::new(b)))), after_tok))
+            Token::Identifier(id) => {
+                Ok((Rc::new(LiteralPropertyName::IdentifierName { data: id, location: tok_loc }), after_tok))
             }
-            _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, scanner)),
+            Token::String(s) => {
+                Ok((Rc::new(LiteralPropertyName::StringLiteral { data: s, location: tok_loc }), after_tok))
+            }
+            Token::Number(n) => Ok((
+                Rc::new(LiteralPropertyName::NumericLiteral { data: Numeric::Number(n), location: tok_loc }),
+                after_tok,
+            )),
+            Token::BigInt(b) => Ok((
+                Rc::new(LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(Rc::new(b)), location: tok_loc }),
+                after_tok,
+            )),
+            _ => Err(ParseError::new(PECode::IdentifierStringNumberExpected, tok_loc)),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            LiteralPropertyName::IdentifierName { location, .. }
+            | LiteralPropertyName::StringLiteral { location, .. }
+            | LiteralPropertyName::NumericLiteral { location, .. } => *location,
         }
     }
 
@@ -1409,17 +1523,17 @@ impl LiteralPropertyName {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
-            LiteralPropertyName::IdentifierName(id) => {
+            LiteralPropertyName::IdentifierName { data: id, .. } => {
                 // LiteralPropertyName : IdentifierName
                 //  1. Return StringValue of IdentifierName.
                 id.string_value.clone()
             }
-            LiteralPropertyName::StringLiteral(s) => {
+            LiteralPropertyName::StringLiteral { data: s, .. } => {
                 // LiteralPropertyName : StringLiteral
                 //  1. Return the SV of StringLiteral.
                 s.value.clone()
             }
-            LiteralPropertyName::NumericLiteral(Numeric::Number(num)) => {
+            LiteralPropertyName::NumericLiteral { data: Numeric::Number(num), .. } => {
                 // LiteralPropertyName : NumericLiteral
                 //  1. Let nbr be the NumericValue of NumericLiteral.
                 //  2. Return ! ToString(nbr).
@@ -1427,7 +1541,7 @@ impl LiteralPropertyName {
                 number_to_string(&mut s, *num).unwrap();
                 JSString::from(s)
             }
-            LiteralPropertyName::NumericLiteral(Numeric::BigInt(bi)) => JSString::from(bi.to_string()),
+            LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(bi), .. } => JSString::from(bi.to_string()),
         }
     }
 }
@@ -1495,6 +1609,13 @@ impl PropertyName {
                 parser.property_name_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            PropertyName::LiteralPropertyName(node) => node.location(),
+            PropertyName::ComputedPropertyName(node) => node.location(),
         }
     }
 
@@ -1571,7 +1692,7 @@ pub enum PropertyDefinition {
     CoverInitializedName(Rc<CoverInitializedName>),
     PropertyNameAssignmentExpression(Rc<PropertyName>, Rc<AssignmentExpression>),
     MethodDefinition(Rc<MethodDefinition>),
-    AssignmentExpression(Rc<AssignmentExpression>),
+    AssignmentExpression(Rc<AssignmentExpression>, Location),
 }
 
 impl fmt::Display for PropertyDefinition {
@@ -1583,7 +1704,7 @@ impl fmt::Display for PropertyDefinition {
                 write!(f, "{} : {}", pn, ae)
             }
             PropertyDefinition::MethodDefinition(md) => write!(f, "{}", md),
-            PropertyDefinition::AssignmentExpression(ae) => write!(f, "... {}", ae),
+            PropertyDefinition::AssignmentExpression(ae, _) => write!(f, "... {}", ae),
         }
     }
 }
@@ -1605,7 +1726,7 @@ impl PrettyPrint for PropertyDefinition {
                 ae.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             PropertyDefinition::MethodDefinition(md) => md.pprint_with_leftpad(writer, &successive, Spot::Final),
-            PropertyDefinition::AssignmentExpression(ae) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1623,7 +1744,7 @@ impl PrettyPrint for PropertyDefinition {
                 pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            PropertyDefinition::AssignmentExpression(node) => {
+            PropertyDefinition::AssignmentExpression(node, _) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}PropertyDefinition: {}", first, self)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -1636,13 +1757,13 @@ impl PrettyPrint for PropertyDefinition {
 impl PropertyDefinition {
     fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-        let (tok, after_tok) = scan_token(&after_pn, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_tok) = scan_token(&after_pn, parser.source, ScanGoal::InputElementRegExp);
         match tok {
             Token::Punctuator(Punctuator::Colon) => {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
                 Ok((Rc::new(PropertyDefinition::PropertyNameAssignmentExpression(pn, ae)), after_ae))
             }
-            _ => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Colon), after_pn)),
+            _ => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Colon), tok_loc)),
         }
     }
 
@@ -1662,9 +1783,16 @@ impl PropertyDefinition {
     }
 
     fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (dots_loc, after_tok) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
-        Ok((Rc::new(PropertyDefinition::AssignmentExpression(ae)), after_ae))
+        Ok((
+            Rc::new({
+                let location = dots_loc.merge(&ae.location());
+                PropertyDefinition::AssignmentExpression(ae, location)
+            }),
+            after_ae,
+        ))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
@@ -1676,6 +1804,16 @@ impl PropertyDefinition {
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            PropertyDefinition::IdentifierReference(node) => node.location(),
+            PropertyDefinition::CoverInitializedName(node) => node.location(),
+            PropertyDefinition::PropertyNameAssignmentExpression(name, exp) => name.location().merge(&exp.location()),
+            PropertyDefinition::MethodDefinition(node) => node.location(),
+            PropertyDefinition::AssignmentExpression(_, location) => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
@@ -1684,7 +1822,7 @@ impl PropertyDefinition {
             PropertyDefinition::MethodDefinition(md) => {
                 kind == ParseNodeKind::MethodDefinition || md.computed_property_contains(kind)
             }
-            PropertyDefinition::AssignmentExpression(ae) => ae.contains(kind),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.contains(kind),
         }
     }
 
@@ -1702,7 +1840,7 @@ impl PropertyDefinition {
                 pn.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names)
             }
             PropertyDefinition::MethodDefinition(md) => md.all_private_identifiers_valid(names),
-            PropertyDefinition::AssignmentExpression(ae) => ae.all_private_identifiers_valid(names),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.all_private_identifiers_valid(names),
         }
     }
 
@@ -1724,7 +1862,7 @@ impl PropertyDefinition {
                 pn.contains_arguments() || ae.contains_arguments()
             }
             PropertyDefinition::MethodDefinition(md) => md.contains_arguments(),
-            PropertyDefinition::AssignmentExpression(ae) => ae.contains_arguments(),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.contains_arguments(),
         }
     }
 
@@ -1736,18 +1874,26 @@ impl PropertyDefinition {
                 pn.early_errors(agent, errs, strict);
                 ae.early_errors(agent, errs, strict);
             }
-            PropertyDefinition::AssignmentExpression(ae) => ae.early_errors(agent, errs, strict),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.early_errors(agent, errs, strict),
             PropertyDefinition::MethodDefinition(md) => {
                 // PropertyDefinition : MethodDefinition
                 //  * It is a Syntax Error if HasDirectSuper of MethodDefinition is true.
                 //  * It is a Syntax Error if PrivateBoundIdentifiers of MethodDefinition is not empty.
                 if md.has_direct_super() {
                     // E.g.: x = { b() { super(); } };
-                    errs.push(create_syntax_error_object(agent, "'super' keyword unexpected here"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "'super' keyword unexpected here",
+                        Some(md.location()),
+                    ));
                 }
                 if md.private_bound_identifier().is_some() {
                     // E.g.: x = { #b() {} };
-                    errs.push(create_syntax_error_object(agent, "Private identifier unexpected here"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Private identifier unexpected here",
+                        Some(md.location()),
+                    ));
                 }
                 md.early_errors(agent, errs, strict);
             }
@@ -1770,6 +1916,7 @@ impl PropertyDefinition {
                 errs.push(create_syntax_error_object(
                     agent,
                     "Illegal destructuring syntax in non-destructuring context",
+                    Some(cin.location()),
                 ));
                 cin.early_errors(agent, errs, strict);
             }
@@ -1785,7 +1932,7 @@ impl PropertyDefinition {
                 //  1. Return StringValue of IdentifierReference.
                 Some(id.string_value())
             }
-            PropertyDefinition::AssignmentExpression(_) => {
+            PropertyDefinition::AssignmentExpression(..) => {
                 // PropertyDefinition : ... AssignmentExpression
                 //  1. Return empty.
                 None
@@ -1870,12 +2017,19 @@ impl PropertyDefinitionList {
         let mut current_scanner = after_pd;
         while let Ok((pd2, after_pd2)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
+                .and_then(|(_, after_comma)| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
             current_scanner = after_pd2;
         }
         Ok((current_production, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            PropertyDefinitionList::OneDef(node) => node.location(),
+            PropertyDefinitionList::ManyDefs(lst, item) => lst.location().merge(&item.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -1942,17 +2096,17 @@ impl PropertyDefinitionList {
 //      { PropertyDefinitionList[?Yield, ?Await] , }
 #[derive(Debug)]
 pub enum ObjectLiteral {
-    Empty,
-    Normal(Rc<PropertyDefinitionList>),
-    TrailingComma(Rc<PropertyDefinitionList>),
+    Empty { location: Location },
+    Normal { pdl: Rc<PropertyDefinitionList>, location: Location },
+    TrailingComma { pdl: Rc<PropertyDefinitionList>, location: Location },
 }
 
 impl fmt::Display for ObjectLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ObjectLiteral::Empty => write!(f, "{{ }}"),
-            ObjectLiteral::Normal(pdl) => write!(f, "{{ {} }}", pdl),
-            ObjectLiteral::TrailingComma(pdl) => write!(f, "{{ {} , }}", pdl),
+            ObjectLiteral::Empty { .. } => write!(f, "{{ }}"),
+            ObjectLiteral::Normal { pdl, .. } => write!(f, "{{ {} }}", pdl),
+            ObjectLiteral::TrailingComma { pdl, .. } => write!(f, "{{ {} , }}", pdl),
         }
     }
 }
@@ -1965,8 +2119,8 @@ impl PrettyPrint for ObjectLiteral {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
         match self {
-            ObjectLiteral::Empty => Ok(()),
-            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+            ObjectLiteral::Empty { .. } => Ok(()),
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
                 pdl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -1979,11 +2133,11 @@ impl PrettyPrint for ObjectLiteral {
         writeln!(writer, "{}ObjectLiteral: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            ObjectLiteral::Empty => {}
-            ObjectLiteral::Normal(node) => {
+            ObjectLiteral::Empty { .. } => {}
+            ObjectLiteral::Normal { pdl: node, .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            ObjectLiteral::TrailingComma(node) => {
+            ObjectLiteral::TrailingComma { pdl: node, .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
@@ -1994,41 +2148,54 @@ impl PrettyPrint for ObjectLiteral {
 
 impl ObjectLiteral {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_brace = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let (open_loc, after_brace) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
             Err(_) => {
-                let after_brace2 =
+                let (close_loc, after_brace2) =
                     scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Rc::new(ObjectLiteral::Empty), after_brace2))
+                Ok((Rc::new(ObjectLiteral::Empty { location: open_loc.merge(&close_loc) }), after_brace2))
             }
             Ok((pdl, after_pdl)) => {
-                let (comma_or_brace, after_punct) = scan_for_punct_set(
+                let (comma_or_brace, punct_loc, after_punct) = scan_for_punct_set(
                     after_pdl,
                     parser.source,
                     ScanGoal::InputElementDiv,
                     &[Punctuator::RightBrace, Punctuator::Comma],
                 )?;
                 match comma_or_brace {
-                    Punctuator::RightBrace => Ok((Rc::new(ObjectLiteral::Normal(pdl)), after_punct)),
+                    Punctuator::RightBrace => {
+                        Ok((Rc::new(ObjectLiteral::Normal { pdl, location: open_loc.merge(&punct_loc) }), after_punct))
+                    }
                     _ => {
-                        let after_brace3 = scan_for_punct(
+                        let (close_loc, after_brace3) = scan_for_punct(
                             after_punct,
                             parser.source,
                             ScanGoal::InputElementDiv,
                             Punctuator::RightBrace,
                         )?;
-                        Ok((Rc::new(ObjectLiteral::TrailingComma(pdl)), after_brace3))
+                        Ok((
+                            Rc::new(ObjectLiteral::TrailingComma { pdl, location: open_loc.merge(&close_loc) }),
+                            after_brace3,
+                        ))
                     }
                 }
             }
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ObjectLiteral::Empty { location }
+            | ObjectLiteral::Normal { location, .. }
+            | ObjectLiteral::TrailingComma { location, .. } => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ObjectLiteral::Empty => false,
-            ObjectLiteral::Normal(pdl) => pdl.contains(kind),
-            ObjectLiteral::TrailingComma(pdl) => pdl.contains(kind),
+            ObjectLiteral::Empty { .. } => false,
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => pdl.contains(kind),
         }
     }
 
@@ -2040,9 +2207,10 @@ impl ObjectLiteral {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ObjectLiteral::Empty => true,
-            ObjectLiteral::Normal(pdl) => pdl.all_private_identifiers_valid(names),
-            ObjectLiteral::TrailingComma(pdl) => pdl.all_private_identifiers_valid(names),
+            ObjectLiteral::Empty { .. } => true,
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
+                pdl.all_private_identifiers_valid(names)
+            }
         }
     }
 
@@ -2058,16 +2226,16 @@ impl ObjectLiteral {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ObjectLiteral::Empty => false,
-            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => pdl.contains_arguments(),
+            ObjectLiteral::Empty { .. } => false,
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => pdl.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            ObjectLiteral::Empty => {}
-            ObjectLiteral::Normal(pdl) | ObjectLiteral::TrailingComma(pdl) => {
+            ObjectLiteral::Empty { .. } => {}
+            ObjectLiteral::Normal { pdl, location } | ObjectLiteral::TrailingComma { pdl, location } => {
                 // ObjectLiteral :
                 //      { PropertyDefinitionList }
                 //      { PropertyDefinitionList , }
@@ -2083,6 +2251,7 @@ impl ObjectLiteral {
                     errs.push(create_syntax_error_object(
                         agent,
                         "Duplicate __proto__ fields are not allowed in object literals",
+                        Some(*location),
                     ));
                 }
                 pdl.early_errors(agent, errs, strict);
@@ -2120,37 +2289,33 @@ impl Numeric {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum LiteralKind {
-    NullLiteral,
-    BooleanLiteral(bool),
-    NumericLiteral(Numeric),
-    StringLiteral(StringToken),
-    DebugLiteral(char),
-}
-#[derive(Debug)]
-pub struct Literal {
-    pub kind: LiteralKind,
+pub enum Literal {
+    NullLiteral { location: Location },
+    BooleanLiteral { val: bool, location: Location },
+    NumericLiteral { val: Numeric, location: Location },
+    StringLiteral { val: StringToken, location: Location },
+    DebugLiteral { val: char, location: Location },
 }
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            LiteralKind::NullLiteral => write!(f, "null"),
-            LiteralKind::BooleanLiteral(b) => {
+        match self {
+            Literal::NullLiteral { .. } => write!(f, "null"),
+            Literal::BooleanLiteral { val: b, .. } => {
                 if *b {
                     write!(f, "true")
                 } else {
                     write!(f, "false")
                 }
             }
-            LiteralKind::NumericLiteral(Numeric::Number(n)) => {
+            Literal::NumericLiteral { val: Numeric::Number(n), .. } => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
-            LiteralKind::NumericLiteral(Numeric::BigInt(b)) => write!(f, "{}", *b),
-            LiteralKind::StringLiteral(s) => write!(f, "{}", *s),
-            LiteralKind::DebugLiteral(ch) => write!(f, "@@{ch}"),
+            Literal::NumericLiteral { val: Numeric::BigInt(b), .. } => write!(f, "{}", *b),
+            Literal::StringLiteral { val: s, .. } => write!(f, "{}", *s),
+            Literal::DebugLiteral { val: ch, .. } => write!(f, "@@{ch}"),
         }
     }
 }
@@ -2167,38 +2332,49 @@ impl PrettyPrint for Literal {
     where
         T: Write,
     {
-        match &self.kind {
-            LiteralKind::NullLiteral => pprint_token(writer, "null", TokenType::Keyword, pad, state),
-            LiteralKind::BooleanLiteral(_) => pprint_token(writer, self, TokenType::Keyword, pad, state),
-            LiteralKind::NumericLiteral(_) => pprint_token(writer, self, TokenType::Numeric, pad, state),
-            LiteralKind::StringLiteral(_) => pprint_token(writer, self, TokenType::String, pad, state),
-            LiteralKind::DebugLiteral(_) => pprint_token(writer, self, TokenType::Punctuator, pad, state),
+        match self {
+            Literal::NullLiteral { .. } => pprint_token(writer, "null", TokenType::Keyword, pad, state),
+            Literal::BooleanLiteral { .. } => pprint_token(writer, self, TokenType::Keyword, pad, state),
+            Literal::NumericLiteral { .. } => pprint_token(writer, self, TokenType::Numeric, pad, state),
+            Literal::StringLiteral { .. } => pprint_token(writer, self, TokenType::String, pad, state),
+            Literal::DebugLiteral { .. } => pprint_token(writer, self, TokenType::Punctuator, pad, state),
         }
     }
 }
 
 impl Literal {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
-        let (token, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (token, tok_loc, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         match token {
             Token::Identifier(id) if id.matches(Keyword::Null) => {
-                Ok((Rc::new(Literal { kind: LiteralKind::NullLiteral }), newscanner))
+                Ok((Rc::new(Literal::NullLiteral { location: tok_loc }), newscanner))
             }
             Token::Identifier(id) if id.matches(Keyword::True) => {
-                Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(true) }), newscanner))
+                Ok((Rc::new(Literal::BooleanLiteral { val: true, location: tok_loc }), newscanner))
             }
             Token::Identifier(id) if id.matches(Keyword::False) => {
-                Ok((Rc::new(Literal { kind: LiteralKind::BooleanLiteral(false) }), newscanner))
+                Ok((Rc::new(Literal::BooleanLiteral { val: false, location: tok_loc }), newscanner))
             }
             Token::Number(num) => {
-                Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::Number(num)) }), newscanner))
+                Ok((Rc::new(Literal::NumericLiteral { val: Numeric::Number(num), location: tok_loc }), newscanner))
             }
-            Token::BigInt(bi) => {
-                Ok((Rc::new(Literal { kind: LiteralKind::NumericLiteral(Numeric::BigInt(Rc::new(bi))) }), newscanner))
-            }
-            Token::String(s) => Ok((Rc::new(Literal { kind: LiteralKind::StringLiteral(s) }), newscanner)),
-            Token::Debug(ch) => Ok((Rc::new(Literal { kind: LiteralKind::DebugLiteral(ch) }), newscanner)),
-            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), scanner)),
+            Token::BigInt(bi) => Ok((
+                Rc::new(Literal::NumericLiteral { val: Numeric::BigInt(Rc::new(bi)), location: tok_loc }),
+                newscanner,
+            )),
+            Token::String(s) => Ok((Rc::new(Literal::StringLiteral { val: s, location: tok_loc }), newscanner)),
+            Token::Debug(ch) => Ok((Rc::new(Literal::DebugLiteral { val: ch, location: tok_loc }), newscanner)),
+            _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), tok_loc)),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            Literal::NullLiteral { location }
+            | Literal::BooleanLiteral { location, .. }
+            | Literal::NumericLiteral { location, .. }
+            | Literal::StringLiteral { location, .. }
+            | Literal::DebugLiteral { location, .. } => *location,
         }
     }
 
@@ -2207,7 +2383,7 @@ impl Literal {
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        if let LiteralKind::StringLiteral(s) = &self.kind {
+        if let Literal::StringLiteral { val: s, .. } = self {
             Some(s.clone())
         } else {
             None
@@ -2219,25 +2395,24 @@ impl Literal {
         // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
         // assertions that are supposed to fail once we do actually implement legacy octal. That will be my reminder to
         // uncomment the rest of this function.
-        match &self.kind {
-            LiteralKind::NumericLiteral(n) => {
+        match self {
+            Literal::NumericLiteral { val: n, .. } => {
                 assert!(!n.has_legacy_octal_syntax());
             }
-            LiteralKind::StringLiteral(s) => {
+            Literal::StringLiteral { val: s, .. } => {
                 assert!(!s.has_legacy_octal_escapes());
             }
-            LiteralKind::BooleanLiteral(..) | LiteralKind::NullLiteral => {}
-            LiteralKind::DebugLiteral(_) => (),
+            Literal::BooleanLiteral { .. } | Literal::NullLiteral { .. } | Literal::DebugLiteral { .. } => (),
         }
 
         //match &self.kind {
-        //    LiteralKind::BooleanLiteral(..) | LiteralKind::NullLiteral => {},
-        //    LiteralKind::StringLiteral(s) => {
+        //    Literal::BooleanLiteral(..) | Literal::NullLiteral => {},
+        //    Literal::StringLiteral(s) => {
         //        if strict && s.has_legacy_octal_escapes() {
         //            errs.push(create_syntax_error_object(agent, "Legacy octal escapes not allowed in strict mode"));
         //        }
         //    }
-        //    LiteralKind::NumericLiteral(n) => {
+        //    Literal::NumericLiteral(n) => {
         //        if strict && n.has_legacy_octal_syntax() {
         //            errs.push(create_syntax_error_object(agent, "Legacy octal syntax not allowed in strict mode"));
         //        }
@@ -2251,14 +2426,14 @@ impl Literal {
 //      SubstitutionTemplate[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
 pub enum TemplateLiteral {
-    NoSubstitutionTemplate(TemplateData, bool),
+    NoSubstitutionTemplate { data: TemplateData, tagged: bool, location: Location },
     SubstitutionTemplate(Rc<SubstitutionTemplate>),
 }
 
 impl fmt::Display for TemplateLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(td, _) => write!(f, "`{}`", td),
+            TemplateLiteral::NoSubstitutionTemplate { data: td, .. } => write!(f, "`{}`", td),
             TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{}", boxed),
         }
     }
@@ -2272,7 +2447,7 @@ impl PrettyPrint for TemplateLiteral {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TemplateLiteral: {}", first, self)?;
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(_, _) => Ok(()),
+            TemplateLiteral::NoSubstitutionTemplate { .. } => Ok(()),
             TemplateLiteral::SubstitutionTemplate(st) => st.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
@@ -2282,7 +2457,7 @@ impl PrettyPrint for TemplateLiteral {
         T: Write,
     {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => {
+            TemplateLiteral::NoSubstitutionTemplate { .. } => {
                 pprint_token(writer, self, TokenType::NoSubTemplate, pad, state)
             }
             TemplateLiteral::SubstitutionTemplate(st) => st.concise_with_leftpad(writer, pad, state),
@@ -2292,11 +2467,14 @@ impl PrettyPrint for TemplateLiteral {
 
 impl TemplateLiteral {
     fn parse_nst(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
-        let (tok, after_nst) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_nst) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::NoSubstitutionTemplate(td) = tok {
-            Ok((Rc::new(TemplateLiteral::NoSubstitutionTemplate(td, tagged_flag)), after_nst))
+            Ok((
+                Rc::new(TemplateLiteral::NoSubstitutionTemplate { data: td, tagged: tagged_flag, location: tok_loc }),
+                after_nst,
+            ))
         } else {
-            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::NoSubstitutionTemplate), scanner))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::NoSubstitutionTemplate), tok_loc))
         }
     }
 
@@ -2341,10 +2519,17 @@ impl TemplateLiteral {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate { location, .. } => *location,
+            TemplateLiteral::SubstitutionTemplate(st) => st.location(),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => false,
             TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
+            TemplateLiteral::NoSubstitutionTemplate { .. } => false,
         }
     }
 
@@ -2356,7 +2541,7 @@ impl TemplateLiteral {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => true,
+            TemplateLiteral::NoSubstitutionTemplate { .. } => true,
             TemplateLiteral::SubstitutionTemplate(boxed) => boxed.all_private_identifiers_valid(names),
         }
     }
@@ -2373,7 +2558,7 @@ impl TemplateLiteral {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(..) => false,
+            TemplateLiteral::NoSubstitutionTemplate { .. } => false,
             TemplateLiteral::SubstitutionTemplate(st) => st.contains_arguments(),
         }
     }
@@ -2381,12 +2566,16 @@ impl TemplateLiteral {
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(td, tagged) => {
+            TemplateLiteral::NoSubstitutionTemplate { data: td, tagged, location } => {
                 // TemplateLiteral : NoSubstitutionTemplate
                 //  * It is a Syntax Error if the [Tagged] parameter was not set and
                 //    NoSubstitutionTemplate Contains NotEscapeSequence.
                 if !tagged && td.tv.is_none() {
-                    errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Invalid escape sequence in template literal",
+                        Some(*location),
+                    ));
                 }
             }
             TemplateLiteral::SubstitutionTemplate(st) => {
@@ -2395,7 +2584,7 @@ impl TemplateLiteral {
                 //    TemplateStrings of TemplateLiteral with argument false is greater
                 //    than 2^32 - 1.
                 if self.template_strings(false).len() > ts_limit {
-                    errs.push(create_syntax_error_object(agent, "Template literal too complex"))
+                    errs.push(create_syntax_error_object(agent, "Template literal too complex", Some(st.location())))
                 }
                 st.early_errors(agent, errs, strict);
             }
@@ -2408,7 +2597,7 @@ impl TemplateLiteral {
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
         // defined piecewise over the following productions:
         match self {
-            TemplateLiteral::NoSubstitutionTemplate(nst, _) => {
+            TemplateLiteral::NoSubstitutionTemplate { data: nst, .. } => {
                 // TemplateLiteral : NoSubstitutionTemplate
                 //  1. If raw is false, then
                 //      a. Let string be the TV of NoSubstitutionTemplate.
@@ -2437,6 +2626,7 @@ pub struct SubstitutionTemplate {
     tagged: bool,
     expression: Rc<Expression>,
     template_spans: Rc<TemplateSpans>,
+    location: Location,
 }
 
 impl fmt::Display for SubstitutionTemplate {
@@ -2481,23 +2671,31 @@ impl SubstitutionTemplate {
         await_flag: bool,
         tagged_flag: bool,
     ) -> ParseResult<Self> {
-        let (head, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (head, tok_loc, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
         if let Token::TemplateHead(td) = head {
             let (exp_boxed, after_exp) = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
             let (spans_boxed, after_spans) =
                 TemplateSpans::parse(parser, after_exp, yield_flag, await_flag, tagged_flag)?;
             Ok((
-                Rc::new(SubstitutionTemplate {
-                    template_head: td,
-                    tagged: tagged_flag,
-                    expression: exp_boxed,
-                    template_spans: spans_boxed,
+                Rc::new({
+                    let location = tok_loc.merge(&spans_boxed.location());
+                    SubstitutionTemplate {
+                        template_head: td,
+                        tagged: tagged_flag,
+                        expression: exp_boxed,
+                        template_spans: spans_boxed,
+                        location,
+                    }
                 }),
                 after_spans,
             ))
         } else {
-            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::SubstitutionTemplate), scanner))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::SubstitutionTemplate), tok_loc))
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -2533,7 +2731,11 @@ impl SubstitutionTemplate {
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
         if !self.tagged && self.template_head.tv.is_none() {
-            errs.push(create_syntax_error_object(agent, "Invalid escape sequence in template literal"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Invalid escape sequence in template literal",
+                Some(self.location),
+            ));
         }
         self.expression.early_errors(agent, errs, strict);
         self.template_spans.early_errors(agent, errs, strict);
@@ -2567,17 +2769,17 @@ impl SubstitutionTemplate {
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateTail
 #[derive(Debug)]
 pub enum TemplateSpans {
-    Tail(TemplateData, bool),
-    List(Rc<TemplateMiddleList>, TemplateData, bool),
+    Tail { data: TemplateData, tagged: bool, location: Location },
+    List { tml: Rc<TemplateMiddleList>, data: TemplateData, tagged: bool, location: Location },
 }
 
 impl fmt::Display for TemplateSpans {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateSpans::Tail(td, _) => {
+            TemplateSpans::Tail { data: td, .. } => {
                 write!(f, "}}{}`", format!("{}", td.trv).replace(char::is_control, "\u{2426}"))
             }
-            TemplateSpans::List(tml, td, _) => {
+            TemplateSpans::List { tml, data: td, .. } => {
                 write!(f, "{} }}{}`", tml, format!("{}", td.trv).replace(char::is_control, "\u{2426}"))
             }
         }
@@ -2592,8 +2794,8 @@ impl PrettyPrint for TemplateSpans {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TemplateSpans: {}", first, self)?;
         match self {
-            TemplateSpans::Tail(_, _) => Ok(()),
-            TemplateSpans::List(tml, _, _) => tml.pprint_with_leftpad(writer, &successive, Spot::Final),
+            TemplateSpans::Tail { .. } => Ok(()),
+            TemplateSpans::List { tml, .. } => tml.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -2602,10 +2804,10 @@ impl PrettyPrint for TemplateSpans {
         T: Write,
     {
         match self {
-            TemplateSpans::Tail(td, _) => {
+            TemplateSpans::Tail { data: td, .. } => {
                 pprint_token(writer, &format!("}}{}`", td.trv), TokenType::TemplateTail, pad, state)
             }
-            TemplateSpans::List(tml, td, _) => {
+            TemplateSpans::List { tml, data: td, .. } => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}TemplateSpans: {}", first, self)?;
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -2617,11 +2819,11 @@ impl PrettyPrint for TemplateSpans {
 
 impl TemplateSpans {
     fn parse_tail(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
-        let (token, after_tmplt) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
+        let (token, tok_loc, after_tmplt) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateTail(td) = token {
-            Ok((Rc::new(TemplateSpans::Tail(td, tagged_flag)), after_tmplt))
+            Ok((Rc::new(TemplateSpans::Tail { data: td, tagged: tagged_flag, location: tok_loc }), after_tmplt))
         } else {
-            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), scanner))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), tok_loc))
         }
     }
 
@@ -2633,11 +2835,17 @@ impl TemplateSpans {
         tagged_flag: bool,
     ) -> ParseResult<Self> {
         let (tml, after_tml) = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        let (token, after_tmplt) = scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
+        let (token, tok_loc, after_tmplt) = scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateTail(td) = token {
-            Ok((Rc::new(TemplateSpans::List(tml, td, tagged_flag)), after_tmplt))
+            Ok((
+                Rc::new({
+                    let location = tml.location().merge(&tok_loc);
+                    TemplateSpans::List { tml, data: td, tagged: tagged_flag, location }
+                }),
+                after_tmplt,
+            ))
         } else {
-            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), after_tml))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), tok_loc))
         }
     }
     pub fn parse(
@@ -2652,10 +2860,16 @@ impl TemplateSpans {
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            TemplateSpans::Tail { location, .. } | TemplateSpans::List { location, .. } => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            TemplateSpans::Tail(..) => false,
-            TemplateSpans::List(tml, _, _) => tml.contains(kind),
+            TemplateSpans::Tail { .. } => false,
+            TemplateSpans::List { tml, .. } => tml.contains(kind),
         }
     }
 
@@ -2667,8 +2881,8 @@ impl TemplateSpans {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            TemplateSpans::Tail(..) => true,
-            TemplateSpans::List(tml, _, _) => tml.all_private_identifiers_valid(names),
+            TemplateSpans::Tail { .. } => true,
+            TemplateSpans::List { tml, .. } => tml.all_private_identifiers_valid(names),
         }
     }
 
@@ -2684,8 +2898,8 @@ impl TemplateSpans {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            TemplateSpans::Tail(..) => false,
-            TemplateSpans::List(tml, ..) => tml.contains_arguments(),
+            TemplateSpans::Tail { .. } => false,
+            TemplateSpans::List { tml, .. } => tml.contains_arguments(),
         }
     }
 
@@ -2695,13 +2909,18 @@ impl TemplateSpans {
         //      TemplateTail
         //      TemplateMiddleList TemplateTail
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateTail Contains NotEscapeSequence.
-        if let TemplateSpans::List(lst, _, _) = self {
+        if let TemplateSpans::List { tml: lst, .. } = self {
             lst.early_errors(agent, errs, strict);
         }
         match self {
-            TemplateSpans::Tail(tail, tagged) | TemplateSpans::List(_, tail, tagged) => {
+            TemplateSpans::Tail { data: tail, tagged, location }
+            | TemplateSpans::List { data: tail, tagged, location, .. } => {
                 if !tagged && tail.tv.is_none() {
-                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Invalid character escape in template literal",
+                        Some(*location),
+                    ));
                 }
             }
         }
@@ -2713,7 +2932,7 @@ impl TemplateSpans {
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
         // defined piecewise over the following productions:
         match self {
-            TemplateSpans::Tail(tail, _) => {
+            TemplateSpans::Tail { data: tail, .. } => {
                 // TemplateSpans : TemplateTail
                 //  1. If raw is false, then
                 //      a. Let tail be the TV of TemplateTail.
@@ -2725,7 +2944,7 @@ impl TemplateSpans {
                     true => vec![Some(tail.trv.clone())],
                 }
             }
-            TemplateSpans::List(template_middle_list, template_tail, _) => {
+            TemplateSpans::List { tml: template_middle_list, data: template_tail, .. } => {
                 // TemplateSpans : TemplateMiddleList TemplateTail
                 //  1. Let middle be TemplateStrings of TemplateMiddleList with argument raw.
                 //  2. If raw is false, then
@@ -2750,14 +2969,14 @@ impl TemplateSpans {
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
 #[derive(Debug)]
 pub enum TemplateMiddleList {
-    ListHead(TemplateData, Rc<Expression>, bool),
+    ListHead { data: TemplateData, exp: Rc<Expression>, tagged: bool, location: Location },
     ListMid(Rc<TemplateMiddleList>, TemplateData, Rc<Expression>, bool),
 }
 
 impl fmt::Display for TemplateMiddleList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TemplateMiddleList::ListHead(td, exp, _) => {
+            TemplateMiddleList::ListHead { data: td, exp, .. } => {
                 write!(f, "}}{}${{ {}", format!("{}", td.trv).replace(char::is_control, "\u{2426}"), exp)
             }
             TemplateMiddleList::ListMid(tml, td, exp, _) => {
@@ -2775,7 +2994,7 @@ impl PrettyPrint for TemplateMiddleList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
         match self {
-            TemplateMiddleList::ListHead(_, exp, _) => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            TemplateMiddleList::ListHead { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
             TemplateMiddleList::ListMid(tml, _, exp, _) => {
                 tml.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -2789,7 +3008,7 @@ impl PrettyPrint for TemplateMiddleList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}TemplateMiddleList: {}", first, self)?;
         match self {
-            TemplateMiddleList::ListHead(td, exp, _) => {
+            TemplateMiddleList::ListHead { data: td, exp, .. } => {
                 pprint_token(writer, &format!("}}{}${{", td), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -2808,13 +3027,13 @@ impl TemplateMiddleList {
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
-    ) -> Result<(TemplateData, Rc<Expression>, Scanner), ParseError> {
-        let (middle, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
+    ) -> Result<(TemplateData, Location, Rc<Expression>, Scanner), ParseError> {
+        let (middle, tok_loc, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
         if let Token::TemplateMiddle(td) = middle {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
-            Ok((td, exp, after_exp))
+            Ok((td, tok_loc, exp, after_exp))
         } else {
-            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateMiddle), scanner))
+            Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateMiddle), tok_loc))
         }
     }
 
@@ -2825,8 +3044,14 @@ impl TemplateMiddleList {
         await_flag: bool,
         tagged_flag: bool,
     ) -> ParseResult<Self> {
-        let (td, exp, after_exp) = Self::parse_tm_exp_unboxed(parser, scanner, yield_flag, await_flag)?;
-        Ok((Rc::new(TemplateMiddleList::ListHead(td, exp, tagged_flag)), after_exp))
+        let (td, tok_loc, exp, after_exp) = Self::parse_tm_exp_unboxed(parser, scanner, yield_flag, await_flag)?;
+        Ok((
+            Rc::new({
+                let location = tok_loc.merge(&exp.location());
+                TemplateMiddleList::ListHead { data: td, exp, tagged: tagged_flag, location }
+            }),
+            after_exp,
+        ))
     }
 
     pub fn parse(
@@ -2838,7 +3063,8 @@ impl TemplateMiddleList {
     ) -> ParseResult<Self> {
         let (mut current_node, mut current_scanner) =
             Self::parse_tm_exp(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        while let Ok((middle, exp, after)) = Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag)
+        while let Ok((middle, _, exp, after)) =
+            Self::parse_tm_exp_unboxed(parser, current_scanner, yield_flag, await_flag)
         {
             current_node = Rc::new(TemplateMiddleList::ListMid(current_node, middle, exp, tagged_flag));
             current_scanner = after;
@@ -2846,9 +3072,16 @@ impl TemplateMiddleList {
         Ok((current_node, current_scanner))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            TemplateMiddleList::ListHead { location, .. } => *location,
+            TemplateMiddleList::ListMid(tml, _, exp, _) => tml.location().merge(&exp.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            TemplateMiddleList::ListHead(_, exp, _) => exp.contains(kind),
+            TemplateMiddleList::ListHead { exp, .. } => exp.contains(kind),
             TemplateMiddleList::ListMid(tml, _, exp, _) => tml.contains(kind) || exp.contains(kind),
         }
     }
@@ -2861,7 +3094,7 @@ impl TemplateMiddleList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            TemplateMiddleList::ListHead(_, exp, _) => exp.all_private_identifiers_valid(names),
+            TemplateMiddleList::ListHead { exp, .. } => exp.all_private_identifiers_valid(names),
             TemplateMiddleList::ListMid(tml, _, exp, _) => {
                 tml.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
@@ -2880,7 +3113,7 @@ impl TemplateMiddleList {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            TemplateMiddleList::ListHead(_, e, _) => e.contains_arguments(),
+            TemplateMiddleList::ListHead { exp, .. } => exp.contains_arguments(),
             TemplateMiddleList::ListMid(tml, _, e, _) => tml.contains_arguments() || e.contains_arguments(),
         }
     }
@@ -2895,9 +3128,14 @@ impl TemplateMiddleList {
             lst.early_errors(agent, errs, strict);
         }
         match self {
-            TemplateMiddleList::ListHead(tmid, exp, tagged) | TemplateMiddleList::ListMid(_, tmid, exp, tagged) => {
+            TemplateMiddleList::ListHead { data: tmid, exp, tagged, .. }
+            | TemplateMiddleList::ListMid(_, tmid, exp, tagged) => {
                 if !tagged && tmid.tv.is_none() {
-                    errs.push(create_syntax_error_object(agent, "Invalid character escape in template literal"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Invalid character escape in template literal",
+                        Some(self.location()),
+                    ));
                 }
                 exp.early_errors(agent, errs, strict);
             }
@@ -2910,7 +3148,7 @@ impl TemplateMiddleList {
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
         // defined piecewise over the following productions:
         match self {
-            TemplateMiddleList::ListHead(template_middle, _, _) => {
+            TemplateMiddleList::ListHead { data: template_middle, .. } => {
                 // TemplateMiddleList : TemplateMiddle Expression
                 //  1. If raw is false, then
                 //      a. Let string be the TV of TemplateMiddle.
@@ -2945,14 +3183,14 @@ impl TemplateMiddleList {
 // ParenthesizedExpression[Yield, Await] :
 //      ( Expression[+In, ?Yield, ?Await] )
 #[derive(Debug)]
-pub enum ParenthesizedExpression {
-    Expression(Rc<Expression>),
+pub struct ParenthesizedExpression {
+    pub exp: Rc<Expression>,
+    location: Location,
 }
 
 impl fmt::Display for ParenthesizedExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ParenthesizedExpression::Expression(e) = self;
-        write!(f, "( {} )", e)
+        write!(f, "( {} )", self.exp)
     }
 }
 
@@ -2963,8 +3201,7 @@ impl PrettyPrint for ParenthesizedExpression {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
-        let ParenthesizedExpression::Expression(e) = self;
-        e.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.exp.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -2974,30 +3211,33 @@ impl PrettyPrint for ParenthesizedExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}ParenthesizedExpression: {}", first, self)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let ParenthesizedExpression::Expression(e) = self;
-        e.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
+        self.exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &successive, Spot::Final)
     }
 }
 
 impl IsFunctionDefinition for ParenthesizedExpression {
     fn is_function_definition(&self) -> bool {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.is_function_definition()
+        self.exp.is_function_definition()
     }
 }
 
 impl ParenthesizedExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_lp = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+        let (open_loc, after_lp) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
-        let after_rp = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-        Ok((Rc::new(ParenthesizedExpression::Expression(exp)), after_rp))
+        let (close_loc, after_rp) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
+        Ok((Rc::new(ParenthesizedExpression { exp, location: open_loc.merge(&close_loc) }), after_rp))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.contains(kind)
+        self.exp.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -3007,8 +3247,7 @@ impl ParenthesizedExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let ParenthesizedExpression::Expression(e) = self;
-        e.all_private_identifiers_valid(names)
+        self.exp.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -3022,31 +3261,26 @@ impl ParenthesizedExpression {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let ParenthesizedExpression::Expression(e) = self;
-        e.contains_arguments()
+        self.exp.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.early_errors(agent, errs, strict)
+        self.exp.early_errors(agent, errs, strict)
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.is_strictly_deletable()
+        self.exp.is_strictly_deletable()
     }
 
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.assignment_target_type(strict)
+        self.exp.assignment_target_type(strict)
     }
 
     pub fn is_named_function(&self) -> bool {
-        let ParenthesizedExpression::Expression(e) = self;
-        e.is_named_function()
+        self.exp.is_named_function()
     }
 }
 
@@ -3060,37 +3294,37 @@ impl ParenthesizedExpression {
 //      ( Expression[+In, ?Yield, ?Await] , ... BindingPattern[?Yield, ?Await] )
 #[derive(Debug)]
 pub enum CoverParenthesizedExpressionAndArrowParameterList {
-    Expression(Rc<Expression>),
-    ExpComma(Rc<Expression>),
-    Empty,
-    Ident(Rc<BindingIdentifier>),
-    Pattern(Rc<BindingPattern>),
-    ExpIdent(Rc<Expression>, Rc<BindingIdentifier>),
-    ExpPattern(Rc<Expression>, Rc<BindingPattern>),
+    Expression { exp: Rc<Expression>, location: Location },
+    ExpComma { exp: Rc<Expression>, location: Location },
+    Empty { location: Location },
+    Ident { bi: Rc<BindingIdentifier>, location: Location },
+    Pattern { bp: Rc<BindingPattern>, location: Location },
+    ExpIdent { exp: Rc<Expression>, bi: Rc<BindingIdentifier>, location: Location },
+    ExpPattern { exp: Rc<Expression>, bp: Rc<BindingPattern>, location: Location },
 }
 
 impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
                 write!(f, "( {} )", node)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 write!(f, "( {} , )", node)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {
                 write!(f, "( )")
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
                 write!(f, "( ... {} )", node)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
                 write!(f, "( ... {} )", node)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 write!(f, "( {} , ... {} )", exp, id)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
                 write!(f, "( {} , ... {} )", exp, pat)
             }
         }
@@ -3105,24 +3339,24 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => Ok(()),
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => Ok(()),
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, next) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: next, .. } => {
                 exp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 next.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, next) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: next, .. } => {
                 exp.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 next.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -3137,29 +3371,29 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         writeln!(writer, "{}CoverParenthesizedExpressionAndArrowParameterList: {}", first, self)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 id.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
                 exp.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -3176,20 +3410,26 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             Id(Rc<BindingIdentifier>),
             Pat(Rc<BindingPattern>),
         }
-        let after_lparen = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
+        let (open_loc, after_lparen) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, open_loc))
             .otherwise(|| {
                 // ( )
-                let after_rparen =
+                let (close_loc, after_rparen) =
                     scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-                Ok((Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty), after_rparen))
+                Ok((
+                    Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty {
+                        location: open_loc.merge(&close_loc),
+                    }),
+                    after_rparen,
+                ))
             })
             .otherwise(|| {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
-                let after_ellipsis =
+                let (ellipsis_loc, after_ellipsis) =
                     scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-                Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
+                Err(ParseError::new(PECode::BindingIdOrPatternExpected, ellipsis_loc)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
                         .otherwise(|| {
@@ -3200,13 +3440,17 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                             scan_for_punct(scan, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
                                 .map(|after_rp| (bnd, after_rp))
                         })
-                        .map(|(bnd, scan)| {
+                        .map(|(bnd, (close_loc, scan))| {
                             (
                                 Rc::new(match bnd {
-                                    BndType::Id(id) => CoverParenthesizedExpressionAndArrowParameterList::Ident(id),
-                                    BndType::Pat(pat) => {
-                                        CoverParenthesizedExpressionAndArrowParameterList::Pattern(pat)
-                                    }
+                                    BndType::Id(id) => CoverParenthesizedExpressionAndArrowParameterList::Ident {
+                                        bi: id,
+                                        location: open_loc.merge(&close_loc),
+                                    },
+                                    BndType::Pat(pat) => CoverParenthesizedExpressionAndArrowParameterList::Pattern {
+                                        bp: pat,
+                                        location: open_loc.merge(&close_loc),
+                                    },
                                 }),
                                 scan,
                             )
@@ -3222,17 +3466,17 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 }
                 let (exp, after_exp) = Expression::parse(parser, after_lparen, true, yield_flag, await_flag)?;
                 scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
-                    .map(|after_rparen| (AfterExp::Empty, after_rparen))
+                    .map(|(close_loc, after_rparen)| (AfterExp::Empty, close_loc, after_rparen))
                     .otherwise(|| {
                         scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                            |after_comma| {
+                            |(comma_loc, after_comma)| {
                                 scan_for_punct(
                                     after_comma,
                                     parser.source,
                                     ScanGoal::InputElementDiv,
                                     Punctuator::RightParen,
                                 )
-                                .map(|after_rparen| (AfterExp::Comma, after_rparen))
+                                .map(|(close_loc, after_rparen)| (AfterExp::Comma, close_loc, after_rparen))
                                 .otherwise(|| {
                                     scan_for_punct(
                                         after_comma,
@@ -3240,7 +3484,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                         ScanGoal::InputElementDiv,
                                         Punctuator::Ellipsis,
                                     )
-                                    .and_then(|after_ellipsis| {
+                                    .and_then(|(ellipsis_loc, after_ellipsis)| {
                                         BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                                             .and_then(|(bi, after)| {
                                                 scan_for_punct(
@@ -3249,7 +3493,11 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                                     ScanGoal::InputElementDiv,
                                                     Punctuator::RightParen,
                                                 )
-                                                .map(|after_rp| (AfterExp::SpreadId(bi), after_rp))
+                                                .map(
+                                                    |(close_loc, after_rp)| {
+                                                        (AfterExp::SpreadId(bi), close_loc, after_rp)
+                                                    },
+                                                )
                                             })
                                             .otherwise(|| {
                                                 BindingPattern::parse(parser, after_ellipsis, yield_flag, await_flag)
@@ -3260,7 +3508,11 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                                             ScanGoal::InputElementDiv,
                                                             Punctuator::RightParen,
                                                         )
-                                                        .map(|after_rp| (AfterExp::SpreadPat(bp), after_rp))
+                                                        .map(
+                                                            |(close_loc, after_rp)| {
+                                                                (AfterExp::SpreadPat(bp), close_loc, after_rp)
+                                                            },
+                                                        )
                                                     })
                                             })
                                     })
@@ -3268,16 +3520,28 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                             },
                         )
                     })
-                    .map(|(aftexp, scan)| {
+                    .map(|(aftexp, close_loc, scan)| {
                         (
                             Rc::new(match aftexp {
-                                AfterExp::Empty => CoverParenthesizedExpressionAndArrowParameterList::Expression(exp),
-                                AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma(exp),
-                                AfterExp::SpreadId(id) => {
-                                    CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id)
-                                }
+                                AfterExp::Empty => CoverParenthesizedExpressionAndArrowParameterList::Expression {
+                                    exp,
+                                    location: open_loc.merge(&close_loc),
+                                },
+                                AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma {
+                                    exp,
+                                    location: open_loc.merge(&close_loc),
+                                },
+                                AfterExp::SpreadId(id) => CoverParenthesizedExpressionAndArrowParameterList::ExpIdent {
+                                    exp,
+                                    bi: id,
+                                    location: open_loc.merge(&close_loc),
+                                },
                                 AfterExp::SpreadPat(pat) => {
-                                    CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat)
+                                    CoverParenthesizedExpressionAndArrowParameterList::ExpPattern {
+                                        exp,
+                                        bp: pat,
+                                        location: open_loc.merge(&close_loc),
+                                    }
                                 }
                             }),
                             scan,
@@ -3298,17 +3562,29 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::Empty { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::Ident { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::Pattern { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { location, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { location, .. } => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => false,
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => false,
+            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => node.contains(kind),
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 exp.contains(kind) || id.contains(kind)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
                 exp.contains(kind) || pat.contains(kind)
             }
         }
@@ -3316,18 +3592,22 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression(node) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.early_errors(agent, errs, strict)
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpComma(node) => node.early_errors(agent, errs, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
-            CoverParenthesizedExpressionAndArrowParameterList::Ident(node) => node.early_errors(agent, errs, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern(node) => node.early_errors(agent, errs, strict),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent(exp, id) => {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
+                node.early_errors(agent, errs, strict)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
+                node.early_errors(agent, errs, strict)
+            }
+            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
                 exp.early_errors(agent, errs, strict);
                 id.early_errors(agent, errs, strict);
             }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern(exp, pat) => {
+            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
                 exp.early_errors(agent, errs, strict);
                 pat.early_errors(agent, errs, strict);
             }

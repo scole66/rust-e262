@@ -56,14 +56,19 @@ impl PrettyPrint for GeneratorMethod {
 
 impl GeneratorMethod {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+        let (star_loc, after_star) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let after_lp = scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp, after_lp) =
+            scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, false);
-        let after_rp = scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
     }
 
@@ -135,23 +140,33 @@ impl GeneratorMethod {
         //    LexicallyDeclaredNames of GeneratorBody.
         let cus = self.body.function_body_contains_use_strict();
         if self.has_direct_super() {
-            errs.push(create_syntax_error_object(agent, "Calls to ‘super’ not allowed here"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "Calls to ‘super’ not allowed here",
+                Some(self.body.location()),
+            ));
         }
         if self.params.contains(ParseNodeKind::YieldExpression) {
             errs.push(create_syntax_error_object(
                 agent,
                 "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
             ));
         }
         if cus && !self.params.is_simple_parameter_list() {
             errs.push(create_syntax_error_object(
                 agent,
                 "Illegal 'use strict' directive in function with non-simple parameter list",
+                Some(self.params.location()),
             ));
         }
         let bn = self.params.bound_names();
         for name in self.body.lexically_declared_names().into_iter().filter(|ldn| bn.contains(ldn)) {
-            errs.push(create_syntax_error_object(agent, format!("‘{name}’ already defined")));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{name}’ already defined"),
+                Some(self.body.location()),
+            ));
         }
 
         let strict_func = strict || cus;
@@ -233,8 +248,10 @@ impl GeneratorDeclaration {
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (star_loc, after_star) =
+            scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {
@@ -245,13 +262,21 @@ impl GeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorDeclaration { ident, params, body }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -307,6 +332,7 @@ impl GeneratorDeclaration {
             errs.push(create_syntax_error_object(
                 agent,
                 "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
             ));
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
@@ -375,19 +401,29 @@ impl IsFunctionDefinition for GeneratorExpression {
 
 impl GeneratorExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let after_func = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let after_star = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (func_loc, after_func) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+        let (star_loc, after_star) =
+            scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, true, false) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_lp = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) =
+            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let after_rp = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let after_lb = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (rp_loc, after_rp) =
+            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
-        let after_rb = scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((Rc::new(GeneratorExpression { ident, params, body }), after_rb))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
@@ -435,6 +471,7 @@ impl GeneratorExpression {
             errs.push(create_syntax_error_object(
                 agent,
                 "Yield expressions can't be parameter initializers in generators",
+                Some(self.params.location()),
             ));
         }
         function_early_errors(agent, errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
@@ -489,6 +526,10 @@ impl GeneratorBody {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -591,7 +632,8 @@ impl PrettyPrint for YieldExpression {
 impl YieldExpression {
     fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         (|| {
-            let after_star = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+            let (star_loc, after_star) =
+                scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
             let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
             Ok((Rc::new(YieldExpression::From(ae)), after_ae))
         })()
@@ -602,10 +644,15 @@ impl YieldExpression {
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_yield = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Yield)?;
+        let (yield_loc, after_yield) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Yield)?;
         no_line_terminator(after_yield, parser.source)
             .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag))
             .otherwise(|| Ok((Rc::new(YieldExpression::Simple), after_yield)))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

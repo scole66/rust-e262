@@ -91,7 +91,8 @@ impl TryStatement {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_try = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (try_loc, after_try) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
         let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         enum CaseKind {
             Catch(Rc<Catch>),
@@ -120,6 +121,10 @@ impl TryStatement {
                     scan,
                 )
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -340,7 +345,8 @@ impl Catch {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_catch = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
+        let (catch_loc, after_catch) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
         Err(ParseError::new(
             PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]),
             after_catch,
@@ -350,10 +356,10 @@ impl Catch {
             Ok((Rc::new(Catch { parameter: None, block }), after_block))
         })
         .otherwise(|| {
-            let after_open =
+            let (open_loc, after_open) =
                 scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
             let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
-            let after_close =
+            let (close_loc, after_close) =
                 scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
             let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
             Ok((Rc::new(Catch { parameter: Some(cp), block }), after_block))
@@ -424,11 +430,19 @@ impl Catch {
             let ldn = self.block.lexically_declared_names();
             let vdn = self.block.var_declared_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.block.location()),
+                ));
             }
             for name in bn.iter() {
                 if ldn.contains(name) || vdn.contains(name) {
-                    errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        format!("‘{}’ already defined", name),
+                        Some(self.block.location()),
+                    ));
                 }
             }
             cp.early_errors(agent, errs, strict);
@@ -486,7 +500,8 @@ impl Finally {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_fin = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
+        let (fin_loc, after_fin) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
         let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(Finally { block }), after_block))
     }

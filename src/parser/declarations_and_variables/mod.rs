@@ -56,14 +56,14 @@ impl LexicalDeclaration {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Self> {
-        let (kwd, after_tok) =
+        let (kwd, kwd_loc, after_tok) =
             scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match kwd {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
         };
         let (bl, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        let after_semi = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(LexicalDeclaration::List(loc, bl)), after_semi))
     }
 
@@ -83,6 +83,10 @@ impl LexicalDeclaration {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -138,7 +142,11 @@ impl LexicalDeclaration {
         let let_string = JSString::from("let");
         let counts = bn.into_iter().collect::<Counter<_>>();
         if counts[&let_string] > 0 {
-            errs.push(create_syntax_error_object(agent, "‘let’ is not a valid binding identifier"));
+            errs.push(create_syntax_error_object(
+                agent,
+                "‘let’ is not a valid binding identifier",
+                Some(bl.location()),
+            ));
         }
         let mut dup_ids = counts.into_iter().filter(|&(_, n)| n > 1).map(|(s, _)| String::from(s)).collect::<Vec<_>>();
         if !dup_ids.is_empty() {
@@ -146,6 +154,7 @@ impl LexicalDeclaration {
             errs.push(create_syntax_error_object(
                 agent,
                 format!("Duplicate binding identifiers: ‘{}’", dup_ids.join("’, ‘")),
+                Some(bl.location()),
             ));
         }
 
@@ -262,13 +271,18 @@ impl BindingList {
         let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
         while let Ok((lb2, after_lb2)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_tok| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                |(tok_loc, after_tok)| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag),
+            )
         {
             current = Rc::new(BindingList::List(current, lb2));
             current_scanner = after_lb2;
         }
         Ok((current, current_scanner))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -481,7 +495,11 @@ impl LexicalBinding {
             }
             LexicalBinding::Identifier(idref, None) => {
                 if is_constant_declaration {
-                    errs.push(create_syntax_error_object(agent, "Missing initializer in const declaration"));
+                    errs.push(create_syntax_error_object(
+                        agent,
+                        "Missing initializer in const declaration",
+                        Some(idref.location()),
+                    ));
                 }
                 idref.early_errors(agent, errs, strict);
             }
@@ -534,10 +552,15 @@ impl PrettyPrint for VariableStatement {
 impl VariableStatement {
     // no cache
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_var = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+        let (var_loc, after_var) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
         let (vdl, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
-        let after_semi = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
         Ok((Rc::new(VariableStatement::Var(vdl)), after_semi))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -656,7 +679,9 @@ impl VariableDeclarationList {
         let mut current_scanner = after_dcl;
         while let Ok((next, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |after_comma| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
+                |(comma_loc, after_comma)| {
+                    VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag)
+                },
             )
         {
             current = Rc::new(VariableDeclarationList::List(current, next));
@@ -1112,9 +1137,9 @@ impl ObjectBindingPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ObjectBindingPattern), scanner)).otherwise(|| {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(
-                |after_open| {
+                |(open_loc, after_open)| {
                     scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
-                        .map(|after_close| (Rc::new(ObjectBindingPattern::Empty), after_close))
+                        .map(|(close_loc, after_close)| (Rc::new(ObjectBindingPattern::Empty), after_close))
                         .otherwise(|| {
                             BindingRestProperty::parse(parser, after_open, yield_flag, await_flag).and_then(
                                 |(brp, after_brp)| {
@@ -1124,7 +1149,9 @@ impl ObjectBindingPattern {
                                         ScanGoal::InputElementRegExp,
                                         Punctuator::RightBrace,
                                     )
-                                    .map(|after_close| (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close))
+                                    .map(|(close_loc, after_close)| {
+                                        (Rc::new(ObjectBindingPattern::RestOnly(brp)), after_close)
+                                    })
                                 },
                             )
                         })
@@ -1136,7 +1163,7 @@ impl ObjectBindingPattern {
                                     ScanGoal::InputElementRegExp,
                                     Punctuator::RightBrace,
                                 )
-                                .map(|after_close| (None, after_close))
+                                .map(|(close_loc, after_close)| (None, after_close))
                                 .otherwise(|| {
                                     scan_for_punct(
                                         after_bpl,
@@ -1144,7 +1171,7 @@ impl ObjectBindingPattern {
                                         ScanGoal::InputElementRegExp,
                                         Punctuator::Comma,
                                     )
-                                    .and_then(|after_comma| {
+                                    .and_then(|(comma_loc, after_comma)| {
                                         let (brp, after_brp) = match BindingRestProperty::parse(
                                             parser,
                                             after_comma,
@@ -1160,7 +1187,7 @@ impl ObjectBindingPattern {
                                             ScanGoal::InputElementRegExp,
                                             Punctuator::RightBrace,
                                         )
-                                        .map(|after_final| (Some(brp), after_final))
+                                        .map(|(final_loc, after_final)| (Some(brp), after_final))
                                     })
                                 }) {
                                     Ok((None, after)) => Ok((Rc::new(ObjectBindingPattern::ListOnly(bpl)), after)),
@@ -1374,7 +1401,7 @@ impl PrettyPrint for ArrayBindingPattern {
 impl ArrayBindingPattern {
     // ArrayBindingPattern's only parent is BindingPattern. It doesn't need to be cached.
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_first =
+        let (first_loc, after_first) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
@@ -1384,7 +1411,7 @@ impl ArrayBindingPattern {
                     ScanGoal::InputElementRegExp,
                     &[Punctuator::RightBracket, Punctuator::Comma],
                 )
-                .and_then(|(punct_next, after_next)| match punct_next {
+                .and_then(|(punct_next, next_loc, after_next)| match punct_next {
                     Punctuator::RightBracket => Ok((Rc::new(ArrayBindingPattern::ListOnly(bel)), after_next)),
                     _ => {
                         let (elisions, after_elisions) = match Elisions::parse(parser, after_next) {
@@ -1402,7 +1429,7 @@ impl ArrayBindingPattern {
                             ScanGoal::InputElementRegExp,
                             Punctuator::RightBracket,
                         ) {
-                            Ok(after_close) => {
+                            Ok((close_loc, after_close)) => {
                                 Ok((Rc::new(ArrayBindingPattern::ListRest(bel, elisions, bre)), after_close))
                             }
                             Err(pe) => {
@@ -1427,7 +1454,9 @@ impl ArrayBindingPattern {
                         Ok((b, s)) => (Some(b), s, None),
                     };
                 match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
-                    Ok(after_close) => Ok((Rc::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close)),
+                    Ok((close_loc, after_close)) => {
+                        Ok((Rc::new(ArrayBindingPattern::RestOnly(elisions, bre)), after_close))
+                    }
                     Err(pe) => {
                         let mut err = Some(pe);
                         if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
@@ -1561,7 +1590,7 @@ impl PrettyPrint for BindingRestProperty {
 impl BindingRestProperty {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)
-            .and_then(|after_dots| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
+            .and_then(|(dots_loc, after_dots)| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
             .map(|(id, after_id)| (Rc::new(BindingRestProperty::Id(id)), after_id))
     }
 
@@ -1652,7 +1681,7 @@ impl BindingPropertyList {
         let mut current_scan = after_bp;
         while let Ok((bp2, after_bp2)) =
             scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_token| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
+                .and_then(|(tok_loc, after_token)| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
         {
             current = Rc::new(BindingPropertyList::List(current, bp2));
             current_scan = after_bp2;
@@ -1779,9 +1808,9 @@ impl BindingElementList {
         let mut current = Rc::new(BindingElementList::Item(elem));
         let mut current_scanner = after_elem;
         loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_tok| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag))
-            {
+            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                |(tok_loc, after_tok)| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag),
+            ) {
                 Err(_) => {
                     break;
                 }
@@ -2015,7 +2044,7 @@ impl BindingProperty {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingProperty), scanner))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let after_token =
+                let (tok_loc, after_token) =
                     scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (be, after_be) = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
                 Ok((Rc::new(BindingProperty::Property(pn, be)), after_be))
@@ -2419,7 +2448,8 @@ impl PrettyPrint for BindingRestElement {
 
 impl BindingRestElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let after_tok = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+        let (tok_loc, after_tok) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
             .otherwise(|| {
                 BindingPattern::parse(parser, after_tok, yield_flag, await_flag)

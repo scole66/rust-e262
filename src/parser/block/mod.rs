@@ -55,6 +55,10 @@ impl BlockStatement {
         Ok((Rc::new(BlockStatement::Block(block)), after_block))
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         let BlockStatement::Block(node) = self;
         node.var_declared_names()
@@ -130,13 +134,14 @@ impl BlockStatement {
 // Block[Yield, Await, Return] :
 //      { StatementList[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
-pub enum Block {
-    Statements(Option<Rc<StatementList>>),
+pub struct Block {
+    statements: Option<Rc<StatementList>>,
+    location: Location,
 }
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => write!(f, "{{ }}"),
             Some(node) => write!(f, "{{ {} }}", node),
@@ -151,7 +156,7 @@ impl PrettyPrint for Block {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Block: {}", first, self)?;
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => Ok(()),
             Some(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
@@ -165,9 +170,9 @@ impl PrettyPrint for Block {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Block: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        match self {
-            Block::Statements(None) => {}
-            Block::Statements(Some(node)) => {
+        match &self.statements {
+            None => {}
+            Some(node) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
         }
@@ -183,13 +188,15 @@ impl Block {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let after_lb = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+        let (lb_loc, after_lb) =
+            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_lb, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_lb),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let after_rb = scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(Block::Statements(sl)), after_rb))
+        let (rb_loc, after_rb) =
+            scan_for_punct(after_sl, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+        Ok((Rc::new(Block { statements: sl, location: lb_loc.merge(&rb_loc) }), after_rb))
     }
 
     pub fn parse(
@@ -210,8 +217,12 @@ impl Block {
         }
     }
 
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => vec![],
             Some(node) => node.var_declared_names(),
@@ -219,7 +230,7 @@ impl Block {
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => vec![],
             Some(node) => node.lexically_declared_names(),
@@ -227,7 +238,7 @@ impl Block {
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         match opt_sl {
             None => false,
             Some(node) => node.contains_undefined_break_target(label_set),
@@ -235,23 +246,21 @@ impl Block {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let Block::Statements(node) = self;
-        match node {
+        match &self.statements {
             None => false,
             Some(n) => n.contains(kind),
         }
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let Block::Statements(node) = self;
-        match node {
+        match &self.statements {
             None => false,
             Some(n) => n.contains_duplicate_labels(label_set),
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        let Block::Statements(opt_sl) = self;
+        let opt_sl = &self.statements;
         opt_sl.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set, label_set))
     }
 
@@ -262,7 +271,7 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        if let Block::Statements(Some(node)) = self {
+        if let Some(node) = &self.statements {
             node.all_private_identifiers_valid(names)
         } else {
             true
@@ -280,8 +289,7 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let Block::Statements(sl) = self;
-        sl.as_ref().map_or(false, |sl| sl.contains_arguments())
+        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
     }
 
     pub fn early_errors(
@@ -292,7 +300,7 @@ impl Block {
         within_iteration: bool,
         within_switch: bool,
     ) {
-        if let Block::Statements(Some(sl)) = self {
+        if let Some(sl) = &self.statements {
             // Static Semantics: Early Errors
             // Block : { StatementList }
             //  * It is a Syntax Error if the LexicallyDeclaredNames of StatementList contains any duplicate entries.
@@ -303,12 +311,16 @@ impl Block {
             let lex_names_set: AHashSet<JSString> = ldn.into_iter().collect();
             let unique_lexname_count = lex_names_set.len();
             if lexname_count != unique_lexname_count {
-                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names"));
+                errs.push(create_syntax_error_object(agent, "Duplicate lexically declared names", Some(sl.location())));
             }
             let vdn = sl.var_declared_names();
             let var_names_set: AHashSet<JSString> = vdn.into_iter().collect();
             if !lex_names_set.is_disjoint(&var_names_set) {
-                errs.push(create_syntax_error_object(agent, "Name defined both lexically and var-style"));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    "Name defined both lexically and var-style",
+                    Some(sl.location()),
+                ));
             }
             sl.early_errors(agent, errs, strict, within_iteration, within_switch);
         }
@@ -318,8 +330,7 @@ impl Block {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        let Block::Statements(sl) = self;
-        match sl {
+        match &self.statements {
             None => vec![],
             Some(sl) => sl.var_scoped_declarations(),
         }
@@ -410,6 +421,13 @@ impl StatementList {
                 parser.statement_list_cache.insert(key, result.clone());
                 result
             }
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            StatementList::Item(item) => item.location(),
+            StatementList::List(list, item) => list.location().merge(&item.location()),
         }
     }
 
@@ -689,6 +707,13 @@ impl StatementListItem {
                 Declaration::parse(parser, scanner, yield_flag, await_flag)
                     .map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            StatementListItem::Statement(stmt) => stmt.location(),
+            StatementListItem::Declaration(decl) => decl.location(),
+        }
     }
 
     pub fn top_level_lexically_declared_names(&self) -> Vec<JSString> {

@@ -55,6 +55,10 @@ impl UniqueFormalParameters {
         }
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.formals.contains(kind)
     }
@@ -89,7 +93,11 @@ impl UniqueFormalParameters {
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
         let bn = self.formals.bound_names();
         for name in duplicates(&bn) {
-            errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+            errs.push(create_syntax_error_object(
+                agent,
+                format!("‘{}’ already defined", name),
+                Some(self.formals.location()),
+            ));
         }
         self.formals.early_errors(agent, errs, strict, true);
     }
@@ -190,7 +198,7 @@ impl FormalParameters {
             Err(_) => (None, scanner),
             Ok((f, s)) => (Some(f), s),
         };
-        let (pot_comma, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
+        let (pot_comma, pot_loc, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
         let (has_comma, after_comma) = match pot_comma {
             Token::Punctuator(Punctuator::Comma) => (true, after_pot),
             _ => (false, after_fpl),
@@ -219,6 +227,10 @@ impl FormalParameters {
                 result
             }
         }
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -338,7 +350,11 @@ impl FormalParameters {
         if !dups_already_checked && (strict || !self.is_simple_parameter_list()) {
             let bn = self.bound_names();
             for name in duplicates(&bn) {
-                errs.push(create_syntax_error_object(agent, format!("‘{}’ already defined", name)));
+                errs.push(create_syntax_error_object(
+                    agent,
+                    format!("‘{}’ already defined", name),
+                    Some(self.location()),
+                ));
             }
         }
         match self {
@@ -410,8 +426,9 @@ impl FormalParameterList {
         let mut current = Rc::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
         while let Ok((next, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                .and_then(|after_comma| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                |(comma_loc, after_comma)| FormalParameter::parse(parser, after_comma, yield_flag, await_flag),
+            )
         {
             current = Rc::new(FormalParameterList::List(current, next));
             current_scanner = after_next;
