@@ -24,7 +24,7 @@ pub enum RelationalExpression {
     GreaterEqual(Rc<RelationalExpression>, Rc<ShiftExpression>),
     InstanceOf(Rc<RelationalExpression>, Rc<ShiftExpression>),
     In(Rc<RelationalExpression>, Rc<ShiftExpression>),
-    PrivateIn(IdentifierData, Rc<ShiftExpression>),
+    PrivateIn(IdentifierData, Rc<ShiftExpression>, Location),
 }
 
 impl fmt::Display for RelationalExpression {
@@ -41,7 +41,7 @@ impl fmt::Display for RelationalExpression {
                 write!(f, "{} instanceof {}", re, se)
             }
             RelationalExpression::In(re, se) => write!(f, "{} in {}", re, se),
-            RelationalExpression::PrivateIn(id, se) => write!(f, "{} in {}", id, se),
+            RelationalExpression::PrivateIn(id, se, _) => write!(f, "{} in {}", id, se),
         }
     }
 }
@@ -64,7 +64,7 @@ impl PrettyPrint for RelationalExpression {
                 re.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            RelationalExpression::PrivateIn(_, se) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
+            RelationalExpression::PrivateIn(_, se, _) => se.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -88,7 +88,7 @@ impl PrettyPrint for RelationalExpression {
             RelationalExpression::GreaterEqual(re, se) => work(re, se, ">=", TokenType::Punctuator),
             RelationalExpression::InstanceOf(re, se) => work(re, se, "instanceof", TokenType::Keyword),
             RelationalExpression::In(re, se) => work(re, se, "in", TokenType::Keyword),
-            RelationalExpression::PrivateIn(id, se) => {
+            RelationalExpression::PrivateIn(id, se, _) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}RelationalExpression: {}", first, self)?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::NotFinal)?;
@@ -165,9 +165,12 @@ impl RelationalExpression {
                     scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(
                         |(pid, pid_loc, after_pid)| {
                             scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(
-                                |(in_loc, after_in)| {
+                                |(_, after_in)| {
                                     ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(
-                                        |(se, after_se)| (Rc::new(RelationalExpression::PrivateIn(pid, se)), after_se),
+                                        |(se, after_se)| {
+                                            let location = pid_loc.merge(&se.location());
+                                            (Rc::new(RelationalExpression::PrivateIn(pid, se, location)), after_se)
+                                        },
                                     )
                                 },
                             )
@@ -179,6 +182,19 @@ impl RelationalExpression {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            RelationalExpression::ShiftExpression(exp) => exp.location(),
+            RelationalExpression::Less(left, right)
+            | RelationalExpression::Greater(left, right)
+            | RelationalExpression::LessEqual(left, right)
+            | RelationalExpression::GreaterEqual(left, right)
+            | RelationalExpression::InstanceOf(left, right)
+            | RelationalExpression::In(left, right) => left.location().merge(&right.location()),
+            RelationalExpression::PrivateIn(_, _, location) => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             RelationalExpression::ShiftExpression(n) => n.contains(kind),
@@ -188,7 +204,7 @@ impl RelationalExpression {
             RelationalExpression::GreaterEqual(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::InstanceOf(l, r) => l.contains(kind) || r.contains(kind),
             RelationalExpression::In(l, r) => l.contains(kind) || r.contains(kind),
-            RelationalExpression::PrivateIn(_, r) => r.contains(kind),
+            RelationalExpression::PrivateIn(_, r, _) => r.contains(kind),
         }
     }
 
@@ -231,7 +247,7 @@ impl RelationalExpression {
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of ShiftExpression with argument names.
             //  2. Return false.
-            RelationalExpression::PrivateIn(pid, r) => {
+            RelationalExpression::PrivateIn(pid, r, _) => {
                 names.contains(&pid.string_value) && r.all_private_identifiers_valid(names)
             }
         }
@@ -256,7 +272,7 @@ impl RelationalExpression {
             | RelationalExpression::GreaterEqual(re, se)
             | RelationalExpression::InstanceOf(re, se)
             | RelationalExpression::In(re, se) => re.contains_arguments() || se.contains_arguments(),
-            RelationalExpression::PrivateIn(_, se) => se.contains_arguments(),
+            RelationalExpression::PrivateIn(_, se, _) => se.contains_arguments(),
         }
     }
 
@@ -272,7 +288,7 @@ impl RelationalExpression {
                 l.early_errors(agent, errs, strict);
                 r.early_errors(agent, errs, strict);
             }
-            RelationalExpression::PrivateIn(_, r) => r.early_errors(agent, errs, strict),
+            RelationalExpression::PrivateIn(_, r, _) => r.early_errors(agent, errs, strict),
         }
     }
 

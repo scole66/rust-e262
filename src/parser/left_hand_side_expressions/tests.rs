@@ -577,7 +577,7 @@ mod super_property {
 fn meta_property_test_newtarget() {
     let (mp, scanner) = check(MetaProperty::parse(&mut newparser("new.target"), Scanner::new()));
     chk_scan(&scanner, 10);
-    assert!(matches!(*mp, MetaProperty::NewTarget));
+    assert!(matches!(*mp, MetaProperty::NewTarget { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: new . target", vec![]);
     concise_check(&*mp, "MetaProperty: new . target", vec!["Keyword: new", "Punctuator: .", "Keyword: target"]);
@@ -587,13 +587,13 @@ fn meta_property_test_newtarget() {
 fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
     let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
-    assert!(matches!(*mp, MetaProperty::ImportMeta(_)));
+    assert!(matches!(*mp, MetaProperty::ImportMeta { .. }));
     format!("{:?}", mp);
     pretty_check(&*mp, "MetaProperty: import . meta", vec![]);
     concise_check(&*mp, "MetaProperty: import . meta", vec!["Keyword: import", "Punctuator: .", "Keyword: meta"]);
     match *mp {
-        MetaProperty::NewTarget => None,
-        MetaProperty::ImportMeta(goal) => Some(goal),
+        MetaProperty::NewTarget { .. } => None,
+        MetaProperty::ImportMeta { goal, .. } => Some(goal),
     }
 }
 #[test]
@@ -671,7 +671,7 @@ mod meta_property {
 fn arguments_test_onlyparens() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("()"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(*args, Arguments::Empty));
+    assert!(matches!(*args, Arguments::Empty { .. }));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( )", vec![]);
     concise_check(&*args, "Arguments: ( )", vec!["Punctuator: (", "Punctuator: )"]);
@@ -680,7 +680,7 @@ fn arguments_test_onlyparens() {
 fn arguments_test_trailing_comma() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,)"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(*args, Arguments::ArgumentListComma(_)));
+    assert!(matches!(*args, Arguments::ArgumentListComma(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , )", vec!["ArgumentList: a"]);
     concise_check(
@@ -693,7 +693,7 @@ fn arguments_test_trailing_comma() {
 fn arguments_test_arglist() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(*args, Arguments::ArgumentList(_)));
+    assert!(matches!(*args, Arguments::ArgumentList(..)));
     format!("{:?}", args);
     pretty_check(&*args, "Arguments: ( a , b )", vec!["ArgumentList: a , b"]);
     concise_check(&*args, "Arguments: ( a , b )", vec!["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
@@ -1045,7 +1045,7 @@ mod new_expression {
     fn new() {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(*ne, NewExpression::NewExpression(_)));
+        assert!(matches!(*ne, NewExpression::NewExpression(..)));
         format!("{:?}", ne);
         pretty_check(&*ne, "NewExpression: new bob", vec!["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", vec!["Keyword: new", "IdentifierName: bob"]);
@@ -1271,7 +1271,7 @@ mod super_call {
     fn args() {
         let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
-        assert!(matches!(*sc.arguments, Arguments::Empty));
+        assert!(matches!(*sc.arguments, Arguments::Empty { .. }));
         format!("{:?}", sc);
         pretty_check(&*sc, "SuperCall: super ( )", vec!["Arguments: ( )"]);
         concise_check(&*sc, "SuperCall: super ( )", vec!["Keyword: super", "Arguments: ( )"]);

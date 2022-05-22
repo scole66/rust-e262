@@ -271,6 +271,10 @@ impl MemberExpression {
         Ok((me, args, after_args))
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             MemberExpression::PrimaryExpression(n) => n.contains(kind),
@@ -564,15 +568,15 @@ impl SuperProperty {
 //      import . meta
 #[derive(Debug)]
 pub enum MetaProperty {
-    NewTarget,
-    ImportMeta(ParseGoal),
+    NewTarget { location: Location },
+    ImportMeta { goal: ParseGoal, location: Location },
 }
 
 impl fmt::Display for MetaProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MetaProperty::NewTarget => write!(f, "new . target"),
-            MetaProperty::ImportMeta(_) => write!(f, "import . meta"),
+            MetaProperty::NewTarget { .. } => write!(f, "new . target"),
+            MetaProperty::ImportMeta { .. } => write!(f, "import . meta"),
         }
     }
 }
@@ -592,12 +596,12 @@ impl PrettyPrint for MetaProperty {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}MetaProperty: {}", first, self)?;
         match self {
-            MetaProperty::NewTarget => {
+            MetaProperty::NewTarget { .. } => {
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "target", TokenType::Keyword, &successive, Spot::Final)
             }
-            MetaProperty::ImportMeta(_) => {
+            MetaProperty::ImportMeta { .. } => {
                 pprint_token(writer, "import", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "meta", TokenType::Keyword, &successive, Spot::Final)
@@ -606,37 +610,55 @@ impl PrettyPrint for MetaProperty {
     }
 }
 
+enum MetaHelper {
+    NewTarget,
+    ImportMeta(ParseGoal),
+}
+
 impl MetaProperty {
-    fn dot_token(parser: &mut Parser, scanner: Scanner, kwd: Keyword, kind: MetaProperty) -> ParseResult<Self> {
+    fn dot_token(
+        parser: &mut Parser,
+        scanner: Scanner,
+        kwd: Keyword,
+        starting_loc: Location,
+        kind: MetaHelper,
+    ) -> ParseResult<Self> {
         let (dot_loc, after_dot) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
         let (kwd_loc, after_kwd) = scan_for_keyword(after_dot, parser.source, ScanGoal::InputElementRegExp, kwd)?;
-        Ok((Rc::new(kind), after_kwd))
+        let location = starting_loc.merge(&kwd_loc);
+        let production = match kind {
+            MetaHelper::NewTarget => MetaProperty::NewTarget { location },
+            MetaHelper::ImportMeta(goal) => MetaProperty::ImportMeta { goal, location },
+        };
+        Ok((Rc::new(production), after_kwd))
     }
 
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (kwd, kwd_loc, after_kwd) =
             scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::New, Keyword::Import])?;
         match kwd {
-            Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, MetaProperty::NewTarget),
-            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, MetaProperty::ImportMeta(parser.goal)),
+            Keyword::New => Self::dot_token(parser, after_kwd, Keyword::Target, kwd_loc, MetaHelper::NewTarget),
+            _ => Self::dot_token(parser, after_kwd, Keyword::Meta, kwd_loc, MetaHelper::ImportMeta(parser.goal)),
         }
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            MetaProperty::NewTarget { location } | MetaProperty::ImportMeta { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            MetaProperty::NewTarget => kind == ParseNodeKind::NewTarget,
-            MetaProperty::ImportMeta(_) => false,
+            MetaProperty::NewTarget { .. } => kind == ParseNodeKind::NewTarget,
+            MetaProperty::ImportMeta { .. } => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>) {
         match self {
-            MetaProperty::NewTarget => {}
-            MetaProperty::ImportMeta(goal) => {
+            MetaProperty::NewTarget { .. } => {}
+            MetaProperty::ImportMeta { goal, .. } => {
                 // ImportMeta :
                 //  import . meta
                 //  * It is a Syntax Error if the syntactic goal symbol is not Module.
@@ -658,17 +680,17 @@ impl MetaProperty {
 //      ( ArgumentList[?Yield, ?Await] , )
 #[derive(Debug)]
 pub enum Arguments {
-    Empty,
-    ArgumentList(Rc<ArgumentList>),
-    ArgumentListComma(Rc<ArgumentList>),
+    Empty { location: Location },
+    ArgumentList(Rc<ArgumentList>, Location),
+    ArgumentListComma(Rc<ArgumentList>, Location),
 }
 
 impl fmt::Display for Arguments {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Arguments::Empty => write!(f, "( )"),
-            Arguments::ArgumentList(boxed) => write!(f, "( {} )", boxed),
-            Arguments::ArgumentListComma(boxed) => write!(f, "( {} , )", boxed),
+            Arguments::Empty { .. } => write!(f, "( )"),
+            Arguments::ArgumentList(boxed, _) => write!(f, "( {} )", boxed),
+            Arguments::ArgumentListComma(boxed, _) => write!(f, "( {} , )", boxed),
         }
     }
 }
@@ -681,8 +703,8 @@ impl PrettyPrint for Arguments {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}Arguments: {}", first, self)?;
         match self {
-            Arguments::Empty => Ok(()),
-            Arguments::ArgumentList(boxed) | Arguments::ArgumentListComma(boxed) => {
+            Arguments::Empty { .. } => Ok(()),
+            Arguments::ArgumentList(boxed, _) | Arguments::ArgumentListComma(boxed, _) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
         }
@@ -695,11 +717,11 @@ impl PrettyPrint for Arguments {
         writeln!(writer, "{}Arguments: {}", first, self)?;
         pprint_token(writer, "(", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            Arguments::Empty => {}
-            Arguments::ArgumentList(node) => {
+            Arguments::Empty { .. } => {}
+            Arguments::ArgumentList(node, _) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
             }
-            Arguments::ArgumentListComma(node) => {
+            Arguments::ArgumentListComma(node, _) => {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
@@ -714,7 +736,7 @@ impl Arguments {
         let (lp_loc, after_lp) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         scan_for_punct(after_lp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)
-            .map(|(rp_loc, after_rp)| (Rc::new(Arguments::Empty), after_rp))
+            .map(|(rp_loc, after_rp)| (Rc::new(Arguments::Empty { location: lp_loc.merge(&rp_loc) }), after_rp))
             .otherwise(|| {
                 let (args, after_args) = ArgumentList::parse(parser, after_lp, yield_flag, await_flag)?;
                 let (punct, punct_loc, after_punct) = scan_for_punct_set(
@@ -724,7 +746,10 @@ impl Arguments {
                     &[Punctuator::Comma, Punctuator::RightParen],
                 )?;
                 match punct {
-                    Punctuator::RightParen => Ok((Rc::new(Arguments::ArgumentList(args)), after_punct)),
+                    Punctuator::RightParen => {
+                        let location = lp_loc.merge(&punct_loc);
+                        Ok((Rc::new(Arguments::ArgumentList(args, location)), after_punct))
+                    }
                     _ => {
                         let (rp_loc, after_rp) = scan_for_punct(
                             after_punct,
@@ -732,7 +757,8 @@ impl Arguments {
                             ScanGoal::InputElementRegExp,
                             Punctuator::RightParen,
                         )?;
-                        Ok((Rc::new(Arguments::ArgumentListComma(args)), after_rp))
+                        let location = lp_loc.merge(&rp_loc);
+                        Ok((Rc::new(Arguments::ArgumentListComma(args, location)), after_rp))
                     }
                 }
             })
@@ -750,11 +776,19 @@ impl Arguments {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            Arguments::Empty { location }
+            | Arguments::ArgumentList(_, location)
+            | Arguments::ArgumentListComma(_, location) => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            Arguments::Empty => false,
-            Arguments::ArgumentList(n) => n.contains(kind),
-            Arguments::ArgumentListComma(n) => n.contains(kind),
+            Arguments::Empty { .. } => false,
+            Arguments::ArgumentList(n, _) => n.contains(kind),
+            Arguments::ArgumentListComma(n, _) => n.contains(kind),
         }
     }
 
@@ -766,9 +800,9 @@ impl Arguments {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            Arguments::Empty => true,
-            Arguments::ArgumentList(n) => n.all_private_identifiers_valid(names),
-            Arguments::ArgumentListComma(n) => n.all_private_identifiers_valid(names),
+            Arguments::Empty { .. } => true,
+            Arguments::ArgumentList(n, _) => n.all_private_identifiers_valid(names),
+            Arguments::ArgumentListComma(n, _) => n.all_private_identifiers_valid(names),
         }
     }
 
@@ -784,16 +818,16 @@ impl Arguments {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            Arguments::Empty => false,
-            Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => al.contains_arguments(),
+            Arguments::Empty { .. } => false,
+            Arguments::ArgumentList(al, _) | Arguments::ArgumentListComma(al, _) => al.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            Arguments::Empty => {}
-            Arguments::ArgumentList(n) | Arguments::ArgumentListComma(n) => n.early_errors(agent, errs, strict),
+            Arguments::Empty { .. } => {}
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.early_errors(agent, errs, strict),
         }
     }
 }
@@ -1049,14 +1083,14 @@ impl ArgumentList {
 #[derive(Debug)]
 pub enum NewExpression {
     MemberExpression(Rc<MemberExpression>),
-    NewExpression(Rc<NewExpression>),
+    NewExpression(Rc<NewExpression>, Location),
 }
 
 impl fmt::Display for NewExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             NewExpression::MemberExpression(boxed) => write!(f, "{}", boxed),
-            NewExpression::NewExpression(boxed) => write!(f, "new {}", boxed),
+            NewExpression::NewExpression(boxed, _) => write!(f, "new {}", boxed),
         }
     }
 }
@@ -1070,7 +1104,7 @@ impl PrettyPrint for NewExpression {
         writeln!(writer, "{}NewExpression: {}", first, self)?;
         match self {
             NewExpression::MemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            NewExpression::NewExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            NewExpression::NewExpression(boxed, _) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -1079,7 +1113,7 @@ impl PrettyPrint for NewExpression {
     {
         match self {
             NewExpression::MemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            NewExpression::NewExpression(node) => {
+            NewExpression::NewExpression(node, _) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}NewExpression: {}", first, self)?;
                 pprint_token(writer, "new", TokenType::Keyword, &successive, Spot::NotFinal)?;
@@ -1093,7 +1127,7 @@ impl IsFunctionDefinition for NewExpression {
     fn is_function_definition(&self) -> bool {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.is_function_definition(),
-            NewExpression::NewExpression(_) => false,
+            NewExpression::NewExpression(..) => false,
         }
     }
 }
@@ -1109,14 +1143,22 @@ impl NewExpression {
                 let (new_loc, after_new) =
                     scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::New)?;
                 let (ne, after_ne) = Self::parse(parser, after_new, yield_flag, await_flag)?;
-                Ok((Rc::new(NewExpression::NewExpression(ne)), after_ne))
+                let location = new_loc.merge(&ne.location());
+                Ok((Rc::new(NewExpression::NewExpression(ne, location)), after_ne))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            NewExpression::MemberExpression(node) => node.location(),
+            NewExpression::NewExpression(_, location) => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.contains(kind),
-            NewExpression::NewExpression(boxed) => boxed.contains(kind),
+            NewExpression::NewExpression(boxed, ..) => boxed.contains(kind),
         }
     }
 
@@ -1136,7 +1178,7 @@ impl NewExpression {
         //  2. Return true.
         match self {
             NewExpression::MemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
-            NewExpression::NewExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            NewExpression::NewExpression(boxed, ..) => boxed.all_private_identifiers_valid(names),
         }
     }
 
@@ -1153,27 +1195,27 @@ impl NewExpression {
         //  2. Return false.
         match self {
             NewExpression::MemberExpression(me) => me.contains_arguments(),
-            NewExpression::NewExpression(ne) => ne.contains_arguments(),
+            NewExpression::NewExpression(ne, ..) => ne.contains_arguments(),
         }
     }
 
     pub fn is_object_or_array_literal(&self) -> bool {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.is_object_or_array_literal(),
-            NewExpression::NewExpression(_) => false,
+            NewExpression::NewExpression(..) => false,
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.early_errors(agent, errs, strict),
-            NewExpression::NewExpression(boxed) => boxed.early_errors(agent, errs, strict),
+            NewExpression::NewExpression(boxed, ..) => boxed.early_errors(agent, errs, strict),
         }
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
         match self {
-            NewExpression::NewExpression(_) => true,
+            NewExpression::NewExpression(..) => true,
             NewExpression::MemberExpression(node) => node.is_strictly_deletable(),
         }
     }
@@ -1184,7 +1226,7 @@ impl NewExpression {
     pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             NewExpression::MemberExpression(boxed) => boxed.assignment_target_type(strict),
-            NewExpression::NewExpression(_) => ATTKind::Invalid,
+            NewExpression::NewExpression(..) => ATTKind::Invalid,
         }
     }
 
@@ -1193,7 +1235,7 @@ impl NewExpression {
     /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
     pub fn is_identifier_ref(&self) -> bool {
         match self {
-            NewExpression::NewExpression(_) => false,
+            NewExpression::NewExpression(..) => false,
             NewExpression::MemberExpression(x) => x.is_identifier_ref(),
         }
     }
@@ -1248,6 +1290,10 @@ impl CallMemberExpression {
         Ok((Rc::new(CallMemberExpression { member_expression: me, arguments: args }), after_args))
     }
 
+    pub fn location(&self) -> Location {
+        self.member_expression.location().merge(&self.arguments.location())
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.member_expression.contains(kind) || self.arguments.contains(kind)
     }
@@ -1288,6 +1334,7 @@ impl CallMemberExpression {
 #[derive(Debug)]
 pub struct SuperCall {
     arguments: Rc<Arguments>,
+    location: Location,
 }
 
 impl fmt::Display for SuperCall {
@@ -1321,7 +1368,12 @@ impl SuperCall {
         let (super_loc, after_super) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Super)?;
         let (args, after_args) = Arguments::parse(parser, after_super, yield_flag, await_flag)?;
-        Ok((Rc::new(Self { arguments: args }), after_args))
+        let location = super_loc.merge(&args.location());
+        Ok((Rc::new(Self { arguments: args, location }), after_args))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -1362,6 +1414,7 @@ impl SuperCall {
 #[derive(Debug)]
 pub struct ImportCall {
     assignment_expression: Rc<AssignmentExpression>,
+    location: Location,
 }
 
 impl fmt::Display for ImportCall {
@@ -1396,12 +1449,17 @@ impl ImportCall {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (import_loc, after_import) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Import)?;
-        let (lp_loc, after_lp) =
+        let (_, after_lp) =
             scan_for_punct(after_import, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let (rp_loc, after_rp) =
             scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-        Ok((Rc::new(Self { assignment_expression: ae }), after_rp))
+        let location = import_loc.merge(&rp_loc);
+        Ok((Rc::new(Self { assignment_expression: ae, location }), after_rp))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -1452,10 +1510,10 @@ pub enum CallExpression {
     SuperCall(Rc<SuperCall>),
     ImportCall(Rc<ImportCall>),
     CallExpressionArguments(Rc<CallExpression>, Rc<Arguments>),
-    CallExpressionExpression(Rc<CallExpression>, Rc<Expression>),
-    CallExpressionIdentifierName(Rc<CallExpression>, IdentifierData),
+    CallExpressionExpression(Rc<CallExpression>, Rc<Expression>, Location),
+    CallExpressionIdentifierName(Rc<CallExpression>, IdentifierData, Location),
     CallExpressionTemplateLiteral(Rc<CallExpression>, Rc<TemplateLiteral>),
-    CallExpressionPrivateId(Rc<CallExpression>, IdentifierData),
+    CallExpressionPrivateId(Rc<CallExpression>, IdentifierData, Location),
 }
 
 impl fmt::Display for CallExpression {
@@ -1465,8 +1523,9 @@ impl fmt::Display for CallExpression {
             CallExpression::SuperCall(boxed) => write!(f, "{}", boxed),
             CallExpression::ImportCall(boxed) => write!(f, "{}", boxed),
             CallExpression::CallExpressionArguments(ce, args) => write!(f, "{} {}", ce, args),
-            CallExpression::CallExpressionExpression(ce, exp) => write!(f, "{} [ {} ]", ce, exp),
-            CallExpression::CallExpressionIdentifierName(ce, id) | CallExpression::CallExpressionPrivateId(ce, id) => {
+            CallExpression::CallExpressionExpression(ce, exp, _) => write!(f, "{} [ {} ]", ce, exp),
+            CallExpression::CallExpressionIdentifierName(ce, id, _)
+            | CallExpression::CallExpressionPrivateId(ce, id, _) => {
                 write!(f, "{} . {}", ce, id)
             }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{} {}", ce, tl),
@@ -1489,18 +1548,20 @@ impl PrettyPrint for CallExpression {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 args.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionExpression(ce, exp) => {
+            CallExpression::CallExpressionExpression(ce, exp, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _) => {
+            CallExpression::CallExpressionIdentifierName(ce, _, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionPrivateId(ce, _) => ce.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CallExpression::CallExpressionPrivateId(ce, _, _) => {
+                ce.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -1521,13 +1582,13 @@ impl PrettyPrint for CallExpression {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionExpression(ce, right) => {
+            CallExpression::CallExpressionExpression(ce, right, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, right) => {
+            CallExpression::CallExpressionIdentifierName(ce, right, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::NotFinal)
@@ -1536,7 +1597,7 @@ impl PrettyPrint for CallExpression {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionPrivateId(ce, id) => {
+            CallExpression::CallExpressionPrivateId(ce, id, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
@@ -1563,10 +1624,10 @@ impl CallExpression {
             .map(|(ce, after_ce)| {
                 enum Follow {
                     Args(Rc<Arguments>),
-                    Exp(Rc<Expression>),
-                    Id(IdentifierData),
+                    Exp(Rc<Expression>, Location),
+                    Id(IdentifierData, Location),
                     TLit(Rc<TemplateLiteral>),
-                    Pid(IdentifierData),
+                    Pid(IdentifierData, Location),
                 }
                 let mut top_box = ce;
                 let mut top_scanner = after_ce;
@@ -1586,14 +1647,14 @@ impl CallExpression {
                         match punct {
                             Punctuator::Dot => {
                                 scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
-                                    .map(|(id, id_loc, after_id)| (Follow::Id(id), after_id))
+                                    .map(|(id, id_loc, after_id)| (Follow::Id(id, id_loc), after_id))
                                     .otherwise(|| {
                                         scan_for_private_identifier(
                                             after_punct,
                                             parser.source,
                                             ScanGoal::InputElementDiv,
                                         )
-                                        .map(|(pid, pid_loc, after_pid)| (Follow::Pid(pid), after_pid))
+                                        .map(|(pid, pid_loc, after_pid)| (Follow::Pid(pid, pid_loc), after_pid))
                                     })
                             }
                             _ => {
@@ -1605,17 +1666,26 @@ impl CallExpression {
                                     ScanGoal::InputElementDiv,
                                     Punctuator::RightBracket,
                                 )?;
-                                Ok((Follow::Exp(exp), after_rb))
+                                Ok((Follow::Exp(exp, rb_loc), after_rb))
                             }
                         }
                     })
                 {
                     top_box = Rc::new(match follow {
-                        Follow::Exp(exp) => CallExpression::CallExpressionExpression(top_box, exp),
-                        Follow::Id(id) => CallExpression::CallExpressionIdentifierName(top_box, id),
+                        Follow::Exp(exp, tok_loc) => {
+                            let location = top_box.location().merge(&tok_loc);
+                            CallExpression::CallExpressionExpression(top_box, exp, location)
+                        }
+                        Follow::Id(id, id_loc) => {
+                            let location = top_box.location().merge(&id_loc);
+                            CallExpression::CallExpressionIdentifierName(top_box, id, location)
+                        }
                         Follow::TLit(tl) => CallExpression::CallExpressionTemplateLiteral(top_box, tl),
                         Follow::Args(args) => CallExpression::CallExpressionArguments(top_box, args),
-                        Follow::Pid(id) => CallExpression::CallExpressionPrivateId(top_box, id),
+                        Follow::Pid(id, id_loc) => {
+                            let location = top_box.location().merge(&id_loc);
+                            CallExpression::CallExpressionPrivateId(top_box, id, location)
+                        }
                     });
                     top_scanner = scan;
                 }
@@ -1635,16 +1705,28 @@ impl CallExpression {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            CallExpression::CallExpressionExpression(_, _, location)
+            | CallExpression::CallExpressionIdentifierName(_, _, location)
+            | CallExpression::CallExpressionPrivateId(_, _, location) => *location,
+            CallExpression::CallMemberExpression(node) => node.location(),
+            CallExpression::SuperCall(node) => node.location(),
+            CallExpression::ImportCall(node) => node.location(),
+            CallExpression::CallExpressionArguments(chain, node) => chain.location().merge(&node.location()),
+            CallExpression::CallExpressionTemplateLiteral(chain, node) => chain.location().merge(&node.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             CallExpression::CallMemberExpression(boxed) => boxed.contains(kind),
             CallExpression::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
             CallExpression::ImportCall(boxed) => boxed.contains(kind),
             CallExpression::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
-            CallExpression::CallExpressionExpression(ce, exp) => ce.contains(kind) || exp.contains(kind),
-            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => {
-                ce.contains(kind)
-            }
+            CallExpression::CallExpressionExpression(ce, exp, _) => ce.contains(kind) || exp.contains(kind),
+            CallExpression::CallExpressionIdentifierName(ce, _, _)
+            | CallExpression::CallExpressionPrivateId(ce, _, _) => ce.contains(kind),
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }
@@ -1663,10 +1745,10 @@ impl CallExpression {
             CallExpression::CallExpressionArguments(ce, args) => {
                 ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names)
             }
-            CallExpression::CallExpressionExpression(ce, exp) => {
+            CallExpression::CallExpressionExpression(ce, exp, _) => {
                 ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _) => ce.all_private_identifiers_valid(names),
+            CallExpression::CallExpressionIdentifierName(ce, _, _) => ce.all_private_identifiers_valid(names),
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names)
             }
@@ -1675,7 +1757,7 @@ impl CallExpression {
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of CallExpression with argument names.
             //  2. Return false.
-            CallExpression::CallExpressionPrivateId(ce, id) => {
+            CallExpression::CallExpressionPrivateId(ce, id, _) => {
                 names.contains(&id.string_value) && ce.all_private_identifiers_valid(names)
             }
         }
@@ -1697,10 +1779,9 @@ impl CallExpression {
             CallExpression::SuperCall(sc) => sc.contains_arguments(),
             CallExpression::ImportCall(ic) => ic.contains_arguments(),
             CallExpression::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
-            CallExpression::CallExpressionExpression(ce, e) => ce.contains_arguments() || e.contains_arguments(),
-            CallExpression::CallExpressionIdentifierName(ce, _) | CallExpression::CallExpressionPrivateId(ce, _) => {
-                ce.contains_arguments()
-            }
+            CallExpression::CallExpressionExpression(ce, e, _) => ce.contains_arguments() || e.contains_arguments(),
+            CallExpression::CallExpressionIdentifierName(ce, _, _)
+            | CallExpression::CallExpressionPrivateId(ce, _, _) => ce.contains_arguments(),
             CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
         }
     }
@@ -1714,16 +1795,16 @@ impl CallExpression {
                 node.early_errors(agent, errs, strict);
                 args.early_errors(agent, errs, strict);
             }
-            CallExpression::CallExpressionExpression(node, exp) => {
+            CallExpression::CallExpressionExpression(node, exp, _) => {
                 node.early_errors(agent, errs, strict);
                 exp.early_errors(agent, errs, strict);
             }
-            CallExpression::CallExpressionIdentifierName(node, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionIdentifierName(node, _, _) => node.early_errors(agent, errs, strict),
             CallExpression::CallExpressionTemplateLiteral(node, tl) => {
                 node.early_errors(agent, errs, strict);
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
-            CallExpression::CallExpressionPrivateId(node, _) => node.early_errors(agent, errs, strict),
+            CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(agent, errs, strict),
         }
     }
 
@@ -1833,7 +1914,11 @@ impl LeftHandSideExpression {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            LeftHandSideExpression::New(node) => node.location(),
+            LeftHandSideExpression::Call(node) => node.location(),
+            LeftHandSideExpression::Optional(node) => node.location(),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -2030,6 +2115,14 @@ impl OptionalExpression {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            OptionalExpression::Member(exp, chain) => exp.location().merge(&chain.location()),
+            OptionalExpression::Call(exp, chain) => exp.location().merge(&chain.location()),
+            OptionalExpression::Opt(exp, chain) => exp.location().merge(&chain.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             OptionalExpression::Member(left, right) => left.contains(kind) || right.contains(kind),
@@ -2115,30 +2208,30 @@ impl OptionalExpression {
 //      OptionalChain[?Yield, ?Await] . PrivateIdentifier
 #[derive(Debug)]
 pub enum OptionalChain {
-    Args(Rc<Arguments>),
-    Exp(Rc<Expression>),
-    Ident(IdentifierData),
-    Template(Rc<TemplateLiteral>),
-    PrivateId(IdentifierData),
+    Args(Rc<Arguments>, Location),
+    Exp(Rc<Expression>, Location),
+    Ident(IdentifierData, Location),
+    Template(Rc<TemplateLiteral>, Location),
+    PrivateId(IdentifierData, Location),
     PlusArgs(Rc<OptionalChain>, Rc<Arguments>),
-    PlusExp(Rc<OptionalChain>, Rc<Expression>),
-    PlusIdent(Rc<OptionalChain>, IdentifierData),
+    PlusExp(Rc<OptionalChain>, Rc<Expression>, Location),
+    PlusIdent(Rc<OptionalChain>, IdentifierData, Location),
     PlusTemplate(Rc<OptionalChain>, Rc<TemplateLiteral>),
-    PlusPrivateId(Rc<OptionalChain>, IdentifierData),
+    PlusPrivateId(Rc<OptionalChain>, IdentifierData, Location),
 }
 
 impl fmt::Display for OptionalChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OptionalChain::Args(node) => write!(f, "?. {}", node),
-            OptionalChain::Exp(node) => write!(f, "?. [ {} ]", node),
-            OptionalChain::Ident(node) | OptionalChain::PrivateId(node) => {
+            OptionalChain::Args(node, _) => write!(f, "?. {}", node),
+            OptionalChain::Exp(node, _) => write!(f, "?. [ {} ]", node),
+            OptionalChain::Ident(node, _) | OptionalChain::PrivateId(node, _) => {
                 write!(f, "?. {}", node)
             }
-            OptionalChain::Template(node) => write!(f, "?. {}", node),
+            OptionalChain::Template(node, _) => write!(f, "?. {}", node),
             OptionalChain::PlusArgs(lst, item) => write!(f, "{} {}", lst, item),
-            OptionalChain::PlusExp(lst, item) => write!(f, "{} [ {} ]", lst, item),
-            OptionalChain::PlusIdent(lst, item) | OptionalChain::PlusPrivateId(lst, item) => {
+            OptionalChain::PlusExp(lst, item, _) => write!(f, "{} [ {} ]", lst, item),
+            OptionalChain::PlusIdent(lst, item, _) | OptionalChain::PlusPrivateId(lst, item, _) => {
                 write!(f, "{} . {}", lst, item)
             }
             OptionalChain::PlusTemplate(lst, item) => write!(f, "{} {}", lst, item),
@@ -2154,24 +2247,24 @@ impl PrettyPrint for OptionalChain {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}OptionalChain: {}", first, self)?;
         match self {
-            OptionalChain::Args(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::Exp(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::Ident(node) => {
+            OptionalChain::Args(node, _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::Exp(node, _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::Ident(node, _) => {
                 pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final)
             }
-            OptionalChain::Template(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            OptionalChain::PrivateId(node) => {
+            OptionalChain::Template(node, _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            OptionalChain::PrivateId(node, _) => {
                 pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
             OptionalChain::PlusArgs(lst, item) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PlusExp(lst, item) => {
+            OptionalChain::PlusExp(lst, item, _) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PlusIdent(lst, item) => {
+            OptionalChain::PlusIdent(lst, item, _) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, item, TokenType::IdentifierName, &successive, Spot::Final)
             }
@@ -2179,7 +2272,7 @@ impl PrettyPrint for OptionalChain {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PlusPrivateId(lst, item) => {
+            OptionalChain::PlusPrivateId(lst, item, _) => {
                 lst.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, item, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
@@ -2193,25 +2286,25 @@ impl PrettyPrint for OptionalChain {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}OptionalChain: {}", first, self)?;
         match self {
-            OptionalChain::Args(node) => {
+            OptionalChain::Args(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::Exp(node) => {
+            OptionalChain::Exp(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            OptionalChain::Ident(node) => {
+            OptionalChain::Ident(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, node, TokenType::IdentifierName, &successive, Spot::Final)
             }
-            OptionalChain::Template(node) => {
+            OptionalChain::Template(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PrivateId(node) => {
+            OptionalChain::PrivateId(node, _) => {
                 pprint_token(writer, "?.", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, node, TokenType::PrivateIdentifier, &successive, Spot::Final)
             }
@@ -2219,13 +2312,13 @@ impl PrettyPrint for OptionalChain {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PlusExp(lst, item) => {
+            OptionalChain::PlusExp(lst, item, _) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            OptionalChain::PlusIdent(lst, item) => {
+            OptionalChain::PlusIdent(lst, item, _) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, item, TokenType::IdentifierName, &successive, Spot::Final)
@@ -2234,7 +2327,7 @@ impl PrettyPrint for OptionalChain {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 item.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            OptionalChain::PlusPrivateId(lst, item) => {
+            OptionalChain::PlusPrivateId(lst, item, _) => {
                 lst.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, item, TokenType::PrivateIdentifier, &successive, Spot::Final)
@@ -2249,36 +2342,44 @@ impl OptionalChain {
         let (mut current, mut current_scan) = Err(ParseError::new(PECode::ChainFailed, after_opt))
             .otherwise(|| {
                 let (args, after_args) = Arguments::parse(parser, after_opt, yield_flag, await_flag)?;
-                Ok((Rc::new(OptionalChain::Args(args)), after_args))
+                let location = opt_loc.merge(&args.location());
+                Ok((Rc::new(OptionalChain::Args(args, location)), after_args))
             })
             .otherwise(|| {
                 let (tl, after_tl) = TemplateLiteral::parse(parser, after_opt, yield_flag, await_flag, true)?;
-                Ok((Rc::new(OptionalChain::Template(tl)), after_tl))
+                let location = opt_loc.merge(&tl.location());
+                Ok((Rc::new(OptionalChain::Template(tl, location)), after_tl))
             })
             .otherwise(|| {
-                let (lb_loc, after_lb) =
+                let (_, after_lb) =
                     scan_for_punct(after_opt, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBracket)?;
                 let (exp, after_exp) = Expression::parse(parser, after_lb, true, yield_flag, await_flag)?;
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
-                Ok((Rc::new(OptionalChain::Exp(exp)), after_rb))
+                let location = opt_loc.merge(&rb_loc);
+                Ok((Rc::new(OptionalChain::Exp(exp, location)), after_rb))
             })
             .otherwise(|| {
                 let (id, id_loc, after_id) =
                     scan_for_identifiername(after_opt, parser.source, ScanGoal::InputElementDiv)?;
-                Ok((Rc::new(OptionalChain::Ident(id)), after_id))
+                let location = opt_loc.merge(&id_loc);
+                Ok((Rc::new(OptionalChain::Ident(id, location)), after_id))
             })
             .otherwise(|| {
-                scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv)
-                    .map(|(id, id_loc, after_id)| (Rc::new(OptionalChain::PrivateId(id)), after_id))
+                scan_for_private_identifier(after_opt, parser.source, ScanGoal::InputElementDiv).map(
+                    |(id, id_loc, after_id)| {
+                        let location = opt_loc.merge(&id_loc);
+                        (Rc::new(OptionalChain::PrivateId(id, location)), after_id)
+                    },
+                )
             })?;
 
         enum Follow {
             Args(Rc<Arguments>),
             TLit(Rc<TemplateLiteral>),
-            Exp(Rc<Expression>),
-            Id(IdentifierData),
-            Pid(IdentifierData),
+            Exp(Rc<Expression>, Location),
+            Id(IdentifierData, Location),
+            Pid(IdentifierData, Location),
         }
         while let Ok((follow, scan)) = Err(ParseError::new(PECode::Generic, current_scan))
             .otherwise(|| {
@@ -2298,10 +2399,10 @@ impl OptionalChain {
                 )?;
                 match punct {
                     Punctuator::Dot => scan_for_identifiername(after_punct, parser.source, ScanGoal::InputElementDiv)
-                        .map(|(id, id_loc, after_id)| (Follow::Id(id), after_id))
+                        .map(|(id, id_loc, after_id)| (Follow::Id(id, id_loc), after_id))
                         .otherwise(|| {
                             scan_for_private_identifier(after_punct, parser.source, ScanGoal::InputElementDiv)
-                                .map(|(id, id_loc, after_id)| (Follow::Pid(id), after_id))
+                                .map(|(id, id_loc, after_id)| (Follow::Pid(id, id_loc), after_id))
                         }),
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_punct, true, yield_flag, await_flag)?;
@@ -2311,35 +2412,59 @@ impl OptionalChain {
                             ScanGoal::InputElementDiv,
                             Punctuator::RightBracket,
                         )?;
-                        Ok((Follow::Exp(exp), after_rb))
+                        Ok((Follow::Exp(exp, rb_loc), after_rb))
                     }
                 }
             })
         {
             current = Rc::new(match follow {
                 Follow::Args(args) => OptionalChain::PlusArgs(current, args),
-                Follow::Id(id) => OptionalChain::PlusIdent(current, id),
-                Follow::Exp(exp) => OptionalChain::PlusExp(current, exp),
+                Follow::Id(id, id_loc) => {
+                    let location = current.location().merge(&id_loc);
+                    OptionalChain::PlusIdent(current, id, location)
+                }
+                Follow::Exp(exp, end_loc) => {
+                    let location = current.location().merge(&end_loc);
+                    OptionalChain::PlusExp(current, exp, location)
+                }
                 Follow::TLit(tl) => OptionalChain::PlusTemplate(current, tl),
-                Follow::Pid(id) => OptionalChain::PlusPrivateId(current, id),
+                Follow::Pid(id, id_loc) => {
+                    let location = current.location().merge(&id_loc);
+                    OptionalChain::PlusPrivateId(current, id, location)
+                }
             });
             current_scan = scan;
         }
         Ok((current, current_scan))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            OptionalChain::Args(_, location)
+            | OptionalChain::Exp(_, location)
+            | OptionalChain::Ident(_, location)
+            | OptionalChain::Template(_, location)
+            | OptionalChain::PrivateId(_, location)
+            | OptionalChain::PlusExp(_, _, location)
+            | OptionalChain::PlusIdent(_, _, location)
+            | OptionalChain::PlusPrivateId(_, _, location) => *location,
+            OptionalChain::PlusArgs(chain, args) => chain.location().merge(&args.location()),
+            OptionalChain::PlusTemplate(chain, templ) => chain.location().merge(&templ.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            OptionalChain::Args(node) => node.contains(kind),
-            OptionalChain::Exp(node) => node.contains(kind),
-            OptionalChain::Ident(_) => false,
-            OptionalChain::Template(node) => node.contains(kind),
-            OptionalChain::PrivateId(_) => false,
+            OptionalChain::Args(node, _) => node.contains(kind),
+            OptionalChain::Exp(node, _) => node.contains(kind),
+            OptionalChain::Ident(_, _) => false,
+            OptionalChain::Template(node, _) => node.contains(kind),
+            OptionalChain::PrivateId(_, _) => false,
             OptionalChain::PlusArgs(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusExp(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusIdent(lst, _) => lst.contains(kind),
+            OptionalChain::PlusExp(lst, item, _) => lst.contains(kind) || item.contains(kind),
+            OptionalChain::PlusIdent(lst, _, _) => lst.contains(kind),
             OptionalChain::PlusTemplate(lst, item) => lst.contains(kind) || item.contains(kind),
-            OptionalChain::PlusPrivateId(lst, _) => lst.contains(kind),
+            OptionalChain::PlusPrivateId(lst, _, _) => lst.contains(kind),
         }
     }
 
@@ -2351,17 +2476,17 @@ impl OptionalChain {
             //      a. If child is an instance of a nonterminal, then
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
-            OptionalChain::Args(node) => node.all_private_identifiers_valid(names),
-            OptionalChain::Exp(node) => node.all_private_identifiers_valid(names),
-            OptionalChain::Ident(_) => true,
-            OptionalChain::Template(node) => node.all_private_identifiers_valid(names),
+            OptionalChain::Args(node, _) => node.all_private_identifiers_valid(names),
+            OptionalChain::Exp(node, _) => node.all_private_identifiers_valid(names),
+            OptionalChain::Ident(_, _) => true,
+            OptionalChain::Template(node, _) => node.all_private_identifiers_valid(names),
             OptionalChain::PlusArgs(lst, item) => {
                 lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
             }
-            OptionalChain::PlusExp(lst, item) => {
+            OptionalChain::PlusExp(lst, item, _) => {
                 lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
             }
-            OptionalChain::PlusIdent(lst, _) => lst.all_private_identifiers_valid(names),
+            OptionalChain::PlusIdent(lst, _, _) => lst.all_private_identifiers_valid(names),
             OptionalChain::PlusTemplate(lst, item) => {
                 lst.all_private_identifiers_valid(names) && item.all_private_identifiers_valid(names)
             }
@@ -2369,12 +2494,12 @@ impl OptionalChain {
             // OptionalChain : ?. PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, return true.
             //  2. Return false.
-            OptionalChain::PrivateId(pid) => names.contains(&pid.string_value),
+            OptionalChain::PrivateId(pid, _) => names.contains(&pid.string_value),
             // OptionalChain : OptionalChain . PrivateIdentifier
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of OptionalChain with argument names.
             //  2. Return false.
-            OptionalChain::PlusPrivateId(lst, pid) => {
+            OptionalChain::PlusPrivateId(lst, pid, _) => {
                 names.contains(&pid.string_value) && lst.all_private_identifiers_valid(names)
             }
         }
@@ -2392,13 +2517,13 @@ impl OptionalChain {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            OptionalChain::Args(a) => a.contains_arguments(),
-            OptionalChain::Exp(e) => e.contains_arguments(),
-            OptionalChain::Ident(_) | OptionalChain::PrivateId(_) => false,
-            OptionalChain::Template(tl) => tl.contains_arguments(),
+            OptionalChain::Args(a, _) => a.contains_arguments(),
+            OptionalChain::Exp(e, _) => e.contains_arguments(),
+            OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => false,
+            OptionalChain::Template(tl, _) => tl.contains_arguments(),
             OptionalChain::PlusArgs(oc, a) => oc.contains_arguments() || a.contains_arguments(),
-            OptionalChain::PlusExp(oc, e) => oc.contains_arguments() || e.contains_arguments(),
-            OptionalChain::PlusIdent(oc, _) | OptionalChain::PlusPrivateId(oc, _) => oc.contains_arguments(),
+            OptionalChain::PlusExp(oc, e, _) => oc.contains_arguments() || e.contains_arguments(),
+            OptionalChain::PlusIdent(oc, _, _) | OptionalChain::PlusPrivateId(oc, _, _) => oc.contains_arguments(),
             OptionalChain::PlusTemplate(oc, tl) => oc.contains_arguments() || tl.contains_arguments(),
         }
     }
@@ -2420,7 +2545,7 @@ impl OptionalChain {
         //      |       `c`
         //      | which is a valid statement and where automatic semicolon insertion does not apply.
         match self {
-            OptionalChain::Template(tl) => {
+            OptionalChain::Template(tl, _) => {
                 errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
@@ -2429,18 +2554,18 @@ impl OptionalChain {
                 errs.push(create_syntax_error_object(agent, "Template literal not allowed here", Some(tl.location())));
                 tl.early_errors(agent, errs, strict, 0xffff_ffff);
             }
-            OptionalChain::Args(node) => node.early_errors(agent, errs, strict),
-            OptionalChain::Exp(node) => node.early_errors(agent, errs, strict),
-            OptionalChain::Ident(_) | OptionalChain::PrivateId(_) => {}
+            OptionalChain::Args(node, _) => node.early_errors(agent, errs, strict),
+            OptionalChain::Exp(node, _) => node.early_errors(agent, errs, strict),
+            OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => {}
             OptionalChain::PlusArgs(node, args) => {
                 node.early_errors(agent, errs, strict);
                 args.early_errors(agent, errs, strict);
             }
-            OptionalChain::PlusExp(node, exp) => {
+            OptionalChain::PlusExp(node, exp, _) => {
                 node.early_errors(agent, errs, strict);
                 exp.early_errors(agent, errs, strict);
             }
-            OptionalChain::PlusIdent(node, _) | OptionalChain::PlusPrivateId(node, _) => {
+            OptionalChain::PlusIdent(node, _, _) | OptionalChain::PlusPrivateId(node, _, _) => {
                 node.early_errors(agent, errs, strict)
             }
         }

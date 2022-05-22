@@ -226,6 +226,7 @@ pub struct FunctionExpression {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<FunctionBody>,
+    location: Location,
 }
 
 impl fmt::Display for FunctionExpression {
@@ -286,21 +287,21 @@ impl FunctionExpression {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_func),
         };
-        let (lp_loc, after_lp) =
-            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let (rp_loc, after_rp) =
-            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
         let (rb_loc, after_rb) =
             scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(FunctionExpression { ident: bi, params: fp, body: fb }), after_rb))
+        Ok((
+            Rc::new(FunctionExpression { ident: bi, params: fp, body: fb, location: func_loc.merge(&rb_loc) }),
+            after_rb,
+        ))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
@@ -377,7 +378,7 @@ impl FunctionBody {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.statements.location()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -481,15 +482,16 @@ impl FunctionBody {
 // FunctionStatementList[Yield, Await] :
 //      StatementList[?Yield, ?Await, +Return]opt
 #[derive(Debug)]
-pub struct FunctionStatementList {
-    statements: Option<Rc<StatementList>>,
+pub enum FunctionStatementList {
+    Statements(Rc<StatementList>),
+    Empty(Location),
 }
 
 impl fmt::Display for FunctionStatementList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.fmt(f),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.fmt(f),
         }
     }
 }
@@ -501,9 +503,9 @@ impl PrettyPrint for FunctionStatementList {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}FunctionStatementList: {}", first, self)?;
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.pprint_with_leftpad(writer, &successive, Spot::Final),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -511,9 +513,9 @@ impl PrettyPrint for FunctionStatementList {
     where
         T: Write,
     {
-        match &self.statements {
-            None => Ok(()),
-            Some(s) => s.concise_with_leftpad(writer, pad, state),
+        match self {
+            FunctionStatementList::Empty(_) => Ok(()),
+            FunctionStatementList::Statements(s) => s.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -522,18 +524,24 @@ impl FunctionStatementList {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
         // Can never return an error.
         let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
-            Err(_) => (None, scanner),
-            Ok((st, s)) => (Some(st), s),
+            Err(_) => (FunctionStatementList::Empty(Location::from(scanner)), scanner),
+            Ok((st, s)) => (FunctionStatementList::Statements(st), s),
         };
-        (Rc::new(FunctionStatementList { statements: stmts }), after_stmts)
+        (Rc::new(stmts), after_stmts)
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            FunctionStatementList::Statements(s) => s.location(),
+            FunctionStatementList::Empty(loc) => *loc,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.statements.as_ref().map_or(false, |n| n.contains(kind))
+        match self {
+            FunctionStatementList::Statements(n) => n.contains(kind),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -543,7 +551,10 @@ impl FunctionStatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.statements.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+        match self {
+            FunctionStatementList::Statements(n) => n.all_private_identifiers_valid(names),
+            FunctionStatementList::Empty(_) => true,
+        }
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -557,25 +568,28 @@ impl FunctionStatementList {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_arguments(),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn initial_string_tokens(&self) -> Vec<StringToken> {
-        match &self.statements {
-            Some(statement_list) => statement_list.initial_string_tokens(),
-            None => vec![],
+        match self {
+            FunctionStatementList::Statements(statement_list) => statement_list.initial_string_tokens(),
+            FunctionStatementList::Empty(_) => vec![],
         }
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
-        match &self.statements {
-            Some(statement_list) => {
+        match self {
+            FunctionStatementList::Statements(statement_list) => {
                 // FunctionStatementList : StatementList
                 //  1. Return TopLevelLexicallyDeclaredNames of StatementList.
                 statement_list.top_level_lexically_declared_names()
             }
-            None => {
+            FunctionStatementList::Empty(_) => {
                 // FunctionStatementList : [empty]
                 //  1. Return a new empty List.
                 vec![]
@@ -585,13 +599,13 @@ impl FunctionStatementList {
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: VarDeclaredNames
-        match &self.statements {
-            Some(statement_list) => {
+        match self {
+            FunctionStatementList::Statements(statement_list) => {
                 // FunctionStatementList : StatementList
                 //  1. Return TopLevelVarDeclaredNames of StatementList.
                 statement_list.top_level_var_declared_names()
             }
-            None => {
+            FunctionStatementList::Empty(_) => {
                 // FunctionStatementList : [empty]
                 //  1. Return a new empty List.
                 vec![]
@@ -600,19 +614,28 @@ impl FunctionStatementList {
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_duplicate_labels(label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_duplicate_labels(label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_break_target(label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_undefined_break_target(label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
-        self.statements.as_ref().map_or(false, |sl| sl.contains_undefined_continue_target(iteration_set, label_set))
+        match self {
+            FunctionStatementList::Statements(sl) => sl.contains_undefined_continue_target(iteration_set, label_set),
+            FunctionStatementList::Empty(_) => false,
+        }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
-        if let Some(sl) = &self.statements {
+        if let FunctionStatementList::Statements(sl) = self {
             sl.early_errors(agent, errs, strict, false, false);
         }
     }

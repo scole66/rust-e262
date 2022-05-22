@@ -110,6 +110,15 @@ impl ShiftExpression {
         })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ShiftExpression::AdditiveExpression(exp) => exp.location(),
+            ShiftExpression::LeftShift(left, right)
+            | ShiftExpression::SignedRightShift(left, right)
+            | ShiftExpression::UnsignedRightShift(left, right) => left.location().merge(&right.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.contains(kind),

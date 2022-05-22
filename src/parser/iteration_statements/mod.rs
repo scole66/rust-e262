@@ -93,6 +93,15 @@ impl IterationStatement {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            IterationStatement::DoWhile(node) => node.location(),
+            IterationStatement::While(node) => node.location(),
+            IterationStatement::For(node) => node.location(),
+            IterationStatement::ForInOf(node) => node.location(),
+        }
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             IterationStatement::DoWhile(node) => node.var_declared_names(),
@@ -259,6 +268,10 @@ impl DoWhileStatement {
         Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn var_declared_names(&self) -> Vec<JSString> {
         let DoWhileStatement::Do(s, _) = self;
         s.var_declared_names()
@@ -382,6 +395,10 @@ impl WhileStatement {
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(WhileStatement::While(exp, stmt)), after_stmt))
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -674,6 +691,10 @@ impl ForStatement {
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 Ok((Rc::new(ForStatement::For(init, test, inc, stmt)), after_stmt))
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -1205,6 +1226,10 @@ impl ForInOfStatement {
                     }
                 }
             })
+    }
+
+    pub fn location(&self) -> Location {
+        todo!()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

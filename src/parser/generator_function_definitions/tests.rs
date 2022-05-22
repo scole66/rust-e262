@@ -618,7 +618,7 @@ mod generator_body {
 fn yield_expression_test_01() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -627,7 +627,7 @@ fn yield_expression_test_01() {
 fn yield_expression_test_02() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield 5"), Scanner::new(), true, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*pn, YieldExpression::Expression(..)));
+    assert!(matches!(&*pn, YieldExpression::Expression { .. }));
     pretty_check(&*pn, "YieldExpression: yield 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield 5", vec!["Keyword: yield", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -636,7 +636,7 @@ fn yield_expression_test_02() {
 fn yield_expression_test_03() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *5"), Scanner::new(), true, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*pn, YieldExpression::From(..)));
+    assert!(matches!(&*pn, YieldExpression::From { .. }));
     pretty_check(&*pn, "YieldExpression: yield * 5", vec!["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield * 5", vec!["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
     format!("{:?}", pn);
@@ -645,7 +645,7 @@ fn yield_expression_test_03() {
 fn yield_expression_test_04() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield \n*5"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -654,7 +654,7 @@ fn yield_expression_test_04() {
 fn yield_expression_test_05() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield @"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);
@@ -663,7 +663,7 @@ fn yield_expression_test_05() {
 fn yield_expression_test_06() {
     let (pn, scanner) = check(YieldExpression::parse(&mut newparser("yield *@"), Scanner::new(), true, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*pn, YieldExpression::Simple));
+    assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", vec![]);
     concise_check(&*pn, "Keyword: yield", vec![]);
     format!("{:?}", pn);

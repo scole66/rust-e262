@@ -895,7 +895,10 @@ impl BreakableStatement {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            BreakableStatement::Iteration(i) => i.location(),
+            BreakableStatement::Switch(s) => s.location(),
+        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

@@ -105,6 +105,15 @@ impl AdditiveExpression {
         Ok((current, current_scanner))
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(exp) => exp.location(),
+            AdditiveExpression::Add(left, right) | AdditiveExpression::Subtract(left, right) => {
+                left.location().merge(&right.location())
+            }
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AdditiveExpression::MultiplicativeExpression(n) => n.contains(kind),

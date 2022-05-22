@@ -72,6 +72,10 @@ impl GeneratorMethod {
         Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
     }
@@ -193,6 +197,7 @@ pub struct GeneratorDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<GeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for GeneratorDeclaration {
@@ -250,7 +255,7 @@ impl GeneratorDeclaration {
     ) -> ParseResult<Self> {
         let (func_loc, after_func) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (star_loc, after_star) =
+        let (async_function_definitions, after_star) =
             scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
@@ -262,21 +267,19 @@ impl GeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let (lp_loc, after_lp) =
-            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let (rp_loc, after_rp) =
-            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(GeneratorDeclaration { ident, params, body }), after_rb))
+        let location = func_loc.merge(&rb_loc);
+        Ok((Rc::new(GeneratorDeclaration { ident, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -346,6 +349,7 @@ pub struct GeneratorExpression {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<GeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for GeneratorExpression {
@@ -403,27 +407,24 @@ impl GeneratorExpression {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (func_loc, after_func) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (star_loc, after_star) =
-            scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, true, false) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let (lp_loc, after_lp) =
-            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let (rp_loc, after_rp) =
-            scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(GeneratorExpression { ident, params, body }), after_rb))
+        let location = func_loc.merge(&rb_loc);
+        Ok((Rc::new(GeneratorExpression { ident, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
@@ -529,7 +530,7 @@ impl GeneratorBody {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.0.location()
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -575,17 +576,17 @@ impl GeneratorBody {
 //      yield [no LineTerminator here] * AssignmentExpression[?In, +Yield, ?Await]
 #[derive(Debug)]
 pub enum YieldExpression {
-    Simple,
-    Expression(Rc<AssignmentExpression>),
-    From(Rc<AssignmentExpression>),
+    Simple { location: Location },
+    Expression { exp: Rc<AssignmentExpression>, location: Location },
+    From { exp: Rc<AssignmentExpression>, location: Location },
 }
 
 impl fmt::Display for YieldExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            YieldExpression::Simple => f.write_str("yield"),
-            YieldExpression::Expression(node) => write!(f, "yield {}", node),
-            YieldExpression::From(node) => write!(f, "yield * {}", node),
+            YieldExpression::Simple { .. } => f.write_str("yield"),
+            YieldExpression::Expression { exp, .. } => write!(f, "yield {}", exp),
+            YieldExpression::From { exp, .. } => write!(f, "yield * {}", exp),
         }
     }
 }
@@ -598,9 +599,9 @@ impl PrettyPrint for YieldExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}YieldExpression: {}", first, self)?;
         match self {
-            YieldExpression::Simple => Ok(()),
-            YieldExpression::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            YieldExpression::From(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            YieldExpression::Simple { .. } => Ok(()),
+            YieldExpression::Expression { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
+            YieldExpression::From { exp, .. } => exp.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -613,33 +614,41 @@ impl PrettyPrint for YieldExpression {
             writeln!(writer, "{}YieldExpression: {}", first, self).and(Ok(successive))
         };
         match self {
-            YieldExpression::Simple => pprint_token(writer, "yield", TokenType::Keyword, pad, state),
-            YieldExpression::Expression(node) => {
+            YieldExpression::Simple { .. } => pprint_token(writer, "yield", TokenType::Keyword, pad, state),
+            YieldExpression::Expression { exp, .. } => {
                 let successive = head(writer)?;
                 pprint_token(writer, "yield", TokenType::Keyword, &successive, Spot::NotFinal)?;
-                node.concise_with_leftpad(writer, &successive, Spot::Final)
+                exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            YieldExpression::From(node) => {
+            YieldExpression::From { exp, .. } => {
                 let successive = head(writer)?;
                 pprint_token(writer, "yield", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "*", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-                node.concise_with_leftpad(writer, &successive, Spot::Final)
+                exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }
     }
 }
 
 impl YieldExpression {
-    fn parse_after_nlt(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    fn parse_after_nlt(
+        parser: &mut Parser,
+        scanner: Scanner,
+        in_flag: bool,
+        await_flag: bool,
+        yield_loc: Location,
+    ) -> ParseResult<Self> {
         (|| {
             let (star_loc, after_star) =
                 scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
-            let (ae, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
-            Ok((Rc::new(YieldExpression::From(ae)), after_ae))
+            let (exp, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
+            let location = yield_loc.merge(&exp.location());
+            Ok((Rc::new(YieldExpression::From { exp, location }), after_ae))
         })()
         .otherwise(|| {
-            let (ae, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
-            Ok((Rc::new(YieldExpression::Expression(ae)), after_ae))
+            let (exp, after_ae) = AssignmentExpression::parse(parser, scanner, in_flag, true, await_flag)?;
+            let location = yield_loc.merge(&exp.location());
+            Ok((Rc::new(YieldExpression::Expression { exp, location }), after_ae))
         })
     }
 
@@ -647,20 +656,24 @@ impl YieldExpression {
         let (yield_loc, after_yield) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Yield)?;
         no_line_terminator(after_yield, parser.source)
-            .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag))
-            .otherwise(|| Ok((Rc::new(YieldExpression::Simple), after_yield)))
+            .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag, yield_loc))
+            .otherwise(|| Ok((Rc::new(YieldExpression::Simple { location: yield_loc }), after_yield)))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            YieldExpression::Simple { location }
+            | YieldExpression::Expression { location, .. }
+            | YieldExpression::From { location, .. } => *location,
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         kind == ParseNodeKind::YieldExpression
             || match self {
-                YieldExpression::Simple => false,
-                YieldExpression::Expression(node) => node.contains(kind),
-                YieldExpression::From(node) => node.contains(kind),
+                YieldExpression::Simple { .. } => false,
+                YieldExpression::Expression { exp, .. } => exp.contains(kind),
+                YieldExpression::From { exp, .. } => exp.contains(kind),
             }
     }
 
@@ -672,9 +685,9 @@ impl YieldExpression {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            YieldExpression::Simple => true,
-            YieldExpression::Expression(node) => node.all_private_identifiers_valid(names),
-            YieldExpression::From(node) => node.all_private_identifiers_valid(names),
+            YieldExpression::Simple { .. } => true,
+            YieldExpression::Expression { exp, .. } => exp.all_private_identifiers_valid(names),
+            YieldExpression::From { exp, .. } => exp.all_private_identifiers_valid(names),
         }
     }
 
@@ -690,8 +703,8 @@ impl YieldExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            YieldExpression::Simple => false,
-            YieldExpression::Expression(ae) | YieldExpression::From(ae) => ae.contains_arguments(),
+            YieldExpression::Simple { .. } => false,
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => exp.contains_arguments(),
         }
     }
 
@@ -707,8 +720,10 @@ impl YieldExpression {
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            YieldExpression::Expression(ae) | YieldExpression::From(ae) => ae.early_errors(agent, errs, strict),
-            YieldExpression::Simple => (),
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                exp.early_errors(agent, errs, strict)
+            }
+            YieldExpression::Simple { .. } => (),
         }
     }
 }

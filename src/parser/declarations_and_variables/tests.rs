@@ -856,7 +856,7 @@ mod binding_pattern {
 fn object_binding_pattern_test_01() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ObjectBindingPattern::Empty));
+    assert!(matches!(&*node, ObjectBindingPattern::Empty { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { }", vec![]);
     concise_check(&*node, "ObjectBindingPattern: { }", vec!["Punctuator: {", "Punctuator: }"]);
     format!("{:?}", node);
@@ -867,7 +867,7 @@ fn object_binding_pattern_test_01() {
 fn object_binding_pattern_test_02() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{...a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ObjectBindingPattern::RestOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::RestOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { ... a }", vec!["BindingRestProperty: ... a"]);
     concise_check(
         &*node,
@@ -882,7 +882,7 @@ fn object_binding_pattern_test_02() {
 fn object_binding_pattern_test_03() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a}"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ObjectBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a }", vec!["BindingPropertyList: a"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", vec!["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
     format!("{:?}", node);
@@ -893,7 +893,7 @@ fn object_binding_pattern_test_03() {
 fn object_binding_pattern_test_04() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,...b}"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, Some(_))));
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: Some(_), .. }));
     pretty_check(
         &*node,
         "ObjectBindingPattern: { a , ... b }",
@@ -912,7 +912,7 @@ fn object_binding_pattern_test_04() {
 fn object_binding_pattern_test_05() {
     let (node, scanner) = check(ObjectBindingPattern::parse(&mut newparser("{a,}"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ObjectBindingPattern::ListRest(_, None)));
+    assert!(matches!(&*node, ObjectBindingPattern::ListRest { brp: None, .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a , }", vec!["BindingPropertyList: a"]);
     concise_check(
         &*node,
@@ -1071,7 +1071,7 @@ mod object_binding_pattern {
 fn array_binding_pattern_test_01() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ]", vec![]);
     concise_check(&*node, "ArrayBindingPattern: [ ]", vec!["Punctuator: [", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1082,7 +1082,7 @@ fn array_binding_pattern_test_01() {
 fn array_binding_pattern_test_02() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Elisions: ,"]);
     concise_check(&*node, "ArrayBindingPattern: [ , ]", vec!["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1093,7 +1093,7 @@ fn array_binding_pattern_test_02() {
 fn array_binding_pattern_test_03() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(None, Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ... a ]", vec!["BindingRestElement: ... a"]);
     concise_check(
         &*node,
@@ -1108,7 +1108,7 @@ fn array_binding_pattern_test_03() {
 fn array_binding_pattern_test_04() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[,...a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*node, ArrayBindingPattern::RestOnly(Some(_), Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: Some(_), .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ... a ]", vec!["Elisions: ,", "BindingRestElement: ... a"]);
     concise_check(
         &*node,
@@ -1123,7 +1123,7 @@ fn array_binding_pattern_test_04() {
 fn array_binding_pattern_test_05() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*node, ArrayBindingPattern::ListOnly(..)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a ]", vec!["BindingElementList: a"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", vec!["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
     format!("{:?}", node);
@@ -1134,7 +1134,7 @@ fn array_binding_pattern_test_05() {
 fn array_binding_pattern_test_06() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { bre: None, elision: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , ]", vec!["BindingElementList: a"]);
     concise_check(
         &*node,
@@ -1149,7 +1149,7 @@ fn array_binding_pattern_test_06() {
 fn array_binding_pattern_test_07() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,]"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), None)));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a , , ]", vec!["BindingElementList: a", "Elisions: ,"]);
     concise_check(
         &*node,
@@ -1164,7 +1164,7 @@ fn array_binding_pattern_test_07() {
 fn array_binding_pattern_test_08() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, None, Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: None, bre: Some(_), .. }));
     pretty_check(
         &*node,
         "ArrayBindingPattern: [ a , ... b ]",
@@ -1183,7 +1183,7 @@ fn array_binding_pattern_test_08() {
 fn array_binding_pattern_test_09() {
     let (node, scanner) = check(ArrayBindingPattern::parse(&mut newparser("[a,,...b]"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(&*node, ArrayBindingPattern::ListRest(_, Some(_), Some(_))));
+    assert!(matches!(&*node, ArrayBindingPattern::ListRest { elision: Some(_), bre: Some(_), .. }));
     pretty_check(
         &*node,
         "ArrayBindingPattern: [ a , , ... b ]",

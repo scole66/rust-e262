@@ -75,6 +75,10 @@ impl AsyncGeneratorMethod {
         Ok((Rc::new(AsyncGeneratorMethod { name, params, body }), after_rb))
     }
 
+    pub fn location(&self) -> Location {
+        todo!()
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
     }

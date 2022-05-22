@@ -665,10 +665,10 @@ impl CallExpression {
             CallExpression::SuperCall(_) => todo!(),
             CallExpression::ImportCall(_) => todo!(),
             CallExpression::CallExpressionArguments(_, _) => todo!(),
-            CallExpression::CallExpressionExpression(_, _) => todo!(),
-            CallExpression::CallExpressionIdentifierName(_, _) => todo!(),
+            CallExpression::CallExpressionExpression(_, _, _) => todo!(),
+            CallExpression::CallExpressionIdentifierName(_, _, _) => todo!(),
             CallExpression::CallExpressionTemplateLiteral(_, _) => todo!(),
-            CallExpression::CallExpressionPrivateId(_, _) => todo!(),
+            CallExpression::CallExpressionPrivateId(_, _, _) => todo!(),
         }
     }
 }
@@ -722,12 +722,12 @@ impl LeftHandSideExpression {
 impl Arguments {
     pub fn argument_list_evaluation(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
-            Arguments::Empty => {
+            Arguments::Empty { .. } => {
                 let index = chunk.add_to_float_pool(0.0)?;
                 chunk.op_plus_arg(Insn::Float, index);
                 Ok(CompilerStatusFlags::new())
             }
-            Arguments::ArgumentList(al) | Arguments::ArgumentListComma(al) => {
+            Arguments::ArgumentList(al, _) | Arguments::ArgumentListComma(al, _) => {
                 let (arg_list_len, status) = al.argument_list_evaluation(chunk, strict)?;
                 let exit = if status.can_be_abrupt {
                     // Stack: arg(n) arg(n-1) arg(n-2) ... arg2 arg1 ...
@@ -1223,8 +1223,7 @@ impl Declaration {
 impl LexicalDeclaration {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         let mut mark = None;
-        let LexicalDeclaration::List(_, bi) = self;
-        let status = bi.compile(chunk, strict)?;
+        let status = self.list.compile(chunk, strict)?;
         if status.can_be_abrupt {
             mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
         }

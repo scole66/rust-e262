@@ -14,6 +14,7 @@ use std::io::Write;
 pub struct SwitchStatement {
     expression: Rc<Expression>,
     case_block: Rc<CaseBlock>,
+    location: Location,
 }
 
 impl fmt::Display for SwitchStatement {
@@ -57,13 +58,18 @@ impl SwitchStatement {
     ) -> ParseResult<Self> {
         let (switch_loc, after_switch) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
-        let (open_loc, after_open) =
+        let (_, after_open) =
             scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (close_loc, after_close) =
+        let (_, after_close) =
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb }), after_cases))
+        let location = cb.location().merge(&switch_loc);
+        Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb, location }), after_cases))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -150,23 +156,23 @@ impl SwitchStatement {
 //      { CaseClauses[?Yield, ?Await, ?Return]opt DefaultClause[?Yield, ?Await, ?Return] CaseClauses[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
 pub enum CaseBlock {
-    NoDefault(Option<Rc<CaseClauses>>),
-    HasDefault(Option<Rc<CaseClauses>>, Rc<DefaultClause>, Option<Rc<CaseClauses>>),
+    NoDefault(Option<Rc<CaseClauses>>, Location),
+    HasDefault(Option<Rc<CaseClauses>>, Rc<DefaultClause>, Option<Rc<CaseClauses>>, Location),
 }
 
 impl fmt::Display for CaseBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CaseBlock::NoDefault(None) => write!(f, "{{ }}"),
-            CaseBlock::NoDefault(Some(node)) => write!(f, "{{ {} }}", node),
-            CaseBlock::HasDefault(None, def, None) => write!(f, "{{ {} }}", def),
-            CaseBlock::HasDefault(Some(pre), def, None) => {
+            CaseBlock::NoDefault(None, _) => write!(f, "{{ }}"),
+            CaseBlock::NoDefault(Some(node), _) => write!(f, "{{ {} }}", node),
+            CaseBlock::HasDefault(None, def, None, _) => write!(f, "{{ {} }}", def),
+            CaseBlock::HasDefault(Some(pre), def, None, _) => {
                 write!(f, "{{ {} {} }}", pre, def)
             }
-            CaseBlock::HasDefault(None, def, Some(post)) => {
+            CaseBlock::HasDefault(None, def, Some(post), _) => {
                 write!(f, "{{ {} {} }}", def, post)
             }
-            CaseBlock::HasDefault(Some(pre), def, Some(post)) => {
+            CaseBlock::HasDefault(Some(pre), def, Some(post), _) => {
                 write!(f, "{{ {} {} {} }}", pre, def, post)
             }
         }
@@ -181,18 +187,18 @@ impl PrettyPrint for CaseBlock {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}CaseBlock: {}", first, self)?;
         match self {
-            CaseBlock::NoDefault(None) => Ok(()),
-            CaseBlock::NoDefault(Some(node)) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CaseBlock::HasDefault(None, def, None) => def.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CaseBlock::HasDefault(Some(pre), def, None) => {
+            CaseBlock::NoDefault(None, _) => Ok(()),
+            CaseBlock::NoDefault(Some(node), _) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CaseBlock::HasDefault(None, def, None, _) => def.pprint_with_leftpad(writer, &successive, Spot::Final),
+            CaseBlock::HasDefault(Some(pre), def, None, _) => {
                 pre.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 def.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CaseBlock::HasDefault(None, def, Some(post)) => {
+            CaseBlock::HasDefault(None, def, Some(post), _) => {
                 def.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 post.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CaseBlock::HasDefault(Some(pre), def, Some(post)) => {
+            CaseBlock::HasDefault(Some(pre), def, Some(post), _) => {
                 pre.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 def.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 post.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -208,18 +214,18 @@ impl PrettyPrint for CaseBlock {
         writeln!(writer, "{}CaseBlock: {}", first, self)?;
         pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            CaseBlock::NoDefault(None) => Ok(()),
-            CaseBlock::NoDefault(Some(node)) => node.concise_with_leftpad(writer, &successive, Spot::NotFinal),
-            CaseBlock::HasDefault(None, def, None) => def.concise_with_leftpad(writer, &successive, Spot::NotFinal),
-            CaseBlock::HasDefault(Some(pre), def, None) => {
+            CaseBlock::NoDefault(None, _) => Ok(()),
+            CaseBlock::NoDefault(Some(node), _) => node.concise_with_leftpad(writer, &successive, Spot::NotFinal),
+            CaseBlock::HasDefault(None, def, None, _) => def.concise_with_leftpad(writer, &successive, Spot::NotFinal),
+            CaseBlock::HasDefault(Some(pre), def, None, _) => {
                 pre.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 def.concise_with_leftpad(writer, &successive, Spot::NotFinal)
             }
-            CaseBlock::HasDefault(None, def, Some(post)) => {
+            CaseBlock::HasDefault(None, def, Some(post), _) => {
                 def.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 post.concise_with_leftpad(writer, &successive, Spot::NotFinal)
             }
-            CaseBlock::HasDefault(Some(pre), def, Some(post)) => {
+            CaseBlock::HasDefault(Some(pre), def, Some(post), _) => {
                 pre.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 def.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 post.concise_with_leftpad(writer, &successive, Spot::NotFinal)
@@ -247,7 +253,7 @@ impl CaseBlock {
             .otherwise(|| {
                 let (close_loc, after_close) =
                     scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((None, after_close))
+                Ok((None, close_loc, after_close))
             })
             .otherwise(|| {
                 let (def, after_def) = DefaultClause::parse(parser, after_pre, yield_flag, await_flag, return_flag)?;
@@ -258,28 +264,33 @@ impl CaseBlock {
                     };
                 let (close_loc, after_close) =
                     scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Some((def, post)), after_close))
+                Ok((Some((def, post)), close_loc, after_close))
             })
-            .map(|(post, scan)| {
+            .map(|(post, close_loc, scan)| {
                 (
-                    Rc::new(match post {
-                        None => CaseBlock::NoDefault(pre),
-                        Some((def, after)) => CaseBlock::HasDefault(pre, def, after),
-                    }),
+                    {
+                        let location = open_loc.merge(&close_loc);
+                        Rc::new(match post {
+                            None => CaseBlock::NoDefault(pre, location),
+                            Some((def, after)) => CaseBlock::HasDefault(pre, def, after, location),
+                        })
+                    },
                     scan,
                 )
             })
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            CaseBlock::NoDefault(_, location) | CaseBlock::HasDefault(_, _, _, location) => *location,
+        }
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            CaseBlock::NoDefault(None) => vec![],
-            CaseBlock::NoDefault(Some(node)) => node.var_declared_names(),
-            CaseBlock::HasDefault(pre, def, post) => {
+            CaseBlock::NoDefault(None, _) => vec![],
+            CaseBlock::NoDefault(Some(node), _) => node.var_declared_names(),
+            CaseBlock::HasDefault(pre, def, post, _) => {
                 let mut names = match pre {
                     None => vec![],
                     Some(node) => node.var_declared_names(),
@@ -295,8 +306,8 @@ impl CaseBlock {
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
         let (c1, dflt, c2) = match self {
-            CaseBlock::NoDefault(c) => (c.as_ref(), None, None),
-            CaseBlock::HasDefault(pre, def, post) => (pre.as_ref(), Some(def), post.as_ref()),
+            CaseBlock::NoDefault(c, _) => (c.as_ref(), None, None),
+            CaseBlock::HasDefault(pre, def, post, _) => (pre.as_ref(), Some(def), post.as_ref()),
         };
         let mut result = vec![];
         if let Some(caseclauses) = c1 {
@@ -314,9 +325,9 @@ impl CaseBlock {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_undefined_break_target(label_set),
-            CaseBlock::HasDefault(pre, def, post) => {
+            CaseBlock::NoDefault(None, _) => false,
+            CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_break_target(label_set),
+            CaseBlock::HasDefault(pre, def, post, _) => {
                 pre.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
                     || def.contains_undefined_break_target(label_set)
                     || post.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
@@ -326,8 +337,8 @@ impl CaseBlock {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            CaseBlock::NoDefault(opt) => opt.as_ref().map_or(false, |n| n.contains(kind)),
-            CaseBlock::HasDefault(opt1, def, opt2) => {
+            CaseBlock::NoDefault(opt, _) => opt.as_ref().map_or(false, |n| n.contains(kind)),
+            CaseBlock::HasDefault(opt1, def, opt2, _) => {
                 opt1.as_ref().map_or(false, |n| n.contains(kind))
                     || def.contains(kind)
                     || opt2.as_ref().map_or(false, |n| n.contains(kind))
@@ -337,9 +348,9 @@ impl CaseBlock {
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_duplicate_labels(label_set),
-            CaseBlock::HasDefault(pre, def, post) => {
+            CaseBlock::NoDefault(None, _) => false,
+            CaseBlock::NoDefault(Some(node), _) => node.contains_duplicate_labels(label_set),
+            CaseBlock::HasDefault(pre, def, post, _) => {
                 pre.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
                     || def.contains_duplicate_labels(label_set)
                     || post.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
@@ -349,9 +360,9 @@ impl CaseBlock {
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            CaseBlock::NoDefault(None) => false,
-            CaseBlock::NoDefault(Some(node)) => node.contains_undefined_continue_target(iteration_set),
-            CaseBlock::HasDefault(pre, def, post) => {
+            CaseBlock::NoDefault(None, _) => false,
+            CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_continue_target(iteration_set),
+            CaseBlock::HasDefault(pre, def, post, _) => {
                 pre.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
                     || def.contains_undefined_continue_target(iteration_set)
                     || post.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
@@ -367,15 +378,15 @@ impl CaseBlock {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            CaseBlock::NoDefault(Some(node)) => node.all_private_identifiers_valid(names),
-            CaseBlock::HasDefault(None, node, None) => node.all_private_identifiers_valid(names),
-            CaseBlock::HasDefault(Some(node1), node2, None) => {
+            CaseBlock::NoDefault(Some(node), _) => node.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(None, node, None, _) => node.all_private_identifiers_valid(names),
+            CaseBlock::HasDefault(Some(node1), node2, None, _) => {
                 node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
             }
-            CaseBlock::HasDefault(None, node1, Some(node2)) => {
+            CaseBlock::HasDefault(None, node1, Some(node2), _) => {
                 node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
             }
-            CaseBlock::HasDefault(Some(node1), node2, Some(node3)) => {
+            CaseBlock::HasDefault(Some(node1), node2, Some(node3), _) => {
                 node1.all_private_identifiers_valid(names)
                     && node2.all_private_identifiers_valid(names)
                     && node3.all_private_identifiers_valid(names)
@@ -396,8 +407,8 @@ impl CaseBlock {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            CaseBlock::NoDefault(occ) => occ.as_ref().map_or(false, |cc| cc.contains_arguments()),
-            CaseBlock::HasDefault(occ1, dc, occ2) => {
+            CaseBlock::NoDefault(occ, _) => occ.as_ref().map_or(false, |cc| cc.contains_arguments()),
+            CaseBlock::HasDefault(occ1, dc, occ2, _) => {
                 occ1.as_ref().map_or(false, |cc| cc.contains_arguments())
                     || dc.contains_arguments()
                     || occ2.as_ref().map_or(false, |cc| cc.contains_arguments())
@@ -407,8 +418,8 @@ impl CaseBlock {
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (before, default, after) = match self {
-            CaseBlock::NoDefault(cc) => (cc.as_ref(), None, None),
-            CaseBlock::HasDefault(cc1, def, cc2) => (cc1.as_ref(), Some(def), cc2.as_ref()),
+            CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
         };
         if let Some(cc) = before {
             cc.early_errors(agent, errs, strict, within_iteration);
@@ -426,8 +437,8 @@ impl CaseBlock {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let (before, default, after) = match self {
-            CaseBlock::NoDefault(cc) => (cc.as_ref(), None, None),
-            CaseBlock::HasDefault(cc1, def, cc2) => (cc1.as_ref(), Some(def), cc2.as_ref()),
+            CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
+            CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
         };
         let mut list = vec![];
         if let Some(before) = before {

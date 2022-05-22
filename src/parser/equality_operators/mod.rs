@@ -122,7 +122,13 @@ impl EqualityExpression {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            EqualityExpression::RelationalExpression(exp) => exp.location(),
+            EqualityExpression::Equal(left, right)
+            | EqualityExpression::NotEqual(left, right)
+            | EqualityExpression::StrictEqual(left, right)
+            | EqualityExpression::NotStrictEqual(left, right) => left.location().merge(&right.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

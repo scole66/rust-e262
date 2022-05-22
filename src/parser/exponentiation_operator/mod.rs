@@ -89,6 +89,13 @@ impl ExponentiationExpression {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            ExponentiationExpression::UnaryExpression(exp) => exp.location(),
+            ExponentiationExpression::Exponentiation(left, right) => left.location().merge(&right.location()),
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.contains(kind),

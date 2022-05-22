@@ -62,7 +62,7 @@ impl LabelledStatement {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.identifier.location().merge(&self.item.location())
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
@@ -239,7 +239,10 @@ impl LabelledItem {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            LabelledItem::Statement(node) => node.location(),
+            LabelledItem::Function(node) => node.location(),
+        }
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
