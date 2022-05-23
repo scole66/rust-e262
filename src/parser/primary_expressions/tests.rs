@@ -629,7 +629,7 @@ fn literal_test_boolean_02() {
         *lit,
         Literal::BooleanLiteral {
             val: false,
-            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
         }
     ));
     pretty_check(&*lit, "Literal: false", vec![]);
@@ -672,7 +672,7 @@ fn literal_test_string() {
         *lit,
         Literal::StringLiteral {
             val: _,
-            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 10 } }
+            location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 8 } }
         }
     ));
     pretty_check(&*lit, "Literal: 'string'", vec![]);

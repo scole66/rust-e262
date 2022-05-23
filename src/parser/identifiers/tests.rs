@@ -11,7 +11,7 @@ mod identifier {
 
     fn id_kwd_test(kwd: &str) {
         let result = Identifier::parse(&mut newparser(kwd), Scanner::new());
-        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd));
+        check_parse_error(result, format!("‘{}’ is a reserved word and may not be used as an identifier", kwd), kwd.len());
     }
     #[test]
     fn pprint() {
@@ -175,7 +175,7 @@ mod identifier {
     #[test]
     fn err() {
         let result = Identifier::parse(&mut newparser("iden\\u{20}tifier"), Scanner::new());
-        check_parse_error(result, "not an identifier");
+        check_parse_error(result, "not an identifier", 4);
     }
 
     mod early_errors {
@@ -289,7 +289,7 @@ mod identifier {
     #[test]
     fn nothing() {
         let result = Identifier::parse(&mut newparser("."), Scanner::new());
-        check_parse_error(result, "not an identifier");
+        check_parse_error(result, "not an identifier", 1);
     }
     #[test]
     fn successful_bob() {
@@ -385,7 +385,7 @@ fn identifier_reference_test_yield() {
 #[test]
 fn identifier_reference_test_yield_02() {
     let idref = IdentifierReference::parse(&mut newparser("yield"), Scanner::new(), true, true);
-    check_parse_error(idref, "‘yield’ is a reserved word and may not be used as an identifier");
+    check_parse_error(idref, "‘yield’ is a reserved word and may not be used as an identifier", 5);
 }
 #[test]
 fn identifier_reference_test_await() {
@@ -399,17 +399,17 @@ fn identifier_reference_test_await() {
 #[test]
 fn identifier_reference_test_await_02() {
     let idref = IdentifierReference::parse(&mut newparser("await"), Scanner::new(), true, true);
-    check_parse_error(idref, "‘await’ is a reserved word and may not be used as an identifier");
+    check_parse_error(idref, "‘await’ is a reserved word and may not be used as an identifier", 5);
 }
 #[test]
 fn identifier_reference_test_kwd() {
     let idref = IdentifierReference::parse(&mut newparser("new"), Scanner::new(), true, true);
-    check_parse_error(idref, "‘new’ is a reserved word and may not be used as an identifier");
+    check_parse_error(idref, "‘new’ is a reserved word and may not be used as an identifier", 3);
 }
 #[test]
 fn identifier_reference_test_punct() {
     let idref = IdentifierReference::parse(&mut newparser("*"), Scanner::new(), true, true);
-    check_parse_error(idref, "not an identifier");
+    check_parse_error(idref, "not an identifier",1);
 }
 #[test]
 fn identifier_reference_prettycheck_1() {
@@ -627,10 +627,10 @@ fn binding_identifier_test_debug() {
 fn binding_identifier_test_non_matches() {
     let mut p1 = newparser("function");
     let r1 = BindingIdentifier::parse(&mut p1, Scanner::new(), false, false);
-    check_parse_error(r1, "‘function’ is a reserved word and may not be used as an identifier");
+    check_parse_error(r1, "‘function’ is a reserved word and may not be used as an identifier", 8);
     let mut p2 = newparser("*");
     let r2 = BindingIdentifier::parse(&mut p2, Scanner::new(), false, false);
-    check_parse_error(r2, "not an identifier");
+    check_parse_error(r2, "not an identifier", 1);
 }
 #[test]
 fn binding_identifier_prettycheck_1() {
@@ -890,7 +890,7 @@ fn label_identifier_test_yield_noyield_noawait() {
 fn label_identifier_test_yield_yield_noawait() {
     check_parse_error(
         LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, false),
-        "‘yield’ is a reserved word and may not be used as an identifier",
+        "‘yield’ is a reserved word and may not be used as an identifier",5
     );
 }
 #[test]
@@ -908,7 +908,7 @@ fn label_identifier_test_yield_noyield_await() {
 fn label_identifier_test_yield_yield_await() {
     check_parse_error(
         LabelIdentifier::parse(&mut newparser("yield"), Scanner::new(), true, true),
-        "‘yield’ is a reserved word and may not be used as an identifier",
+        "‘yield’ is a reserved word and may not be used as an identifier",5
     );
 }
 #[test]
@@ -937,14 +937,14 @@ fn label_identifier_test_await_yield_noawait() {
 fn label_identifier_test_await_noyield_await() {
     check_parse_error(
         LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), false, true),
-        "‘await’ is a reserved word and may not be used as an identifier",
+        "‘await’ is a reserved word and may not be used as an identifier",5
     );
 }
 #[test]
 fn label_identifier_test_await_yield_await() {
     check_parse_error(
         LabelIdentifier::parse(&mut newparser("await"), Scanner::new(), true, true),
-        "‘await’ is a reserved word and may not be used as an identifier",
+        "‘await’ is a reserved word and may not be used as an identifier",5
     );
 }
 #[test]

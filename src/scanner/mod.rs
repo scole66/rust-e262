@@ -2277,7 +2277,7 @@ pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Lo
         Err(msg) => (Token::Error(msg), Location::from(scanner), *scanner),
         Ok(after_skippable) => {
             if after_skippable.start_idx >= source.len() {
-                (Token::Eof, Location::from((scanner, &after_skippable)), after_skippable)
+                (Token::Eof, Location::from(&after_skippable), after_skippable)
             } else {
                 common_token(&after_skippable, source)
                     .or_else(|| div_punctuator(&after_skippable, source, goal))

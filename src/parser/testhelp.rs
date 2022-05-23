@@ -82,7 +82,7 @@ pub fn chk_scan(scanner: &Scanner, count: u32) {
 pub fn newparser(text: &str) -> Parser {
     Parser::new(text, false, ParseGoal::Script)
 }
-pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U)
+pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U, token_len: usize)
 where
     T: fmt::Debug,
     U: Into<String>,
@@ -90,7 +90,7 @@ where
     let pe = result.unwrap_err();
     assert_eq!(
         pe.location,
-        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: token_len } }
     );
     assert_eq!(format!("{}", pe), msg.into());
 }
