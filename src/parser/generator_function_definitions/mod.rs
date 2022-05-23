@@ -17,6 +17,7 @@ pub struct GeneratorMethod {
     name: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<GeneratorBody>,
+    location: Location,
 }
 
 impl fmt::Display for GeneratorMethod {
@@ -59,21 +60,21 @@ impl GeneratorMethod {
         let (star_loc, after_star) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let (lp, after_lp) =
+        let (_, after_lp) =
             scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, false);
-        let (rp_loc, after_rp) =
+        let (_, after_rp) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (lb_loc, after_lb) =
-            scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
             scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-        Ok((Rc::new(GeneratorMethod { name, params, body }), after_rb))
+        let location = star_loc.merge(&rb_loc);
+        Ok((Rc::new(GeneratorMethod { name, params, body, location }), after_rb))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {

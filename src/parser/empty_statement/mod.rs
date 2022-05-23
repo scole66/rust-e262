@@ -8,7 +8,9 @@ use std::io::Write;
 // EmptyStatement :
 //      ;
 #[derive(Debug)]
-pub struct EmptyStatement;
+pub struct EmptyStatement {
+    location: Location,
+}
 
 impl fmt::Display for EmptyStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -37,11 +39,11 @@ impl EmptyStatement {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (semi_loc, after_semi) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
-        Ok((Rc::new(EmptyStatement), after_semi))
+        Ok((Rc::new(EmptyStatement { location: semi_loc }), after_semi))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {

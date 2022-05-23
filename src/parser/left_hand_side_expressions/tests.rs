@@ -454,7 +454,7 @@ mod member_expression {
 fn super_property_test_expression() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super[a]"), Scanner::new(), false, false));
     chk_scan(&scanner, 8);
-    assert!(matches!(*sp, SuperProperty::Expression(_)));
+    assert!(matches!(*sp, SuperProperty::Expression { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super [ a ]", vec!["Expression: a"]);
@@ -468,7 +468,7 @@ fn super_property_test_expression() {
 fn super_property_test_ident() {
     let (sp, scanner) = check(SuperProperty::parse(&mut newparser("super.bob"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(*sp, SuperProperty::IdentifierName(_)));
+    assert!(matches!(*sp, SuperProperty::IdentifierName { .. }));
     // Excersize the Debug formatter, for code coverage
     format!("{:?}", sp);
     pretty_check(&*sp, "SuperProperty: super . bob", vec![]);

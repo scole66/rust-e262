@@ -14,14 +14,14 @@ use std::io::Write;
 //      CoverCallExpressionAndAsyncArrowHead[?Yield, ?Await] [no LineTerminator here] => AsyncConciseBody[?In]
 #[derive(Debug)]
 pub enum AsyncArrowFunction {
-    IdentOnly(Rc<AsyncArrowBindingIdentifier>, Rc<AsyncConciseBody>),
+    IdentOnly(Rc<AsyncArrowBindingIdentifier>, Rc<AsyncConciseBody>, Location),
     Formals(Rc<AsyncArrowHead>, Rc<AsyncConciseBody>),
 }
 
 impl fmt::Display for AsyncArrowFunction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AsyncArrowFunction::IdentOnly(id, body) => {
+            AsyncArrowFunction::IdentOnly(id, body, ..) => {
                 write!(f, "async {} => {}", id, body)
             }
             AsyncArrowFunction::Formals(params, body) => {
@@ -39,7 +39,7 @@ impl PrettyPrint for AsyncArrowFunction {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncArrowFunction: {}", first, self)?;
         match self {
-            AsyncArrowFunction::IdentOnly(id, body) => {
+            AsyncArrowFunction::IdentOnly(id, body, ..) => {
                 id.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 body.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -57,7 +57,7 @@ impl PrettyPrint for AsyncArrowFunction {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncArrowFunction: {}", first, self)?;
         match self {
-            AsyncArrowFunction::IdentOnly(head, tail) => {
+            AsyncArrowFunction::IdentOnly(head, tail, ..) => {
                 pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
                 head.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "=>", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -83,7 +83,8 @@ impl AsyncArrowFunction {
         let (arrow_loc, after_arrow) =
             scan_for_punct(after_id, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
-        Ok((Rc::new(AsyncArrowFunction::IdentOnly(id, body)), after_body))
+        let location = async_loc.merge(&body.location());
+        Ok((Rc::new(AsyncArrowFunction::IdentOnly(id, body, location)), after_body))
     }
     fn parse_covered_form(
         parser: &mut Parser,
@@ -126,7 +127,10 @@ impl AsyncArrowFunction {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            AsyncArrowFunction::IdentOnly(_, _, location) => *location,
+            AsyncArrowFunction::Formals(head, body) => head.location().merge(&body.location()),
+        }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -136,7 +140,7 @@ impl AsyncArrowFunction {
             || kind == ParseNodeKind::Super
             || kind == ParseNodeKind::This)
             && match self {
-                AsyncArrowFunction::IdentOnly(_, body) => body.contains(kind),
+                AsyncArrowFunction::IdentOnly(_, body, ..) => body.contains(kind),
                 AsyncArrowFunction::Formals(params, body) => params.contains(kind) || body.contains(kind),
             }
     }
@@ -149,7 +153,7 @@ impl AsyncArrowFunction {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            AsyncArrowFunction::IdentOnly(_, node) => node.all_private_identifiers_valid(names),
+            AsyncArrowFunction::IdentOnly(_, node, ..) => node.all_private_identifiers_valid(names),
             AsyncArrowFunction::Formals(node1, node2) => {
                 node1.all_private_identifiers_valid(names) && node2.all_private_identifiers_valid(names)
             }
@@ -168,7 +172,7 @@ impl AsyncArrowFunction {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            AsyncArrowFunction::IdentOnly(_, acb) => acb.contains_arguments(),
+            AsyncArrowFunction::IdentOnly(_, acb, ..) => acb.contains_arguments(),
             AsyncArrowFunction::Formals(aah, acb) => aah.contains_arguments() || acb.contains_arguments(),
         }
     }
@@ -182,11 +186,14 @@ impl AsyncArrowFunction {
 // AsyncArrowHead :
 //      async [no LineTerminator here] ArrowFormalParameters[~Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncArrowHead(Rc<ArrowFormalParameters>);
+pub struct AsyncArrowHead {
+    params: Rc<ArrowFormalParameters>,
+    location: Location,
+}
 
 impl fmt::Display for AsyncArrowHead {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "async {}", self.0)
+        write!(f, "async {}", self.params)
     }
 }
 
@@ -197,7 +204,7 @@ impl PrettyPrint for AsyncArrowHead {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncArrowHead: {}", first, self)?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.params.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -207,7 +214,7 @@ impl PrettyPrint for AsyncArrowHead {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}AsyncArrowHead: {}", first, self)?;
         pprint_token(writer, "async", TokenType::Keyword, &successive, Spot::NotFinal)?;
-        self.0.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.params.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -218,11 +225,16 @@ impl AsyncArrowHead {
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (params, after_params) = ArrowFormalParameters::parse(parser, after_async, false, true)?;
-        Ok((Rc::new(AsyncArrowHead(params)), after_params))
+        let location = async_loc.merge(&params.location());
+        Ok((Rc::new(AsyncArrowHead { params, location }), after_params))
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        self.params.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -232,7 +244,7 @@ impl AsyncArrowHead {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        self.params.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -246,7 +258,7 @@ impl AsyncArrowHead {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.contains_arguments()
+        self.params.contains_arguments()
     }
 
     #[allow(clippy::ptr_arg)]
@@ -261,14 +273,14 @@ impl AsyncArrowHead {
 #[derive(Debug)]
 pub enum AsyncConciseBody {
     Expression(Rc<ExpressionBody>),
-    Function(Rc<AsyncFunctionBody>),
+    Function(Rc<AsyncFunctionBody>, Location),
 }
 
 impl fmt::Display for AsyncConciseBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AsyncConciseBody::Expression(node) => node.fmt(f),
-            AsyncConciseBody::Function(node) => write!(f, "{{ {} }}", node),
+            AsyncConciseBody::Function(node, ..) => write!(f, "{{ {} }}", node),
         }
     }
 }
@@ -282,7 +294,7 @@ impl PrettyPrint for AsyncConciseBody {
         writeln!(writer, "{}AsyncConciseBody: {}", first, self)?;
         match self {
             AsyncConciseBody::Expression(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            AsyncConciseBody::Function(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            AsyncConciseBody::Function(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -292,7 +304,7 @@ impl PrettyPrint for AsyncConciseBody {
     {
         match self {
             AsyncConciseBody::Expression(node) => node.concise_with_leftpad(writer, pad, state),
-            AsyncConciseBody::Function(node) => {
+            AsyncConciseBody::Function(node, ..) => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{}AsyncConciseBody: {}", first, self)?;
                 pprint_token(writer, "{", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -313,7 +325,8 @@ impl AsyncConciseBody {
                 let (fb, after_fb) = AsyncFunctionBody::parse(parser, after_curly);
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
-                Ok((Rc::new(AsyncConciseBody::Function(fb)), after_rb))
+                let location = curly_loc.merge(&rb_loc);
+                Ok((Rc::new(AsyncConciseBody::Function(fb, location)), after_rb))
             })
             .otherwise(|| {
                 let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
@@ -327,10 +340,17 @@ impl AsyncConciseBody {
             })
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            AsyncConciseBody::Expression(exp) => exp.location(),
+            AsyncConciseBody::Function(_, location) => *location,
+        }
+    }
+
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AsyncConciseBody::Expression(node) => node.contains(kind),
-            AsyncConciseBody::Function(node) => node.contains(kind),
+            AsyncConciseBody::Function(node, ..) => node.contains(kind),
         }
     }
 
@@ -343,7 +363,7 @@ impl AsyncConciseBody {
         //  2. Return true.
         match self {
             AsyncConciseBody::Expression(node) => node.all_private_identifiers_valid(names),
-            AsyncConciseBody::Function(node) => node.all_private_identifiers_valid(names),
+            AsyncConciseBody::Function(node, ..) => node.all_private_identifiers_valid(names),
         }
     }
 
@@ -360,7 +380,7 @@ impl AsyncConciseBody {
         //  2. Return false.
         match self {
             AsyncConciseBody::Expression(eb) => eb.contains_arguments(),
-            AsyncConciseBody::Function(afb) => afb.contains_arguments(),
+            AsyncConciseBody::Function(afb, ..) => afb.contains_arguments(),
         }
     }
 

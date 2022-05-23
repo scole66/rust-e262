@@ -445,7 +445,7 @@ impl CoalesceExpression {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.head.location().merge(&self.tail.location())
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
@@ -532,6 +532,13 @@ impl CoalesceExpressionHead {
     // Note that CoalesceExpression and CoalesceExpressionHead interact tightly. The implementation for parsing them
     // together is far simpler than giving each its own parse routine. So there's no independent implementation for
     // CoalesceExpressionHead here; look to CoalesceExpression to find the bundle.
+
+    pub fn location(&self) -> Location {
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(exp) => exp.location(),
+            CoalesceExpressionHead::BitwiseORExpression(exp) => exp.location(),
+        }
+    }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {

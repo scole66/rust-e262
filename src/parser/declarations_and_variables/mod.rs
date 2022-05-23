@@ -2270,7 +2270,11 @@ impl BindingElement {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            BindingElement::Single(single) => single.location(),
+            BindingElement::Pattern(pat, Some(izer)) => pat.location().merge(&izer.location()),
+            BindingElement::Pattern(pat, None) => pat.location(),
+        }
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
@@ -2421,6 +2425,13 @@ impl SingleNameBinding {
         }
     }
 
+    pub fn location(&self) -> Location {
+        match self {
+            SingleNameBinding::Id(ident, None) => ident.location(),
+            SingleNameBinding::Id(ident, Some(izer)) => ident.location().merge(&izer.location()),
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<JSString> {
         let SingleNameBinding::Id(ident, _) = self;
         ident.bound_names()
@@ -2483,15 +2494,15 @@ impl SingleNameBinding {
 //      ... BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
 pub enum BindingRestElement {
-    Identifier(Rc<BindingIdentifier>),
-    Pattern(Rc<BindingPattern>),
+    Identifier(Rc<BindingIdentifier>, Location),
+    Pattern(Rc<BindingPattern>, Location),
 }
 
 impl fmt::Display for BindingRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            BindingRestElement::Identifier(node) => write!(f, "... {}", node),
-            BindingRestElement::Pattern(node) => write!(f, "... {}", node),
+            BindingRestElement::Identifier(node, ..) => write!(f, "... {}", node),
+            BindingRestElement::Pattern(node, ..) => write!(f, "... {}", node),
         }
     }
 }
@@ -2504,8 +2515,8 @@ impl PrettyPrint for BindingRestElement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{}BindingRestElement: {}", first, self)?;
         match self {
-            BindingRestElement::Identifier(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
-            BindingRestElement::Pattern(node) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Identifier(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Pattern(node, ..) => node.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -2517,8 +2528,8 @@ impl PrettyPrint for BindingRestElement {
         writeln!(writer, "{}BindingRestElement: {}", first, self)?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
         match self {
-            BindingRestElement::Identifier(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),
-            BindingRestElement::Pattern(node) => node.concise_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Identifier(node, ..) => node.concise_with_leftpad(writer, &successive, Spot::Final),
+            BindingRestElement::Pattern(node, ..) => node.concise_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 }
@@ -2529,12 +2540,16 @@ impl BindingRestElement {
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
             .otherwise(|| {
-                BindingPattern::parse(parser, after_tok, yield_flag, await_flag)
-                    .map(|(bp, after_bp)| (Rc::new(BindingRestElement::Pattern(bp)), after_bp))
+                BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| {
+                    let location = tok_loc.merge(&bp.location());
+                    (Rc::new(BindingRestElement::Pattern(bp, location)), after_bp)
+                })
             })
             .otherwise(|| {
-                BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag)
-                    .map(|(bi, after_bi)| (Rc::new(BindingRestElement::Identifier(bi)), after_bi))
+                BindingIdentifier::parse(parser, after_tok, yield_flag, await_flag).map(|(bi, after_bi)| {
+                    let location = tok_loc.merge(&bi.location());
+                    (Rc::new(BindingRestElement::Identifier(bi, location)), after_bi)
+                })
             })
     }
 
@@ -2551,20 +2566,22 @@ impl BindingRestElement {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        match self {
+            BindingRestElement::Identifier(_, location) | BindingRestElement::Pattern(_, location) => *location,
+        }
     }
 
     pub fn bound_names(&self) -> Vec<JSString> {
         match self {
-            BindingRestElement::Identifier(node) => node.bound_names(),
-            BindingRestElement::Pattern(node) => node.bound_names(),
+            BindingRestElement::Identifier(node, ..) => node.bound_names(),
+            BindingRestElement::Pattern(node, ..) => node.bound_names(),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BindingRestElement::Identifier(node) => node.contains(kind),
-            BindingRestElement::Pattern(node) => node.contains(kind),
+            BindingRestElement::Identifier(node, ..) => node.contains(kind),
+            BindingRestElement::Pattern(node, ..) => node.contains(kind),
         }
     }
 
@@ -2576,8 +2593,8 @@ impl BindingRestElement {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            BindingRestElement::Identifier(_) => true,
-            BindingRestElement::Pattern(node) => node.all_private_identifiers_valid(names),
+            BindingRestElement::Identifier(..) => true,
+            BindingRestElement::Pattern(node, ..) => node.all_private_identifiers_valid(names),
         }
     }
 
@@ -2593,15 +2610,15 @@ impl BindingRestElement {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            BindingRestElement::Identifier(_) => false,
-            BindingRestElement::Pattern(bp) => bp.contains_arguments(),
+            BindingRestElement::Identifier(..) => false,
+            BindingRestElement::Pattern(bp, ..) => bp.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            BindingRestElement::Identifier(node) => node.early_errors(agent, errs, strict),
-            BindingRestElement::Pattern(node) => node.early_errors(agent, errs, strict),
+            BindingRestElement::Identifier(node, ..) => node.early_errors(agent, errs, strict),
+            BindingRestElement::Pattern(node, ..) => node.early_errors(agent, errs, strict),
         }
     }
 }

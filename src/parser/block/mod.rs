@@ -56,7 +56,8 @@ impl BlockStatement {
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        let BlockStatement::Block(node) = self;
+        node.location()
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {

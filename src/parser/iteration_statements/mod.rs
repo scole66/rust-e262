@@ -206,14 +206,15 @@ impl IterationStatement {
 // DoWhileStatement[Yield, Await, Return] :
 //      do Statement[?Yield, ?Await, ?Return] while ( Expression[+In, ?Yield, ?Await] ) ;
 #[derive(Debug)]
-pub enum DoWhileStatement {
-    Do(Rc<Statement>, Rc<Expression>),
+pub struct DoWhileStatement {
+    stmt: Rc<Statement>,
+    exp: Rc<Expression>,
+    location: Location,
 }
 
 impl fmt::Display for DoWhileStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let DoWhileStatement::Do(s, e) = self;
-        write!(f, "do {} while ( {} ) ;", s, e)
+        write!(f, "do {} while ( {} ) ;", self.stmt, self.exp)
     }
 }
 
@@ -224,8 +225,7 @@ impl PrettyPrint for DoWhileStatement {
     {
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}DoWhileStatement: {}", first, self)?;
-        let DoWhileStatement::Do(s, e) = self;
-        pp_two(w, &suc, s, e)
+        pp_two(w, &suc, &self.stmt, &self.exp)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -235,11 +235,10 @@ impl PrettyPrint for DoWhileStatement {
         let (first, suc) = prettypad(pad, state);
         writeln!(writer, "{}DoWhileStatement: {}", first, self)?;
         pprint_token(writer, "do", TokenType::Keyword, &suc, Spot::NotFinal)?;
-        let DoWhileStatement::Do(s, e) = self;
-        s.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        self.stmt.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
         pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
-        e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        self.exp.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         pprint_token(writer, ";", TokenType::Punctuator, &suc, Spot::Final)
     }
@@ -255,46 +254,42 @@ impl DoWhileStatement {
     ) -> ParseResult<Self> {
         let (do_loc, after_do) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Do)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_do, yield_flag, await_flag, return_flag)?;
-        let (while_loc, after_while) =
+        let (_, after_while) =
             scan_for_keyword(after_stmt, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
-        let (open_loc, after_open) =
+        let (_, after_open) =
             scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (close_loc, after_close) =
+        let (_, after_close) =
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (semi_loc, after_semi) =
             scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)
                 .unwrap_or((Location::from(after_close), after_close));
-        Ok((Rc::new(DoWhileStatement::Do(stmt, exp)), after_semi))
+        let location = do_loc.merge(&semi_loc);
+        Ok((Rc::new(DoWhileStatement { stmt, exp, location }), after_semi))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        let DoWhileStatement::Do(s, _) = self;
-        s.var_declared_names()
+        self.stmt.var_declared_names()
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_undefined_break_target(label_set)
+        self.stmt.contains_undefined_break_target(label_set)
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let DoWhileStatement::Do(s, e) = self;
-        s.contains(kind) || e.contains(kind)
+        self.stmt.contains(kind) || self.exp.contains(kind)
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_duplicate_labels(label_set)
+        self.stmt.contains_duplicate_labels(label_set)
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        let DoWhileStatement::Do(s, _) = self;
-        s.contains_undefined_continue_target(iteration_set, &[])
+        self.stmt.contains_undefined_continue_target(iteration_set, &[])
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -304,8 +299,7 @@ impl DoWhileStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let DoWhileStatement::Do(s, e) = self;
-        s.all_private_identifiers_valid(names) && e.all_private_identifiers_valid(names)
+        self.stmt.all_private_identifiers_valid(names) && self.exp.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -319,36 +313,34 @@ impl DoWhileStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let DoWhileStatement::Do(stmt, e) = self;
-        stmt.contains_arguments() || e.contains_arguments()
+        self.stmt.contains_arguments() || self.exp.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
-        let DoWhileStatement::Do(s, e) = self;
-        s.early_errors(agent, errs, strict, true, within_switch);
-        e.early_errors(agent, errs, strict);
+        self.stmt.early_errors(agent, errs, strict, true, within_switch);
+        self.exp.early_errors(agent, errs, strict);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        let DoWhileStatement::Do(s, _) = self;
-        s.var_scoped_declarations()
+        self.stmt.var_scoped_declarations()
     }
 }
 
 // WhileStatement[Yield, Await, Return] :
 //      while ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum WhileStatement {
-    While(Rc<Expression>, Rc<Statement>),
+pub struct WhileStatement {
+    exp: Rc<Expression>,
+    stmt: Rc<Statement>,
+    location: Location,
 }
 
 impl fmt::Display for WhileStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let WhileStatement::While(e, s) = self;
-        write!(f, "while ( {} ) {}", e, s)
+        write!(f, "while ( {} ) {}", self.exp, self.stmt)
     }
 }
 
@@ -359,8 +351,7 @@ impl PrettyPrint for WhileStatement {
     {
         let (first, suc) = prettypad(pad, state);
         writeln!(w, "{}WhileStatement: {}", first, self)?;
-        let WhileStatement::While(e, s) = self;
-        pp_two(w, &suc, e, s)
+        pp_two(w, &suc, &self.exp, &self.stmt)
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
@@ -369,12 +360,11 @@ impl PrettyPrint for WhileStatement {
     {
         let (first, suc) = prettypad(pad, state);
         writeln!(writer, "{}WhileStatement: {}", first, self)?;
-        let WhileStatement::While(e, s) = self;
         pprint_token(writer, "while", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(writer, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
-        e.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
+        self.exp.concise_with_leftpad(writer, &suc, Spot::NotFinal)?;
         pprint_token(writer, ")", TokenType::Punctuator, &suc, Spot::NotFinal)?;
-        s.concise_with_leftpad(writer, &suc, Spot::Final)
+        self.stmt.concise_with_leftpad(writer, &suc, Spot::Final)
     }
 }
 
@@ -394,36 +384,32 @@ impl WhileStatement {
         let (close_loc, after_close) =
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        Ok((Rc::new(WhileStatement::While(exp, stmt)), after_stmt))
+        let location = while_loc.merge(&stmt.location());
+        Ok((Rc::new(WhileStatement { exp, stmt, location }), after_stmt))
     }
 
     pub fn location(&self) -> Location {
-        todo!()
+        self.location
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
-        let WhileStatement::While(_, s) = self;
-        s.var_declared_names()
+        self.stmt.var_declared_names()
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_undefined_break_target(label_set)
+        self.stmt.contains_undefined_break_target(label_set)
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let WhileStatement::While(e, s) = self;
-        e.contains(kind) || s.contains(kind)
+        self.exp.contains(kind) || self.stmt.contains(kind)
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_duplicate_labels(label_set)
+        self.stmt.contains_duplicate_labels(label_set)
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
-        let WhileStatement::While(_, s) = self;
-        s.contains_undefined_continue_target(iteration_set, &[])
+        self.stmt.contains_undefined_continue_target(iteration_set, &[])
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -433,8 +419,7 @@ impl WhileStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        let WhileStatement::While(e, s) = self;
-        e.all_private_identifiers_valid(names) && s.all_private_identifiers_valid(names)
+        self.exp.all_private_identifiers_valid(names) && self.stmt.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -448,22 +433,19 @@ impl WhileStatement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        let WhileStatement::While(e, s) = self;
-        e.contains_arguments() || s.contains_arguments()
+        self.exp.contains_arguments() || self.stmt.contains_arguments()
     }
 
     pub fn early_errors(&self, agent: &mut Agent, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
-        let WhileStatement::While(e, s) = self;
-        e.early_errors(agent, errs, strict);
-        s.early_errors(agent, errs, strict, true, within_switch);
+        self.exp.early_errors(agent, errs, strict);
+        self.stmt.early_errors(agent, errs, strict, true, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        let WhileStatement::While(_, s) = self;
-        s.var_scoped_declarations()
+        self.stmt.var_scoped_declarations()
     }
 }
 

@@ -597,7 +597,7 @@ impl MemberExpression {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MemberExpression::PrimaryExpression(pe) => pe.compile(chunk, strict),
-            MemberExpression::IdentifierName(me, id) => {
+            MemberExpression::IdentifierName(me, id, ..) => {
                 let mut mark = None;
                 let mut might_be_abrupt = false;
                 let status = me.compile(chunk, strict)?;
@@ -617,7 +617,7 @@ impl MemberExpression {
                     can_be_reference: true,
                 })
             }
-            MemberExpression::Expression(me, exp) => {
+            MemberExpression::Expression(me, exp, ..) => {
                 // Stack: ...
                 let status = me.compile(chunk, strict)?;
                 // Stack: base/err ...
@@ -643,8 +643,8 @@ impl MemberExpression {
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),
             MemberExpression::MetaProperty(_) => todo!(),
-            MemberExpression::NewArguments(_, _) => todo!(),
-            MemberExpression::PrivateId(_, _) => todo!(),
+            MemberExpression::NewArguments(..) => todo!(),
+            MemberExpression::PrivateId(..) => todo!(),
         }
     }
 }
