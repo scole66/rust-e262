@@ -1161,7 +1161,7 @@ impl PrettyPrint for AssignmentRestProperty {
 
 impl AssignmentRestProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (dots_loc, after_dots) =
+        let (_, after_dots) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
         let (dat, after_dat) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestProperty(dat)), after_dat))
@@ -1270,7 +1270,7 @@ impl AssignmentPropertyList {
         let mut current_scanner = after_item;
         while let Ok((next_item, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(comma_loc, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag),
+                |(_, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag),
             )
         {
             current_production = Rc::new(AssignmentPropertyList::List(current_production, next_item));
@@ -1388,7 +1388,7 @@ impl AssignmentElementList {
         let mut current_scanner = after_item;
         while let Ok((next_item, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(comma_loc, after_comma)| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag),
+                |(_, after_comma)| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag),
             )
         {
             current_production = Rc::new(AssignmentElementList::List(current_production, next_item));
@@ -1605,7 +1605,7 @@ impl AssignmentProperty {
         Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, scanner))
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-                let (colon_loc, after_colon) =
+                let (_, after_colon) =
                     scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
                 let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
                 Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
@@ -1827,7 +1827,7 @@ impl PrettyPrint for AssignmentRestElement {
 
 impl AssignmentRestElement {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (dots_loc, after_dots) =
+        let (_, after_dots) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (target, after_target) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestElement(target)), after_target))

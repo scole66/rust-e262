@@ -407,7 +407,7 @@ impl CoalesceExpression {
             let mut exp_scanner = scanner;
             while let Ok((right, after_right)) =
                 scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ).and_then(
-                    |(op_loc, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                    |(_, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
                 current_head = CoalesceExpressionHead::CoalesceExpression(Rc::new(CoalesceExpression {

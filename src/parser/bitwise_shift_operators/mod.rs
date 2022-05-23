@@ -94,7 +94,7 @@ impl ShiftExpression {
                 ScanGoal::InputElementDiv,
                 &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt],
             )
-            .and_then(|(shift_op, op_loc, after_op)| {
+            .and_then(|(shift_op, _, after_op)| {
                 let make_se = match shift_op {
                     Punctuator::GtGt => ShiftExpression::SignedRightShift,
                     Punctuator::LtLt => ShiftExpression::LeftShift,

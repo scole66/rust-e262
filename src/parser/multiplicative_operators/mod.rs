@@ -43,7 +43,7 @@ impl PrettyPrint for MultiplicativeOperator {
 
 impl MultiplicativeOperator {
     pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
-        let (op, op_loc, after_op) = scan_for_punct_set(
+        let (op, _, after_op) = scan_for_punct_set(
             scanner,
             parser.source,
             ScanGoal::InputElementDiv,

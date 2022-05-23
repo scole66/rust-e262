@@ -3469,7 +3469,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                     .map(|(close_loc, after_rparen)| (AfterExp::Empty, close_loc, after_rparen))
                     .otherwise(|| {
                         scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                            |(comma_loc, after_comma)| {
+                            |(_, after_comma)| {
                                 scan_for_punct(
                                     after_comma,
                                     parser.source,
@@ -3484,7 +3484,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                         ScanGoal::InputElementDiv,
                                         Punctuator::Ellipsis,
                                     )
-                                    .and_then(|(ellipsis_loc, after_ellipsis)| {
+                                    .and_then(|(_, after_ellipsis)| {
                                         BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                                             .and_then(|(bi, after)| {
                                                 scan_for_punct(

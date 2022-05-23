@@ -822,7 +822,7 @@ fn spread_element_test_empty() {
 }
 #[test]
 fn spread_element_test_assignment_expression() {
-    let (se, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
+    let (_, scanner) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
 }
 #[test]

@@ -131,7 +131,7 @@ impl RelationalExpression {
                     let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
                     let mut current_scanner = after_se;
                     loop {
-                        let (op, op_loc, after_op) =
+                        let (op, _, after_op) =
                             scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
                         let make_re = match &op {
                             Token::Punctuator(Punctuator::Lt) => RelationalExpression::Less,

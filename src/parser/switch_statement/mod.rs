@@ -697,10 +697,10 @@ impl CaseClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (case_loc, after_case) =
+        let (_, after_case) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
-        let (colon_loc, after_colon) =
+        let (_, after_colon) =
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (stmt, after_stmt) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
@@ -848,9 +848,9 @@ impl DefaultClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (def_loc, after_def) =
+        let (_, after_def) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
-        let (colon_loc, after_colon) =
+        let (_, after_colon) =
             scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),

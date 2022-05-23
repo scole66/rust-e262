@@ -658,7 +658,7 @@ pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), 
 // If there is no newline sequence between the scanner's spot and the start of the next token, return Ok
 // else return Err.
 pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
-    let (_, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+    let (_, tok_loc, _) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
     if tok_loc.starting_line == scanner.line {
         Ok(())
     } else {

@@ -205,7 +205,7 @@ fn member_expression_head_recursive(
                 ScanGoal::InputElementRegExp,
                 &[Punctuator::Dot, Punctuator::LeftBracket],
             )
-            .and_then(|(punct, punct_loc, after)| match punct {
+            .and_then(|(punct, _, after)| match punct {
                 Punctuator::Dot => scan_for_identifiername(after, parser.source, ScanGoal::InputElementRegExp)
                     .map(|(id, id_loc, after_id)| (After::Id(id, id_loc), after_id))
                     .otherwise(|| {
@@ -651,7 +651,7 @@ impl MetaProperty {
         starting_loc: Location,
         kind: MetaHelper,
     ) -> ParseResult<Self> {
-        let (dot_loc, after_dot) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
+        let (_, after_dot) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Dot)?;
         let (kwd_loc, after_kwd) = scan_for_keyword(after_dot, parser.source, ScanGoal::InputElementRegExp, kwd)?;
         let location = starting_loc.merge(&kwd_loc);
         let production = match kind {
@@ -911,7 +911,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Self, Scanner), ParseError> {
-        let (ellipsis_loc, after_ellipsis) =
+        let (_, after_ellipsis) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((Self::Dots(ae), after_ae))
@@ -929,7 +929,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let (comma_loc, after_comma) =
+        let (_, after_comma) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         AssignmentExpression::parse(parser, after_comma, true, yield_flag, await_flag)
     }
@@ -946,9 +946,9 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let (comma_loc, after_comma) =
+        let (_, after_comma) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
-        let (ellipsis_loc, after_ellipsis) =
+        let (_, after_ellipsis) =
             scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)
     }
@@ -1666,7 +1666,7 @@ impl CallExpression {
                             .map(|(tl, after_tl)| (Follow::TLit(tl), after_tl))
                     })
                     .otherwise(|| {
-                        let (punct, punct_loc, after_punct) = scan_for_punct_set(
+                        let (punct, _, after_punct) = scan_for_punct_set(
                             top_scanner,
                             parser.source,
                             ScanGoal::InputElementDiv,
@@ -2419,7 +2419,7 @@ impl OptionalChain {
                 Ok((Follow::TLit(tl), after_tl))
             })
             .otherwise(|| {
-                let (punct, punct_loc, after_punct) = scan_for_punct_set(
+                let (punct, _, after_punct) = scan_for_punct_set(
                     current_scan,
                     parser.source,
                     ScanGoal::InputElementDiv,

@@ -256,7 +256,7 @@ impl GeneratorDeclaration {
     ) -> ParseResult<Self> {
         let (func_loc, after_func) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (async_function_definitions, after_star) =
+        let (_, after_star) =
             scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
@@ -640,7 +640,7 @@ impl YieldExpression {
         yield_loc: Location,
     ) -> ParseResult<Self> {
         (|| {
-            let (star_loc, after_star) =
+            let (_, after_star) =
                 scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
             let (exp, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
             let location = yield_loc.merge(&exp.location());

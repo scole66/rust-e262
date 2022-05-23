@@ -80,7 +80,7 @@ impl AsyncArrowFunction {
         no_line_terminator(after_async, parser.source)?;
         let (id, after_id) = AsyncArrowBindingIdentifier::parse(parser, after_async, yield_flag)?;
         no_line_terminator(after_id, parser.source)?;
-        let (arrow_loc, after_arrow) =
+        let (_, after_arrow) =
             scan_for_punct(after_id, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         let location = async_loc.merge(&body.location());
@@ -98,7 +98,7 @@ impl AsyncArrowFunction {
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
         assert!(after_params == after_reals);
         no_line_terminator(after_params, parser.source)?;
-        let (arrow_loc, after_arrow) =
+        let (_, after_arrow) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((real_params, after_params, body, after_body))
