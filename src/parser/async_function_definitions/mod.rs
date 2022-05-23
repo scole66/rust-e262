@@ -320,8 +320,7 @@ impl AsyncFunctionExpression {
             Err(_) => (None, after_function),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let (_, after_lp) =
-            scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, false, true);
         let (_, after_rp) =
             scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;

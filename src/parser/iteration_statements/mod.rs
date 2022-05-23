@@ -1155,8 +1155,7 @@ impl ForInOfStatement {
             })
             .otherwise(|| {
                 // for ( LHS in/of ... )
-                let (lookahead1, _, after_lh1) =
-                    scan_token(&after_open, parser.source, ScanGoal::InputElementRegExp);
+                let (lookahead1, _, after_lh1) = scan_token(&after_open, parser.source, ScanGoal::InputElementRegExp);
                 if lookahead1.matches_keyword(Keyword::Let)
                     && (await_seen || {
                         let (lookahead2, _, _) = scan_token(&after_lh1, parser.source, ScanGoal::InputElementDiv);

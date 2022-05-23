@@ -929,8 +929,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let (_, after_comma) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
+        let (_, after_comma) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         AssignmentExpression::parse(parser, after_comma, true, yield_flag, await_flag)
     }
 
@@ -946,8 +945,7 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<AssignmentExpression> {
-        let (_, after_comma) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
+        let (_, after_comma) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)?;
         let (_, after_ellipsis) =
             scan_for_punct(after_comma, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)

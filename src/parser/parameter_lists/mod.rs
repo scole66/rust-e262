@@ -436,9 +436,8 @@ impl FormalParameterList {
         let mut current = Rc::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
         while let Ok((next, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(_, after_comma)| FormalParameter::parse(parser, after_comma, yield_flag, await_flag),
-            )
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|(_, after_comma)| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
         {
             current = Rc::new(FormalParameterList::List(current, next));
             current_scanner = after_next;

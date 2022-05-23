@@ -263,9 +263,8 @@ impl BindingList {
         let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
         while let Ok((lb2, after_lb2)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(_, after_tok)| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag),
-            )
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|(_, after_tok)| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
         {
             current = Rc::new(BindingList::List(current, lb2));
             current_scanner = after_lb2;
@@ -674,9 +673,7 @@ impl VariableDeclarationList {
         let mut current_scanner = after_dcl;
         while let Ok((next, after_next)) =
             scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(_, after_comma)| {
-                    VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag)
-                },
+                |(_, after_comma)| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
             )
         {
             current = Rc::new(VariableDeclarationList::List(current, next));
@@ -1881,9 +1878,9 @@ impl BindingElementList {
         let mut current = Rc::new(BindingElementList::Item(elem));
         let mut current_scanner = after_elem;
         loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(_, after_tok)| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag),
-            ) {
+            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|(_, after_tok)| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag))
+            {
                 Err(_) => {
                     break;
                 }

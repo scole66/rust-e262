@@ -1161,8 +1161,7 @@ impl PrettyPrint for AssignmentRestProperty {
 
 impl AssignmentRestProperty {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (_, after_dots) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
+        let (_, after_dots) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
         let (dat, after_dat) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestProperty(dat)), after_dat))
     }
@@ -1269,9 +1268,8 @@ impl AssignmentPropertyList {
         let mut current_production = Rc::new(AssignmentPropertyList::Item(item));
         let mut current_scanner = after_item;
         while let Ok((next_item, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
-                |(_, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag),
-            )
+            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+                .and_then(|(_, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(AssignmentPropertyList::List(current_production, next_item));
             current_scanner = after_next;

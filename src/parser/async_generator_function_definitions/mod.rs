@@ -340,8 +340,7 @@ impl AsyncGeneratorExpression {
         no_line_terminator(after_async, parser.source)?;
         let (_, after_func) =
             scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
-        let (_, after_star) =
-            scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_ident) = match BindingIdentifier::parse(parser, after_star, true, true) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),

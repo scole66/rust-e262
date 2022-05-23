@@ -256,8 +256,7 @@ impl GeneratorDeclaration {
     ) -> ParseResult<Self> {
         let (func_loc, after_func) =
             scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (_, after_star) =
-            scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {

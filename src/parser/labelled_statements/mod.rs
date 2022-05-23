@@ -55,8 +55,7 @@ impl LabelledStatement {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        let (_, after_colon) =
-            scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (_, after_colon) = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
     }
