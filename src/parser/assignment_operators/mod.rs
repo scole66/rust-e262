@@ -758,7 +758,7 @@ impl ObjectAssignmentPattern {
     pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (open_loc, after_brace) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
-        Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, open_loc))
+        Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, after_brace))
             .otherwise(|| {
                 let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
                 let (punct, punct_loc, after_punct) = scan_for_punct_set(

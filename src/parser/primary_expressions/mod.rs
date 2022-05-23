@@ -3412,7 +3412,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
         let (open_loc, after_lparen) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
-        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, open_loc))
+        Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
             .otherwise(|| {
                 // ( )
                 let (close_loc, after_rparen) =
@@ -3427,9 +3427,9 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             .otherwise(|| {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
-                let (ellipsis_loc, after_ellipsis) =
+                let (_, after_ellipsis) =
                     scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
-                Err(ParseError::new(PECode::BindingIdOrPatternExpected, ellipsis_loc)).otherwise(|| {
+                Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
                         .otherwise(|| {

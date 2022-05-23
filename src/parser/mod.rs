@@ -379,10 +379,7 @@ impl PartialOrd for Location {
 }
 impl Ord for Location {
     fn cmp(&self, other: &Self) -> Ordering {
-        let result =
-        self.span.starting_index.cmp(&other.span.starting_index);
-        println!("Comparing: {:?} and {:?} --> {:?}", self, other, result);
-        result
+        self.span.starting_index.cmp(&other.span.starting_index)
     }
 }
 
