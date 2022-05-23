@@ -297,7 +297,7 @@ impl IdentifierReference {
         match parser.identifier_reference_cache.get(&key) {
             Some(result) => result.clone(),
             None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                let result =    Self::parse_core(parser, scanner, yield_flag, await_flag);
                 parser.identifier_reference_cache.insert(key, result.clone());
                 result
             }

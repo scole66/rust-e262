@@ -374,12 +374,15 @@ impl From<(&Scanner, &Scanner)> for Location {
 
 impl PartialOrd for Location {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.span.starting_index.cmp(&other.span.starting_index))
+        Some(self.cmp(&other))
     }
 }
 impl Ord for Location {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.span.starting_index.cmp(&other.span.starting_index)
+        let result =
+        self.span.starting_index.cmp(&other.span.starting_index);
+        println!("Comparing: {:?} and {:?} --> {:?}", self, other, result);
+        result
     }
 }
 
