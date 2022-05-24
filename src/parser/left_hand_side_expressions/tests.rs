@@ -499,7 +499,7 @@ fn super_property_test_bad_following_token() {
         SuperProperty::parse(&mut newparser("super duper"), Scanner::new(), false, false),
         "one of [‘.’, ‘[’] expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -602,7 +602,7 @@ fn meta_property_test_nomatch_01() {
 }
 #[test]
 fn meta_property_test_nomatch_02() {
-    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 4);
+    check_err(MetaProperty::parse(&mut newparser("new silly"), Scanner::new()), "‘.’ expected", 1, 5);
 }
 #[test]
 fn meta_property_test_nomatch_03() {
@@ -610,7 +610,7 @@ fn meta_property_test_nomatch_03() {
 }
 #[test]
 fn meta_property_test_nomatch_04() {
-    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 7);
+    check_err(MetaProperty::parse(&mut newparser("import silly"), Scanner::new()), "‘.’ expected", 1, 8);
 }
 #[test]
 fn meta_property_test_nomatch_05() {

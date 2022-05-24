@@ -32,17 +32,10 @@ impl From<(u32, u32)> for Location {
 }
 impl From<&str> for Location {
     fn from(src: &str) -> Self {
-        Location {
-            starting_line: 1,
-            starting_column: 1,
-            span: Span {
-                starting_index: 0,
-                length: src.len()
-            }
-        }
+        Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: src.len() } }
     }
 }
-impl From<(u32,u32,u32)> for Location {
+impl From<(u32, u32, u32)> for Location {
     fn from(src: (u32, u32, u32)) -> Self {
         let (line, column, length) = src;
         // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
@@ -52,7 +45,7 @@ impl From<(u32,u32,u32)> for Location {
         Location {
             starting_line: line,
             starting_column: column,
-            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: length as usize},
+            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: length as usize },
         }
     }
 }
@@ -626,7 +619,10 @@ fn scan_for_keywords_04() {
     .unwrap_err();
     assert_eq!(
         res,
-        ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), "import")
+        ParseError::new(
+            PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()),
+            "import"
+        )
     );
 }
 

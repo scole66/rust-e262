@@ -2364,7 +2364,7 @@ mod for_in_of_statement {
     #[test_case("for(var a of", true => Err((PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 0)); "for(var a of")]
     #[test_case("for(var a of b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(var a of b")]
     #[test_case("for(var a of b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(var a of b)")]
-    #[test_case("for await(var a in", true => Err((PECode::KeywordExpected(Keyword::Of), -3)); "for await(var a in")]
+    #[test_case("for await(var a in", true => Err((PECode::KeywordExpected(Keyword::Of), -2)); "for await(var a in")]
     #[test_case("for(var a in b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(var a in b")]
     #[test_case("for(var a in b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(var a in b)")]
     #[test_case("for(let", true => Err((PECode::ParseNodeExpected(ParseNodeKind::ForBinding), 0)); "for(let")]
@@ -2386,11 +2386,11 @@ mod for_in_of_statement {
     #[test_case("for(a in", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Expression), 0)); "for(a in")]
     #[test_case("for(a in b", true => Err((PECode::PunctuatorExpected(Punctuator::RightParen), 0)); "for(a in b")]
     #[test_case("for(a in b)", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Statement), 0)); "for(a in b)")]
-    #[test_case("for await(a in b);", true => Err((PECode::KeywordExpected(Keyword::Of), -7)); "for await(a in b);")]
+    #[test_case("for await(a in b);", true => Err((PECode::KeywordExpected(Keyword::Of), -6)); "for await(a in b);")]
     #[test_case("for(var a in", true => Err((PECode::ParseNodeExpected(ParseNodeKind::Expression), 0)); "for(var a in")]
     #[test_case("for({a(){}} in b);", true => Err((PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), -12)); "bad in destructure")]
     #[test_case("for({a(){}} of b);", true => Err((PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBrace]), -12)); "bad of destructure")]
-    #[test_case("for await(", false => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), -7)); "not await mode")]
+    #[test_case("for await(", false => Err((PECode::PunctuatorExpected(Punctuator::LeftParen), -6)); "not await mode")]
     fn parse(src: &str, await_flag: bool) -> Result<(Scanner, Vec<String>, Vec<String>), (PECode, i32)> {
         let after_idx = src.len() as u32 + 1;
         let (node, scanner) = ForInOfStatement::parse(&mut newparser(src), Scanner::new(), true, await_flag, true)

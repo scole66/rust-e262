@@ -2532,7 +2532,10 @@ mod object_literal {
 fn parenthesized_expression_test_01() {
     let (pe, scanner) = check(ParenthesizedExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert_eq!(pe.location, Location { starting_column: 1, starting_line: 1, span: Span { starting_index: 0, length: 3 } });
+    assert_eq!(
+        pe.location,
+        Location { starting_column: 1, starting_line: 1, span: Span { starting_index: 0, length: 3 } }
+    );
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", vec!["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     format!("{:?}", pe);

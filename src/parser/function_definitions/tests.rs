@@ -89,7 +89,7 @@ fn function_declaration_test_err_03() {
         FunctionDeclaration::parse(&mut newparser("function (z)"), Scanner::new(), false, false, false),
         "not an identifier",
         1,
-        9,
+        10,
     );
 }
 #[test]

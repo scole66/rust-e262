@@ -92,7 +92,7 @@ fn expression_statement_test_err_06() {
 }
 #[test]
 fn expression_statement_test_err_07() {
-    check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 2);
+    check_err(ExpressionStatement::parse(&mut newparser("0 7"), Scanner::new(), false, false), "‘;’ expected", 1, 3);
 }
 #[test_case("'string';" => Some(JSString::from("string")); "String Token")]
 #[test_case("a??b;" => None; "Not token")]

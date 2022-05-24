@@ -72,7 +72,7 @@ fn lexical_declaration_test_err_03() {
         LexicalDeclaration::parse(&mut newparser("let a for"), Scanner::new(), true, false, false),
         "‘;’ expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -429,7 +429,7 @@ fn variable_statement_test_err_02() {
 }
 #[test]
 fn variable_statement_test_err_03() {
-    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(VariableStatement::parse(&mut newparser("var a 4"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn variable_statement_test_var_declared_names_01() {
