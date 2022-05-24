@@ -64,7 +64,7 @@ impl SwitchStatement {
         let (_, after_close) =
             scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        let location = cb.location().merge(&switch_loc);
+        let location = switch_loc.merge(&cb.location());
         Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb, location }), after_cases))
     }
 

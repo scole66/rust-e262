@@ -66,7 +66,7 @@ fn continue_statement_test_err_02() {
         ContinueStatement::parse(&mut newparser("continue for"), Scanner::new(), false, false),
         "‘;’ expected",
         1,
-        9,
+        10,
     );
 }
 #[test]
@@ -75,7 +75,7 @@ fn continue_statement_test_err_03() {
         ContinueStatement::parse(&mut newparser("continue a for"), Scanner::new(), false, false),
         "‘;’ expected",
         1,
-        11,
+        12,
     );
 }
 #[test]

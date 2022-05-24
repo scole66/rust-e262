@@ -337,7 +337,7 @@ fn async_generator_declaration_test_076() {
         AsyncGeneratorDeclaration::parse(&mut newparser("async function * ("), Scanner::new(), false, false, false),
         "not an identifier",
         1,
-        11 + 6,
+        18,
     );
 }
 #[test]

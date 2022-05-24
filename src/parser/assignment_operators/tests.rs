@@ -122,7 +122,7 @@ mod assignment_expression {
         sv(&["AssignmentExpression: [ a ] = [ 1 ]", "ArrayAssignmentPattern: [ a ]", "Punctuator: =", "ArrayLiteral: [ 1 ]"])
     )); "AssignmentPattern = AssignmentExpression")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentExpression), 1)); "empty")]
-    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), 3)); "bad destructuring")]
+    #[test_case("[a+1]=[1]" => Err(ParseError::new(PECode::OneOfPunctuatorExpected(vec![Punctuator::Comma, Punctuator::RightBracket]), (1, 3, 1))); "bad destructuring")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = AssignmentExpression::parse(&mut newparser(src), Scanner::new(), false, true, false)?;
         let pretty_elements = pretty_data(&*node);
@@ -1564,7 +1564,7 @@ mod destructuring_assignment_target {
         sv(&["ObjectAssignmentPattern: { }", "Punctuator: {", "Punctuator: }"])
     )); "AssignmentPattern")]
     #[test_case("" => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::LeftHandSideExpression), 1)); "empty")]
-    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), 7)); "ObjectLiteral but not AssignmentPattern")]
+    #[test_case("{...{},...{}}" => Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::RightBrace), (1, 7, 1))); "ObjectLiteral but not AssignmentPattern")]
     fn parse(src: &str) -> Result<(Scanner, Vec<String>, Vec<String>), ParseError> {
         let (node, scanner) = DestructuringAssignmentTarget::parse(&mut newparser(src), Scanner::new(), false, false)?;
         let pretty_elements = pretty_data(&*node);

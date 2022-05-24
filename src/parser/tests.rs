@@ -26,7 +26,33 @@ impl From<(u32, u32)> for Location {
         Location {
             starting_line: line,
             starting_column: column,
-            span: Span { starting_index: (line - 1) as usize * 256 + column as usize, length: 0 },
+            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: 0 },
+        }
+    }
+}
+impl From<&str> for Location {
+    fn from(src: &str) -> Self {
+        Location {
+            starting_line: 1,
+            starting_column: 1,
+            span: Span {
+                starting_index: 0,
+                length: src.len()
+            }
+        }
+    }
+}
+impl From<(u32,u32,u32)> for Location {
+    fn from(src: (u32, u32, u32)) -> Self {
+        let (line, column, length) = src;
+        // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
+        // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
+        // column 10 is definitely after line 10 column 50, but if all we're doing is comparing starting indexes, how
+        // do we know? Making lines really long helps that intuition make better tests.)
+        Location {
+            starting_line: line,
+            starting_column: column,
+            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: length as usize},
         }
     }
 }
@@ -403,7 +429,7 @@ fn scan_for_punct_02() {
     let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::LeftParen);
     assert!(res.is_err());
     if let Err(pe) = res {
-        assert_eq!(pe, ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftParen), 1));
+        assert_eq!(pe, ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftParen), ";"));
     }
 }
 
@@ -478,7 +504,7 @@ fn scan_for_punct_set_04() {
         pe,
         ParseError::new(
             PECode::OneOfPunctuatorExpected(vec![Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon]),
-            1
+            "&&"
         )
     );
 }
@@ -509,14 +535,15 @@ fn scan_for_auto_semi_04() {
 }
 #[test]
 fn scan_for_auto_semi_05() {
-    let err = scan_for_auto_semi(Scanner::new(), "0", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), 1));
+    let probe = "0";
+    let err = scan_for_auto_semi(Scanner::new(), probe, ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), probe));
 }
 #[test]
-#[should_panic(expected = "Result::unwrap_err()` on an `Ok` value")] // This is an XFAIL -- it _should_ work, but the code's not there yet.
 fn scan_for_auto_semi_06() {
-    let err = scan_for_auto_semi(Scanner::new(), "'\\\n0'", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), 1));
+    let probe = "'\\\n0'";
+    let err = scan_for_auto_semi(Scanner::new(), probe, ScanGoal::InputElementDiv).unwrap_err();
+    assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), probe));
 }
 
 #[test]
@@ -529,7 +556,7 @@ fn scan_for_keyword_01() {
 #[test]
 fn scan_for_keyword_02() {
     let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::For).unwrap_err();
-    assert_eq!(res, ParseError::new(PECode::KeywordExpected(Keyword::For), 1));
+    assert_eq!(res, ParseError::new(PECode::KeywordExpected(Keyword::For), "class"));
 }
 
 #[test]
@@ -599,7 +626,7 @@ fn scan_for_keywords_04() {
     .unwrap_err();
     assert_eq!(
         res,
-        ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), 1)
+        ParseError::new(PECode::OneOfKeywordExpected([Keyword::For, Keyword::Class, Keyword::Break].to_vec()), "import")
     );
 }
 
@@ -616,7 +643,7 @@ fn scan_for_identifiername_01() {
 #[test]
 fn scan_for_identifiername_02() {
     let pe = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), 1));
+    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), "!"));
 }
 
 #[test]
@@ -633,7 +660,7 @@ fn scan_for_private_identifier_01() {
 #[test]
 fn scan_for_private_identifier_02() {
     let pe = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), 1));
+    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), "!"));
 }
 
 #[test]
@@ -649,8 +676,9 @@ fn no_line_terminator_02() {
 
 #[test]
 fn scan_for_eof_01() {
-    let pe = scan_for_eof(Scanner::new(), "rust").unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::EoFExpected, 1));
+    let probe = "rust";
+    let pe = scan_for_eof(Scanner::new(), probe).unwrap_err();
+    assert_eq!(pe, ParseError::new(PECode::EoFExpected, probe));
 }
 #[test]
 fn scan_for_eof_02() {

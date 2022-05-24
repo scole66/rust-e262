@@ -25,7 +25,7 @@ fn debugger_statement_test_err_01() {
 }
 #[test]
 fn debugger_statement_test_err_02() {
-    check_err(DebuggerStatement::parse(&mut newparser("debugger for"), Scanner::new()), "‘;’ expected", 1, 9);
+    check_err(DebuggerStatement::parse(&mut newparser("debugger for"), Scanner::new()), "‘;’ expected", 1, 10);
 }
 #[test]
 fn debugger_statement_test_prettyerrors_1() {

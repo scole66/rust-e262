@@ -54,9 +54,9 @@ fn async_arrow_function_test_err_01() {
 fn async_arrow_function_test_err_02() {
     check_err(
         AsyncArrowFunction::parse(&mut newparser("async\n"), Scanner::new(), true, false, false),
-        "newline not allowed here",
+        "‘(’ expected",
+        2,
         1,
-        6,
     );
 }
 #[test]

@@ -51,11 +51,11 @@ fn break_statement_test_err_01() {
 }
 #[test]
 fn break_statement_test_err_02() {
-    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 6);
+    check_err(BreakStatement::parse(&mut newparser("break for"), Scanner::new(), false, false), "‘;’ expected", 1, 7);
 }
 #[test]
 fn break_statement_test_err_03() {
-    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 8);
+    check_err(BreakStatement::parse(&mut newparser("break a for"), Scanner::new(), false, false), "‘;’ expected", 1, 9);
 }
 #[test]
 fn break_statement_test_prettyerrors_1() {

@@ -96,7 +96,7 @@ fn async_function_declaration_test_err_03() {
         AsyncFunctionDeclaration::parse(&mut newparser("async bob"), Scanner::new(), false, false, true),
         "‘function’ expected",
         1,
-        6,
+        7,
     );
 }
 #[test]
@@ -352,7 +352,7 @@ fn async_function_expression_test_err_02() {
 }
 #[test]
 fn async_function_expression_test_err_03() {
-    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 6);
+    check_err(AsyncFunctionExpression::parse(&mut newparser("async bob"), Scanner::new()), "‘function’ expected", 1, 7);
 }
 #[test]
 fn async_function_expression_test_err_05() {
