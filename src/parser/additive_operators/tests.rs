@@ -188,4 +188,18 @@ mod additive_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).additive_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a+b" => false; "additive")]
+    #[test_case("13" => false; "fall-thru, not named func")]
+    #[test_case("function bob(){}" => true; "fall-thru, named")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).additive_expression().is_named_function()
+    }
+
+    #[test_case("\nblue" => Location { starting_line: 2, starting_column: 1, span: Span{ starting_index: 1, length: 4 } }; "fall-thru")]
+    #[test_case("/* x */ a   +\n(p-l)" => Location { starting_line: 1, starting_column: 9, span: Span{ starting_index: 8, length: 11 } }; "add")]
+    #[test_case("  a-b" => Location { starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 } }; "subtract")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).additive_expression().location()
+    }
 }
