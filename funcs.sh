@@ -54,6 +54,7 @@ function report() {
   local here=$(pwd)
   cd ~/*/rust-e262
 
+  color=--use-color
   extra_args=()
   pager=(cat)
   while [ $# -gt 0 ]; do
@@ -67,6 +68,9 @@ function report() {
       --pager)
         pager=(less -RF)
         ;;
+      --no-color)
+        color=
+        ;;
       *)
         extra_args=("${extra_args[@]}" "$1")
         ;;
@@ -75,7 +79,7 @@ function report() {
   done
 
   cargo cov -- show \
-    --use-color \
+    $color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs' \
     --instr-profile=res.profdata $(objects) \
     --show-line-counts-or-regions \

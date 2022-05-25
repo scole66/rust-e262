@@ -74,6 +74,24 @@ case $1 in
   CompilerInitializer) data=(parser::primary_expressions::Initializer initializer compiler) ;;
   CompilerScript) data=(parser::scripts::Script script compiler) ;;
   CompilerScriptBody) data=(parser::scripts::ScriptBody scriptbody compiler) ;;
+  ArrowParameters) data=($1 arrow_parameters parser::arrow_function_definitions) ;;
+  ExpressionBody) data=($1 expression_body parser::arrow_function_definitions) ;;
+  ConciseBody) data=($1 concise_body parser::arrow_function_definitions) ;;
+  ArrowFormalParameters) data=($1 arrow_formal_parameters parser::arrow_function_definitions) ;;
+  ArrowFunction) data=($1 arrow_function parser::arrow_function_definitions) ;;
+  AssignmentExpression) data=($1 assignment_expression parser::assignment_operators) ;;
+  AssignmentOperator) data=($1 assignment_operator parser::assignment_operators) ;;
+  AssignmentPattern) data=($1 assignment_pattern parser::assignment_operators) ;;
+  ObjectAssignmentPattern) data=($1 object_assignment_pattern parser::assignment_operators) ;;
+  ArrayAssignmentPattern) data=($1 array_assignment_pattern parser::assignment_operators) ;;
+  AssignmentRestProperty) data=($1 assignment_rest_property parser::assignment_operators) ;;
+  AssignmentPropertyList) data=($1 assignment_property_list parser::assignment_operators) ;;
+  AssignmentElementList) data=($1 assignment_element_list parser::assignment_operators) ;;
+  AssignmentElisionElement) data=($1 assignment_elision_element parser::assignment_operators) ;;
+  AssignmentProperty) data=($1 assignment_property parser::assignment_operators) ;;
+  AssignmentElement) data=($1 assignment_element parser::assignment_operators) ;;
+  AssignmentRestElement) data=($1 assignment_rest_element parser::assignment_operators) ;;
+  DestructuringAssignmentTarget) data=($1 destructuring_assignment_target parser::assignment_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
@@ -88,5 +106,21 @@ for part in ${typeparts[@]}; do
   mangled=${mangled}${#part}${part}
 done
 
-tst ${file}::tests::${modname} || exit
-report --name-regex="_3res${#file}${file}([^0-9][^_]+_)?${mangled}" --uncovered --demangled
+fileparts=($(echo $file | tr : ' '))
+filemangled=
+for part in ${fileparts[@]}; do
+  filemangled=${filemangled}${#part}${part}
+done
+
+regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
+
+namelist=$(mktemp)
+report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
+
+tst ${file}::tests::${modname}
+if [ $? -ne 0 ]; then
+  rm -f $namelist
+  exit
+fi
+report --name-allowlist=$namelist --uncovered --demangled
+rm -f $namelist

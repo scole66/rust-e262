@@ -1,7 +1,7 @@
 use super::*;
 use additive_operators::AdditiveExpression;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
-use assignment_operators::AssignmentExpression;
+use assignment_operators::*;
 use async_arrow_function_definitions::{
     AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody,
 };
@@ -224,6 +224,12 @@ impl<'a> Maker<'a> {
             .unwrap()
             .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`ArrayAssignmentPattern`] parse node.
+    pub fn array_assignment_pattern(self) -> Rc<ArrayAssignmentPattern> {
+        ArrayAssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     /// Use the configs in the [`Maker`] object to make a [`ArrowFunction`] parse node.
     pub fn arrow_function(self) -> Rc<ArrowFunction> {
         ArrowFunction::parse(
@@ -251,6 +257,12 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentPattern`] parse node.
+    pub fn assignment_pattern(self) -> Rc<AssignmentPattern> {
+        AssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncArrowBindingIdentifier`] parse node.
     pub fn async_arrow_binding_identifier(self) -> Rc<AsyncArrowBindingIdentifier> {
@@ -871,6 +883,12 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`NewExpression`] parse node.
     pub fn new_expression(self) -> Rc<NewExpression> {
         NewExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ObjectAssignmentPattern`] parse node.
+    pub fn object_assignment_pattern(self) -> Rc<ObjectAssignmentPattern> {
+        ObjectAssignmentPattern::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
     }
     /// Use the configs in the [`Maker`] object to make a [`ObjectLiteral`] parse node.
     pub fn object_literal(self) -> Rc<ObjectLiteral> {
