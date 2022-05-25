@@ -97,6 +97,11 @@ case $1 in
   AsyncConciseBody) data=($1 async_concise_body parser::async_arrow_function_definitions) ;;
   AsyncArrowBindingIdentifier) data=($1 async_arrow_binding_identifier parser::async_arrow_function_definitions) ;;
   CoverCallExpressionAndAsyncArrowHead) data=($1 cceaaah parser::async_arrow_function_definitions) ;;
+  AsyncFunctionDeclaration) data=($1 async_function_declaration parser::async_function_definitions) ;;
+  AsyncFunctionExpression) data=($1 async_function_expression parser::async_function_definitions) ;;
+  AsyncMethod) data=($1 async_method parser::async_function_definitions) ;;
+  AsyncFunctionBody) data=($1 async_function_body parser::async_function_definitions) ;;
+  AwaitExpression) data=($1 await_expression parser::async_function_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
