@@ -374,7 +374,7 @@ impl From<(&Scanner, &Scanner)> for Location {
 
 impl PartialOrd for Location {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 impl Ord for Location {
