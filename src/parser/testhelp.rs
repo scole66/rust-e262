@@ -2,13 +2,9 @@ use super::*;
 use additive_operators::AdditiveExpression;
 use arrow_function_definitions::{ArrowFormalParameters, ArrowFunction, ArrowParameters, ConciseBody, ExpressionBody};
 use assignment_operators::*;
-use async_arrow_function_definitions::{
-    AsyncArrowBindingIdentifier, AsyncArrowFunction, AsyncArrowHead, AsyncConciseBody,
-};
-use async_function_definitions::{
-    AsyncFunctionBody, AsyncFunctionDeclaration, AsyncFunctionExpression, AsyncMethod, AwaitExpression,
-};
-use async_generator_function_definitions::{AsyncGeneratorDeclaration, AsyncGeneratorMethod};
+use async_arrow_function_definitions::*;
+use async_function_definitions::*;
+use async_generator_function_definitions::*;
 use binary_bitwise_operators::{BitwiseANDExpression, BitwiseORExpression, BitwiseXORExpression};
 use binary_logical_operators::{
     CoalesceExpression, CoalesceExpressionHead, LogicalANDExpression, LogicalORExpression, ShortCircuitExpression,
@@ -308,9 +304,9 @@ impl<'a> Maker<'a> {
     pub fn async_function_expression(self) -> Rc<AsyncFunctionExpression> {
         AsyncFunctionExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
-    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
-    pub fn async_method(self) -> Rc<AsyncMethod> {
-        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorBody`] parse node.
+    pub fn async_generator_body(self) -> Rc<AsyncGeneratorBody> {
+        AsyncGeneratorBody::parse(&mut newparser(self.source), Scanner::new()).0
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorDeclaration`] parse node.
     pub fn async_generator_declaration(self) -> Rc<AsyncGeneratorDeclaration> {
@@ -324,11 +320,19 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorExpression`] parse node.
+    pub fn async_generator_expression(self) -> Rc<AsyncGeneratorExpression> {
+        AsyncGeneratorExpression::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
+    }
     /// Use the configs in the [`Maker`] object to make a [`AsyncGeneratorMethod`] parse node.
     pub fn async_generator_method(self) -> Rc<AsyncGeneratorMethod> {
         AsyncGeneratorMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`AsyncMethod`] parse node.
+    pub fn async_method(self) -> Rc<AsyncMethod> {
+        AsyncMethod::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`AwaitExpression`] parse node.
     pub fn await_expression(self) -> Rc<AwaitExpression> {

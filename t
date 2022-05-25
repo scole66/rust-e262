@@ -102,6 +102,10 @@ case $1 in
   AsyncMethod) data=($1 async_method parser::async_function_definitions) ;;
   AsyncFunctionBody) data=($1 async_function_body parser::async_function_definitions) ;;
   AwaitExpression) data=($1 await_expression parser::async_function_definitions) ;;
+  AsyncGeneratorMethod) data=($1 async_generator_method parser::async_generator_function_definitions) ;;
+  AsyncGeneratorDeclaration) data=($1 async_generator_declaration parser::async_generator_function_definitions) ;;
+  AsyncGeneratorExpression) data=($1 async_generator_expression parser::async_generator_function_definitions) ;;
+  AsyncGeneratorBody) data=($1 async_generator_body parser::async_generator_function_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
