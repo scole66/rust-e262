@@ -92,6 +92,11 @@ case $1 in
   AssignmentElement) data=($1 assignment_element parser::assignment_operators) ;;
   AssignmentRestElement) data=($1 assignment_rest_element parser::assignment_operators) ;;
   DestructuringAssignmentTarget) data=($1 destructuring_assignment_target parser::assignment_operators) ;;
+  AsyncArrowFunction) data=($1 async_arrow_function parser::async_arrow_function_definitions) ;;
+  AsyncArrowHead) data=($1 async_arrow_head parser::async_arrow_function_definitions) ;;
+  AsyncConciseBody) data=($1 async_concise_body parser::async_arrow_function_definitions) ;;
+  AsyncArrowBindingIdentifier) data=($1 async_arrow_binding_identifier parser::async_arrow_function_definitions) ;;
+  CoverCallExpressionAndAsyncArrowHead) data=($1 cceaaah parser::async_arrow_function_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
@@ -116,6 +121,8 @@ regex="_3res${filemangled}([^0-9][^_]+_)?${mangled}"
 
 namelist=$(mktemp)
 report --no-color --name-regex=".+" | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' >> $namelist
+
+echo "Testing ${file}::tests::${modname}"
 
 tst ${file}::tests::${modname}
 if [ $? -ne 0 ]; then

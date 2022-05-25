@@ -265,6 +265,12 @@ mod async_arrow_function {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_arrow_function().contains_arguments()
     }
+
+    #[test_case("  async (formals) => { return formals ** factor; }" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 48 } }; "with-formals")]
+    #[test_case("  async x => x + bias" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 19 } }; "ident-only")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_arrow_function().location()
+    }
 }
 
 // ASYNC CONCISE BODY
@@ -367,6 +373,12 @@ mod async_concise_body {
     #[test_case("{}" => false; "block (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_concise_body().contains_arguments()
+    }
+
+    #[test_case("  x-y" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 3 } }; "expression")]
+    #[test_case("  {side_effect();}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 16 } }; "body")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_concise_body().location()
     }
 }
 // ASYNC ARROW BINDING IDENTIFIER
@@ -559,5 +571,10 @@ mod async_arrow_head {
     #[test_case("async (a)" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_arrow_head().contains_arguments()
+    }
+
+    #[test_case("  async (formals)" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 15 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_arrow_head().location()
     }
 }
