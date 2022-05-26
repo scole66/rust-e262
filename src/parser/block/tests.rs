@@ -111,6 +111,11 @@ mod block_statement {
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).block_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("    { b; let a; }" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 13 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).block_statement().location()
+    }
 }
 
 // BLOCK
@@ -278,6 +283,11 @@ mod block {
     #[test_case("{}" => svec(&([])); "empty")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).block().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("    { b; let a; }" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 13 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).block().location()
     }
 }
 
@@ -556,6 +566,12 @@ mod statement_list {
             .map(String::from)
             .collect::<Vec<_>>()
     }
+
+    #[test_case("    a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 2 } }; "statement")]
+    #[test_case("    b; let a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 9 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).statement_list().location()
+    }
 }
 
 // STATEMENT LIST ITEM
@@ -805,5 +821,11 @@ mod statement_list_item {
             .iter()
             .map(String::from)
             .collect::<Vec<_>>()
+    }
+
+    #[test_case("    a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 2 } }; "statement")]
+    #[test_case("    let a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 6 } }; "declaration")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).statement_list_item().location()
     }
 }
