@@ -114,6 +114,7 @@ case $1 in
   CoalesceExpression) data=($1 coalesce_expression parser::binary_logical_operators) ;;
   CoalesceExpressionHead) data=($1 coalesce_expression_head parser::binary_logical_operators) ;;
   ShortCircuitExpression) data=($1 short_circuit_expression parser::binary_logical_operators) ;;
+  ShiftExpression) data=($1 shift_expression parser::bitwise_shift_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
