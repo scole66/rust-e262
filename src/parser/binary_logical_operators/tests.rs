@@ -154,6 +154,19 @@ mod logical_and_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).logical_and_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a&&b" => false; "logical and")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).logical_and_expression().is_named_function()
+    }
+
+    #[test_case("  a&&b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "logical and")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).logical_and_expression().location()
+    }
 }
 
 // LOGICAL OR EXPRESSION
@@ -301,6 +314,19 @@ mod logical_or_expression {
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).logical_or_expression().assignment_target_type(strict)
     }
+
+    #[test_case("a||b" => false; "logical or")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).logical_or_expression().is_named_function()
+    }
+
+    #[test_case("  a||b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "logical or")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).logical_or_expression().location()
+    }
 }
 
 // COALESCE EXPRESSION
@@ -418,6 +444,11 @@ mod coalesce_expression {
     fn contains_arguments(src: &str) -> bool {
         CoalesceExpression::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  a??b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).coalesce_expression().location()
+    }
 }
 
 // COALESCE EXPRESSION HEAD
@@ -501,6 +532,11 @@ mod coalesce_expression_head {
     use super::*;
     use test_case::test_case;
 
+    #[test_case("a??b??c" => with |x| assert_ne!(x, ""); "typical")]
+    fn debug(src: &str) -> String {
+        format!("{:?}", Maker::new(src).coalesce_expression_head())
+    }
+
     #[test_case("package??interface", true => set(&[PACKAGE_NOT_ALLOWED]); "MultiplicativeExpression")]
     #[test_case("package??interface??q", true => set(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AE plus ME; AE bad")]
     fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
@@ -522,6 +558,12 @@ mod coalesce_expression_head {
             .0
             .head
             .contains_arguments()
+    }
+
+    #[test_case("  a??b??c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "head is coealesce")]
+    #[test_case("  a+b??c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "head is other")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).coalesce_expression_head().location()
     }
 }
 
@@ -656,5 +698,18 @@ mod short_circuit_expression {
     #[test_case("a??b", false => ATTKind::Invalid; "coalesce")]
     fn assignment_target_type(src: &str, strict: bool) -> ATTKind {
         Maker::new(src).short_circuit_expression().assignment_target_type(strict)
+    }
+
+    #[test_case("a??b" => false; "expr")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).short_circuit_expression().is_named_function()
+    }
+
+    #[test_case("  a??b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "coelesce")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).short_circuit_expression().location()
     }
 }

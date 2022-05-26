@@ -109,6 +109,11 @@ case $1 in
   BitwiseANDExpression) data=($1 bitwise_and_expression parser::binary_bitwise_operators) ;;
   BitwiseXORExpression) data=($1 bitwise_xor_expression parser::binary_bitwise_operators) ;;
   BitwiseORExpression) data=($1 bitwise_or_expression parser::binary_bitwise_operators) ;;
+  LogicalANDExpression) data=($1 logical_and_expression parser::binary_logical_operators) ;;
+  LogicalORExpression) data=($1 logical_or_expression parser::binary_logical_operators) ;;
+  CoalesceExpression) data=($1 coalesce_expression parser::binary_logical_operators) ;;
+  CoalesceExpressionHead) data=($1 coalesce_expression_head parser::binary_logical_operators) ;;
+  ShortCircuitExpression) data=($1 short_circuit_expression parser::binary_logical_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
