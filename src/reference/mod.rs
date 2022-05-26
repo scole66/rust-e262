@@ -96,7 +96,7 @@ impl TryFrom<Base> for Rc<dyn EnvironmentRecord> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReferencedName {
     String(JSString),
     Symbol(Symbol),

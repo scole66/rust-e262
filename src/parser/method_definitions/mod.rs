@@ -122,7 +122,7 @@ impl PrettyPrint for MethodDefinition {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MethodType {
     Normal,
     Setter,

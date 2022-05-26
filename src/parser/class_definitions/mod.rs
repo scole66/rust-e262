@@ -774,7 +774,7 @@ impl PrettyPrint for ClassElementList {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdUsage {
     Public,
     Static,
@@ -1346,7 +1346,7 @@ impl ClassElement {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CEKind {
     ConstructorMethod,
     NonConstructorMethod,

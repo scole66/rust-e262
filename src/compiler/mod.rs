@@ -31,7 +31,7 @@ use std::rc::Rc;
 
 pub type Opcode = u16;
 
-#[derive(Debug, Copy, Clone, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Insn {
     Nop,
