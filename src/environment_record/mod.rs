@@ -146,7 +146,7 @@ pub trait EnvironmentRecord: Debug {
 // The behaviour of the concrete specification methods for declarative Environment Records is defined by the following
 // algorithms.
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Removability {
     Deletable,
     Permanent,
@@ -161,7 +161,7 @@ impl From<bool> for Removability {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Strictness {
     Strict,
     Sloppy,
@@ -176,7 +176,7 @@ impl From<bool> for Strictness {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum Mutability {
     Mutable(Removability),
     Immutable(Strictness),
@@ -722,7 +722,7 @@ impl ObjectEnvironmentRecord {
 // |                       |                       | newTarget parameter. Otherwise, its value is undefined.           |
 // +-----------------------+-----------------------+-------------------------------------------------------------------+
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum BindingStatus {
     Lexical,
     Initialized,

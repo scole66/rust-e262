@@ -162,7 +162,7 @@ fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
 //      a. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: true }.
 //  9. Set cp to ! UTF16SurrogatePairToCodePoint(first, second).
 //  10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 struct CodePointAtResult {
     code_point: u32,
     code_unit_count: u8,

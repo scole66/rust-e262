@@ -1020,7 +1020,7 @@ impl Agent {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 enum BinOp {
     Exponentiate,
     Multiply,
@@ -1036,7 +1036,7 @@ enum BinOp {
     BitwiseXor,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum WksId {
     AsyncIterator,
     HasInstance,

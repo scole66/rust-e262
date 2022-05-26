@@ -1844,7 +1844,7 @@ mod get_identifier_reference {
         )
     }
 
-    #[derive(PartialEq, Debug)]
+    #[derive(PartialEq, Eq, Debug)]
     enum EnvResult {
         Unresolvable, // Base::Unresolvable
         SelfEnv,      // Environment(e) where e is the arg

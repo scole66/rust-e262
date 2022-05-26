@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::str;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ScanGoal {
     InputElementRegExpOrTemplateTail,
     InputElementRegExp,
@@ -139,7 +139,7 @@ impl fmt::Display for Keyword {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct IdentifierData {
     pub string_value: JSString,
     pub keyword_id: Option<Keyword>,
@@ -220,12 +220,12 @@ pub enum Punctuator {
     QQEq,         // ??=
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum StringDelimiter {
     Single,
     Double,
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StringToken {
     pub value: JSString,
     pub delimiter: StringDelimiter,
@@ -820,7 +820,7 @@ fn code_point_to_utf16_code_units(ch: char) -> Vec<u16> {
     utf16_encode_code_point(CharVal::from(ch))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HexChar(char);
 impl TryFrom<char> for HexChar {
     type Error = &'static str;
@@ -1443,7 +1443,7 @@ fn non_decimal_integer_literal(scanner: &Scanner, source: &str, sep: bool) -> Op
     )
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum NumberStyle {
     BigDecimal,
     BigBinary,
@@ -1741,7 +1741,7 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     Some((Token::String(st), after))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TemplateData {
     pub tv: Option<JSString>,
     pub trv: JSString,
@@ -1760,7 +1760,7 @@ fn push_utf16(buf: &mut Vec<u16>, ch: char) {
     buf.extend_from_slice(ch.encode_utf16(&mut b));
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 struct THDCount(usize);
 impl TryFrom<usize> for THDCount {
     type Error = &'static str;
@@ -1813,7 +1813,7 @@ fn template_hex_digits(
     )
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CharVal(u32);
 impl TryFrom<u32> for CharVal {
     type Error = &'static str;
@@ -2232,7 +2232,7 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RegularExpressionData {
     body: String,
     flags: String,

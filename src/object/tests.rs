@@ -885,7 +885,7 @@ fn validate_and_apply_property_descriptor_06() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ONE BIG TEST to check all different PotentialPropertyDescriptors against all different existing PropertyDescriptors.
 // (There are 23,328 different tests included in this.)
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 enum Stage {
     Data,
     Accessor,

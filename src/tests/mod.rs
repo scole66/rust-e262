@@ -256,7 +256,7 @@ impl ObjectInterface for TestObject {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum FunctionId {
     GetPrototypeOf,
     SetPrototypeOf,

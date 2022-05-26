@@ -38,7 +38,7 @@ enum SorM {
     Module(ModuleRecord),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ThisMode {
     Lexical,
     Strict,
