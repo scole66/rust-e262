@@ -39,7 +39,7 @@ use try_statement::CatchParameter;
 use unary_operators::UnaryExpression;
 use update_expressions::UpdateExpression;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ParseGoal {
     Script,
     Module,
@@ -462,7 +462,7 @@ impl Default for PECode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseError {
     code: PECode,
     location: Location,
@@ -521,7 +521,7 @@ pub trait IsFunctionDefinition {
     fn is_function_definition(&self) -> bool;
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ATTKind {
     Invalid,
     Simple,

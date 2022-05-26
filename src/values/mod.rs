@@ -189,7 +189,7 @@ impl From<u64> for ECMAScriptValue {
 
 impl From<i64> for ECMAScriptValue {
     fn from(val: i64) -> Self {
-        if -(1 << 53) <= val && val <= 1 << 53 {
+        if (-(1 << 53)..=1 << 53).contains(&val) {
             Self::from(val as f64)
         } else {
             Self::from(BigInt::from(val))

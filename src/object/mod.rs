@@ -1787,7 +1787,7 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn ConstructableObject>
 //  6. Return true.
 //
 // https://tc39.es/ecma262/#sec-setintegritylevel
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum IntegrityLevel {
     Sealed,
     Frozen,
@@ -1881,7 +1881,7 @@ pub fn invoke(
 //  4. Return properties.
 //
 // https://tc39.es/ecma262/#sec-enumerableownpropertynames
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EnumerationStyle {
     Key,
     Value,
