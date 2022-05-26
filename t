@@ -106,6 +106,9 @@ case $1 in
   AsyncGeneratorDeclaration) data=($1 async_generator_declaration parser::async_generator_function_definitions) ;;
   AsyncGeneratorExpression) data=($1 async_generator_expression parser::async_generator_function_definitions) ;;
   AsyncGeneratorBody) data=($1 async_generator_body parser::async_generator_function_definitions) ;;
+  BitwiseANDExpression) data=($1 bitwise_and_expression parser::binary_bitwise_operators) ;;
+  BitwiseXORExpression) data=($1 bitwise_xor_expression parser::binary_bitwise_operators) ;;
+  BitwiseORExpression) data=($1 bitwise_or_expression parser::binary_bitwise_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
