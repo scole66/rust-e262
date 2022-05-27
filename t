@@ -119,6 +119,7 @@ case $1 in
   Block) data=($1 block parser::block) ;;
   StatementList) data=($1 statement_list parser::block) ;;
   StatementListItem) data=($1 statement_list_item parser::block) ;;
+  BreakStatement) data=($1 break_statement parser::break_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

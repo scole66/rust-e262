@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -121,5 +121,11 @@ mod break_statement {
             within_breakable,
         );
         AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("   break;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "no label")]
+    #[test_case("   break lbl;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "with label")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).break_statement().location()
     }
 }

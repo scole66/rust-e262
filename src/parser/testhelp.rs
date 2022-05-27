@@ -11,6 +11,7 @@ use binary_logical_operators::{
 };
 use bitwise_shift_operators::ShiftExpression;
 use block::{Block, BlockStatement, StatementList, StatementListItem};
+use break_statement::*;
 use class_definitions::{
     ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage,
     ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList, ClassTail, FieldDefinition,
@@ -397,6 +398,10 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BreakStatement`] parse node.
+    pub fn break_statement(self) -> Rc<BreakStatement> {
+        BreakStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`BreakableStatement`] parse node.
     pub fn breakable_statement(self) -> Rc<BreakableStatement> {
