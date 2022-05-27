@@ -120,6 +120,18 @@ case $1 in
   StatementList) data=($1 statement_list parser::block) ;;
   StatementListItem) data=($1 statement_list_item parser::block) ;;
   BreakStatement) data=($1 break_statement parser::break_statement) ;;
+  ClassDeclaration) data=($1 class_declaration parser::class_definitions) ;;
+  ClassExpression) data=($1 class_expression parser::class_definitions) ;;
+  ClassTail) data=($1 class_tail parser::class_definitions) ;;
+  ClassHeritage) data=($1 class_heritage parser::class_definitions) ;;
+  ClassBody) data=($1 class_body parser::class_definitions) ;;
+  ClassElementList) data=($1 class_element_list parser::class_definitions) ;;
+  ClassElement) data=($1 class_element parser::class_definitions) ;;
+  FieldDefinition) data=($1 field_definition parser::class_definitions) ;;
+  ClassElementName) data=($1 class_element_name parser::class_definitions) ;;
+  ClassStaticBlock) data=($1 class_static_block parser::class_definitions) ;;
+  ClassStaticBlockBody) data=($1 class_static_block_body parser::class_definitions) ;;
+  ClassStaticBlockStatementList) data=($1 class_static_block_statement_list parser::class_definitions) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

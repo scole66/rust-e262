@@ -1305,6 +1305,12 @@ mod field_definition {
     fn prop_name(src: &str) -> Option<String> {
         Maker::new(src).field_definition().prop_name().map(String::from)
     }
+
+    #[test_case("   monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 }}; "no init")]
+    #[test_case("   monkey = omega" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 14 }}; "with init")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).field_definition().location()
+    }
 }
 
 // CLASS ELEMENT NAME
@@ -1425,6 +1431,12 @@ mod class_element_name {
     fn private_bound_identifier(src: &str) -> Option<String> {
         Maker::new(src).class_element_name().private_bound_identifier().map(String::from)
     }
+
+    #[test_case("   monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 }}; "normal")]
+    #[test_case("   #monkey" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 7 }}; "private")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element_name().location()
+    }
 }
 
 mod class_static_block {
@@ -1484,6 +1496,11 @@ mod class_static_block {
     #[test_case("static {}" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_static_block().contains_arguments()
+    }
+
+    #[test_case("   static { stuff(); }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 19 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_static_block().location()
     }
 }
 
@@ -1654,5 +1671,11 @@ mod class_static_block_statement_list {
             .into_iter()
             .map(String::from)
             .collect::<Vec<_>>()
+    }
+
+    #[test_case("   " => Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("   stuff();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_static_block_statement_list().location()
     }
 }
