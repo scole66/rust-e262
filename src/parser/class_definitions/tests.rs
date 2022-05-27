@@ -155,6 +155,12 @@ mod class_declaration {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_declaration().contains_arguments()
     }
+
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "unnamed")]
+    #[test_case("   class a {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "named")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_declaration().location()
+    }
 }
 
 // CLASS EXPRESSION
@@ -253,6 +259,17 @@ mod class_expression {
     #[test_case("class {}" => false; "unnamed(no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_expression().contains_arguments()
+    }
+
+    #[test_case("class a {}" => true; "named")]
+    #[test_case("class {}" => false; "unnamed")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).class_expression().is_named_function()
+    }
+
+    #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_expression().location()
     }
 }
 
@@ -439,6 +456,11 @@ mod class_tail {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_tail().contains_arguments()
     }
+
+    #[test_case("   { a; }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_tail().location()
+    }
 }
 
 // CLASS HERITAGE
@@ -506,6 +528,11 @@ mod class_heritage {
     #[test_case("extends a" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_heritage().contains_arguments()
+    }
+
+    #[test_case("   extends bool" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 12 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_heritage().location()
     }
 }
 
@@ -808,6 +835,12 @@ mod class_element_list {
     #[test_case("a; b;" => None; "List: none")]
     fn constructor_method(src: &str) -> Option<String> {
         Maker::new(src).class_element_list().constructor_method().map(|cstr| format!("{}", cstr))
+    }
+
+    #[test_case("   a;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "item")]
+    #[test_case("   a; b;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element_list().location()
     }
 }
 
@@ -1153,6 +1186,16 @@ mod class_element {
     #[test_case("static {}" => Some(CEKind::NonConstructorMethod); "static block")]
     fn class_element_kind(src: &str) -> Option<CEKind> {
         Maker::new(src).class_element().class_element_kind()
+    }
+
+    #[test_case("  ;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 1 } }; "empty")]
+    #[test_case("  a(){}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "method")]
+    #[test_case("  static a(){}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 12 } }; "static method")]
+    #[test_case("  a;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 2 } }; "field")]
+    #[test_case("  static a;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 9 } }; "static field")]
+    #[test_case("  static {}" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 9 } }; "static block")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_element().location()
     }
 }
 
