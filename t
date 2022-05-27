@@ -136,6 +136,24 @@ case $1 in
   ConditionalExpression) data=($1 conditional_expression parser::conditional_operator) ;;
   ContinueStatement) data=($1 continue_statement parser::continue_statement) ;;
   DebuggerStatement) data=($1 debugger_statement parser::debugger_statement) ;;
+  LexicalDeclaration) data=($1 lexical_declaration parser::declarations_and_variables) ;;
+  LetOrConst) data=($1 let_or_const parser::declarations_and_variables) ;;
+  BindingList) data=($1 binding_list parser::declarations_and_variables) ;;
+  LexicalBinding) data=($1 lexical_binding parser::declarations_and_variables) ;;
+  VariableStatement) data=($1 variable_statement parser::declarations_and_variables) ;;
+  VariableDeclarationList) data=($1 variable_declaration_list parser::declarations_and_variables) ;;
+  VariableDeclaration) data=($1 variable_declaration parser::declarations_and_variables) ;;
+  BindingPattern) data=($1 binding_pattern parser::declarations_and_variables) ;;
+  ObjectBindingPattern) data=($1 object_binding_pattern parser::declarations_and_variables) ;;
+  ArrayBindingPattern) data=($1 array_binding_pattern parser::declarations_and_variables) ;;
+  BindingRestProperty) data=($1 binding_rest_property parser::declarations_and_variables) ;;
+  BindingPropertyList) data=($1 binding_property_list parser::declarations_and_variables) ;;
+  BindingElementList) data=($1 binding_element_list parser::declarations_and_variables) ;;
+  BindingElisionElement) data=($1 binding_elision_element parser::declarations_and_variables) ;;
+  BindingProperty) data=($1 binding_property parser::declarations_and_variables) ;;
+  BindingElement) data=($1 binding_element parser::declarations_and_variables) ;;
+  SingleNameBinding) data=($1 single_name_binding parser::declarations_and_variables) ;;
+  BindingRestElement) data=($1 binding_rest_element parser::declarations_and_variables) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

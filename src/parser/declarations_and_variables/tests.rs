@@ -137,6 +137,11 @@ mod lexical_declaration {
     fn contains_arguments(src: &str) -> bool {
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   let x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_declaration().location()
+    }
 }
 
 // LET OR CONST
@@ -173,6 +178,12 @@ mod let_or_const {
     #[test_case(LetOrConst::Const => true; "kwd const")]
     fn is_constant_declaration(which: LetOrConst) -> bool {
         which.is_constant_declaration()
+    }
+
+    #[test_case(LetOrConst::Let => with |s| assert_ne!(s, ""); "kwd let")]
+    #[test_case(LetOrConst::Const => with |s| assert_ne!(s, ""); "kwd const")]
+    fn debug(src: LetOrConst) -> String {
+        format!("{src:?}")
     }
 }
 
@@ -263,6 +274,12 @@ mod binding_list {
     #[test_case("a,b" => false; "List (none)")]
     fn contains_arguments(src: &str) -> bool {
         BindingList::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 1 } }; "item")]
+    #[test_case("   a,b" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 3 } }; "list")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_list().location()
     }
 }
 
@@ -390,6 +407,13 @@ mod lexical_binding {
     #[test_case("{a}=b" => false; "pattern (none)")]
     fn contains_arguments(src: &str) -> bool {
         LexicalBinding::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 1 } }; "id; no init")]
+    #[test_case("  a=0" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 3 } }; "id with init")]
+    #[test_case("  {c}=a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).lexical_binding().location()
     }
 }
 

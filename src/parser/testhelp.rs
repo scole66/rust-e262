@@ -20,7 +20,7 @@ use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
 use continue_statement::*;
 use debugger_statement::*;
-use declarations_and_variables::{LexicalDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement};
+use declarations_and_variables::*;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
@@ -344,6 +344,12 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`BindingIdentifier`] parse node.
     pub fn binding_identifier(self) -> Rc<BindingIdentifier> {
         BindingIdentifier::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`BindingList`] parse node.
+    pub fn binding_list(self) -> Rc<BindingList> {
+        BindingList::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
@@ -832,6 +838,12 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`LeftHandSideExpression`] parse node.
     pub fn left_hand_side_expression(self) -> Rc<LeftHandSideExpression> {
         LeftHandSideExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`LexicalBinding`] parse node.
+    pub fn lexical_binding(self) -> Rc<LexicalBinding> {
+        LexicalBinding::parse(&mut newparser(self.source), Scanner::new(), self.in_flag, self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
