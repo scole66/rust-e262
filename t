@@ -135,6 +135,7 @@ case $1 in
   Expression) data=($1 expression parser::comma_operator) ;;
   ConditionalExpression) data=($1 conditional_expression parser::conditional_operator) ;;
   ContinueStatement) data=($1 continue_statement parser::continue_statement) ;;
+  DebuggerStatement) data=($1 debugger_statement parser::debugger_statement) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

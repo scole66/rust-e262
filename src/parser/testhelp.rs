@@ -19,6 +19,7 @@ use class_definitions::{
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
 use continue_statement::*;
+use debugger_statement::*;
 use declarations_and_variables::{LexicalDeclaration, VariableDeclaration, VariableDeclarationList, VariableStatement};
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
@@ -582,14 +583,13 @@ impl<'a> Maker<'a> {
     }
     /// Use the configs in the [`Maker`] object to make a [`ContinueStatement`] parse node.
     pub fn continue_statement(self) -> Rc<ContinueStatement> {
-        ContinueStatement::parse(
-            &mut newparser(self.source),
-            Scanner::new(),
-            self.yield_flag,
-            self.await_flag,
-        )
-        .unwrap()
-        .0
+        ContinueStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`DebuggerStatement`] parse node.
+    pub fn debugger_statement(self) -> Rc<DebuggerStatement> {
+        DebuggerStatement::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`Declaration`] parse node.
     pub fn declaration(self) -> Rc<Declaration> {
