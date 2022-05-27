@@ -1,4 +1,4 @@
-use super::testhelp::{check, check_err, chk_scan, newparser, set, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
+use super::testhelp::{check, check_err, chk_scan, newparser, set, Maker, CONTINUE_ITER, PACKAGE_NOT_ALLOWED};
 use super::*;
 use crate::prettyprint::testhelp::{concise_check, concise_error_validate, pretty_check, pretty_error_validate};
 use crate::tests::{test_agent, unwind_syntax_error_object};
@@ -118,18 +118,29 @@ fn continue_statement_test_contains_undefined_continue_target(src: &str) -> (boo
     )
 }
 
-#[test_case("continue;", true, false => set(&[CONTINUE_ITER]); "continue, beyond iteration")]
-#[test_case("continue;", true, true => set(&[]); "continue, within iteration")]
-#[test_case("continue package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "continue LabelIdentifier ; (within)")]
-#[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "continue LabelIdentifier ; (beyond)")]
-fn early_errors(src: &str, strict: bool, within_iteration: bool) -> AHashSet<String> {
-    let mut agent = test_agent();
-    let mut errs = vec![];
-    ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
-        &mut agent,
-        &mut errs,
-        strict,
-        within_iteration,
-    );
-    AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+mod continue_statement {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("continue;", true, false => set(&[CONTINUE_ITER]); "continue, beyond iteration")]
+    #[test_case("continue;", true, true => set(&[]); "continue, within iteration")]
+    #[test_case("continue package;", true, true => set(&[PACKAGE_NOT_ALLOWED]); "continue LabelIdentifier ; (within)")]
+    #[test_case("continue package;", true, false => set(&[PACKAGE_NOT_ALLOWED, CONTINUE_ITER]); "continue LabelIdentifier ; (beyond)")]
+    fn early_errors(src: &str, strict: bool, within_iteration: bool) -> AHashSet<String> {
+        let mut agent = test_agent();
+        let mut errs = vec![];
+        ContinueStatement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.early_errors(
+            &mut agent,
+            &mut errs,
+            strict,
+            within_iteration,
+        );
+        AHashSet::from_iter(errs.iter().map(|err| unwind_syntax_error_object(&mut agent, err.clone())))
+    }
+
+    #[test_case("   continue;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "no label")]
+    #[test_case("   continue lbl;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "label")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).continue_statement().location()
+    }
 }
