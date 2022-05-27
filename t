@@ -132,6 +132,7 @@ case $1 in
   ClassStaticBlock) data=($1 class_static_block parser::class_definitions) ;;
   ClassStaticBlockBody) data=($1 class_static_block_body parser::class_definitions) ;;
   ClassStaticBlockStatementList) data=($1 class_static_block_statement_list parser::class_definitions) ;;
+  Expression) data=($1 expression parser::comma_operator) ;;
 
   *) echo "No type called $1"; exit ;;
 esac

@@ -125,4 +125,17 @@ mod expression {
     fn contains(src: &str, target: ParseNodeKind) -> bool {
         Maker::new(src).expression().contains(target)
     }
+
+    #[test_case("a,b" => false; "comma")]
+    #[test_case("function bob(){}" => true; "function fallthru")]
+    #[test_case("1" => false; "literal fallthru")]
+    fn is_named_function(src: &str) -> bool {
+        Maker::new(src).expression().is_named_function()
+    }
+
+    #[test_case("  a,b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "comma")]
+    #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).expression().location()
+    }
 }
