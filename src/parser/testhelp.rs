@@ -12,15 +12,13 @@ use binary_logical_operators::{
 use bitwise_shift_operators::ShiftExpression;
 use block::{Block, BlockStatement, StatementList, StatementListItem};
 use break_statement::*;
-use class_definitions::{
-    ClassBody, ClassDeclaration, ClassElement, ClassElementList, ClassElementName, ClassExpression, ClassHeritage,
-    ClassStaticBlock, ClassStaticBlockBody, ClassStaticBlockStatementList, ClassTail, FieldDefinition,
-};
+use class_definitions::*;
 use comma_operator::Expression;
 use conditional_operator::ConditionalExpression;
 use continue_statement::*;
 use debugger_statement::*;
 use declarations_and_variables::*;
+use empty_statement::*;
 use equality_operators::EqualityExpression;
 use exponentiation_operator::ExponentiationExpression;
 use expression_statement::ExpressionStatement;
@@ -645,11 +643,9 @@ impl<'a> Maker<'a> {
         .unwrap()
         .0
     }
-    /// Use the configs in the [`Maker`] object to make a [`ExponentiationExpression`] parse node.
-    pub fn exponentiation_expression(self) -> Rc<ExponentiationExpression> {
-        ExponentiationExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-            .unwrap()
-            .0
+    /// Use the configs in the [`Maker`] object to make a [`EmptyStatement`] parse node.
+    pub fn empty_statement(self) -> Rc<EmptyStatement> {
+        EmptyStatement::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
     /// Use the configs in the [`Maker`] object to make a [`EqualityExpression`] parse node.
     pub fn equality_expression(self) -> Rc<EqualityExpression> {
@@ -676,6 +672,12 @@ impl<'a> Maker<'a> {
     /// Use the configs in the [`Maker`] object to make a [`ExpressionStatement`] parse node.
     pub fn expression_statement(self) -> Rc<ExpressionStatement> {
         ExpressionStatement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
+    /// Use the configs in the [`Maker`] object to make a [`ExponentiationExpression`] parse node.
+    pub fn exponentiation_expression(self) -> Rc<ExponentiationExpression> {
+        ExponentiationExpression::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
             .unwrap()
             .0
     }
