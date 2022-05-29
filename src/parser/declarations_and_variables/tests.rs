@@ -138,7 +138,7 @@ mod lexical_declaration {
         LexicalDeclaration::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap().0.contains_arguments()
     }
 
-    #[test_case("   let x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } })]
+    #[test_case("   let x;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).lexical_declaration().location()
     }
@@ -500,6 +500,11 @@ mod variable_statement {
     #[test_case("var left, center='ham', right;" => svec(&["left", "center = 'ham'", "right"]); "a list")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).variable_statement().var_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("   var left;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).variable_statement().location()
     }
 }
 
@@ -873,6 +878,12 @@ mod binding_pattern {
     fn contains_arguments(src: &str) -> bool {
         BindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   {a}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "object")]
+    #[test_case("   [a]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "array")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_pattern().location()
+    }
 }
 
 // OBJECT BINDING PATTERN
@@ -1087,6 +1098,14 @@ mod object_binding_pattern {
     #[test_case("{a,...b}" => false; "ListRest (no)")]
     fn contains_arguments(src: &str) -> bool {
         ObjectBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   { ...a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   { a }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   { a, ...b }" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).object_binding_pattern().location()
     }
 }
 
@@ -1473,6 +1492,14 @@ mod array_binding_pattern {
     #[test_case("[a,,...b]" => false; "List Elision Rest (none)")]
     fn contains_arguments(src: &str) -> bool {
         ArrayBindingPattern::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   []" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "empty")]
+    #[test_case("   [ ...a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "rest only")]
+    #[test_case("   [ a ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list only")]
+    #[test_case("   [ a, ...b ]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 11 } }; "list/rest")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).array_binding_pattern().location()
     }
 }
 
@@ -2108,6 +2135,13 @@ mod binding_element {
     fn contains_arguments(src: &str) -> bool {
         BindingElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   {x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "pattern without initializer")]
+    #[test_case("   {x}=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "pattern plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_element().location()
+    }
 }
 
 // SINGLE NAME BINDING
@@ -2204,6 +2238,12 @@ mod single_name_binding {
     #[test_case("a=b" => false; "izer (no)")]
     fn contains_arguments(src: &str) -> bool {
         SingleNameBinding::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "single name")]
+    #[test_case("   x=p" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "nam plus initializer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).single_name_binding().location()
     }
 }
 
@@ -2304,5 +2344,11 @@ mod binding_rest_element {
     #[test_case("...{a}" => false; "pattern (no)")]
     fn contains_arguments(src: &str) -> bool {
         BindingRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("   ...x" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "id")]
+    #[test_case("   ...{x}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).binding_rest_element().location()
     }
 }
