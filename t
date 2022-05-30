@@ -154,6 +154,8 @@ case $1 in
   BindingElement) data=($1 binding_element parser::declarations_and_variables) ;;
   SingleNameBinding) data=($1 single_name_binding parser::declarations_and_variables) ;;
   BindingRestElement) data=($1 binding_rest_element parser::declarations_and_variables) ;;
+  EmptyStatement) data=($1 empty_statement parser::empty_statement) ;;
+  EqualityExpression) data=($1 equality_expression parser::equality_operators) ;;
 
   *) echo "No type called $1"; exit ;;
 esac
